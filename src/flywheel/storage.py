@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from flywheel.todo import Todo
@@ -62,8 +63,34 @@ class Storage:
             raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
-        """Save todos to file."""
-        self.path.write_text(json.dumps([t.to_dict() for t in self._todos], indent=2))
+        """Save todos to file using atomic write."""
+        import tempfile
+
+        data = json.dumps([t.to_dict() for t in self._todos], indent=2)
+
+        # Write to temporary file first
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=self.path.name + ".",
+            suffix=".tmp"
+        )
+
+        try:
+            # Write data to temp file
+            with open(fd, 'w') as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+
+            # Atomically replace the original file
+            Path(temp_path).replace(self.path)
+        except Exception:
+            # Clean up temp file on error
+            try:
+                Path(temp_path).unlink()
+            except Exception:
+                pass
+            raise
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo."""
