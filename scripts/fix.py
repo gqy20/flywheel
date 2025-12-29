@@ -279,11 +279,13 @@ class AutoFixer:
 
 请提供修复后的代码，确保相关测试能够通过。
 
+**重要**：confidence 必须是纯数字（0-100），不要加 % 符号。
+
 以 JSON 格式返回：
 {{
     "fixed_code": "修复后的完整代码",
     "explanation": "修复说明",
-    "confidence": 置信度 0-100
+    "confidence": 60
 }}
 """
 
@@ -291,11 +293,25 @@ class AutoFixer:
         result = self._parse_json_response(response, f"issue #{number}")
 
         if result:
+            # Parse confidence value (handle various formats)
+            raw_confidence = result.get("confidence", 50)
+            confidence = 50  # default if parsing fails
+
+            if isinstance(raw_confidence, int | float):
+                confidence = int(raw_confidence)
+            elif isinstance(raw_confidence, str):
+                # Extract number from string like "60%", "60", "中"
+                match = re.search(r"\d+", raw_confidence)
+                if match:
+                    confidence = int(match.group())
+
+            logger.info(f"AI confidence for issue #{number}: {confidence} (raw: {raw_confidence})")
+
             return {
                 "file": file_path,
                 "content": result.get("fixed_code", ""),
                 "explanation": result.get("explanation", ""),
-                "confidence": result.get("confidence", 0),
+                "confidence": confidence,
             }
         return None
 
