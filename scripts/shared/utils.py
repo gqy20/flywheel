@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ def get_issues(
         cmd.extend(["--label", ",".join(labels)])
 
     result = run_gh_command(cmd)
-    return json.loads(result.stdout)
+    return cast(list[dict], json.loads(result.stdout))
 
 
 def update_issue_labels(issue_number: int, labels: list[str]) -> None:
@@ -179,7 +180,7 @@ def get_file_content(filepath: str) -> str:
         File content
     """
     result = run_gh_command(["view", filepath])
-    return result.stdout
+    return cast(str, result.stdout)
 
 
 def commit_changes(
