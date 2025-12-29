@@ -23,14 +23,8 @@ def test_concurrent_add_should_not_conflict():
         def add_todo(title: str):
             """Helper function to add a todo in a thread."""
             try:
-                # Simulate race condition by calling get_next_id separately
-                # This is the problematic pattern that causes ID conflicts
-                todo_id = storage.get_next_id()
-                # Small delay to increase chance of race condition
-                import time
-                time.sleep(0.001)
-                # Now create and add the todo with the pre-obtained ID
-                todo = Todo(id=todo_id, title=title, status="pending")
+                # Create todo without ID - let add() generate it atomically
+                todo = Todo(id=None, title=title, status="pending")
                 result = storage.add(todo)
                 with lock:
                     added_todos.append(result)

@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 
 from flywheel.todo import Todo
@@ -17,6 +18,7 @@ class Storage:
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._todos: list[Todo] = []
+        self._lock = threading.Lock()  # Thread safety lock
         self._load()
 
     def _load(self) -> None:
@@ -129,13 +131,20 @@ class Storage:
             raise
 
     def add(self, todo: Todo) -> Todo:
-        """Add a new todo."""
-        # Create a copy of todos list with the new todo
-        new_todos = self._todos + [todo]
-        # Try to save first, only update memory if save succeeds
-        self._save_with_todos(new_todos)
-        self._todos = new_todos
-        return todo
+        """Add a new todo with atomic ID generation."""
+        with self._lock:
+            # If todo doesn't have an ID, generate one atomically
+            if todo.id is None:
+                todo_id = self.get_next_id()
+                # Create a new todo with the generated ID
+                todo = Todo(id=todo_id, title=todo.title, status=todo.status)
+
+            # Create a copy of todos list with the new todo
+            new_todos = self._todos + [todo]
+            # Try to save first, only update memory if save succeeds
+            self._save_with_todos(new_todos)
+            self._todos = new_todos
+            return todo
 
     def list(self, status: str | None = None) -> list[Todo]:
         """List all todos."""
@@ -152,28 +161,30 @@ class Storage:
 
     def update(self, todo: Todo) -> Todo | None:
         """Update a todo."""
-        for i, t in enumerate(self._todos):
-            if t.id == todo.id:
-                # Create a copy of todos list with the updated todo
-                new_todos = self._todos.copy()
-                new_todos[i] = todo
-                # Try to save first, only update memory if save succeeds
-                self._save_with_todos(new_todos)
-                self._todos = new_todos
-                return todo
-        return None
+        with self._lock:
+            for i, t in enumerate(self._todos):
+                if t.id == todo.id:
+                    # Create a copy of todos list with the updated todo
+                    new_todos = self._todos.copy()
+                    new_todos[i] = todo
+                    # Try to save first, only update memory if save succeeds
+                    self._save_with_todos(new_todos)
+                    self._todos = new_todos
+                    return todo
+            return None
 
     def delete(self, todo_id: int) -> bool:
         """Delete a todo."""
-        for i, t in enumerate(self._todos):
-            if t.id == todo_id:
-                # Create a copy of todos list without the deleted todo
-                new_todos = self._todos[:i] + self._todos[i+1:]
-                # Try to save first, only update memory if save succeeds
-                self._save_with_todos(new_todos)
-                self._todos = new_todos
-                return True
-        return False
+        with self._lock:
+            for i, t in enumerate(self._todos):
+                if t.id == todo_id:
+                    # Create a copy of todos list without the deleted todo
+                    new_todos = self._todos[:i] + self._todos[i+1:]
+                    # Try to save first, only update memory if save succeeds
+                    self._save_with_todos(new_todos)
+                    self._todos = new_todos
+                    return True
+            return False
 
     def get_next_id(self) -> int:
         """Get next available ID."""

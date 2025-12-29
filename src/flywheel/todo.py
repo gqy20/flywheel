@@ -25,7 +25,7 @@ class Status(str, Enum):
 class Todo:
     """A todo item."""
 
-    id: int
+    id: int | None
     title: str
     description: str = ""
     status: Status = Status.TODO
