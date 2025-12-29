@@ -18,6 +18,7 @@ class Storage:
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._todos: list[Todo] = []
+        self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.Lock()  # Thread safety lock
         self._load()
 
@@ -26,17 +27,30 @@ class Storage:
         with self._lock:
             if not self.path.exists():
                 self._todos = []
+                self._next_id = 1
                 return
 
             try:
-                data = json.loads(self.path.read_text())
-                if not isinstance(data, list):
-                    logger.warning(f"Invalid data format in {self.path}: expected list, got {type(data).__name__}")
+                raw_data = json.loads(self.path.read_text())
+
+                # Handle both new format (dict with metadata) and old format (list)
+                if isinstance(raw_data, dict):
+                    # New format with metadata
+                    todos_data = raw_data.get("todos", [])
+                    self._next_id = raw_data.get("next_id", 1)
+                elif isinstance(raw_data, list):
+                    # Old format - backward compatibility
+                    todos_data = raw_data
+                    # Calculate next_id from existing todos
+                    self._next_id = max((t.id for t in [Todo.from_dict(item) for item in raw_data if isinstance(item, dict)]), default=0) + 1
+                else:
+                    logger.warning(f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}")
                     self._todos = []
+                    self._next_id = 1
                     return
 
                 todos = []
-                for i, item in enumerate(data):
+                for i, item in enumerate(todos_data):
                     try:
                         todo = Todo.from_dict(item)
                         todos.append(todo)
@@ -69,7 +83,11 @@ class Storage:
         """Save todos to file using atomic write."""
         import tempfile
 
-        data = json.dumps([t.to_dict() for t in self._todos], indent=2)
+        # Save with metadata for efficient ID generation
+        data = json.dumps({
+            "todos": [t.to_dict() for t in self._todos],
+            "next_id": self._next_id
+        }, indent=2)
 
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
@@ -122,7 +140,11 @@ class Storage:
         """Save specified todos to file using atomic write."""
         import tempfile
 
-        data = json.dumps([t.to_dict() for t in todos], indent=2)
+        # Save with metadata for efficient ID generation
+        data = json.dumps({
+            "todos": [t.to_dict() for t in todos],
+            "next_id": self._next_id
+        }, indent=2)
 
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
@@ -181,11 +203,9 @@ class Storage:
             # If todo doesn't have an ID, generate one atomically
             # Inline the ID generation logic to ensure atomicity with insertion
             if todo_id is None:
-                # Calculate next ID directly within the lock to prevent race conditions
-                if not self._todos:
-                    todo_id = 1
-                else:
-                    todo_id = max(t.id for t in self._todos) + 1
+                # Use _next_id for O(1) ID generation instead of max() which is O(N)
+                todo_id = self._next_id
+                self._next_id += 1  # Increment counter for next use
                 # Create a new todo with the generated ID
                 todo = Todo(id=todo_id, title=todo.title, status=todo.status)
             else:
@@ -195,6 +215,9 @@ class Storage:
                     # Todo with this ID already exists, this might be an error
                     # Return the existing todo to indicate it's already been added
                     return existing
+                # Update _next_id if the provided ID is >= current _next_id
+                if todo_id >= self._next_id:
+                    self._next_id = todo_id + 1
 
             # Create a copy of todos list with the new todo
             new_todos = self._todos + [todo]
@@ -246,6 +269,4 @@ class Storage:
 
     def get_next_id(self) -> int:
         """Get next available ID."""
-        if not self._todos:
-            return 1
-        return max(t.id for t in self._todos) + 1
+        return self._next_id
