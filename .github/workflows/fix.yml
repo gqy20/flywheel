@@ -32,9 +32,26 @@ jobs:
         run: uv sync
 
       - name: Install Claude CLI
+        shell: bash
         run: |
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          CLAUDE_CODE_VERSION="2.0.76"
+          echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
+          for attempt in 1 2 3; do
+            echo "Installation attempt $attempt..."
+            if command -v timeout &> /dev/null; then
+              timeout 120 bash -c "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION" && break
+            else
+              curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_CODE_VERSION" && break
+            fi
+            if [ $attempt -eq 3 ]; then
+              echo "Failed to install Claude Code after 3 attempts"
+              exit 1
+            fi
+            echo "Installation failed, retrying..."
+            sleep 5
+          done
+          echo "Claude Code installed successfully"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Configure git
         run: |
