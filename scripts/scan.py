@@ -22,6 +22,8 @@ TYPE_TO_PRIORITY = {
     "Test": "p2",
     "Refactor": "p2",
     "Docs": "p3",
+    "Feature": "p2",  # 功能增强通常为中优先级
+    "Enhancement": "p2",  # 改进建议
 }
 
 
@@ -59,32 +61,65 @@ class Scanner:
 
         return issues
 
+    def scan_opportunities(self, filepath: str) -> list[dict]:
+        """Scan a single file for enhancement opportunities.
+
+        Args:
+            filepath: Path to file
+
+        Returns:
+            List of found opportunities
+        """
+        try:
+            content = Path(filepath).read_text()
+        except Exception as e:
+            logger.warning(f"Failed to read {filepath}: {e}")
+            return []
+
+        logger.info(f"Scanning opportunities in {filepath} ({len(content)} chars)")
+
+        opportunities = self.client.analyze_opportunities(content, filepath)
+        logger.info(f"Found {len(opportunities)} opportunities in {filepath}")
+
+        # Add filepath to each opportunity
+        for opp in opportunities:
+            if not opp.get("file"):
+                opp["file"] = filepath
+
+        return opportunities
+
     def scan_directory(self, directory: str, patterns: list[str] | None = None) -> list[dict]:
-        """Scan directory for issues.
+        """Scan directory for issues and opportunities.
 
         Args:
             directory: Directory to scan
             patterns: File patterns to include (default: *.py)
 
         Returns:
-            List of all found issues
+            Tuple of (problems list, opportunities list)
         """
         if patterns is None:
             patterns = ["*.py"]
 
-        all_issues = []
+        all_problems = []
+        all_opportunities = []
         base_path = Path(directory)
 
         for pattern in patterns:
             for filepath in base_path.rglob(pattern):
                 if self.created >= self.max_issues:
                     logger.info(f"Reached max issues limit: {self.max_issues}")
-                    return all_issues
+                    return all_problems, all_opportunities
 
-                issues = self.scan_file(str(filepath))
-                all_issues.extend(issues)
+                # Scan for problems
+                problems = self.scan_file(str(filepath))
+                all_problems.extend(problems)
 
-        return all_issues
+                # Scan for opportunities
+                opportunities = self.scan_opportunities(str(filepath))
+                all_opportunities.extend(opportunities)
+
+        return all_problems, all_opportunities
 
     def deduplicate_issues(self, issues: list[dict]) -> list[dict]:
         """Remove duplicate issues.
@@ -251,6 +286,26 @@ class Scanner:
 ---
 *AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
 """
+        elif issue_type in ["feature", "enhancement"]:
+            # Feature/Enhancement 专用模板格式
+            body = f"""**功能描述**
+{issue["description"]}
+
+**价值**
+{issue.get("value", "改进用户体验或开发效率")}
+
+**涉及文件**
+`{issue["file"]}`
+
+**实现建议**
+{issue.get("suggestion", "待补充实现细节")}
+
+**优先级**
+{priority.upper()}
+
+---
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+"""
         else:
             # Docs/Other 模板格式
             body = f"""**描述**
@@ -277,27 +332,50 @@ class Scanner:
         """
         logger.info(f"Starting scan of {directory}")
 
-        # Scan for issues
-        issues = self.scan_directory(directory)
-        logger.info(f"Found {len(issues)} total issues")
+        # Scan for both problems and opportunities
+        problems, opportunities = self.scan_directory(directory)
+        logger.info(f"Found {len(problems)} problems and {len(opportunities)} opportunities")
 
-        # Deduplicate
-        issues = self.deduplicate_issues(issues)
-        logger.info(f"After deduplication: {len(issues)} issues")
+        # Deduplicate separately
+        problems = self.deduplicate_issues(problems)
+        opportunities = self.deduplicate_issues(opportunities)
+        logger.info(f"After deduplication: {len(problems)} problems, {len(opportunities)} opportunities")
 
-        # Filter existing
-        issues = self.filter_existing_issues(issues)
-        logger.info(f"New issues: {len(issues)}")
+        # Filter existing issues
+        problems = self.filter_existing_issues(problems)
+        opportunities = self.filter_existing_issues(opportunities)
+        logger.info(f"New problems: {len(problems)}, new opportunities: {len(opportunities)}")
 
-        if not issues:
+        # Balance distribution: 3 problems + 2 opportunities
+        selected_issues = []
+        max_problems = 3
+        max_opportunities = 2
+
+        # Add problems (priority-sorted)
+        problems_with_priority = []
+        for p in problems:
+            priority = self.get_priority_for_type(p.get("type", ""))
+            p["severity"] = priority
+            problems_with_priority.append((priority, p))
+        # Sort by priority (p0 first)
+        problems_with_priority.sort(key=lambda x: ["p0", "p1", "p2", "p3"].index(x[0]))
+        for _, p in problems_with_priority[:max_problems]:
+            selected_issues.append(p)
+
+        # Add opportunities
+        for opp in opportunities[:max_opportunities]:
+            priority = self.get_priority_for_type(opp.get("type", ""))
+            opp["severity"] = priority
+            selected_issues.append(opp)
+
+        if not selected_issues:
             logger.info("No new issues to create")
             return
 
-        # Ensure diverse distribution across priorities
-        issues = self.ensure_diverse_distribution(issues)
+        logger.info(f"Selected {len(selected_issues)} issues for creation")
 
         # Create issues
-        for issue in issues:
+        for issue in selected_issues:
             if self.created >= self.max_issues:
                 break
 
@@ -305,7 +383,8 @@ class Scanner:
                 issue_number = self.create_issue_from_data(issue)
                 self.created += 1
                 priority = issue.get("severity", "p2")
-                logger.info(f"Created #{issue_number} [{priority}] - {issue.get('description', '')[:50]}")
+                issue_type = issue.get("type", "")
+                logger.info(f"Created #{issue_number} [{issue_type}/{priority}] - {issue.get('description', '')[:50]}")
             except Exception as e:
                 logger.error(f"Failed to create issue: {e}")
 
