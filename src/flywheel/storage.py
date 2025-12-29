@@ -200,6 +200,14 @@ class Storage:
             # Even if another thread modifies todo.id after this check, we use the captured value
             todo_id = todo.id
 
+            # Check for duplicate ID FIRST, before any other logic
+            # This prevents race conditions when todo.id is set externally
+            if todo_id is not None:
+                existing = self.get(todo_id)
+                if existing is not None:
+                    # Todo with this ID already exists, return the existing todo
+                    return existing
+
             # If todo doesn't have an ID, generate one atomically
             # Inline the ID generation logic to ensure atomicity with insertion
             if todo_id is None:
@@ -209,12 +217,7 @@ class Storage:
                 # Create a new todo with the generated ID
                 todo = Todo(id=todo_id, title=todo.title, status=todo.status)
             else:
-                # Todo already has an ID, check if it exists in storage
-                existing = self.get(todo_id)
-                if existing is not None:
-                    # Todo with this ID already exists, this might be an error
-                    # Return the existing todo to indicate it's already been added
-                    return existing
+                # Todo has an external ID, update _next_id if needed
                 # Update _next_id if the provided ID is >= current _next_id
                 if todo_id >= self._next_id:
                     self._next_id = todo_id + 1
