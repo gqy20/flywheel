@@ -3,9 +3,9 @@
 import logging
 import os
 import sys
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -32,7 +32,7 @@ class Scanner:
 
     def __init__(self) -> None:
         self.client = ClaudeClient()
-        self.max_issues = int(os.getenv("MAX_ISSUES", "5"))
+        self.max_issues = int(os.getenv("MAX_ISSUES", "3"))
         self.created = 0
 
     def scan_file(self, filepath: str) -> list[dict]:
@@ -262,7 +262,7 @@ class Scanner:
 {issue.get("suggestion", "待 AI 生成")}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
 """
         elif issue_type in ["perf", "refactor", "test"]:
             # Feature/Improvement 模板格式
@@ -284,7 +284,7 @@ class Scanner:
 {priority.upper()}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
 """
         elif issue_type in ["feature", "enhancement"]:
             # Feature/Enhancement 专用模板格式
@@ -304,7 +304,7 @@ class Scanner:
 {priority.upper()}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
 """
         else:
             # Docs/Other 模板格式
@@ -318,7 +318,7 @@ class Scanner:
 {issue.get("suggestion", "待补充")}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
 """
 
         labels = [priority]
@@ -339,7 +339,9 @@ class Scanner:
         # Deduplicate separately
         problems = self.deduplicate_issues(problems)
         opportunities = self.deduplicate_issues(opportunities)
-        logger.info(f"After deduplication: {len(problems)} problems, {len(opportunities)} opportunities")
+        logger.info(
+            f"After deduplication: {len(problems)} problems, {len(opportunities)} opportunities"
+        )
 
         # Filter existing issues
         problems = self.filter_existing_issues(problems)
@@ -384,7 +386,9 @@ class Scanner:
                 self.created += 1
                 priority = issue.get("severity", "p2")
                 issue_type = issue.get("type", "")
-                logger.info(f"Created #{issue_number} [{issue_type}/{priority}] - {issue.get('description', '')[:50]}")
+                logger.info(
+                    f"Created #{issue_number} [{issue_type}/{priority}] - {issue.get('description', '')[:50]}"
+                )
             except Exception as e:
                 logger.error(f"Failed to create issue: {e}")
 

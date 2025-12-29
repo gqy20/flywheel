@@ -99,6 +99,9 @@ def fix_issue_with_claude(issue_number: int) -> bool:
     # Preprocess: execute !`cmd` commands and replace with output
     prompt = preprocess_prompt(prompt, issue_number)
 
+    # Replace remaining $1 in prompt (for commit messages, etc.)
+    prompt = prompt.replace("$1", str(issue_number))
+
     cmd = [
         "claude",
         "-p",
