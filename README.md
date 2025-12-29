@@ -81,9 +81,9 @@ todo delete 2
 
 | Workflow | 触发条件 | 功能 |
 |----------|----------|------|
-| `scan.yml` | 每周一 | 扫描 `src/` 代码创建 Issues |
+| `scan.yml` | 每小时 | 扫描 `src/` 代码创建 Issues |
 | `evaluate.yml` | 标签变化 | 重新评估优先级 |
-| `fix.yml` | 每 6 小时 | 自动修复问题 |
+| `fix.yml` | 每 2 小时 | 自动修复问题 |
 
 ## 项目结构
 
@@ -157,6 +157,7 @@ MAX_FIXES=3 CI_TIMEOUT=1800 uv run python scripts/fix.py
 
 | 文档 | 说明 |
 |------|------|
+| [工作流程](./docs/workflow.md) | **TDD 修复流程和 Commit 规范** |
 | [PRD](./docs/prd.md) | 产品需求文档 |
 | [架构设计](./docs/arch.md) | 系统架构和技术方案 |
 | [Claude API](./docs/claude-api.md) | API 集成调研 |

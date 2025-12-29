@@ -2,7 +2,7 @@ name: Scan Issues
 
 on:
   schedule:
-    - cron: '0 0 * * 1'  # Every Monday at 00:00 UTC
+    - cron: '0 * * * *'  # Every hour at minute 0
   workflow_dispatch:
 
 permissions:

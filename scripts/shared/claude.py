@@ -9,8 +9,8 @@ from anthropic import Anthropic, APIError, RateLimitError
 logger = logging.getLogger(__name__)
 
 # 模型配置
-DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
-FAST_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_MODEL = os.getenv("ANTHROPIC_MODEL", "glm-4.7")
+FAST_MODEL = os.getenv("ANTHROPIC_FAST_MODEL", "glm-4.7")
 
 # 优先级映射
 PRIORITY_MAP = {
@@ -38,7 +38,13 @@ class ClaudeClient:
         if not self.api_key:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required")
 
-        self.client = Anthropic(api_key=self.api_key)
+        # 支持自定义 base_url
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            self.client = Anthropic(api_key=self.api_key, base_url=base_url)
+        else:
+            self.client = Anthropic(api_key=self.api_key)
+
         self.model = model
         self.max_retries = 3
 
