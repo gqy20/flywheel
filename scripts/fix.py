@@ -528,8 +528,11 @@ Closes #{issue_number}
             revert_sha = revert_commit(commit_sha)
             push(force=True)
 
+            # Mark issue as failed to prevent retry loops
+            self._mark_issue_failed(issue, "ci_failed")
+
             # Reopen issue with detailed comment
-            rollback_comment = f"""## ⚠️ CI 失败 - 修复已回滚
+            rollback_comment = rf"""## ⚠️ CI 失败 - 修复已回滚
 
 **回滚信息**
 - 失败提交: `{commit_sha[:8]}`
@@ -537,7 +540,8 @@ Closes #{issue_number}
 - 回滚时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 **下一步**
-- Issue 已重新开放，需要人工检查
+- Issue 已标记为 \`auto-fix-failed\`
+- 使用 \`gh issue edit {issue_number} --remove-label "auto-fix-failed"\` 来重试
 - 优先级已降低，等待进一步处理
 
 ---
