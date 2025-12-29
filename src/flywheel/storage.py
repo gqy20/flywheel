@@ -33,10 +33,7 @@ class Storage:
 
     def _save(self) -> None:
         """Save todos to file."""
-        try:
-            self.path.write_text(json.dumps([t.to_dict() for t in self._todos], indent=2))
-        except Exception as e:
-            logger.error(f"Failed to save todos: {e}")
+        self.path.write_text(json.dumps([t.to_dict() for t in self._todos], indent=2))
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo."""
