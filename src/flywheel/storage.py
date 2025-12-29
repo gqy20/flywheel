@@ -179,8 +179,13 @@ class Storage:
             todo_id = todo.id
 
             # If todo doesn't have an ID, generate one atomically
+            # Inline the ID generation logic to ensure atomicity with insertion
             if todo_id is None:
-                todo_id = self.get_next_id()
+                # Calculate next ID directly within the lock to prevent race conditions
+                if not self._todos:
+                    todo_id = 1
+                else:
+                    todo_id = max(t.id for t in self._todos) + 1
                 # Create a new todo with the generated ID
                 todo = Todo(id=todo_id, title=todo.title, status=todo.status)
             else:
