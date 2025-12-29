@@ -53,12 +53,27 @@ def fix_issue_with_claude(issue_number: int) -> bool:
 
     logger.info(f"Running: {' '.join(cmd)}")
 
+    # Prepare environment with API key
+    env = os.environ.copy()
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if api_key:
+        env["ANTHROPIC_API_KEY"] = api_key
+    base_url = os.getenv("ANTHROPIC_BASE_URL")
+    if base_url:
+        env["ANTHROPIC_BASE_URL"] = base_url
+
     result = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
         timeout=600,  # 10 minutes
+        env=env,
     )
+
+    # Log output for debugging
+    logger.info(f"stdout: {result.stdout[:500]}")
+    if result.stderr:
+        logger.warning(f"stderr: {result.stderr[:500]}")
 
     if result.returncode == 0:
         logger.info(f"Issue #{issue_number} fixed successfully")
