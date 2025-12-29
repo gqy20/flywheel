@@ -81,21 +81,22 @@ class Storage:
             # Write data directly to file descriptor to avoid duplication
             os.write(fd, data.encode('utf-8'))
             os.fsync(fd)  # Ensure data is written to disk
-            os.close(fd)  # Close the file descriptor
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
             try:
-                os.close(fd)  # Ensure fd is closed on error
-            except Exception:
-                pass
-            try:
                 Path(temp_path).unlink()
             except Exception:
                 pass
             raise
+        finally:
+            # Ensure fd is always closed exactly once
+            try:
+                os.close(fd)
+            except Exception:
+                pass
 
     def _save_with_todos(self, todos: list[Todo]) -> None:
         """Save specified todos to file using atomic write."""
@@ -114,21 +115,22 @@ class Storage:
             # Write data directly to file descriptor to avoid duplication
             os.write(fd, data.encode('utf-8'))
             os.fsync(fd)  # Ensure data is written to disk
-            os.close(fd)  # Close the file descriptor
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
             try:
-                os.close(fd)  # Ensure fd is closed on error
-            except Exception:
-                pass
-            try:
                 Path(temp_path).unlink()
             except Exception:
                 pass
             raise
+        finally:
+            # Ensure fd is always closed exactly once
+            try:
+                os.close(fd)
+            except Exception:
+                pass
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo with atomic ID generation."""
