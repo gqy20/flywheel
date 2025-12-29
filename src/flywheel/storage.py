@@ -41,11 +41,25 @@ class Storage:
                     logger.warning(f"Skipping invalid todo at index {i}: {e}")
             self._todos = todos
         except json.JSONDecodeError as e:
-            logger.warning(f"Invalid JSON in {self.path}: {e}")
-            self._todos = []
+            # Create backup before raising exception to prevent data loss
+            backup_path = str(self.path) + ".backup"
+            try:
+                import shutil
+                shutil.copy2(self.path, backup_path)
+                logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
+            except Exception as backup_error:
+                logger.error(f"Failed to create backup: {backup_error}")
+            raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
         except Exception as e:
-            logger.warning(f"Failed to load todos: {e}")
-            self._todos = []
+            # Create backup before raising exception to prevent data loss
+            backup_path = str(self.path) + ".backup"
+            try:
+                import shutil
+                shutil.copy2(self.path, backup_path)
+                logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
+            except Exception as backup_error:
+                logger.error(f"Failed to create backup: {backup_error}")
+            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
         """Save todos to file."""
