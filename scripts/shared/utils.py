@@ -96,18 +96,21 @@ def get_issues(
 
 
 def update_issue_labels(issue_number: int, labels: list[str]) -> None:
-    """Update issue labels.
+    """Update issue labels (replaces all existing labels).
 
     Args:
         issue_number: Issue number
-        labels: List of labels to set
+        labels: List of labels to set (replaces all current labels)
     """
+    # Use GitHub API to replace all labels
+    # gh CLI :owner/:repo placeholders are auto-resolved
     cmd = [
-        "issue",
-        "edit",
-        str(issue_number),
-        "--add-label",
-        ",".join(labels),
+        "api",
+        "--method",
+        "PATCH",
+        f"repos/:owner/:repo/issues/{issue_number}",
+        "-f",
+        f"labels={json.dumps(labels)}",
     ]
 
     run_gh_command(cmd)
@@ -154,13 +157,15 @@ def comment_issue(issue_number: int, comment: str) -> None:
         issue_number: Issue number
         comment: Comment body
     """
-    run_gh_command([
-        "issue",
-        "comment",
-        str(issue_number),
-        "--body",
-        comment,
-    ])
+    run_gh_command(
+        [
+            "issue",
+            "comment",
+            str(issue_number),
+            "--body",
+            comment,
+        ]
+    )
     logger.info(f"Commented on issue #{issue_number}")
 
 
