@@ -26,7 +26,23 @@ class Storage:
 
         try:
             data = json.loads(self.path.read_text())
-            self._todos = [Todo.from_dict(item) for item in data]
+            if not isinstance(data, list):
+                logger.warning(f"Invalid data format in {self.path}: expected list, got {type(data).__name__}")
+                self._todos = []
+                return
+
+            todos = []
+            for i, item in enumerate(data):
+                try:
+                    todo = Todo.from_dict(item)
+                    todos.append(todo)
+                except (ValueError, TypeError, KeyError) as e:
+                    # Skip invalid todo items but continue loading valid ones
+                    logger.warning(f"Skipping invalid todo at index {i}: {e}")
+            self._todos = todos
+        except json.JSONDecodeError as e:
+            logger.warning(f"Invalid JSON in {self.path}: {e}")
+            self._todos = []
         except Exception as e:
             logger.warning(f"Failed to load todos: {e}")
             self._todos = []

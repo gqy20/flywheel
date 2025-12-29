@@ -51,15 +51,75 @@ class Todo:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Todo":
-        """Create from dictionary."""
+        """Create from dictionary with strict validation."""
+        # Validate input is a dictionary
+        if not isinstance(data, dict):
+            raise ValueError(f"Expected dict, got {type(data).__name__}")
+
+        # Validate required fields exist and have correct types
+        if "id" not in data:
+            raise ValueError("Missing required field: 'id'")
+        if "title" not in data:
+            raise ValueError("Missing required field: 'title'")
+
+        # Validate field types
+        if not isinstance(data["id"], int):
+            raise ValueError(f"Field 'id' must be int, got {type(data['id']).__name__}")
+        if not isinstance(data["title"], str):
+            raise ValueError(f"Field 'title' must be str, got {type(data['title']).__name__}")
+
+        # Validate optional field types
+        description = data.get("description", "")
+        if not isinstance(description, str):
+            raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
+
+        # Validate and sanitize enum values with safe defaults
+        status_value = data.get("status", "todo")
+        if not isinstance(status_value, str):
+            raise ValueError(f"Field 'status' must be str, got {type(status_value).__name__}")
+        try:
+            status = Status(status_value)
+        except ValueError:
+            # Use safe default if invalid value provided
+            status = Status.TODO
+
+        priority_value = data.get("priority", "medium")
+        if not isinstance(priority_value, str):
+            raise ValueError(f"Field 'priority' must be str, got {type(priority_value).__name__}")
+        try:
+            priority = Priority(priority_value)
+        except ValueError:
+            # Use safe default if invalid value provided
+            priority = Priority.MEDIUM
+
+        # Validate other optional fields
+        due_date = data.get("due_date")
+        if due_date is not None and not isinstance(due_date, str):
+            raise ValueError(f"Field 'due_date' must be str or None, got {type(due_date).__name__}")
+
+        created_at = data.get("created_at")
+        if created_at is not None and not isinstance(created_at, str):
+            raise ValueError(f"Field 'created_at' must be str or None, got {type(created_at).__name__}")
+
+        completed_at = data.get("completed_at")
+        if completed_at is not None and not isinstance(completed_at, str):
+            raise ValueError(f"Field 'completed_at' must be str or None, got {type(completed_at).__name__}")
+
+        tags = data.get("tags", [])
+        if not isinstance(tags, list):
+            raise ValueError(f"Field 'tags' must be list, got {type(tags).__name__}")
+        # Validate all tags are strings
+        if tags and not all(isinstance(tag, str) for tag in tags):
+            raise ValueError("All items in 'tags' must be str")
+
         return cls(
             id=data["id"],
             title=data["title"],
-            description=data.get("description", ""),
-            status=Status(data.get("status", "todo")),
-            priority=Priority(data.get("priority", "medium")),
-            due_date=data.get("due_date"),
-            created_at=data.get("created_at"),
-            completed_at=data.get("completed_at"),
-            tags=data.get("tags", []),
+            description=description,
+            status=status,
+            priority=priority,
+            due_date=due_date,
+            created_at=created_at,
+            completed_at=completed_at,
+            tags=tags,
         )
