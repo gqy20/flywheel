@@ -211,10 +211,11 @@ class Storage:
 
     def get(self, todo_id: int) -> Todo | None:
         """Get a todo by ID."""
-        for todo in self._todos:
-            if todo.id == todo_id:
-                return todo
-        return None
+        with self._lock:
+            for todo in self._todos:
+                if todo.id == todo_id:
+                    return todo
+            return None
 
     def update(self, todo: Todo) -> Todo | None:
         """Update a todo."""
