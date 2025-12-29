@@ -2,7 +2,7 @@ name: Evaluate Priorities
 
 on:
   schedule:
-    - cron: '15,45 * * * *'  # At minute 15 and 45 (15min after scan)
+    - cron: '15 * * * *'  # At minute 15 (15min after scan)
   workflow_dispatch:
 
 permissions:
