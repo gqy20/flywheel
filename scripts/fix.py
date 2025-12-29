@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Safety configuration
 MAX_FIXES_PER_RUN = int(os.getenv("MAX_FIXES", "3"))
+MAX_TOTAL_COMMITS = int(os.getenv("MAX_TOTAL_COMMITS", "15"))  # 总提交次数限制
 CI_TIMEOUT = int(os.getenv("CI_TIMEOUT", "1800"))
 CIRCUIT_BREAKER_THRESHOLD = 3
 
@@ -70,6 +71,7 @@ class AutoFixer:
         self.client = ClaudeClient()
         self.fixed_count = 0
         self.failed_count = 0
+        self.total_commits = 0  # 总提交次数计数器
         self.max_failures = CIRCUIT_BREAKER_THRESHOLD
 
     def get_next_issue(self) -> dict | None:
@@ -98,14 +100,46 @@ class AutoFixer:
             )
         )
 
-        # Skip frozen issues
+        # Skip frozen and failed issues
         for issue in issues:
-            is_frozen = any(label.get("name", "") == "frozen" for label in issue.get("labels", []))
-            if not is_frozen:
+            labels = [label.get("name", "") for label in issue.get("labels", [])]
+            is_frozen = "frozen" in labels
+            is_failed = "auto-fix-failed" in labels
+            if not is_frozen and not is_failed:
                 return issue
 
-        logger.info("All issues are frozen")
+        logger.info("All issues are frozen or failed")
         return None
+
+    def _check_commit_limit(self) -> bool:
+        """Check if we've reached the commit limit.
+
+        Returns:
+            True if under limit, False if limit reached
+        """
+        if self.total_commits >= MAX_TOTAL_COMMITS:
+            logger.warning(f"Commit limit reached: {self.total_commits}/{MAX_TOTAL_COMMITS}")
+            return False
+        return True
+
+    def _mark_issue_failed(self, issue: dict, reason: str) -> None:
+        """Mark an issue as failed to prevent retry loops.
+
+        Args:
+            issue: Issue dictionary
+            reason: Failure reason
+        """
+        issue_number = issue.get("number", "?")
+        current_labels = [label.get("name", "") for label in issue.get("labels", [])]
+
+        # Add failure label if not present
+        if "auto-fix-failed" not in current_labels:
+            new_labels = current_labels + ["auto-fix-failed"]
+            try:
+                update_issue_labels(issue_number, new_labels)
+                logger.info(f"Marked issue #{issue_number} as failed: {reason}")
+            except Exception as e:
+                logger.error(f"Failed to mark issue #{issue_number}: {e}")
 
     def _extract_file_path(self, issue: dict) -> str | None:
         """Extract file path from issue body.
@@ -661,17 +695,39 @@ Related to: #{issue_number}
         issue_title = issue.get("title", "Unknown")
 
         try:
+            # Check commit limit before starting
+            if not self._check_commit_limit():
+                logger.info("Commit limit reached, stopping")
+                self._mark_issue_failed(issue, "commit_limit")
+                return False
+
             # 🔴 RED Phase: Generate and commit failing test
             logger.info(f"🔴 RED Phase: Generating test for issue #{issue_number}")
             test = self.generate_test(issue)
 
             if not test:
                 logger.warning(f"Failed to generate test for issue #{issue_number}")
+                self._mark_issue_failed(issue, "test_generation_failed")
+                return False
+
+            # Check commit limit before committing test
+            if not self._check_commit_limit():
+                logger.info("Commit limit reached before test commit")
+                self._mark_issue_failed(issue, "commit_limit")
                 return False
 
             # Commit the failing test
             test_commit = self.commit_test(test, issue)
-            logger.info(f"Test committed: {test_commit[:8]}")
+            self.total_commits += 1
+            logger.info(
+                f"Test committed: {test_commit[:8]} (total: {self.total_commits}/{MAX_TOTAL_COMMITS})"
+            )
+
+            # Check commit limit before generating fix
+            if not self._check_commit_limit():
+                logger.info("Commit limit reached after test commit")
+                # Mark as failed but don't mark the issue (we may retry)
+                return False
 
             # 🟢 GREEN Phase: Generate fix
             logger.info(f"🟢 GREEN Phase: Generating fix for issue #{issue_number}")
@@ -679,23 +735,43 @@ Related to: #{issue_number}
 
             if not fix:
                 logger.warning(f"Failed to generate fix for issue #{issue_number}")
+                self._mark_issue_failed(issue, "fix_generation_failed")
                 return False
 
             # Validate fix
             if not self.validate_fix(fix):
                 logger.warning(f"Fix validation failed for issue #{issue_number}")
+                self._mark_issue_failed(issue, "fix_validation_failed")
+                return False
+
+            # Check commit limit before committing fix
+            if not self._check_commit_limit():
+                logger.info("Commit limit reached before fix commit")
+                self._mark_issue_failed(issue, "commit_limit")
                 return False
 
             # Commit the fix
             fix_commit = self.commit_fix(fix, issue)
-            logger.info(f"Fix committed: {fix_commit[:8]}")
+            self.total_commits += 1
+            logger.info(
+                f"Fix committed: {fix_commit[:8]} (total: {self.total_commits}/{MAX_TOTAL_COMMITS})"
+            )
 
             # Run local tests to verify
             if not self.run_tests():
                 logger.warning("Local tests failed, aborting fix")
-                # Rollback the fix commit
+                # Rollback the fix commit (counts as another commit)
+                if not self._check_commit_limit():
+                    logger.warning("Cannot rollback: commit limit reached")
+                    self._mark_issue_failed(issue, "commit_limit")
+                    return False
                 revert_commit(fix_commit)
+                self.total_commits += 1
                 push(force=True)
+                logger.info(
+                    f"Fix reverted: total commits now {self.total_commits}/{MAX_TOTAL_COMMITS}"
+                )
+                self._mark_issue_failed(issue, "local_tests_failed")
                 return False
 
             # Monitor CI and rollback if needed
@@ -703,21 +779,33 @@ Related to: #{issue_number}
 
             if not success:
                 self.failed_count += 1
+                # CI failure may have created revert commit
+                self.total_commits += 1
+                logger.info(
+                    f"CI failed: total commits now {self.total_commits}/{MAX_TOTAL_COMMITS}"
+                )
                 return False
 
             # 📚 DOCS Phase: Update README if this is a feature addition
             if self.should_update_readme(fix, issue):
-                logger.info(f"📚 DOCS Phase: Updating README for issue #{issue_number}")
-                readme_commit = self.update_readme(fix, issue)
-                if readme_commit:
-                    logger.info(f"README updated: {readme_commit[:8]}")
-                    # Push README update
-                    try:
-                        push()
-                    except Exception as e:
-                        logger.warning(f"Failed to push README update: {e}")
+                # Check commit limit before README commit
+                if not self._check_commit_limit():
+                    logger.info("Skipping README update: commit limit reached")
                 else:
-                    logger.info(f"README update skipped for issue #{issue_number}")
+                    logger.info(f"📚 DOCS Phase: Updating README for issue #{issue_number}")
+                    readme_commit = self.update_readme(fix, issue)
+                    if readme_commit:
+                        self.total_commits += 1
+                        logger.info(
+                            f"README updated: {readme_commit[:8]} (total: {self.total_commits}/{MAX_TOTAL_COMMITS})"
+                        )
+                        # Push README update
+                        try:
+                            push()
+                        except Exception as e:
+                            logger.warning(f"Failed to push README update: {e}")
+                    else:
+                        logger.info(f"README update skipped for issue #{issue_number}")
 
             # Close issue with detailed comment
             closing_comment = f"""## ✅ 修复完成
@@ -739,19 +827,26 @@ Related to: #{issue_number}
         except Exception as e:
             logger.error(f"Error fixing issue #{issue_number}: {e}")
             self.failed_count += 1
+            self._mark_issue_failed(issue, f"exception: {str(e)[:100]}")
             return False
 
     def run(self) -> None:
         """Run the auto fixer."""
-        logger.info("Starting auto fixer")
+        logger.info(
+            f"Starting auto fixer (max commits: {MAX_TOTAL_COMMITS}, max fixes: {MAX_FIXES_PER_RUN})"
+        )
 
         while self.fixed_count < MAX_FIXES_PER_RUN:
+            # Check commit limit at the start of each iteration
+            if not self._check_commit_limit():
+                logger.warning(f"Commit limit reached: {self.total_commits}/{MAX_TOTAL_COMMITS}")
+                logger.info("Stopping auto fixer due to commit limit")
+                break
+
             # Check circuit breaker
             if self.failed_count >= self.max_failures:
                 logger.error(f"Circuit breaker triggered: {self.failed_count} failures")
-                logger.info("Use 'gh issue edit --remove-label frozen' to unfreeze")
-                # Add frozen label to stop further fixes
-                # (This would require updating all issues, skip for now)
+                logger.info("Use 'gh issue edit --remove-label auto-fix-failed' to retry")
                 break
 
             # Get next issue
@@ -763,7 +858,12 @@ Related to: #{issue_number}
             # Fix the issue
             self.fix_issue(issue)
 
-        logger.info(f"Auto fixer complete: {self.fixed_count} fixed, {self.failed_count} failed")
+        logger.info(
+            f"Auto fixer complete: "
+            f"{self.fixed_count} fixed, "
+            f"{self.failed_count} failed, "
+            f"{self.total_commits} total commits"
+        )
 
 
 def main():
