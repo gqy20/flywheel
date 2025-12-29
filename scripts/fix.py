@@ -7,13 +7,13 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 from shared.claude import ClaudeClient
 from shared.utils import (
     close_issue,
-    comment_issue,
     commit_changes,
     get_ci_status,
     get_issues,
@@ -118,11 +118,18 @@ class AutoFixer:
         """
         body = issue.get("body", "")
         for line in body.split("\n"):
-            if line.startswith("- **文件**:") or line.startswith("- **File**:"):
+            # Support multiple formats:
+            # - - **文件**:`path` (with bold)
+            # - - 文件:`path` (without bold, current scan format)
+            # - - **File**:`path` (English)
+            if "文件:" in line or "File:" in line:
                 try:
-                    file_path = line.split("`")[1].strip()
-                    return file_path
-                except IndexError:
+                    # Extract content between backticks
+                    file_path = cast(str, line.split("`")[1].strip())
+                    # Validate it looks like a file path
+                    if "/" in file_path or file_path.endswith(".py"):
+                        return file_path
+                except (IndexError, AttributeError):
                     continue
         return None
 
@@ -159,7 +166,7 @@ class AutoFixer:
             return None
 
         try:
-            return json.loads(json_match.group())
+            return cast(dict[str, Any], json.loads(json_match.group()))
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON: {e}")
             return None
@@ -215,7 +222,7 @@ class AutoFixer:
 
 以 JSON 格式返回：
 {{
-    "test_file": "tests/test_{module}.py",
+    "test_file": "tests/test_{module_name}.py",
     "test_code": "完整的测试代码",
     "description": "测试说明"
 }}
@@ -477,7 +484,7 @@ Closes #{issue_number}
 **回滚信息**
 - 失败提交: `{commit_sha[:8]}`
 - 回滚提交: `{revert_sha[:8]}`
-- 回滚时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+- 回滚时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 
 **下一步**
 - Issue 已重新开放，需要人工检查
@@ -559,9 +566,9 @@ Closes #{issue_number}
 根据以下代码修复，更新 README.md 中的使用示例部分。
 
 问题描述：{issue_title}
-详情：{issue.get('body', '')}
+详情：{issue.get("body", "")}
 
-修改的文件：{fix.get('file')}
+修改的文件：{fix.get("file")}
 
 当前 README 内容：
 ```markdown
@@ -596,7 +603,7 @@ Closes #{issue_number}
 
         commit_message = f"""docs: 更新 README 使用示例 ({short_desc}) (#{issue_number})
 
-{chr(10).join(result.get('changes', []))}
+{chr(10).join(result.get("changes", []))}
 
 📚 文档同步 - 新功能使用说明
 
@@ -701,13 +708,13 @@ Related to: #{issue_number}
 
 **修复信息**
 - 提交: `{fix_commit[:8]}`
-- 完成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+- 完成时间: {datetime.now().strftime("%Y-%m-%d %H:%M")}
 
 **修复说明**
-{fix.get('explanation', '见提交详情')}
+{fix.get("explanation", "见提交详情")}
 
 ---
-*AI Flywheel 自动修复 • {self.client.model} • 置信度: {fix.get('confidence', 0)}%*
+*AI Flywheel 自动修复 • {self.client.model} • 置信度: {fix.get("confidence", 0)}%*
 """
             close_issue(issue_number, closing_comment)
             self.fixed_count += 1
