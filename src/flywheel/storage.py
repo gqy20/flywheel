@@ -79,7 +79,14 @@ class Storage:
 
         try:
             # Write data directly to file descriptor to avoid duplication
-            os.write(fd, data.encode('utf-8'))
+            # Use a loop to handle partial writes
+            data_bytes = data.encode('utf-8')
+            total_written = 0
+            while total_written < len(data_bytes):
+                written = os.write(fd, data_bytes[total_written:])
+                if written == 0:
+                    raise OSError("Write returned 0 bytes - disk full?")
+                total_written += written
             os.fsync(fd)  # Ensure data is written to disk
 
             # Close fd before replacing file to avoid issues on Windows
@@ -125,7 +132,14 @@ class Storage:
 
         try:
             # Write data directly to file descriptor to avoid duplication
-            os.write(fd, data.encode('utf-8'))
+            # Use a loop to handle partial writes
+            data_bytes = data.encode('utf-8')
+            total_written = 0
+            while total_written < len(data_bytes):
+                written = os.write(fd, data_bytes[total_written:])
+                if written == 0:
+                    raise OSError("Write returned 0 bytes - disk full?")
+                total_written += written
             os.fsync(fd)  # Ensure data is written to disk
 
             # Close fd before replacing file to avoid issues on Windows
