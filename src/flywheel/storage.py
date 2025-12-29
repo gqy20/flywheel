@@ -173,11 +173,22 @@ class Storage:
     def add(self, todo: Todo) -> Todo:
         """Add a new todo with atomic ID generation."""
         with self._lock:
+            # Capture the ID from the todo atomically to prevent race conditions
+            # Even if another thread modifies todo.id after this check, we use the captured value
+            todo_id = todo.id
+
             # If todo doesn't have an ID, generate one atomically
-            if todo.id is None:
+            if todo_id is None:
                 todo_id = self.get_next_id()
                 # Create a new todo with the generated ID
                 todo = Todo(id=todo_id, title=todo.title, status=todo.status)
+            else:
+                # Todo already has an ID, check if it exists in storage
+                existing = self.get(todo_id)
+                if existing is not None:
+                    # Todo with this ID already exists, this might be an error
+                    # Return the existing todo to indicate it's already been added
+                    return existing
 
             # Create a copy of todos list with the new todo
             new_todos = self._todos + [todo]
