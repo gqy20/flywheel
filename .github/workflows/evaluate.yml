@@ -3,8 +3,6 @@ name: Evaluate Priorities
 on:
   schedule:
     - cron: '15,45 * * * *'  # At minute 15 and 45 (15min after scan)
-  issues:
-    types: [labeled, unlabeled, edited]
   workflow_dispatch:
 
 permissions:
