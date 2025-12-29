@@ -34,7 +34,7 @@ jobs:
       - name: Install Claude CLI
         run: |
           curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.claude/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Configure git
         run: |
