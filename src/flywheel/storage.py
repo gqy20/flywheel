@@ -92,10 +92,43 @@ class Storage:
                 pass
             raise
 
+    def _save_with_todos(self, todos: list[Todo]) -> None:
+        """Save specified todos to file using atomic write."""
+        import tempfile
+
+        data = json.dumps([t.to_dict() for t in todos], indent=2)
+
+        # Write to temporary file first
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=self.path.name + ".",
+            suffix=".tmp"
+        )
+
+        try:
+            # Write data to temp file
+            with open(fd, 'w') as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+
+            # Atomically replace the original file
+            Path(temp_path).replace(self.path)
+        except Exception:
+            # Clean up temp file on error
+            try:
+                Path(temp_path).unlink()
+            except Exception:
+                pass
+            raise
+
     def add(self, todo: Todo) -> Todo:
         """Add a new todo."""
-        self._todos.append(todo)
-        self._save()
+        # Create a copy of todos list with the new todo
+        new_todos = self._todos + [todo]
+        # Try to save first, only update memory if save succeeds
+        self._save_with_todos(new_todos)
+        self._todos = new_todos
         return todo
 
     def list(self, status: str | None = None) -> list[Todo]:
@@ -115,8 +148,12 @@ class Storage:
         """Update a todo."""
         for i, t in enumerate(self._todos):
             if t.id == todo.id:
-                self._todos[i] = todo
-                self._save()
+                # Create a copy of todos list with the updated todo
+                new_todos = self._todos.copy()
+                new_todos[i] = todo
+                # Try to save first, only update memory if save succeeds
+                self._save_with_todos(new_todos)
+                self._todos = new_todos
                 return todo
         return None
 
@@ -124,8 +161,11 @@ class Storage:
         """Delete a todo."""
         for i, t in enumerate(self._todos):
             if t.id == todo_id:
-                del self._todos[i]
-                self._save()
+                # Create a copy of todos list without the deleted todo
+                new_todos = self._todos[:i] + self._todos[i+1:]
+                # Try to save first, only update memory if save succeeds
+                self._save_with_todos(new_todos)
+                self._todos = new_todos
                 return True
         return False
 
