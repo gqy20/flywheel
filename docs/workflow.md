@@ -44,13 +44,21 @@ AI 编程飞轮是一个基于 GitHub Actions + Claude API 的自动化开发系
    │   - Security：安全隐患、输入验证
    │   - Perf：性能问题、算法优化
    │
-4. 创建 GitHub Issue，包含：
-   │   - 标题：[类型] 简短描述
-   │   - 问题描述
-   │   - 影响范围（文件路径、函数名）
-   │   - 建议修复方案
+4. 简单分类（初步优先级）：
+   │   Security → p0
+   │   Bug → p1
+   │   Perf → p1
+   │   Test → p2
+   │   Refactor → p2
+   │   Docs → p3
    │
-5. 自动打标签：p0, p1, p2, p3
+5. 分层分布（每个优先级最多2个）：
+   │   确保多样性：p0/p1/p2/p3 都有分布
+   │   示例：1个p0 + 2个p1 + 1个p2 + 1个p3
+   │
+6. 创建 GitHub Issue
+   │
+7. Evaluate 阶段会精细调整优先级
 ```
 
 ### Issue 格式示例

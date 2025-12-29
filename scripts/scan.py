@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from collections import defaultdict
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -12,6 +13,16 @@ from shared.claude import ClaudeClient
 from shared.utils import create_issue, get_issues, setup_logging
 
 logger = logging.getLogger(__name__)
+
+# 类型到优先级的初步映射
+TYPE_TO_PRIORITY = {
+    "Security": "p0",
+    "Bug": "p1",
+    "Perf": "p1",
+    "Test": "p2",
+    "Refactor": "p2",
+    "Docs": "p3",
+}
 
 
 class Scanner:
@@ -125,6 +136,64 @@ class Scanner:
         logger.info(f"Filtered {len(issues) - len(new_issues)} duplicate issues")
         return new_issues
 
+    def get_priority_for_type(self, issue_type: str) -> str:
+        """Get initial priority for issue type.
+
+        Args:
+            issue_type: Issue type (Security, Bug, etc.)
+
+        Returns:
+            Priority label
+        """
+        return TYPE_TO_PRIORITY.get(issue_type, "p2")
+
+    def ensure_diverse_distribution(self, issues: list[dict]) -> list[dict]:
+        """Ensure issues are distributed across different types.
+
+        Args:
+            issues: List of issues
+
+        Returns:
+            Balanced list of issues (max max_issues)
+        """
+        if not issues:
+            return []
+
+        # Group by priority
+        by_priority = defaultdict(list)
+        for issue in issues:
+            priority = self.get_priority_for_type(issue.get("type", ""))
+            by_priority[priority].append(issue)
+
+        # Select issues ensuring diversity (at most 1-2 per priority level)
+        selected = []
+        max_per_priority = 2  # Each priority level at most 2 issues
+
+        # Prioritize order: p0 > p1 > p2 > p3
+        for priority in ["p0", "p1", "p2", "p3"]:
+            issues_of_priority = by_priority.get(priority, [])
+            for issue in issues_of_priority[:max_per_priority]:
+                if len(selected) < self.max_issues:
+                    issue["severity"] = priority
+                    selected.append(issue)
+
+        # If we still need more, fill from remaining
+        if len(selected) < self.max_issues:
+            for priority in ["p1", "p2", "p3"]:  # p0 is rare
+                issues_of_priority = by_priority.get(priority, [])
+                for issue in issues_of_priority[max_per_priority:]:
+                    if len(selected) < self.max_issues:
+                        issue["severity"] = priority
+                        selected.append(issue)
+
+        # Log distribution
+        dist = defaultdict(int)
+        for issue in selected:
+            dist[issue.get("severity", "p2")] += 1
+        logger.info(f"Issue distribution: {dict(dist)}")
+
+        return selected
+
     def create_issue_from_data(self, issue: dict) -> int:
         """Create a GitHub issue from issue data.
 
@@ -135,6 +204,7 @@ class Scanner:
             Issue number
         """
         title = f"[{issue['type']}] {issue['description'][:80]}"
+        priority = issue.get("severity", "p2")
 
         body = f"""## 问题描述
 {issue["description"]}
@@ -151,24 +221,21 @@ class Scanner:
 ## 修复建议
 {issue.get("suggestion", "待 AI 生成")}
 
-## 优先级
-{issue.get("severity", "p2")}
-
 ---
 **AI 元数据**
 - 生成时间: {datetime.now().isoformat()}
-- 扫描器: Claude {self.client.model}
+- 扫描器: {self.client.model}
 - 文件: {issue["file"]}
 """
 
-        labels = [issue.get("severity", "p2")]
+        labels = [priority]
         return create_issue(title, body, labels)
 
     def run(self, directory: str = ".") -> None:
         """Run the scanner.
 
         Args:
-            directory: Directory to scan (default: target-project)
+            directory: Directory to scan (default: src)
         """
         logger.info(f"Starting scan of {directory}")
 
@@ -184,14 +251,23 @@ class Scanner:
         issues = self.filter_existing_issues(issues)
         logger.info(f"New issues: {len(issues)}")
 
+        if not issues:
+            logger.info("No new issues to create")
+            return
+
+        # Ensure diverse distribution across priorities
+        issues = self.ensure_diverse_distribution(issues)
+
         # Create issues
-        for issue in issues[: self.max_issues]:
+        for issue in issues:
             if self.created >= self.max_issues:
                 break
 
             try:
-                self.create_issue_from_data(issue)
+                issue_number = self.create_issue_from_data(issue)
                 self.created += 1
+                priority = issue.get("severity", "p2")
+                logger.info(f"Created #{issue_number} [{priority}] - {issue.get('description', '')[:50]}")
             except Exception as e:
                 logger.error(f"Failed to create issue: {e}")
 
