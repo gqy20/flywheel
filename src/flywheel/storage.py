@@ -228,9 +228,10 @@ class Storage:
 
     def list(self, status: str | None = None) -> list[Todo]:
         """List all todos."""
-        if status:
-            return [t for t in self._todos if t.status == status]
-        return self._todos
+        with self._lock:
+            if status:
+                return [t for t in self._todos if t.status == status]
+            return list(self._todos)  # Return a copy to prevent external modification
 
     def get(self, todo_id: int) -> Todo | None:
         """Get a todo by ID."""
