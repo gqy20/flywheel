@@ -269,4 +269,5 @@ class Storage:
 
     def get_next_id(self) -> int:
         """Get next available ID."""
-        return self._next_id
+        with self._lock:
+            return self._next_id
