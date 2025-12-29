@@ -82,10 +82,21 @@ class Storage:
             os.write(fd, data.encode('utf-8'))
             os.fsync(fd)  # Ensure data is written to disk
 
+            # Close fd before replacing file to avoid issues on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed
+
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
+            # fd must be closed before unlinking on some systems
+            try:
+                if fd >= 0:
+                    os.close(fd)
+                    fd = -1
+            except Exception:
+                pass
             try:
                 Path(temp_path).unlink()
             except Exception:
@@ -94,7 +105,8 @@ class Storage:
         finally:
             # Ensure fd is always closed exactly once
             try:
-                os.close(fd)
+                if fd >= 0:
+                    os.close(fd)
             except Exception:
                 pass
 
@@ -116,10 +128,21 @@ class Storage:
             os.write(fd, data.encode('utf-8'))
             os.fsync(fd)  # Ensure data is written to disk
 
+            # Close fd before replacing file to avoid issues on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed
+
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
+            # fd must be closed before unlinking on some systems
+            try:
+                if fd >= 0:
+                    os.close(fd)
+                    fd = -1
+            except Exception:
+                pass
             try:
                 Path(temp_path).unlink()
             except Exception:
@@ -128,7 +151,8 @@ class Storage:
         finally:
             # Ensure fd is always closed exactly once
             try:
-                os.close(fd)
+                if fd >= 0:
+                    os.close(fd)
             except Exception:
                 pass
 
