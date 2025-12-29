@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -10,6 +11,47 @@ from shared.utils import get_issues, setup_logging
 logger = logging.getLogger(__name__)
 
 MAX_FIXES = 3
+
+
+def preprocess_prompt(prompt: str, issue_number: int) -> str:
+    """Execute !`cmd` commands in prompt and replace with output.
+
+    Args:
+        prompt: The prompt text containing !`cmd` commands
+        issue_number: Issue number to substitute for $1
+
+    Returns:
+        Prompt with commands replaced by their output
+    """
+
+    def replace_command(match):
+        cmd = match.group(1)
+        # Replace $1 with actual issue number
+        cmd = cmd.replace("$1", str(issue_number))
+        logger.info(f"Preprocessing command: {cmd}")
+
+        try:
+            result = subprocess.run(
+                cmd,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            output = result.stdout or result.stderr or ""
+            # Trim output and limit size
+            output = output.strip()[:2000]
+            logger.info(f"Command output: {output[:200]}...")
+            return output
+        except subprocess.TimeoutExpired:
+            logger.error(f"Command timeout: {cmd}")
+            return f"[Error: Command timed out: {cmd}]"
+        except Exception as e:
+            logger.error(f"Command failed: {cmd} - {e}")
+            return f"[Error: {e}]"
+
+    # Replace all !`command` with their output
+    return re.sub(r"!`([^`]+)`", replace_command, prompt)
 
 
 def get_next_issues(count: int = 3) -> list[dict]:
@@ -50,9 +92,12 @@ def fix_issue_with_claude(issue_number: int) -> bool:
     Returns:
         True if successful
     """
-    # Read the command file and replace $1 with issue number
+    # Read the command file
     cmd_file = Path(__file__).parent.parent / ".claude" / "commands" / "fix-issue.md"
-    prompt = cmd_file.read_text().replace("$1", str(issue_number))
+    prompt = cmd_file.read_text()
+
+    # Preprocess: execute !`cmd` commands and replace with output
+    prompt = preprocess_prompt(prompt, issue_number)
 
     cmd = [
         "claude",
