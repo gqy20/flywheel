@@ -13,12 +13,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from shared.claude import ClaudeClient
 from shared.utils import (
     close_issue,
+    comment_issue,
     commit_changes,
     get_ci_status,
     get_issues,
     push,
+    reopen_issue,
     revert_commit,
     setup_logging,
+    update_issue_labels,
 )
 
 logger = logging.getLogger(__name__)
@@ -468,9 +471,35 @@ Closes #{issue_number}
             revert_sha = revert_commit(commit_sha)
             push(force=True)
 
-            # Reopen issue with lower priority
-            # (In real implementation, you'd update labels)
-            logger.info(f"Reopened issue #{issue_number} after rollback")
+            # Reopen issue with detailed comment
+            rollback_comment = f"""## ⚠️ CI 失败 - 修复已回滚
+
+**回滚信息**
+- 失败提交: `{commit_sha[:8]}`
+- 回滚提交: `{revert_sha[:8]}`
+- 回滚时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**下一步**
+- Issue 已重新开放，需要人工检查
+- 优先级已降低，等待进一步处理
+
+---
+*AI Flywheel 自动回滚 • 失败计数: {self.failed_count + 1}/{self.max_failures}*
+"""
+            reopen_issue(issue_number, rollback_comment)
+
+            # Downgrade priority (p0→p1, p1→p2, p2→p3)
+            current_priority = issue.get("priority", "p2")
+            priorities = ["p0", "p1", "p2", "p3"]
+            try:
+                current_idx = priorities.index(current_priority)
+                if current_idx < len(priorities) - 1:
+                    new_priority = priorities[current_idx + 1]
+                    update_issue_labels(issue_number, [new_priority])
+                    logger.info(f"Downgraded priority: {current_priority} → {new_priority}")
+            except ValueError:
+                pass  # Priority not in list, skip
+
             self.failed_count += 1
             return False
 
@@ -667,8 +696,20 @@ Related to: #{issue_number}
                 else:
                     logger.info(f"README update skipped for issue #{issue_number}")
 
-            # Close issue
-            close_issue(issue_number, f"Fixed by commit {fix_commit[:8]}")
+            # Close issue with detailed comment
+            closing_comment = f"""## ✅ 修复完成
+
+**修复信息**
+- 提交: `{fix_commit[:8]}`
+- 完成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+**修复说明**
+{fix.get('explanation', '见提交详情')}
+
+---
+*AI Flywheel 自动修复 • {self.client.model} • 置信度: {fix.get('confidence', 0)}%*
+"""
+            close_issue(issue_number, closing_comment)
             self.fixed_count += 1
             return True
 

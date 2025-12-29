@@ -130,6 +130,40 @@ def close_issue(issue_number: int, comment: str | None = None) -> None:
     logger.info(f"Closed issue #{issue_number}")
 
 
+def reopen_issue(issue_number: int, comment: str | None = None) -> None:
+    """Reopen a closed issue.
+
+    Args:
+        issue_number: Issue number
+        comment: Optional comment explaining the reopen
+    """
+    cmd = ["issue", "reopen", str(issue_number)]
+
+    run_gh_command(cmd)
+
+    if comment:
+        comment_issue(issue_number, comment)
+
+    logger.info(f"Reopened issue #{issue_number}")
+
+
+def comment_issue(issue_number: int, comment: str) -> None:
+    """Add a comment to an issue.
+
+    Args:
+        issue_number: Issue number
+        comment: Comment body
+    """
+    run_gh_command([
+        "issue",
+        "comment",
+        str(issue_number),
+        "--body",
+        comment,
+    ])
+    logger.info(f"Commented on issue #{issue_number}")
+
+
 def get_file_content(filepath: str) -> str:
     """Get file content from repository.
 
