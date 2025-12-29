@@ -23,46 +23,47 @@ class Storage:
 
     def _load(self) -> None:
         """Load todos from file."""
-        if not self.path.exists():
-            self._todos = []
-            return
-
-        try:
-            data = json.loads(self.path.read_text())
-            if not isinstance(data, list):
-                logger.warning(f"Invalid data format in {self.path}: expected list, got {type(data).__name__}")
+        with self._lock:
+            if not self.path.exists():
                 self._todos = []
                 return
 
-            todos = []
-            for i, item in enumerate(data):
+            try:
+                data = json.loads(self.path.read_text())
+                if not isinstance(data, list):
+                    logger.warning(f"Invalid data format in {self.path}: expected list, got {type(data).__name__}")
+                    self._todos = []
+                    return
+
+                todos = []
+                for i, item in enumerate(data):
+                    try:
+                        todo = Todo.from_dict(item)
+                        todos.append(todo)
+                    except (ValueError, TypeError, KeyError) as e:
+                        # Skip invalid todo items but continue loading valid ones
+                        logger.warning(f"Skipping invalid todo at index {i}: {e}")
+                self._todos = todos
+            except json.JSONDecodeError as e:
+                # Create backup before raising exception to prevent data loss
+                backup_path = str(self.path) + ".backup"
                 try:
-                    todo = Todo.from_dict(item)
-                    todos.append(todo)
-                except (ValueError, TypeError, KeyError) as e:
-                    # Skip invalid todo items but continue loading valid ones
-                    logger.warning(f"Skipping invalid todo at index {i}: {e}")
-            self._todos = todos
-        except json.JSONDecodeError as e:
-            # Create backup before raising exception to prevent data loss
-            backup_path = str(self.path) + ".backup"
-            try:
-                import shutil
-                shutil.copy2(self.path, backup_path)
-                logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
-            except Exception as backup_error:
-                logger.error(f"Failed to create backup: {backup_error}")
-            raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
-        except Exception as e:
-            # Create backup before raising exception to prevent data loss
-            backup_path = str(self.path) + ".backup"
-            try:
-                import shutil
-                shutil.copy2(self.path, backup_path)
-                logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
-            except Exception as backup_error:
-                logger.error(f"Failed to create backup: {backup_error}")
-            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
+                    import shutil
+                    shutil.copy2(self.path, backup_path)
+                    logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
+                except Exception as backup_error:
+                    logger.error(f"Failed to create backup: {backup_error}")
+                raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
+            except Exception as e:
+                # Create backup before raising exception to prevent data loss
+                backup_path = str(self.path) + ".backup"
+                try:
+                    import shutil
+                    shutil.copy2(self.path, backup_path)
+                    logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
+                except Exception as backup_error:
+                    logger.error(f"Failed to create backup: {backup_error}")
+                raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
         """Save todos to file using atomic write."""
