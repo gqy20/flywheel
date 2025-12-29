@@ -3,6 +3,7 @@
 import logging
 import os
 import time
+from typing import Any, cast
 
 from anthropic import Anthropic, APIError, RateLimitError
 
@@ -122,7 +123,7 @@ class ClaudeClient:
                     f"{usage.input_tokens} input + {usage.output_tokens} output tokens"
                 )
 
-                return response.content[0].text
+                return cast(str, response.content[0].text)
 
             except (RateLimitError, APIError) as e:
                 if self._should_retry(e, attempt):
@@ -175,8 +176,8 @@ class ClaudeClient:
         json_match = re.search(r"\{[\s\S]*\}", response)
         if json_match:
             try:
-                result = json.loads(json_match.group())
-                return result.get("issues", [])
+                result = cast(dict[str, Any], json.loads(json_match.group()))
+                return cast(list[dict], result.get("issues", []))
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse JSON from response: {response[:200]}")
                 return []
@@ -236,8 +237,8 @@ class ClaudeClient:
         json_match = re.search(r"\{[\s\S]*\}", response)
         if json_match:
             try:
-                result = json.loads(json_match.group())
-                opportunities = result.get("issues", [])
+                result = cast(dict[str, Any], json.loads(json_match.group()))
+                opportunities = cast(list[dict], result.get("issues", []))
                 # Add filepath if not present
                 for opp in opportunities:
                     if not opp.get("file"):
@@ -294,7 +295,7 @@ class ClaudeClient:
         json_match = re.search(r"\{[\s\S]*\}", response)
         if json_match:
             try:
-                return json.loads(json_match.group())
+                return cast(dict[str, Any], json.loads(json_match.group()))
             except json.JSONDecodeError:
                 logger.warning(f"Failed to parse JSON from response: {response[:200]}")
 
