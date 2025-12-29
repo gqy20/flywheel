@@ -3,6 +3,7 @@
 import logging
 import os
 import subprocess
+from pathlib import Path
 
 from shared.utils import get_issues, setup_logging
 
@@ -49,9 +50,19 @@ def fix_issue_with_claude(issue_number: int) -> bool:
     Returns:
         True if successful
     """
-    cmd = ["claude", "-p", f"/fix-issue {issue_number}"]
+    # Read the command file and replace $1 with issue number
+    cmd_file = Path(__file__).parent.parent / ".claude" / "commands" / "fix-issue.md"
+    prompt = cmd_file.read_text().replace("$1", str(issue_number))
 
-    logger.info(f"Running: {' '.join(cmd)}")
+    cmd = [
+        "claude",
+        "-p",
+        "-",
+        "--allowed-tools",
+        "Bash(git:*),Bash(pytest),Bash(gh:*),Read,Edit,Write",
+    ]
+
+    logger.info(f"Running: claude -p with fix-issue.md for #{issue_number}")
 
     # Prepare environment with API key
     env = os.environ.copy()
@@ -64,6 +75,7 @@ def fix_issue_with_claude(issue_number: int) -> bool:
 
     result = subprocess.run(
         cmd,
+        input=prompt,
         capture_output=True,
         text=True,
         timeout=600,  # 10 minutes
@@ -71,7 +83,7 @@ def fix_issue_with_claude(issue_number: int) -> bool:
     )
 
     # Log output for debugging
-    logger.info(f"stdout: {result.stdout[:500]}")
+    logger.info(f"stdout: {result.stdout[:1000]}")
     if result.stderr:
         logger.warning(f"stderr: {result.stderr[:500]}")
 
