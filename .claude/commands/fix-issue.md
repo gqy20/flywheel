@@ -49,9 +49,9 @@ Issue 详情：
 
 ### 步骤：
 
-1. **推送到 action 分支** - 使用 Bash 工具执行：`git push origin action`
+1. **推送到主分支** - 使用 Bash 工具执行：`git push`
 
-2. **关闭 issue** - 使用 Bash 工具执行：`gh issue close $1 --comment "修复已完成 ✅，查看 action 分支的变更"`
+2. **关闭 issue** - 使用 Bash 工具执行：`gh issue close $1 --comment "修复已完成 ✅"`
 
 ---
 

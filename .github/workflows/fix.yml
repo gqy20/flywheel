@@ -58,12 +58,6 @@ jobs:
           git config --global user.name "AI Flywheel"
           git config --global user.email "ai-flywheel@github.com"
 
-      - name: Setup action branch
-        run: |
-          git fetch origin action:action 2>/dev/null || git checkout -b action
-          git checkout action
-          git pull origin action || true
-
       - name: Run auto fixer
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
