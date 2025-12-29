@@ -206,26 +206,64 @@ class Scanner:
         title = f"[{issue['type']}] {issue['description'][:80]}"
         priority = issue.get("severity", "p2")
 
-        body = f"""## 问题描述
+        # 根据类型选择对应的模板格式
+        issue_type = issue.get("type", "").lower()
+
+        if issue_type in ["bug", "security"]:
+            # Bug Report 模板格式
+            body = f"""**问题描述**
 {issue["description"]}
 
-## 位置
-- **文件**: `{issue["file"]}`
-- **行号**: {issue.get("line", "N/A")}
+**位置**
+- 文件: `{issue["file"]}`
+- 行号: {issue.get("line", "N/A")}
 
-## 代码片段
+**代码片段**
 ```python
 {issue.get("code", "N/A")}
 ```
 
-## 修复建议
+**修复建议**
 {issue.get("suggestion", "待 AI 生成")}
 
 ---
-**AI 元数据**
-- 生成时间: {datetime.now().isoformat()}
-- 扫描器: {self.client.model}
-- 文件: {issue["file"]}
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+"""
+        elif issue_type in ["perf", "refactor", "test"]:
+            # Feature/Improvement 模板格式
+            body = f"""**功能描述**
+{issue["description"]}
+
+**涉及文件**
+`{issue["file"]}`
+
+**当前代码**
+```python
+{issue.get("code", "N/A")}
+```
+
+**改进建议**
+{issue.get("suggestion", "待 AI 生成")}
+
+**优先级**
+{priority.upper()}
+
+---
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
+"""
+        else:
+            # Docs/Other 模板格式
+            body = f"""**描述**
+{issue["description"]}
+
+**相关文件**
+{issue["file"]}
+
+**建议**
+{issue.get("suggestion", "待补充")}
+
+---
+*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime('%Y-%m-%d %H:%M')}*
 """
 
         labels = [priority]
