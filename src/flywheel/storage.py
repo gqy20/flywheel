@@ -76,16 +76,19 @@ class Storage:
         )
 
         try:
-            # Write data to temp file
-            with open(fd, 'w') as f:
-                f.write(data)
-                f.flush()
-                os.fsync(f.fileno())  # Ensure data is written to disk
+            # Write data directly to file descriptor to avoid duplication
+            os.write(fd, data.encode('utf-8'))
+            os.fsync(fd)  # Ensure data is written to disk
+            os.close(fd)  # Close the file descriptor
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
+            try:
+                os.close(fd)  # Ensure fd is closed on error
+            except Exception:
+                pass
             try:
                 Path(temp_path).unlink()
             except Exception:
@@ -106,16 +109,19 @@ class Storage:
         )
 
         try:
-            # Write data to temp file
-            with open(fd, 'w') as f:
-                f.write(data)
-                f.flush()
-                os.fsync(f.fileno())  # Ensure data is written to disk
+            # Write data directly to file descriptor to avoid duplication
+            os.write(fd, data.encode('utf-8'))
+            os.fsync(fd)  # Ensure data is written to disk
+            os.close(fd)  # Close the file descriptor
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
             # Clean up temp file on error
+            try:
+                os.close(fd)  # Ensure fd is closed on error
+            except Exception:
+                pass
             try:
                 Path(temp_path).unlink()
             except Exception:
