@@ -1,5 +1,6 @@
 """Utility functions and helpers."""
 
+import contextlib
 import json
 import logging
 import os
@@ -103,18 +104,20 @@ def update_issue_labels(issue_number: int, labels: list[str]) -> None:
         issue_number: Issue number
         labels: List of labels to set (replaces all current labels)
     """
-    # Use GitHub API to replace all labels
-    # gh CLI :owner/:repo placeholders are auto-resolved
-    cmd = [
-        "api",
-        "--method",
-        "PATCH",
-        f"repos/:owner/:repo/issues/{issue_number}",
-        "-f",
-        f"labels={json.dumps(labels)}",
-    ]
+    # First remove all priority labels
+    priority_labels = ["p0", "p1", "p2", "p3"]
+    for label in priority_labels:
+        with contextlib.suppress(Exception):
+            run_gh_command(
+                ["issue", "edit", str(issue_number), "--remove-label", label],
+                check=False,  # Don't fail if label doesn't exist
+            )
 
-    run_gh_command(cmd)
+    # Then add all new labels
+    if labels:
+        for label in labels:
+            run_gh_command(["issue", "edit", str(issue_number), "--add-label", label])
+
     logger.info(f"Updated issue #{issue_number} labels: {labels}")
 
 
