@@ -41,11 +41,11 @@ model: sonnet
 
 ## ✅ 完成修复
 
-1. 推送到远程：
-!`git push`
+1. 推送到 action 分支：
+!`git push origin action`
 
 2. 关闭 issue：
-!`gh issue close $1 --comment "修复已完成 ✅"`
+!`gh issue close $1 --comment "修复已完成 ✅，查看 action 分支的变更"`
 
 ---
 
