@@ -1,7 +1,8 @@
 name: Auto Fix
 
-# Temporarily disabled - TODO: fix infinite loop issue
 on:
+  schedule:
+    - cron: '30 * * * *'  # Every hour at minute 30 (30min after scan)
   workflow_dispatch:
 
 permissions:
