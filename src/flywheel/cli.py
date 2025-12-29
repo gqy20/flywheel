@@ -21,7 +21,7 @@ class CLI:
     def add(self, args: argparse.Namespace) -> None:
         """Add a new todo."""
         todo = Todo(
-            id=self.storage.get_next_id(),
+            id=None,  # Let storage.generate ID atomically
             title=args.title,
             description=args.description or "",
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
@@ -29,8 +29,8 @@ class CLI:
             tags=(args.tags or []).split(",") if args.tags else [],
         )
 
-        self.storage.add(todo)
-        print(f"✓ Added todo #{todo.id}: {todo.title}")
+        added_todo = self.storage.add(todo)
+        print(f"✓ Added todo #{added_todo.id}: {added_todo.title}")
 
     def list(self, args: argparse.Namespace) -> None:
         """List todos."""
