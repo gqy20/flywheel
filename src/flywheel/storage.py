@@ -19,7 +19,7 @@ class Storage:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
-        self._lock = threading.Lock()  # Thread safety lock
+        self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
         self._load()
 
     def _load(self) -> None:
@@ -81,107 +81,109 @@ class Storage:
 
     def _save(self) -> None:
         """Save todos to file using atomic write."""
-        import tempfile
+        with self._lock:
+            import tempfile
 
-        # Save with metadata for efficient ID generation
-        data = json.dumps({
-            "todos": [t.to_dict() for t in self._todos],
-            "next_id": self._next_id
-        }, indent=2)
+            # Save with metadata for efficient ID generation
+            data = json.dumps({
+                "todos": [t.to_dict() for t in self._todos],
+                "next_id": self._next_id
+            }, indent=2)
 
-        # Write to temporary file first
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=self.path.name + ".",
-            suffix=".tmp"
-        )
+            # Write to temporary file first
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=self.path.name + ".",
+                suffix=".tmp"
+            )
 
-        try:
-            # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes
-            data_bytes = data.encode('utf-8')
-            total_written = 0
-            while total_written < len(data_bytes):
-                written = os.write(fd, data_bytes[total_written:])
-                if written == 0:
-                    raise OSError("Write returned 0 bytes - disk full?")
-                total_written += written
-            os.fsync(fd)  # Ensure data is written to disk
-
-            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
-
-            # Atomically replace the original file
-            Path(temp_path).replace(self.path)
-        except Exception:
-            # Clean up temp file on error
             try:
-                Path(temp_path).unlink()
+                # Write data directly to file descriptor to avoid duplication
+                # Use a loop to handle partial writes
+                data_bytes = data.encode('utf-8')
+                total_written = 0
+                while total_written < len(data_bytes):
+                    written = os.write(fd, data_bytes[total_written:])
+                    if written == 0:
+                        raise OSError("Write returned 0 bytes - disk full?")
+                    total_written += written
+                os.fsync(fd)  # Ensure data is written to disk
+
+                # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+                os.close(fd)
+                fd = -1  # Mark as closed to prevent double-close in finally block
+
+                # Atomically replace the original file
+                Path(temp_path).replace(self.path)
             except Exception:
-                pass
-            raise
-        finally:
-            # Ensure fd is always closed exactly once
-            # This runs both on success and exception
-            # (on success, fd is already closed and set to -1)
-            try:
-                if fd != -1:
-                    os.close(fd)
-            except Exception:
-                pass
+                # Clean up temp file on error
+                try:
+                    Path(temp_path).unlink()
+                except Exception:
+                    pass
+                raise
+            finally:
+                # Ensure fd is always closed exactly once
+                # This runs both on success and exception
+                # (on success, fd is already closed and set to -1)
+                try:
+                    if fd != -1:
+                        os.close(fd)
+                except Exception:
+                    pass
 
     def _save_with_todos(self, todos: list[Todo]) -> None:
         """Save specified todos to file using atomic write."""
-        import tempfile
+        with self._lock:
+            import tempfile
 
-        # Save with metadata for efficient ID generation
-        data = json.dumps({
-            "todos": [t.to_dict() for t in todos],
-            "next_id": self._next_id
-        }, indent=2)
+            # Save with metadata for efficient ID generation
+            data = json.dumps({
+                "todos": [t.to_dict() for t in todos],
+                "next_id": self._next_id
+            }, indent=2)
 
-        # Write to temporary file first
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=self.path.name + ".",
-            suffix=".tmp"
-        )
+            # Write to temporary file first
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=self.path.name + ".",
+                suffix=".tmp"
+            )
 
-        try:
-            # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes
-            data_bytes = data.encode('utf-8')
-            total_written = 0
-            while total_written < len(data_bytes):
-                written = os.write(fd, data_bytes[total_written:])
-                if written == 0:
-                    raise OSError("Write returned 0 bytes - disk full?")
-                total_written += written
-            os.fsync(fd)  # Ensure data is written to disk
-
-            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
-
-            # Atomically replace the original file
-            Path(temp_path).replace(self.path)
-        except Exception:
-            # Clean up temp file on error
             try:
-                Path(temp_path).unlink()
+                # Write data directly to file descriptor to avoid duplication
+                # Use a loop to handle partial writes
+                data_bytes = data.encode('utf-8')
+                total_written = 0
+                while total_written < len(data_bytes):
+                    written = os.write(fd, data_bytes[total_written:])
+                    if written == 0:
+                        raise OSError("Write returned 0 bytes - disk full?")
+                    total_written += written
+                os.fsync(fd)  # Ensure data is written to disk
+
+                # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+                os.close(fd)
+                fd = -1  # Mark as closed to prevent double-close in finally block
+
+                # Atomically replace the original file
+                Path(temp_path).replace(self.path)
             except Exception:
-                pass
-            raise
-        finally:
-            # Ensure fd is always closed exactly once
-            # This runs both on success and exception
-            # (on success, fd is already closed and set to -1)
-            try:
-                if fd != -1:
-                    os.close(fd)
-            except Exception:
-                pass
+                # Clean up temp file on error
+                try:
+                    Path(temp_path).unlink()
+                except Exception:
+                    pass
+                raise
+            finally:
+                # Ensure fd is always closed exactly once
+                # This runs both on success and exception
+                # (on success, fd is already closed and set to -1)
+                try:
+                    if fd != -1:
+                        os.close(fd)
+                except Exception:
+                    pass
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo with atomic ID generation."""
