@@ -250,13 +250,16 @@ class Storage:
             Path(temp_path).replace(self.path)
 
             # Phase 3: Update internal state ONLY after successful write
-            # This ensures consistency between memory and disk (fixes Issue #121)
+            # This ensures consistency between memory and disk (fixes Issue #121, #150)
             with self._lock:
-                self._todos = todos_copy
+                # Use the original todos parameter to update internal state (fixes Issue #150)
+                # Deep copy to prevent external modifications from affecting internal state
+                import copy
+                self._todos = copy.deepcopy(todos)
                 # Recalculate _next_id to maintain consistency (fixes Issue #101)
                 # If the new todos contain higher IDs than current _next_id, update it
-                if todos_copy:
-                    max_id = max((t.id for t in todos_copy if t.id is not None), default=0)
+                if todos:
+                    max_id = max((t.id for t in todos if t.id is not None), default=0)
                     if max_id >= self._next_id:
                         self._next_id = max_id + 1
         except Exception:
