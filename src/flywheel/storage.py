@@ -199,11 +199,13 @@ class Storage:
             # Check for duplicate ID FIRST, before any other logic
             # This prevents race conditions when todo.id is set externally
             if todo_id is not None:
-                existing = self.get(todo_id)
-                if existing is not None:
-                    # Todo with this ID already exists - raise an error
-                    # The caller should use update() instead for existing todos
-                    raise ValueError(f"Todo with ID {todo_id} already exists. Use update() instead.")
+                # Direct iteration to avoid reentrant lock acquisition
+                # (self.get() would acquire the lock again while we already hold it)
+                for existing_todo in self._todos:
+                    if existing_todo.id == todo_id:
+                        # Todo with this ID already exists - raise an error
+                        # The caller should use update() instead for existing todos
+                        raise ValueError(f"Todo with ID {todo_id} already exists. Use update() instead.")
 
             # If todo doesn't have an ID, generate one atomically
             # Inline the ID generation logic to ensure atomicity with insertion
