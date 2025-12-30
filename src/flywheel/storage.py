@@ -62,10 +62,9 @@ class Storage:
                                 pass
                     next_id = max(valid_ids, default=0) + 1
                 else:
-                    logger.warning(f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}")
-                    self._todos = []
-                    self._next_id = 1
-                    return
+                    # Invalid format - raise exception and trigger backup mechanism
+                    error_msg = f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}"
+                    raise RuntimeError(error_msg)
 
                 # Deserialize todo items inside the lock
                 todos = []
