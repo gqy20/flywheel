@@ -310,3 +310,21 @@ class Storage:
         """Get next available ID."""
         with self._lock:
             return self._next_id
+
+    def close(self) -> None:
+        """Close storage and release resources.
+
+        This method is provided for API completeness and resource management.
+        Currently, RLock does not require explicit cleanup, but this method
+        allows for future expansion (e.g., closing file handles, connections).
+        The method is idempotent and can be called multiple times safely.
+
+        Example:
+            >>> storage = Storage()
+            >>> storage.add(Todo(title="Task"))
+            >>> storage.close()
+        """
+        # RLock in Python does not need explicit cleanup
+        # This method exists for API completeness and future extensibility
+        # It is intentionally idempotent (safe to call multiple times)
+        pass
