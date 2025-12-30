@@ -24,60 +24,68 @@ class Storage:
 
     def _load(self) -> None:
         """Load todos from file."""
-        with self._lock:
-            if not self.path.exists():
+        # Perform file I/O OUTSIDE the lock to prevent deadlocks and performance bottlenecks
+        if not self.path.exists():
+            with self._lock:
                 self._todos = []
                 self._next_id = 1
-                return
+            return
 
-            try:
-                raw_data = json.loads(self.path.read_text())
+        try:
+            # Read file and parse JSON outside of lock
+            raw_data = json.loads(self.path.read_text())
 
-                # Handle both new format (dict with metadata) and old format (list)
-                if isinstance(raw_data, dict):
-                    # New format with metadata
-                    todos_data = raw_data.get("todos", [])
-                    self._next_id = raw_data.get("next_id", 1)
-                elif isinstance(raw_data, list):
-                    # Old format - backward compatibility
-                    todos_data = raw_data
-                    # Calculate next_id from existing todos
-                    self._next_id = max((t.id for t in [Todo.from_dict(item) for item in raw_data if isinstance(item, dict)]), default=0) + 1
-                else:
-                    logger.warning(f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}")
+            # Handle both new format (dict with metadata) and old format (list)
+            if isinstance(raw_data, dict):
+                # New format with metadata
+                todos_data = raw_data.get("todos", [])
+                next_id = raw_data.get("next_id", 1)
+            elif isinstance(raw_data, list):
+                # Old format - backward compatibility
+                todos_data = raw_data
+                # Calculate next_id from existing todos
+                next_id = max((t.id for t in [Todo.from_dict(item) for item in raw_data if isinstance(item, dict)]), default=0) + 1
+            else:
+                logger.warning(f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}")
+                with self._lock:
                     self._todos = []
                     self._next_id = 1
-                    return
+                return
 
-                todos = []
-                for i, item in enumerate(todos_data):
-                    try:
-                        todo = Todo.from_dict(item)
-                        todos.append(todo)
-                    except (ValueError, TypeError, KeyError) as e:
-                        # Skip invalid todo items but continue loading valid ones
-                        logger.warning(f"Skipping invalid todo at index {i}: {e}")
+            # Deserialize todo items outside of lock
+            todos = []
+            for i, item in enumerate(todos_data):
+                try:
+                    todo = Todo.from_dict(item)
+                    todos.append(todo)
+                except (ValueError, TypeError, KeyError) as e:
+                    # Skip invalid todo items but continue loading valid ones
+                    logger.warning(f"Skipping invalid todo at index {i}: {e}")
+
+            # Only acquire lock when updating internal state
+            with self._lock:
                 self._todos = todos
-            except json.JSONDecodeError as e:
-                # Create backup before raising exception to prevent data loss
-                backup_path = str(self.path) + ".backup"
-                try:
-                    import shutil
-                    shutil.copy2(self.path, backup_path)
-                    logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
-                except Exception as backup_error:
-                    logger.error(f"Failed to create backup: {backup_error}")
-                raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
-            except Exception as e:
-                # Create backup before raising exception to prevent data loss
-                backup_path = str(self.path) + ".backup"
-                try:
-                    import shutil
-                    shutil.copy2(self.path, backup_path)
-                    logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
-                except Exception as backup_error:
-                    logger.error(f"Failed to create backup: {backup_error}")
-                raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
+                self._next_id = next_id
+        except json.JSONDecodeError as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = str(self.path) + ".backup"
+            try:
+                import shutil
+                shutil.copy2(self.path, backup_path)
+                logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
+            except Exception as backup_error:
+                logger.error(f"Failed to create backup: {backup_error}")
+            raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
+        except Exception as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = str(self.path) + ".backup"
+            try:
+                import shutil
+                shutil.copy2(self.path, backup_path)
+                logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
+            except Exception as backup_error:
+                logger.error(f"Failed to create backup: {backup_error}")
+            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
         """Save todos to file using atomic write."""
