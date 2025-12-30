@@ -211,7 +211,13 @@ class Storage:
         with self._lock:
             # Deep copy the new todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(todos)
-            next_id_copy = self._next_id
+            # Calculate next_id from the todos being saved (fixes Issue #166)
+            # This ensures the saved next_id matches the actual max ID in the file
+            if todos:
+                max_id = max((t.id for t in todos if t.id is not None), default=0)
+                next_id_copy = max(max_id, self._next_id - 1) + 1
+            else:
+                next_id_copy = 1
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
         # Save with metadata for efficient ID generation
