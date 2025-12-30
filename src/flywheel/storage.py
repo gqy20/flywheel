@@ -60,7 +60,7 @@ class Storage:
                             except (ValueError, TypeError, KeyError):
                                 # Skip invalid items when calculating next_id
                                 pass
-                    next_id = max(valid_ids, default=0) + 1
+                    next_id = max(set(valid_ids), default=0) + 1
                 else:
                     # Invalid format - raise exception and trigger backup mechanism
                     error_msg = f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}"
