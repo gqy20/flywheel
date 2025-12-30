@@ -183,18 +183,17 @@ class Storage:
             todos: The todos list to save. This will become the new internal state.
 
         Note:
-            This method updates self._todos to maintain consistency between
-            memory and file storage (fixes Issue #95, #105).
+            This method updates self._todos ONLY after successful file write
+            to maintain consistency and prevent race conditions (fixes Issue #95, #105, #121).
         """
         import tempfile
         import copy
 
         # Phase 1: Capture data under lock (minimal critical section)
+        # DO NOT update internal state yet - wait until write succeeds
         with self._lock:
-            # Update internal state first to maintain consistency (Issue #95, #105)
-            self._todos = todos
-            # Deep copy todos to ensure we have a consistent snapshot
-            todos_copy = copy.deepcopy(self._todos)
+            # Deep copy the new todos to ensure we have a consistent snapshot
+            todos_copy = copy.deepcopy(todos)
             next_id_copy = self._next_id
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
@@ -236,6 +235,11 @@ class Storage:
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
+
+            # Phase 3: Update internal state ONLY after successful write
+            # This ensures consistency between memory and disk (fixes Issue #121)
+            with self._lock:
+                self._todos = todos_copy
         except Exception:
             # Clean up temp file on error
             try:
