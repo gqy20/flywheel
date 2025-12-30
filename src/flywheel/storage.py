@@ -242,6 +242,12 @@ class Storage:
             # This ensures consistency between memory and disk (fixes Issue #121)
             with self._lock:
                 self._todos = todos_copy
+                # Recalculate _next_id to maintain consistency (fixes Issue #101)
+                # If the new todos contain higher IDs than current _next_id, update it
+                if todos_copy:
+                    max_id = max((t.id for t in todos_copy if t.id is not None), default=0)
+                    if max_id >= self._next_id:
+                        self._next_id = max_id + 1
         except Exception:
             # Clean up temp file on error
             try:
