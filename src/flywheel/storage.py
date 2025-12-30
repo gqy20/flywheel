@@ -1,5 +1,6 @@
 """Todo storage backend."""
 
+import errno
 import json
 import logging
 import os
@@ -132,14 +133,21 @@ class Storage:
 
         try:
             # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes
+            # Use a loop to handle partial writes and EINTR errors
             data_bytes = data.encode('utf-8')
             total_written = 0
             while total_written < len(data_bytes):
-                written = os.write(fd, data_bytes[total_written:])
-                if written == 0:
-                    raise OSError("Write returned 0 bytes - disk full?")
-                total_written += written
+                try:
+                    written = os.write(fd, data_bytes[total_written:])
+                    if written == 0:
+                        raise OSError("Write returned 0 bytes - disk full?")
+                    total_written += written
+                except OSError as e:
+                    # Handle EINTR (interrupted system call) by retrying
+                    if e.errno == errno.EINTR:
+                        continue
+                    # Re-raise other OSErrors (like ENOSPC - disk full)
+                    raise
             os.fsync(fd)  # Ensure data is written to disk
 
             # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
@@ -206,14 +214,21 @@ class Storage:
 
         try:
             # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes
+            # Use a loop to handle partial writes and EINTR errors
             data_bytes = data.encode('utf-8')
             total_written = 0
             while total_written < len(data_bytes):
-                written = os.write(fd, data_bytes[total_written:])
-                if written == 0:
-                    raise OSError("Write returned 0 bytes - disk full?")
-                total_written += written
+                try:
+                    written = os.write(fd, data_bytes[total_written:])
+                    if written == 0:
+                        raise OSError("Write returned 0 bytes - disk full?")
+                    total_written += written
+                except OSError as e:
+                    # Handle EINTR (interrupted system call) by retrying
+                    if e.errno == errno.EINTR:
+                        continue
+                    # Re-raise other OSErrors (like ENOSPC - disk full)
+                    raise
             os.fsync(fd)  # Ensure data is written to disk
 
             # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
