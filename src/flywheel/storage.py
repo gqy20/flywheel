@@ -108,6 +108,10 @@ class Storage:
                 total_written += written
             os.fsync(fd)  # Ensure data is written to disk
 
+            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
+
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
@@ -120,8 +124,10 @@ class Storage:
         finally:
             # Ensure fd is always closed exactly once
             # This runs both on success and exception
+            # (on success, fd is already closed and set to -1)
             try:
-                os.close(fd)
+                if fd != -1:
+                    os.close(fd)
             except Exception:
                 pass
 
@@ -154,6 +160,10 @@ class Storage:
                 total_written += written
             os.fsync(fd)  # Ensure data is written to disk
 
+            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
+
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
         except Exception:
@@ -166,8 +176,10 @@ class Storage:
         finally:
             # Ensure fd is always closed exactly once
             # This runs both on success and exception
+            # (on success, fd is already closed and set to -1)
             try:
-                os.close(fd)
+                if fd != -1:
+                    os.close(fd)
             except Exception:
                 pass
 
