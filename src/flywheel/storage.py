@@ -88,110 +88,134 @@ class Storage:
             raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
-        """Save todos to file using atomic write."""
+        """Save todos to file using atomic write.
+
+        Uses Copy-on-Write pattern: captures data under lock, releases lock,
+        then performs I/O. This minimizes lock contention and prevents blocking
+        other threads during file operations.
+        """
+        import tempfile
+        import copy
+
+        # Phase 1: Capture data under lock (minimal critical section)
         with self._lock:
-            import tempfile
+            # Deep copy todos to ensure we have a consistent snapshot
+            todos_copy = copy.deepcopy(self._todos)
+            next_id_copy = self._next_id
 
-            # Save with metadata for efficient ID generation
-            data = json.dumps({
-                "todos": [t.to_dict() for t in self._todos],
-                "next_id": self._next_id
-            }, indent=2)
+        # Phase 2: Serialize and perform I/O OUTSIDE the lock
+        # Save with metadata for efficient ID generation
+        data = json.dumps({
+            "todos": [t.to_dict() for t in todos_copy],
+            "next_id": next_id_copy
+        }, indent=2)
 
-            # Write to temporary file first
-            fd, temp_path = tempfile.mkstemp(
-                dir=self.path.parent,
-                prefix=self.path.name + ".",
-                suffix=".tmp"
-            )
+        # Write to temporary file first
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=self.path.name + ".",
+            suffix=".tmp"
+        )
 
+        try:
+            # Write data directly to file descriptor to avoid duplication
+            # Use a loop to handle partial writes
+            data_bytes = data.encode('utf-8')
+            total_written = 0
+            while total_written < len(data_bytes):
+                written = os.write(fd, data_bytes[total_written:])
+                if written == 0:
+                    raise OSError("Write returned 0 bytes - disk full?")
+                total_written += written
+            os.fsync(fd)  # Ensure data is written to disk
+
+            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
+
+            # Atomically replace the original file
+            Path(temp_path).replace(self.path)
+        except Exception:
+            # Clean up temp file on error
             try:
-                # Write data directly to file descriptor to avoid duplication
-                # Use a loop to handle partial writes
-                data_bytes = data.encode('utf-8')
-                total_written = 0
-                while total_written < len(data_bytes):
-                    written = os.write(fd, data_bytes[total_written:])
-                    if written == 0:
-                        raise OSError("Write returned 0 bytes - disk full?")
-                    total_written += written
-                os.fsync(fd)  # Ensure data is written to disk
-
-                # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-                os.close(fd)
-                fd = -1  # Mark as closed to prevent double-close in finally block
-
-                # Atomically replace the original file
-                Path(temp_path).replace(self.path)
+                Path(temp_path).unlink()
             except Exception:
-                # Clean up temp file on error
-                try:
-                    Path(temp_path).unlink()
-                except Exception:
-                    pass
-                raise
-            finally:
-                # Ensure fd is always closed exactly once
-                # This runs both on success and exception
-                # (on success, fd is already closed and set to -1)
-                try:
-                    if fd != -1:
-                        os.close(fd)
-                except Exception:
-                    pass
+                pass
+            raise
+        finally:
+            # Ensure fd is always closed exactly once
+            # This runs both on success and exception
+            # (on success, fd is already closed and set to -1)
+            try:
+                if fd != -1:
+                    os.close(fd)
+            except Exception:
+                pass
 
     def _save_with_todos(self, todos: list[Todo]) -> None:
-        """Save specified todos to file using atomic write."""
+        """Save specified todos to file using atomic write.
+
+        Uses Copy-on-Write pattern: captures data under lock, releases lock,
+        then performs I/O. This minimizes lock contention and prevents blocking
+        other threads during file operations.
+        """
+        import tempfile
+        import copy
+
+        # Phase 1: Capture data under lock (minimal critical section)
         with self._lock:
-            import tempfile
+            # Deep copy todos to ensure we have a consistent snapshot
+            todos_copy = copy.deepcopy(todos)
+            next_id_copy = self._next_id
 
-            # Save with metadata for efficient ID generation
-            data = json.dumps({
-                "todos": [t.to_dict() for t in todos],
-                "next_id": self._next_id
-            }, indent=2)
+        # Phase 2: Serialize and perform I/O OUTSIDE the lock
+        # Save with metadata for efficient ID generation
+        data = json.dumps({
+            "todos": [t.to_dict() for t in todos_copy],
+            "next_id": next_id_copy
+        }, indent=2)
 
-            # Write to temporary file first
-            fd, temp_path = tempfile.mkstemp(
-                dir=self.path.parent,
-                prefix=self.path.name + ".",
-                suffix=".tmp"
-            )
+        # Write to temporary file first
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=self.path.name + ".",
+            suffix=".tmp"
+        )
 
+        try:
+            # Write data directly to file descriptor to avoid duplication
+            # Use a loop to handle partial writes
+            data_bytes = data.encode('utf-8')
+            total_written = 0
+            while total_written < len(data_bytes):
+                written = os.write(fd, data_bytes[total_written:])
+                if written == 0:
+                    raise OSError("Write returned 0 bytes - disk full?")
+                total_written += written
+            os.fsync(fd)  # Ensure data is written to disk
+
+            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
+
+            # Atomically replace the original file
+            Path(temp_path).replace(self.path)
+        except Exception:
+            # Clean up temp file on error
             try:
-                # Write data directly to file descriptor to avoid duplication
-                # Use a loop to handle partial writes
-                data_bytes = data.encode('utf-8')
-                total_written = 0
-                while total_written < len(data_bytes):
-                    written = os.write(fd, data_bytes[total_written:])
-                    if written == 0:
-                        raise OSError("Write returned 0 bytes - disk full?")
-                    total_written += written
-                os.fsync(fd)  # Ensure data is written to disk
-
-                # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-                os.close(fd)
-                fd = -1  # Mark as closed to prevent double-close in finally block
-
-                # Atomically replace the original file
-                Path(temp_path).replace(self.path)
+                Path(temp_path).unlink()
             except Exception:
-                # Clean up temp file on error
-                try:
-                    Path(temp_path).unlink()
-                except Exception:
-                    pass
-                raise
-            finally:
-                # Ensure fd is always closed exactly once
-                # This runs both on success and exception
-                # (on success, fd is already closed and set to -1)
-                try:
-                    if fd != -1:
-                        os.close(fd)
-                except Exception:
-                    pass
+                pass
+            raise
+        finally:
+            # Ensure fd is always closed exactly once
+            # This runs both on success and exception
+            # (on success, fd is already closed and set to -1)
+            try:
+                if fd != -1:
+                    os.close(fd)
+            except Exception:
+                pass
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo with atomic ID generation.
