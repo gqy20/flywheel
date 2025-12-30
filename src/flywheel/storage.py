@@ -49,8 +49,17 @@ class Storage:
                 elif isinstance(raw_data, list):
                     # Old format - backward compatibility
                     todos_data = raw_data
-                    # Calculate next_id from existing todos
-                    next_id = max((t.id for t in [Todo.from_dict(item) for item in raw_data if isinstance(item, dict)]), default=0) + 1
+                    # Calculate next_id from existing todos, safely handling invalid items
+                    valid_ids = []
+                    for item in raw_data:
+                        if isinstance(item, dict):
+                            try:
+                                todo = Todo.from_dict(item)
+                                valid_ids.append(todo.id)
+                            except (ValueError, TypeError, KeyError):
+                                # Skip invalid items when calculating next_id
+                                pass
+                    next_id = max(valid_ids, default=0) + 1
                 else:
                     logger.warning(f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}")
                     self._todos = []
