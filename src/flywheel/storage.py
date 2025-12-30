@@ -162,6 +162,13 @@ class Storage:
         Uses Copy-on-Write pattern: captures data under lock, releases lock,
         then performs I/O. This minimizes lock contention and prevents blocking
         other threads during file operations.
+
+        Args:
+            todos: The todos list to save. This will become the new internal state.
+
+        Note:
+            This method updates self._todos to maintain consistency between
+            memory and file storage (fixes Issue #95).
         """
         import tempfile
         import copy
@@ -171,6 +178,8 @@ class Storage:
             # Deep copy todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(todos)
             next_id_copy = self._next_id
+            # Update internal state to maintain consistency (Issue #95)
+            self._todos = todos
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
         # Save with metadata for efficient ID generation
