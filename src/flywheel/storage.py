@@ -23,6 +23,29 @@ class Storage:
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
         self._load()
 
+    def _create_backup(self, error_message: str) -> str:
+        """Create a backup of the todo file.
+
+        Args:
+            error_message: Description of the error that triggered the backup.
+
+        Returns:
+            Path to the backup file.
+
+        Raises:
+            RuntimeError: If backup creation fails.
+        """
+        import shutil
+
+        backup_path = str(self.path) + ".backup"
+        try:
+            shutil.copy2(self.path, backup_path)
+            logger.error(f"{error_message}. Backup created at {backup_path}")
+        except Exception as backup_error:
+            logger.error(f"Failed to create backup: {backup_error}")
+            raise RuntimeError(f"{error_message}. Failed to create backup") from backup_error
+        return backup_path
+
     def _load(self) -> None:
         """Load todos from file.
 
@@ -81,28 +104,14 @@ class Storage:
                 # Update internal state
                 self._todos = todos
                 self._next_id = next_id
-        except json.JSONDecodeError as e:
-            # Create backup before raising exception to prevent data loss
-            # Define backup_path BEFORE the try block to ensure it's always available
-            backup_path = str(self.path) + ".backup"
-            try:
-                import shutil
-                shutil.copy2(self.path, backup_path)
-                logger.error(f"Invalid JSON in {self.path}. Backup created at {backup_path}: {e}")
-            except Exception as backup_error:
-                logger.error(f"Failed to create backup: {backup_error}")
-            raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
-        except Exception as e:
-            # Create backup before raising exception to prevent data loss
-            # Define backup_path BEFORE the try block to ensure it's always available
-            backup_path = str(self.path) + ".backup"
-            try:
-                import shutil
-                shutil.copy2(self.path, backup_path)
-                logger.error(f"Failed to load todos. Backup created at {backup_path}: {e}")
-            except Exception as backup_error:
-                logger.error(f"Failed to create backup: {backup_error}")
-            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
+            except json.JSONDecodeError as e:
+                # Create backup before raising exception to prevent data loss
+                backup_path = self._create_backup(f"Invalid JSON in {self.path}")
+                raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
+            except Exception as e:
+                # Create backup before raising exception to prevent data loss
+                backup_path = self._create_backup(f"Failed to load todos from {self.path}")
+                raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     def _save(self) -> None:
         """Save todos to file using atomic write.
