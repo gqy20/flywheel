@@ -38,9 +38,11 @@ class Storage:
                 return
 
             try:
-                # Read file and parse JSON inside the lock to ensure atomicity
-                # This prevents 'check-then-act' race conditions
-                raw_data = json.loads(self.path.read_text())
+                # Read file and parse JSON atomically using json.load()
+                # This prevents TOCTOU issues by keeping the file handle open
+                # during parsing, instead of separating read_text() and json.loads()
+                with self.path.open('r') as f:
+                    raw_data = json.load(f)
 
                 # Handle both new format (dict with metadata) and old format (list)
                 if isinstance(raw_data, dict):
