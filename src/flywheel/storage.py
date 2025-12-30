@@ -211,11 +211,11 @@ class Storage:
         with self._lock:
             # Deep copy the new todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(todos)
-            # Calculate next_id from the todos being saved (fixes Issue #166)
+            # Calculate next_id from the todos being saved (fixes Issue #166, #170)
             # This ensures the saved next_id matches the actual max ID in the file
             if todos:
                 max_id = max((t.id for t in todos if t.id is not None), default=0)
-                next_id_copy = max(max_id, self._next_id - 1) + 1
+                next_id_copy = max(max_id + 1, self._next_id)
             else:
                 next_id_copy = 1
 
