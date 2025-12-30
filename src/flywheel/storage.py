@@ -83,6 +83,7 @@ class Storage:
                 self._next_id = next_id
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
+            # Define backup_path BEFORE the try block to ensure it's always available
             backup_path = str(self.path) + ".backup"
             try:
                 import shutil
@@ -93,6 +94,7 @@ class Storage:
             raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
         except Exception as e:
             # Create backup before raising exception to prevent data loss
+            # Define backup_path BEFORE the try block to ensure it's always available
             backup_path = str(self.path) + ".backup"
             try:
                 import shutil
