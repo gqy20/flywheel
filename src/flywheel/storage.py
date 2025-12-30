@@ -177,18 +177,18 @@ class Storage:
 
         Note:
             This method updates self._todos to maintain consistency between
-            memory and file storage (fixes Issue #95).
+            memory and file storage (fixes Issue #95, #105).
         """
         import tempfile
         import copy
 
         # Phase 1: Capture data under lock (minimal critical section)
         with self._lock:
-            # Deep copy todos to ensure we have a consistent snapshot
-            todos_copy = copy.deepcopy(todos)
-            next_id_copy = self._next_id
-            # Update internal state to maintain consistency (Issue #95)
+            # Update internal state first to maintain consistency (Issue #95, #105)
             self._todos = todos
+            # Deep copy todos to ensure we have a consistent snapshot
+            todos_copy = copy.deepcopy(self._todos)
+            next_id_copy = self._next_id
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
         # Save with metadata for efficient ID generation
@@ -277,9 +277,8 @@ class Storage:
 
             # Create a copy of todos list with the new todo
             new_todos = self._todos + [todo]
-            # Try to save first, only update memory if save succeeds
+            # Save and update internal state atomically
             self._save_with_todos(new_todos)
-            self._todos = new_todos
             return todo
 
     def list(self, status: str | None = None) -> list[Todo]:
@@ -305,9 +304,8 @@ class Storage:
                     # Create a copy of todos list with the updated todo
                     new_todos = self._todos.copy()
                     new_todos[i] = todo
-                    # Try to save first, only update memory if save succeeds
+                    # Save and update internal state atomically
                     self._save_with_todos(new_todos)
-                    self._todos = new_todos
                     return todo
             return None
 
@@ -318,9 +316,8 @@ class Storage:
                 if t.id == todo_id:
                     # Create a copy of todos list without the deleted todo
                     new_todos = self._todos[:i] + self._todos[i+1:]
-                    # Try to save first, only update memory if save succeeds
+                    # Save and update internal state atomically
                     self._save_with_todos(new_todos)
-                    self._todos = new_todos
                     return True
             return False
 
