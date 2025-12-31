@@ -69,6 +69,57 @@ class Storage:
             except Exception as e:
                 logger.error(f"Failed to save pending changes on exit: {e}")
 
+    def _validate_storage_schema(self, data: dict | list) -> None:
+        """Validate the storage data schema for security (Issue #7).
+
+        This method performs strict schema validation to prevent:
+        - Injection attacks via malformed data structures
+        - Type confusion vulnerabilities
+        - Unexpected nested structures
+
+        Args:
+            data: The raw parsed JSON data (dict or list)
+
+        Raises:
+            RuntimeError: If the data structure is invalid or potentially malicious.
+        """
+        # Validate top-level structure
+        if isinstance(data, dict):
+            # New format with metadata
+            # Check for unexpected keys that could indicate tampering
+            expected_keys = {"todos", "next_id", "metadata"}
+            actual_keys = set(data.keys())
+            # Warn about unexpected keys but don't fail (forward compatibility)
+            unexpected = actual_keys - expected_keys
+            if unexpected:
+                logger.warning(f"Unexpected keys in storage file: {unexpected}")
+
+            # Validate 'todos' field
+            if "todos" in data:
+                if not isinstance(data["todos"], list):
+                    raise RuntimeError(
+                        f"Invalid schema: 'todos' must be a list, got {type(data['todos']).__name__}"
+                    )
+
+            # Validate 'next_id' field
+            if "next_id" in data:
+                if not isinstance(data["next_id"], int):
+                    raise RuntimeError(
+                        f"Invalid schema: 'next_id' must be an int, got {type(data['next_id']).__name__}"
+                    )
+                if data["next_id"] < 1:
+                    raise RuntimeError(f"Invalid schema: 'next_id' must be >= 1, got {data['next_id']}")
+
+        elif isinstance(data, list):
+            # Old format - list of todos
+            # No additional validation needed, individual todos will be validated
+            pass
+        else:
+            # Invalid top-level type
+            raise RuntimeError(
+                f"Invalid schema: expected dict or list at top level, got {type(data).__name__}"
+            )
+
     def _load(self) -> None:
         """Load todos from file.
 
@@ -91,7 +142,12 @@ class Storage:
                 with self.path.open('r') as f:
                     raw_data = json.load(f)
 
+                # Validate schema before deserializing (Issue #7)
+                # This prevents injection attacks and malformed data from causing crashes
+                self._validate_storage_schema(raw_data)
+
                 # Handle both new format (dict with metadata) and old format (list)
+                # Schema validation already performed above (Issue #7)
                 if isinstance(raw_data, dict):
                     # New format with metadata
                     todos_data = raw_data.get("todos", [])
@@ -110,10 +166,6 @@ class Storage:
                                 # Skip invalid items when calculating next_id
                                 pass
                     next_id = max(set(valid_ids), default=0) + 1
-                else:
-                    # Invalid format - raise exception and trigger backup mechanism
-                    error_msg = f"Invalid data format in {self.path}: expected dict or list, got {type(raw_data).__name__}"
-                    raise RuntimeError(error_msg)
 
                 # Deserialize todo items inside the lock
                 todos = []
