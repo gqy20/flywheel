@@ -147,6 +147,12 @@ class Storage:
 
                 security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
 
+                # Fix Issue #256: Explicitly set DACL protection to prevent inheritance
+                # This ensures PROTECTED_DACL_SECURITY_INFORMATION flag takes effect
+                security_descriptor.SetSecurityDescriptorControl(
+                    win32security.SE_DACL_PROTECTED, 1
+                )
+
                 # Apply the security descriptor to the directory
                 security_info = (
                     win32security.DACL_SECURITY_INFORMATION |
