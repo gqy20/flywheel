@@ -70,9 +70,31 @@ class Storage:
                 import win32con
                 import win32api
 
-                # Get the current user's SID
-                user = win32api.GetUserName()
-                domain = os.environ.get('USERDOMAIN', '.')
+                # Get the current user's SID using Windows API (Issue #229)
+                # Use GetUserNameEx to get the primary domain instead of relying
+                # on environment variables which can be manipulated or missing
+                try:
+                    # Try to get the fully qualified domain name
+                    name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                    # Extract domain from the qualified DN
+                    # Format: CN=user,OU=users,DC=domain,DC=com
+                    parts = name.split(',')
+                    for part in parts:
+                        if part.strip().startswith('DC='):
+                            domain = '.'.join(p.split('=')[1] for p in parts if p.strip().startswith('DC='))
+                            break
+                    else:
+                        # Fallback to local computer if no domain found
+                        domain = win32api.GetComputerName()
+                    user = win32api.GetUserName()
+                except Exception:
+                    # Fallback: Use GetUserName and local computer for non-domain environments
+                    user = win32api.GetUserName()
+                    try:
+                        domain = win32api.GetComputerName()
+                    except Exception:
+                        domain = '.'  # Last resort fallback
+
                 sid, _, _ = win32security.LookupAccountName(domain, user)
 
                 # Create a security descriptor with owner-only access
