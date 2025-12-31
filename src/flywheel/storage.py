@@ -214,7 +214,7 @@ class Storage:
             # Calculate next_id from the todos being saved (fixes Issue #166, #170)
             # This ensures the saved next_id matches the actual max ID in the file
             if todos:
-                max_id = max((t.id for t in todos if t.id is not None), default=0)
+                max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
                 next_id_copy = max(max_id + 1, self._next_id)
             else:
                 next_id_copy = 1
@@ -269,7 +269,7 @@ class Storage:
                 # Recalculate _next_id to maintain consistency (fixes Issue #101)
                 # If the new todos contain higher IDs than current _next_id, update it
                 if todos:
-                    max_id = max((t.id for t in todos if t.id is not None), default=0)
+                    max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
                     if max_id >= self._next_id:
                         self._next_id = max_id + 1
         except Exception:
