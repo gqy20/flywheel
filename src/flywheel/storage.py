@@ -173,9 +173,6 @@ class Storage:
             suffix=".tmp"
         )
 
-        # Track whether chmod fallback is needed (for Windows compatibility)
-        needs_chmod_fallback = False
-
         try:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
@@ -184,8 +181,9 @@ class Storage:
                 os.fchmod(fd, 0o600)
             except AttributeError:
                 # os.fchmod is not available on Windows
-                # Fall back to chmod before closing the file (Issue #200)
-                needs_chmod_fallback = True
+                # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
+                # The file must have restrictive permissions BEFORE any data is written
+                os.chmod(temp_path, 0o600)
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
@@ -204,12 +202,6 @@ class Storage:
                     # Re-raise other OSErrors (like ENOSPC - disk full)
                     raise
             os.fsync(fd)  # Ensure data is written to disk
-
-            # Apply chmod fallback for Windows BEFORE closing the file (Issue #200)
-            # This prevents the race condition where the file could be accessed with
-            # default permissions between os.close() and os.chmod()
-            if needs_chmod_fallback:
-                os.chmod(temp_path, 0o600)
 
             # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
             # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
@@ -281,9 +273,6 @@ class Storage:
             suffix=".tmp"
         )
 
-        # Track whether chmod fallback is needed (for Windows compatibility)
-        needs_chmod_fallback = False
-
         try:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
@@ -292,8 +281,9 @@ class Storage:
                 os.fchmod(fd, 0o600)
             except AttributeError:
                 # os.fchmod is not available on Windows
-                # Fall back to chmod before closing the file (Issue #200)
-                needs_chmod_fallback = True
+                # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
+                # The file must have restrictive permissions BEFORE any data is written
+                os.chmod(temp_path, 0o600)
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
@@ -312,12 +302,6 @@ class Storage:
                     # Re-raise other OSErrors (like ENOSPC - disk full)
                     raise
             os.fsync(fd)  # Ensure data is written to disk
-
-            # Apply chmod fallback for Windows BEFORE closing the file (Issue #200)
-            # This prevents the race condition where the file could be accessed with
-            # default permissions between os.close() and os.chmod()
-            if needs_chmod_fallback:
-                os.chmod(temp_path, 0o600)
 
             # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
             # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
