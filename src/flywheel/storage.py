@@ -231,13 +231,22 @@ class Storage:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
             # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
+            # Check return value and handle errors (Issue #224)
             try:
-                os.fchmod(fd, 0o600)
+                ret = os.fchmod(fd, 0o600)
+                if ret != 0:
+                    # fchmod returned non-zero indicating failure
+                    # Raise OSError to ensure consistent error handling
+                    raise OSError(f"os.fchmod failed with return code {ret}")
             except AttributeError:
                 # os.fchmod is not available on Windows
                 # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
                 # The file must have restrictive permissions BEFORE any data is written
                 os.chmod(temp_path, 0o600)
+            except OSError:
+                # fchmod failed (permission denied, invalid fd, etc.)
+                # Re-raise to prevent writing data with incorrect permissions (Issue #224)
+                raise
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
@@ -333,13 +342,22 @@ class Storage:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
             # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
+            # Check return value and handle errors (Issue #224)
             try:
-                os.fchmod(fd, 0o600)
+                ret = os.fchmod(fd, 0o600)
+                if ret != 0:
+                    # fchmod returned non-zero indicating failure
+                    # Raise OSError to ensure consistent error handling
+                    raise OSError(f"os.fchmod failed with return code {ret}")
             except AttributeError:
                 # os.fchmod is not available on Windows
                 # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
                 # The file must have restrictive permissions BEFORE any data is written
                 os.chmod(temp_path, 0o600)
+            except OSError:
+                # fchmod failed (permission denied, invalid fd, etc.)
+                # Re-raise to prevent writing data with incorrect permissions (Issue #224)
+                raise
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
