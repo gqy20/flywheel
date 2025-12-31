@@ -60,6 +60,7 @@ class Storage:
                 )
         else:  # Windows
             # Attempt to use Windows ACLs for security (Issue #226)
+            win32_success = False
             try:
                 import win32security
                 import win32con
@@ -95,20 +96,33 @@ class Storage:
                     security_descriptor
                 )
                 logger.debug(f"Applied restrictive ACLs to {directory}")
+                win32_success = True
 
             except ImportError:
-                # pywin32 is not installed - this is expected on many systems
-                logger.warning(
-                    f"pywin32 not installed. Unable to set Windows ACLs on {directory}. "
-                    f"The directory will use default permissions. "
+                # pywin32 is not installed - attempt fallback chmod
+                logger.debug(
+                    f"pywin32 not installed. Attempting fallback chmod on {directory}. "
                     f"For enhanced security on Windows, install pywin32: pip install pywin32"
                 )
             except Exception as e:
-                # Failed to set ACLs - log but don't fail
-                logger.warning(
+                # Failed to set ACLs - attempt fallback chmod
+                logger.debug(
                     f"Failed to set Windows ACLs on {directory}: {e}. "
-                    f"The directory will use default permissions."
+                    f"Attempting fallback chmod."
                 )
+
+            # Fallback: attempt chmod on Windows if win32security failed or is unavailable (Issue #228)
+            if not win32_success:
+                try:
+                    # On Windows, chmod sets read-only flag but doesn't provide full Unix-like permissions
+                    # However, it's better than completely ignoring security (Issue #228)
+                    directory.chmod(0o700)
+                    logger.debug(f"Applied chmod(0o700) to {directory} as fallback")
+                except OSError as e:
+                    logger.warning(
+                        f"Failed to set directory permissions on {directory}: {e}. "
+                        f"Directory may have less restrictive permissions than intended."
+                    )
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
