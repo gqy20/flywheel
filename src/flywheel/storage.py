@@ -102,6 +102,14 @@ class Storage:
                 if domain is None:
                     domain = '.'
 
+                # Validate user before calling LookupAccountName (Issue #240)
+                # Ensure user is initialized and non-empty to prevent passing invalid values
+                if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                    raise ValueError(
+                        f"Invalid user name '{user}': Cannot set Windows security. "
+                        f"GetUserName() returned invalid value."
+                    )
+
                 sid, _, _ = win32security.LookupAccountName(domain, user)
 
                 # Create a security descriptor with owner-only access
