@@ -73,6 +73,10 @@ class Storage:
                 # Get the current user's SID using Windows API (Issue #229)
                 # Use GetUserNameEx to get the primary domain instead of relying
                 # on environment variables which can be manipulated or missing
+                # Initialize domain to ensure it's always defined (Issue #234)
+                domain = None
+                user = win32api.GetUserName()
+
                 try:
                     # Try to get the fully qualified domain name
                     name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
@@ -86,14 +90,17 @@ class Storage:
                     else:
                         # Fallback to local computer if no domain found
                         domain = win32api.GetComputerName()
-                    user = win32api.GetUserName()
                 except Exception:
-                    # Fallback: Use GetUserName and local computer for non-domain environments
-                    user = win32api.GetUserName()
+                    # Fallback: Use local computer for non-domain environments
                     try:
                         domain = win32api.GetComputerName()
                     except Exception:
-                        domain = '.'  # Last resort fallback
+                        pass  # domain remains None, will use fallback below
+
+                # Final fallback for domain (Issue #234)
+                # Ensures domain is always defined before LookupAccountName
+                if domain is None:
+                    domain = '.'
 
                 sid, _, _ = win32security.LookupAccountName(domain, user)
 
