@@ -149,7 +149,12 @@ class Storage:
 
         # Set strict file permissions (0o600) to prevent unauthorized access
         # This ensures security regardless of umask settings (Issue #179)
-        os.fchmod(fd, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        except AttributeError:
+            # os.fchmod is not available on Windows
+            # Fall back to chmod after closing the file
+            pass
 
         try:
             # Write data directly to file descriptor to avoid duplication
@@ -241,7 +246,12 @@ class Storage:
 
         # Set strict file permissions (0o600) to prevent unauthorized access
         # This ensures security regardless of umask settings (Issue #179)
-        os.fchmod(fd, 0o600)
+        try:
+            os.fchmod(fd, 0o600)
+        except AttributeError:
+            # os.fchmod is not available on Windows
+            # Fall back to chmod after closing the file
+            pass
 
         try:
             # Write data directly to file descriptor to avoid duplication
