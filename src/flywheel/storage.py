@@ -276,7 +276,9 @@ class Storage:
             try:
                 if fd != -1:
                     os.close(fd)
-            except Exception:
+            except OSError:
+                # Catch OSError specifically to prevent masking original exception
+                # os.close() can only raise OSError, so we don't need the broader Exception
                 pass
 
     def _save_with_todos(self, todos: list[Todo]) -> None:
@@ -392,7 +394,9 @@ class Storage:
             try:
                 if fd != -1:
                     os.close(fd)
-            except Exception:
+            except OSError:
+                # Catch OSError specifically to prevent masking original exception
+                # os.close() can only raise OSError, so we don't need the broader Exception
                 pass
 
     def add(self, todo: Todo) -> Todo:
