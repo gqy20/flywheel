@@ -217,7 +217,9 @@ class Storage:
                 max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
                 next_id_copy = max(max_id + 1, self._next_id)
             else:
-                next_id_copy = 1
+                # Preserve current next_id when todos list is empty (fixes Issue #175)
+                # This prevents ID conflicts by not resetting to 1
+                next_id_copy = self._next_id
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
         # Save with metadata for efficient ID generation
