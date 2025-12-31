@@ -40,16 +40,19 @@ class Storage:
         directory to protect sensitive data. The approach varies by platform:
 
         - Unix-like systems: Uses chmod(0o700) to set owner-only access
-        - Windows: Attempts to use win32security to set restrictive ACLs
-          If win32security is not available, logs a warning but continues
+        - Windows: Attempts to use win32security to set restrictive ACLs.
+          If win32security is not available, logs a warning about unprotected
+          directory permissions and continues without setting permissions.
 
         Args:
             directory: The directory path to secure.
 
         Note:
             On Windows, if pywin32 is not installed, the directory will be
-            created with default permissions. Users requiring strict security
-            on Windows should install pywin32 or manually configure ACLs.
+            created with default permissions and a warning will be logged.
+            Users requiring strict security on Windows should install pywin32
+            or manually configure ACLs. The chmod fallback has been removed
+            as it provides no meaningful security on Windows.
         """
         if os.name != 'nt':  # Unix-like systems
             try:
@@ -100,30 +103,18 @@ class Storage:
                 win32_success = True
 
             except ImportError:
-                # pywin32 is not installed - attempt fallback chmod
-                logger.debug(
-                    f"pywin32 not installed. Attempting fallback chmod on {directory}. "
+                # pywin32 is not installed - log warning about unprotected directory
+                logger.warning(
+                    f"pywin32 not installed. Directory permissions on {directory} are not protected. "
                     f"For enhanced security on Windows, install pywin32: pip install pywin32"
                 )
             except Exception as e:
-                # Failed to set ACLs - attempt fallback chmod
-                logger.debug(
+                # Failed to set ACLs - log warning about unprotected directory
+                logger.warning(
                     f"Failed to set Windows ACLs on {directory}: {e}. "
-                    f"Attempting fallback chmod."
+                    f"Directory permissions are not protected. "
+                    f"For enhanced security on Windows, install pywin32: pip install pywin32"
                 )
-
-            # Fallback: attempt chmod on Windows if win32security failed or is unavailable (Issue #228)
-            if not win32_success:
-                try:
-                    # On Windows, chmod sets read-only flag but doesn't provide full Unix-like permissions
-                    # However, it's better than completely ignoring security (Issue #228)
-                    directory.chmod(0o700)
-                    logger.debug(f"Applied chmod(0o700) to {directory} as fallback")
-                except OSError as e:
-                    logger.warning(
-                        f"Failed to set directory permissions on {directory}: {e}. "
-                        f"Directory may have less restrictive permissions than intended."
-                    )
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
