@@ -151,7 +151,9 @@ class Storage:
                 if isinstance(raw_data, dict):
                     # New format with metadata
                     todos_data = raw_data.get("todos", [])
-                    next_id = raw_data.get("next_id", 1)
+                    # Use direct access after validation to ensure type safety (Issue #219)
+                    # _validate_storage_schema already confirmed next_id is an int if it exists
+                    next_id = raw_data["next_id"] if "next_id" in raw_data else 1
                 elif isinstance(raw_data, list):
                     # Old format - backward compatibility
                     todos_data = raw_data
