@@ -345,19 +345,20 @@ class Storage:
             # Inline the ID generation logic to ensure atomicity with insertion
             if todo_id is None:
                 # Use _next_id for O(1) ID generation instead of max() which is O(N)
+                # Capture the ID but DON'T increment self._next_id yet
+                # The increment will happen in _save_with_todos after successful write
+                # This prevents state inconsistency if save fails (fixes Issue #9)
                 todo_id = self._next_id
-                self._next_id += 1  # Increment counter for next use
                 # Create a new todo with the generated ID
                 todo = Todo(id=todo_id, title=todo.title, status=todo.status)
-            else:
-                # Todo has an external ID, update _next_id if needed
-                # Update _next_id if the provided ID is >= current _next_id
-                if todo_id >= self._next_id:
-                    self._next_id = todo_id + 1
+            # Note: For external IDs, _next_id will be updated in _save_with_todos
+            # to maintain consistency (fixes Issue #9)
 
             # Create a copy of todos list with the new todo
             new_todos = self._todos + [todo]
             # Save and update internal state atomically
+            # _save_with_todos will update self._todos and self._next_id
+            # only after successful write (fixes Issue #9)
             self._save_with_todos(new_todos)
             return todo
 
