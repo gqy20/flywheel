@@ -362,12 +362,13 @@ class Storage:
             os.close(fd)
             fd = -1  # Mark as closed to prevent double-close in finally block
 
-            # Atomically replace the original file
-            Path(temp_path).replace(self.path)
+            # Atomically replace the original file using os.replace (Issue #227)
+            # os.replace is atomic on POSIX systems and handles target file existence on Windows
+            os.replace(temp_path, self.path)
         except Exception:
             # Clean up temp file on error
             try:
-                Path(temp_path).unlink()
+                os.unlink(temp_path)
             except Exception:
                 pass
             raise
@@ -473,8 +474,9 @@ class Storage:
             os.close(fd)
             fd = -1  # Mark as closed to prevent double-close in finally block
 
-            # Atomically replace the original file
-            Path(temp_path).replace(self.path)
+            # Atomically replace the original file using os.replace (Issue #227)
+            # os.replace is atomic on POSIX systems and handles target file existence on Windows
+            os.replace(temp_path, self.path)
 
             # Phase 3: Update internal state ONLY after successful write
             # This ensures consistency between memory and disk (fixes Issue #121, #150)
@@ -494,7 +496,7 @@ class Storage:
         except Exception:
             # Clean up temp file on error
             try:
-                Path(temp_path).unlink()
+                os.unlink(temp_path)
             except Exception:
                 pass
             raise
