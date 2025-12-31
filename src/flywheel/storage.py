@@ -147,6 +147,10 @@ class Storage:
             suffix=".tmp"
         )
 
+        # Set strict file permissions (0o600) to prevent unauthorized access
+        # This ensures security regardless of umask settings (Issue #179)
+        os.fchmod(fd, 0o600)
+
         try:
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
@@ -234,6 +238,10 @@ class Storage:
             prefix=self.path.name + ".",
             suffix=".tmp"
         )
+
+        # Set strict file permissions (0o600) to prevent unauthorized access
+        # This ensures security regardless of umask settings (Issue #179)
+        os.fchmod(fd, 0o600)
 
         try:
             # Write data directly to file descriptor to avoid duplication
