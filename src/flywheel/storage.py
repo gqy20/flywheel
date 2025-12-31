@@ -2,6 +2,7 @@
 
 import atexit
 import errno
+import hashlib
 import json
 import logging
 import os
@@ -160,6 +161,19 @@ class Storage:
             except Exception as e:
                 logger.error(f"Failed to save pending changes on exit: {e}")
 
+    def _calculate_checksum(self, todos: list) -> str:
+        """Calculate SHA256 checksum of todos data (Issue #223).
+
+        Args:
+            todos: List of todo objects to calculate checksum for.
+
+        Returns:
+            Hexadecimal string representation of SHA256 hash.
+        """
+        # Serialize todos to JSON for hashing
+        todos_json = json.dumps([t.to_dict() for t in todos], sort_keys=True)
+        return hashlib.sha256(todos_json.encode('utf-8')).hexdigest()
+
     def _validate_storage_schema(self, data: dict | list) -> None:
         """Validate the storage data schema for security (Issue #7).
 
@@ -184,6 +198,18 @@ class Storage:
             unexpected = actual_keys - expected_keys
             if unexpected:
                 logger.warning(f"Unexpected keys in storage file: {unexpected}")
+
+            # Validate 'metadata' field if present (Issue #223)
+            if "metadata" in data:
+                if not isinstance(data["metadata"], dict):
+                    raise RuntimeError(
+                        f"Invalid schema: 'metadata' must be a dict, got {type(data['metadata']).__name__}"
+                    )
+                # Checksum is optional but must be a string if present
+                if "checksum" in data["metadata"] and not isinstance(data["metadata"]["checksum"], str):
+                    raise RuntimeError(
+                        f"Invalid schema: 'metadata.checksum' must be a string"
+                    )
 
             # Validate 'todos' field
             if "todos" in data:
@@ -242,6 +268,40 @@ class Storage:
                 if isinstance(raw_data, dict):
                     # New format with metadata
                     todos_data = raw_data.get("todos", [])
+
+                    # Verify data integrity using checksum (Issue #223)
+                    metadata = raw_data.get("metadata", {})
+                    stored_checksum = metadata.get("checksum")
+
+                    if stored_checksum:
+                        # Calculate checksum of loaded todos
+                        calculated_checksum = None
+                        try:
+                            # Temporarily deserialize todos for checksum calculation
+                            temp_todos = []
+                            for item in todos_data:
+                                try:
+                                    temp_todos.append(Todo.from_dict(item))
+                                except (ValueError, TypeError, KeyError):
+                                    pass
+                            calculated_checksum = self._calculate_checksum(temp_todos)
+
+                            if calculated_checksum != stored_checksum:
+                                # Checksum mismatch - data corruption detected
+                                backup_path = self._create_backup(
+                                    f"Checksum mismatch in {self.path}: "
+                                    f"expected {stored_checksum}, got {calculated_checksum}"
+                                )
+                                raise RuntimeError(
+                                    f"Data integrity check failed. Checksum mismatch. "
+                                    f"Backup saved to {backup_path}"
+                                )
+                        except Exception as e:
+                            if isinstance(e, RuntimeError):
+                                raise
+                            # If checksum calculation fails, log warning but continue
+                            logger.warning(f"Failed to verify checksum: {e}")
+
                     # Use direct access after validation to ensure type safety (Issue #219)
                     # _validate_storage_schema already confirmed next_id is an int if it exists
                     next_id = raw_data["next_id"] if "next_id" in raw_data else 1
@@ -305,10 +365,15 @@ class Storage:
             next_id_copy = self._next_id
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
-        # Save with metadata for efficient ID generation
+        # Save with metadata for efficient ID generation and data integrity (Issue #223)
+        # Calculate checksum of todos data
+        checksum = self._calculate_checksum(todos_copy)
         data = json.dumps({
             "todos": [t.to_dict() for t in todos_copy],
-            "next_id": next_id_copy
+            "next_id": next_id_copy,
+            "metadata": {
+                "checksum": checksum
+            }
         }, indent=2)
 
         # Write to temporary file first
@@ -417,10 +482,15 @@ class Storage:
                 next_id_copy = self._next_id
 
         # Phase 2: Serialize and perform I/O OUTSIDE the lock
-        # Save with metadata for efficient ID generation
+        # Save with metadata for efficient ID generation and data integrity (Issue #223)
+        # Calculate checksum of todos data
+        checksum = self._calculate_checksum(todos_copy)
         data = json.dumps({
             "todos": [t.to_dict() for t in todos_copy],
-            "next_id": next_id_copy
+            "next_id": next_id_copy,
+            "metadata": {
+                "checksum": checksum
+            }
         }, indent=2)
 
         # Write to temporary file first
