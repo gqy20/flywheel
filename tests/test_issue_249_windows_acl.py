@@ -156,12 +156,11 @@ class TestWindowsACLSecurity:
 
                 # Expected: Use explicit minimal permissions without DELETE
                 # This test will FAIL initially, showing what should be used instead
+                # Also removed FILE_READ_EA and FILE_WRITE_EA (Issue #254)
                 expected_safe_permissions = (
                     win32con.FILE_LIST_DIRECTORY |
                     win32con.FILE_ADD_FILE |
                     win32con.FILE_ADD_SUBDIRECTORY |
-                    win32con.FILE_READ_EA |
-                    win32con.FILE_WRITE_EA |
                     win32con.FILE_READ_ATTRIBUTES |
                     win32con.FILE_WRITE_ATTRIBUTES |
                     win32con.SYNCHRONIZE

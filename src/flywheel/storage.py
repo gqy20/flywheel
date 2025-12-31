@@ -131,13 +131,12 @@ class Storage:
                 # Following the principle of least privilege (Issue #249)
                 # Do NOT use FILE_GENERIC_READ | FILE_GENERIC_WRITE as they include DELETE
                 # Use explicit minimal permissions without DELETE
+                # Remove FILE_READ_EA and FILE_WRITE_EA (Issue #254)
                 dacl = win32security.ACL()
                 dacl.AddAccessAllowedAce(
                     win32security.ACL_REVISION,
                     win32con.FILE_LIST_DIRECTORY |
                     win32con.FILE_ADD_FILE |
-                    win32con.FILE_READ_EA |
-                    win32con.FILE_WRITE_EA |
                     win32con.FILE_READ_ATTRIBUTES |
                     win32con.FILE_WRITE_ATTRIBUTES |
                     win32con.SYNCHRONIZE,
