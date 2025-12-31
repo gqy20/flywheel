@@ -13,6 +13,12 @@ from flywheel.todo import Todo
 
 logger = logging.getLogger(__name__)
 
+# Platform-specific file locking (Issue #268)
+if os.name == 'nt':  # Windows
+    import msvcrt
+else:  # Unix-like systems
+    import fcntl
+
 
 class Storage:
     """File-based todo storage."""
@@ -32,6 +38,60 @@ class Storage:
         self._load()
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
+
+    def _acquire_file_lock(self, file_handle) -> None:
+        """Acquire an exclusive file lock for multi-process safety (Issue #268).
+
+        Args:
+            file_handle: The file handle to lock.
+
+        Raises:
+            IOError: If the lock cannot be acquired.
+        """
+        if os.name == 'nt':  # Windows
+            # Windows locking: msvcrt.locking
+            # Lock the entire file (LK_LOCK) with blocking mode
+            try:
+                # Move to beginning of file before locking
+                file_handle.seek(0)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
+            except IOError as e:
+                logger.error(f"Failed to acquire Windows file lock: {e}")
+                raise
+        else:  # Unix-like systems
+            # Unix locking: fcntl.flock
+            # LOCK_EX = exclusive lock
+            # LOCK_NB = non-blocking mode (not set - we want to block)
+            try:
+                fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
+            except IOError as e:
+                logger.error(f"Failed to acquire Unix file lock: {e}")
+                raise
+
+    def _release_file_lock(self, file_handle) -> None:
+        """Release a file lock for multi-process safety (Issue #268).
+
+        Args:
+            file_handle: The file handle to unlock.
+
+        Raises:
+            IOError: If the lock cannot be released.
+        """
+        if os.name == 'nt':  # Windows
+            # Windows unlocking
+            try:
+                file_handle.seek(0)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+            except IOError as e:
+                logger.warning(f"Failed to release Windows file lock: {e}")
+                # Don't raise - we want to continue even if unlock fails
+        else:  # Unix-like systems
+            # Unix unlocking
+            try:
+                fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
+            except IOError as e:
+                logger.warning(f"Failed to release Unix file lock: {e}")
+                # Don't raise - we want to continue even if unlock fails
 
     def _secure_directory(self, directory: Path) -> None:
         """Set restrictive permissions on the storage directory.
@@ -316,8 +376,13 @@ class Storage:
                 # Read file and parse JSON atomically using json.load()
                 # This prevents TOCTOU issues by keeping the file handle open
                 # during parsing, instead of separating read_text() and json.loads()
+                # Acquire file lock for multi-process safety (Issue #268)
                 with self.path.open('r') as f:
-                    raw_data = json.load(f)
+                    self._acquire_file_lock(f)
+                    try:
+                        raw_data = json.load(f)
+                    finally:
+                        self._release_file_lock(f)
 
                 # Validate schema before deserializing (Issue #7)
                 # This prevents injection attacks and malformed data from causing crashes
@@ -489,7 +554,17 @@ class Storage:
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
-            os.replace(temp_path, self.path)
+            # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
+            if self.path.exists():
+                with self.path.open('r') as target_file:
+                    self._acquire_file_lock(target_file)
+                    try:
+                        os.replace(temp_path, self.path)
+                    finally:
+                        self._release_file_lock(target_file)
+            else:
+                # If target doesn't exist, no need to lock
+                os.replace(temp_path, self.path)
         except Exception:
             # Clean up temp file on error
             try:
@@ -606,7 +681,17 @@ class Storage:
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
-            os.replace(temp_path, self.path)
+            # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
+            if self.path.exists():
+                with self.path.open('r') as target_file:
+                    self._acquire_file_lock(target_file)
+                    try:
+                        os.replace(temp_path, self.path)
+                    finally:
+                        self._release_file_lock(target_file)
+            else:
+                # If target doesn't exist, no need to lock
+                os.replace(temp_path, self.path)
 
             # Phase 3: Update internal state ONLY after successful write
             # This ensures consistency between memory and disk (fixes Issue #121, #150)
