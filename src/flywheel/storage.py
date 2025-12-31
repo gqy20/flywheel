@@ -18,6 +18,12 @@ class Storage:
     def __init__(self, path: str = "~/.flywheel/todos.json"):
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        # Set restrictive directory permissions (0o700) to protect temporary files
+        # from the race condition between mkstemp and fchmod (Issue #194)
+        # This ensures that even if temp files have loose permissions momentarily,
+        # they cannot be accessed by other users
+        if os.name != 'nt':  # Skip on Windows
+            self.path.parent.chmod(0o700)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
