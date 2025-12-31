@@ -1,5 +1,6 @@
 """Todo storage backend."""
 
+import atexit
 import errno
 import json
 import logging
@@ -27,7 +28,10 @@ class Storage:
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
+        self._dirty: bool = False  # Track if data has been modified (Issue #203)
         self._load()
+        # Register cleanup handler to save dirty data on exit (Issue #203)
+        atexit.register(self._cleanup)
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
@@ -52,6 +56,19 @@ class Storage:
             raise RuntimeError(f"{error_message}. Failed to create backup") from backup_error
         return backup_path
 
+    def _cleanup(self) -> None:
+        """Cleanup handler called on program exit.
+
+        Ensures any pending changes are saved before the program exits.
+        This prevents data loss when the program terminates unexpectedly.
+        """
+        if self._dirty:
+            try:
+                self._save()
+                logger.info("Saved pending changes on exit")
+            except Exception as e:
+                logger.error(f"Failed to save pending changes on exit: {e}")
+
     def _load(self) -> None:
         """Load todos from file.
 
@@ -64,6 +81,7 @@ class Storage:
             if not self.path.exists():
                 self._todos = []
                 self._next_id = 1
+                self._dirty = False  # Reset dirty flag (Issue #203)
                 return
 
             try:
@@ -110,6 +128,8 @@ class Storage:
                 # Update internal state
                 self._todos = todos
                 self._next_id = next_id
+                # Reset dirty flag after successful load (Issue #203)
+                self._dirty = False
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -320,6 +340,8 @@ class Storage:
                     max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
                     if max_id >= self._next_id:
                         self._next_id = max_id + 1
+                # Mark as clean after successful save (Issue #203)
+                self._dirty = False
         except Exception:
             # Clean up temp file on error
             try:
@@ -374,6 +396,8 @@ class Storage:
 
             # Create a copy of todos list with the new todo
             new_todos = self._todos + [todo]
+            # Mark as dirty since we're modifying the data (Issue #203)
+            self._dirty = True
             # Save and update internal state atomically
             # _save_with_todos will update self._todos and self._next_id
             # only after successful write (fixes Issue #9)
@@ -403,6 +427,8 @@ class Storage:
                     # Create a copy of todos list with the updated todo
                     new_todos = self._todos.copy()
                     new_todos[i] = todo
+                    # Mark as dirty since we're modifying the data (Issue #203)
+                    self._dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
                     return todo
@@ -415,6 +441,8 @@ class Storage:
                 if t.id == todo_id:
                     # Create a copy of todos list without the deleted todo
                     new_todos = self._todos[:i] + self._todos[i+1:]
+                    # Mark as dirty since we're modifying the data (Issue #203)
+                    self._dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
                     return True
