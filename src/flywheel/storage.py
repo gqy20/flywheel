@@ -136,7 +136,6 @@ class Storage:
                     win32security.ACL_REVISION,
                     win32con.FILE_LIST_DIRECTORY |
                     win32con.FILE_ADD_FILE |
-                    win32con.FILE_ADD_SUBDIRECTORY |
                     win32con.FILE_READ_EA |
                     win32con.FILE_WRITE_EA |
                     win32con.FILE_READ_ATTRIBUTES |
