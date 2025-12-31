@@ -51,10 +51,11 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Lock the entire file (LK_LOCK) with blocking mode
+            # Use a large range (0x7FFF0000) to ensure entire file is locked (Issue #271)
             try:
                 # Move to beginning of file before locking
                 file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 1)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 0x7FFF0000)
             except IOError as e:
                 logger.error(f"Failed to acquire Windows file lock: {e}")
                 raise
@@ -79,9 +80,10 @@ class Storage:
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
+            # Unlock range must match lock range exactly (Issue #271)
             try:
                 file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 0x7FFF0000)
             except IOError as e:
                 logger.warning(f"Failed to release Windows file lock: {e}")
                 # Don't raise - we want to continue even if unlock fails
