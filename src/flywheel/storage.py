@@ -164,7 +164,7 @@ class Storage:
                 os.fchmod(fd, 0o600)
             except AttributeError:
                 # os.fchmod is not available on Windows
-                # Fall back to chmod after closing the file (Issue #190)
+                # Fall back to chmod before closing the file (Issue #200)
                 needs_chmod_fallback = True
 
             # Write data directly to file descriptor to avoid duplication
@@ -185,13 +185,16 @@ class Storage:
                     raise
             os.fsync(fd)  # Ensure data is written to disk
 
-            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
-
-            # Apply chmod fallback for Windows after closing the file (Issue #190)
+            # Apply chmod fallback for Windows BEFORE closing the file (Issue #200)
+            # This prevents the race condition where the file could be accessed with
+            # default permissions between os.close() and os.chmod()
             if needs_chmod_fallback:
                 os.chmod(temp_path, 0o600)
+
+            # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
+            # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
@@ -269,7 +272,7 @@ class Storage:
                 os.fchmod(fd, 0o600)
             except AttributeError:
                 # os.fchmod is not available on Windows
-                # Fall back to chmod after closing the file (Issue #190)
+                # Fall back to chmod before closing the file (Issue #200)
                 needs_chmod_fallback = True
 
             # Write data directly to file descriptor to avoid duplication
@@ -290,13 +293,16 @@ class Storage:
                     raise
             os.fsync(fd)  # Ensure data is written to disk
 
-            # Close file descriptor BEFORE replace to avoid "file being used" errors on Windows
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
-
-            # Apply chmod fallback for Windows after closing the file (Issue #190)
+            # Apply chmod fallback for Windows BEFORE closing the file (Issue #200)
+            # This prevents the race condition where the file could be accessed with
+            # default permissions between os.close() and os.chmod()
             if needs_chmod_fallback:
                 os.chmod(temp_path, 0o600)
+
+            # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
+            # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
+            os.close(fd)
+            fd = -1  # Mark as closed to prevent double-close in finally block
 
             # Atomically replace the original file
             Path(temp_path).replace(self.path)
