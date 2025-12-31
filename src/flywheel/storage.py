@@ -39,6 +39,38 @@ class Storage:
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
 
+    def _get_windows_lock_range(self, file_path: Path) -> int:
+        """Calculate the Windows file lock range based on actual file size.
+
+        This method determines the appropriate lock range for Windows file locking.
+        Instead of using a hardcoded value (0x7FFF0000 ≈ 2GB), it uses the actual
+        file size to ensure the entire file is locked, preventing data corruption
+        for large files (Issue #276).
+
+        Args:
+            file_path: Path to the file to be locked.
+
+        Returns:
+            The number of bytes to lock from the beginning of the file.
+
+        Note:
+            - If the file exists, returns its actual size
+            - If the file doesn't exist, returns a reasonable default (1MB)
+            - The lock range must be a positive integer for msvcrt.locking()
+        """
+        try:
+            if file_path.exists():
+                # Get the actual file size
+                return os.path.getsize(file_path)
+            else:
+                # File doesn't exist yet - use a reasonable default
+                # 1MB should be sufficient for most new files
+                return 1024 * 1024
+        except OSError:
+            # If getsize fails, use a safe default
+            # This prevents lock failures due to file access issues
+            return 1024 * 1024
+
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
 
@@ -51,11 +83,14 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Lock the entire file (LK_LOCK) with blocking mode
-            # Use a large range (0x7FFF0000) to ensure entire file is locked (Issue #271)
+            # Use actual file size instead of hardcoded 0x7FFF0000 (Issue #276)
             try:
+                # Get the lock range based on actual file size
+                # This handles files larger than 2GB correctly
+                lock_range = self._get_windows_lock_range(self.path)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, 0x7FFF0000)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, lock_range)
             except IOError as e:
                 logger.error(f"Failed to acquire Windows file lock: {e}")
                 raise
@@ -81,9 +116,13 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
+            # Use actual file size instead of hardcoded 0x7FFF0000 (Issue #276)
             try:
+                # Get the lock range based on actual file size
+                # This must match the range used in _acquire_file_lock
+                lock_range = self._get_windows_lock_range(self.path)
                 file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 0x7FFF0000)
+                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
                 logger.warning(f"Failed to release Windows file lock: {e}")
                 # Don't raise - we want to continue even if unlock fails
