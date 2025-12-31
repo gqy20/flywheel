@@ -260,9 +260,11 @@ class Storage:
                 )
 
                 # Apply the security descriptor to the directory
+                # Include OWNER_SECURITY_INFORMATION to ensure owner info is applied (Issue #264)
                 security_info = (
                     win32security.DACL_SECURITY_INFORMATION |
-                    win32security.PROTECTED_DACL_SECURITY_INFORMATION
+                    win32security.PROTECTED_DACL_SECURITY_INFORMATION |
+                    win32security.OWNER_SECURITY_INFORMATION
                 )
                 win32security.SetFileSecurity(
                     str(directory),
