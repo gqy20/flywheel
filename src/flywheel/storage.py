@@ -83,10 +83,10 @@ class Storage:
                     # Extract domain from the qualified DN
                     # Format: CN=user,OU=users,DC=domain,DC=com
                     parts = name.split(',')
-                    for part in parts:
-                        if part.strip().startswith('DC='):
-                            domain = '.'.join(p.split('=')[1] for p in parts if p.strip().startswith('DC='))
-                            break
+                    # Build domain from all DC= parts (execute once, not in loop)
+                    dc_parts = [p.split('=')[1] for p in parts if p.strip().startswith('DC=')]
+                    if dc_parts:
+                        domain = '.'.join(dc_parts)
                     else:
                         # Fallback to local computer if no domain found
                         domain = win32api.GetComputerName()
