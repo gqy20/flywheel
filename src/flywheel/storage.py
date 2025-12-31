@@ -153,17 +153,20 @@ class Storage:
             suffix=".tmp"
         )
 
-        # Set strict file permissions (0o600) to prevent unauthorized access
-        # This ensures security regardless of umask settings (Issue #179)
+        # Track whether chmod fallback is needed (for Windows compatibility)
         needs_chmod_fallback = False
-        try:
-            os.fchmod(fd, 0o600)
-        except AttributeError:
-            # os.fchmod is not available on Windows
-            # Fall back to chmod after closing the file (Issue #190)
-            needs_chmod_fallback = True
 
         try:
+            # Set strict file permissions (0o600) to prevent unauthorized access
+            # This ensures security regardless of umask settings (Issue #179)
+            # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
+            try:
+                os.fchmod(fd, 0o600)
+            except AttributeError:
+                # os.fchmod is not available on Windows
+                # Fall back to chmod after closing the file (Issue #190)
+                needs_chmod_fallback = True
+
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
             data_bytes = data.encode('utf-8')
@@ -255,17 +258,20 @@ class Storage:
             suffix=".tmp"
         )
 
-        # Set strict file permissions (0o600) to prevent unauthorized access
-        # This ensures security regardless of umask settings (Issue #179)
+        # Track whether chmod fallback is needed (for Windows compatibility)
         needs_chmod_fallback = False
-        try:
-            os.fchmod(fd, 0o600)
-        except AttributeError:
-            # os.fchmod is not available on Windows
-            # Fall back to chmod after closing the file (Issue #190)
-            needs_chmod_fallback = True
 
         try:
+            # Set strict file permissions (0o600) to prevent unauthorized access
+            # This ensures security regardless of umask settings (Issue #179)
+            # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
+            try:
+                os.fchmod(fd, 0o600)
+            except AttributeError:
+                # os.fchmod is not available on Windows
+                # Fall back to chmod after closing the file (Issue #190)
+                needs_chmod_fallback = True
+
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
             data_bytes = data.encode('utf-8')
