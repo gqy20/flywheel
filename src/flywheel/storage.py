@@ -19,12 +19,11 @@ class Storage:
     def __init__(self, path: str = "~/.flywheel/todos.json"):
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Set restrictive directory permissions (0o700) to protect temporary files
+        # Set restrictive directory permissions to protect temporary files
         # from the race condition between mkstemp and fchmod (Issue #194)
         # This ensures that even if temp files have loose permissions momentarily,
         # they cannot be accessed by other users
-        if os.name != 'nt':  # Skip on Windows
-            self.path.parent.chmod(0o700)
+        self._secure_directory(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
@@ -32,6 +31,84 @@ class Storage:
         self._load()
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
+
+    def _secure_directory(self, directory: Path) -> None:
+        """Set restrictive permissions on the storage directory.
+
+        This method attempts to set restrictive permissions on the storage
+        directory to protect sensitive data. The approach varies by platform:
+
+        - Unix-like systems: Uses chmod(0o700) to set owner-only access
+        - Windows: Attempts to use win32security to set restrictive ACLs
+          If win32security is not available, logs a warning but continues
+
+        Args:
+            directory: The directory path to secure.
+
+        Note:
+            On Windows, if pywin32 is not installed, the directory will be
+            created with default permissions. Users requiring strict security
+            on Windows should install pywin32 or manually configure ACLs.
+        """
+        if os.name != 'nt':  # Unix-like systems
+            try:
+                directory.chmod(0o700)
+            except OSError as e:
+                logger.warning(
+                    f"Failed to set directory permissions on {directory}: {e}. "
+                    f"Directory may have less restrictive permissions than intended."
+                )
+        else:  # Windows
+            # Attempt to use Windows ACLs for security (Issue #226)
+            try:
+                import win32security
+                import win32con
+                import win32api
+
+                # Get the current user's SID
+                user = win32api.GetUserName()
+                domain = os.environ.get('USERDOMAIN', '.')
+                sid, _, _ = win32security.LookupAccountName(domain, user)
+
+                # Create a security descriptor with owner-only access
+                security_descriptor = win32security.SECURITY_DESCRIPTOR()
+                security_descriptor.SetSecurityDescriptorOwner(sid, False)
+
+                # Create a DACL (Discretionary Access Control List)
+                dacl = win32security.ACL()
+                dacl.AddAccessAllowedAce(
+                    win32security.ACL_REVISION,
+                    win32con.FILE_ALL_ACCESS,  # Full control for owner
+                    sid
+                )
+
+                security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+
+                # Apply the security descriptor to the directory
+                security_info = (
+                    win32security.DACL_SECURITY_INFORMATION |
+                    win32security.PROTECTED_DACL_SECURITY_INFORMATION
+                )
+                win32security.SetFileSecurity(
+                    str(directory),
+                    security_info,
+                    security_descriptor
+                )
+                logger.debug(f"Applied restrictive ACLs to {directory}")
+
+            except ImportError:
+                # pywin32 is not installed - this is expected on many systems
+                logger.warning(
+                    f"pywin32 not installed. Unable to set Windows ACLs on {directory}. "
+                    f"The directory will use default permissions. "
+                    f"For enhanced security on Windows, install pywin32: pip install pywin32"
+                )
+            except Exception as e:
+                # Failed to set ACLs - log but don't fail
+                logger.warning(
+                    f"Failed to set Windows ACLs on {directory}: {e}. "
+                    f"The directory will use default permissions."
+                )
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
