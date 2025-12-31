@@ -145,6 +145,13 @@ class Storage:
 
                 security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
 
+                # Fix Issue #244: Set SACL (System Access Control List) for auditing
+                # SACL enables security auditing for access attempts on the directory
+                # Create an empty SACL (no audit policies by default)
+                # Administrators can configure audit policies using Windows Security Audit
+                sacl = win32security.ACL()
+                security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
+
                 # Fix Issue #256: Explicitly set DACL protection to prevent inheritance
                 # This ensures PROTECTED_DACL_SECURITY_INFORMATION flag takes effect
                 security_descriptor.SetSecurityDescriptorControl(
