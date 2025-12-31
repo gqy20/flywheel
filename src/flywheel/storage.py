@@ -117,10 +117,12 @@ class Storage:
                 security_descriptor.SetSecurityDescriptorOwner(sid, False)
 
                 # Create a DACL (Discretionary Access Control List)
+                # Use minimal permissions instead of FILE_ALL_ACCESS (Issue #239)
+                # Following the principle of least privilege
                 dacl = win32security.ACL()
                 dacl.AddAccessAllowedAce(
                     win32security.ACL_REVISION,
-                    win32con.FILE_ALL_ACCESS,  # Full control for owner
+                    win32con.FILE_GENERIC_READ | win32con.FILE_GENERIC_WRITE,
                     sid
                 )
 
