@@ -77,6 +77,16 @@ class Storage:
                 domain = None
                 user = win32api.GetUserName()
 
+                # Fix Issue #251: Extract pure username if GetUserName returns
+                # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
+                # This can happen in non-domain environments and causes
+                # LookupAccountName to fail
+                if '\\' in user:
+                    # Extract the part after the last backslash
+                    parts = user.rsplit('\\', 1)
+                    if len(parts) == 2:
+                        user = parts[1]
+
                 try:
                     # Try to get the fully qualified domain name
                     name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
