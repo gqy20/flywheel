@@ -136,12 +136,17 @@ class Storage:
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
 
                 # Validate lock range before caching (Issue #366)
+                # Security fix (Issue #374): Raise exception instead of insecure fallback
+                # If lock_range is invalid (<= 0), falling back to 4096 might lock only a
+                # portion of the file while the rest remains accessible, violating the
+                # exclusive lock requirement. It is safer to fail the operation.
                 if lock_range <= 0:
-                    logger.error(
+                    raise RuntimeError(
                         f"Invalid lock range {lock_range} returned for file {file_handle.name}. "
-                        f"Using minimum safe range of 4096 bytes."
+                        f"Cannot acquire secure file lock with invalid range. "
+                        f"The file size may be corrupted or fstat failed. "
+                        f"Refusing to use insecure partial lock fallback."
                     )
-                    lock_range = 4096
 
                 # Cache the lock range for use in _release_file_lock (Issue #351)
                 # This ensures we use the same range for unlock, even if file size changes
@@ -194,15 +199,16 @@ class Storage:
             try:
                 # Use the cached lock range from acquire to ensure consistency (Issue #351)
                 # Validate lock range before using it (Issue #366)
+                # Security fix (Issue #374): Raise exception instead of insecure fallback
                 lock_range = self._lock_range
                 if lock_range <= 0:
                     # Invalid lock range - this should never happen if acquire was called
-                    logger.error(
+                    # Security fix (Issue #374): Raise instead of falling back to 4096
+                    raise RuntimeError(
                         f"Invalid lock range {lock_range} in _release_file_lock. "
-                        f"This indicates acquire/release are not properly paired (Issue #366)."
+                        f"This indicates acquire/release are not properly paired (Issue #366). "
+                        f"Refusing to use insecure partial lock fallback."
                     )
-                    # Use minimum valid range as fallback to prevent total failure
-                    lock_range = 4096
 
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
