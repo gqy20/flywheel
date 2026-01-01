@@ -192,25 +192,27 @@ class Storage:
                 # Initialize domain to ensure it's always defined (Issue #234)
                 domain = None
 
-                # Fix Issue #314: Fallback to environment variables when GetUserName fails
-                # or returns edge case values (None, empty string, whitespace only)
+                # Security fix (Issue #329): Do NOT fall back to environment variables
+                # when GetUserName fails. Environment variables can be manipulated by
+                # the process or parent process, which is a security risk when setting ACLs.
                 try:
                     user = win32api.GetUserName()
-                except Exception:
-                    # GetUserName failed - try environment variable fallback
-                    user = os.environ.get('USERNAME', '').strip()
+                except Exception as e:
+                    # GetUserName failed - raise error immediately without fallback
+                    raise RuntimeError(
+                        "Cannot set Windows security: win32api.GetUserName() failed. "
+                        "Unable to securely determine username. "
+                        f"Install pywin32: pip install pywin32. Error: {e}"
+                    ) from e
 
-                # Validate user and use environment variable fallback if needed
+                # Validate user - do NOT use environment variable fallback (Issue #329)
                 if not user or not isinstance(user, str) or len(user.strip()) == 0:
-                    # GetUserName returned invalid value - try environment variable
-                    user = os.environ.get('USERNAME', '').strip()
-                    if not user:
-                        # No valid username available - raise error
-                        raise RuntimeError(
-                            "Cannot set Windows security: Unable to determine username. "
-                            "Both win32api.GetUserName() and USERNAME environment variable are unavailable. "
-                            "Install pywin32: pip install pywin32"
-                        )
+                    # GetUserName returned invalid value - raise error
+                    raise RuntimeError(
+                        "Cannot set Windows security: win32api.GetUserName() returned invalid value. "
+                        "Unable to securely determine username. "
+                        "Install pywin32: pip install pywin32"
+                    )
 
                 # Fix Issue #251: Extract pure username if GetUserName returns
                 # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
@@ -237,16 +239,25 @@ class Storage:
                         domain = win32api.GetComputerName()
                 except Exception:
                     # Fallback: Use local computer for non-domain environments
+                    # Security fix (Issue #329): Do NOT fall back to environment variables
                     try:
                         domain = win32api.GetComputerName()
-                    except Exception:
-                        # Fix Issue #314: Use USERDOMAIN environment variable as fallback
-                        domain = os.environ.get('USERDOMAIN', '.')
+                    except Exception as e:
+                        # GetComputerName also failed - raise error
+                        raise RuntimeError(
+                            "Cannot set Windows security: Unable to determine domain. "
+                            f"win32api.GetComputerName() failed. "
+                            f"Install pywin32: pip install pywin32. Error: {e}"
+                        ) from e
 
-                # Final fallback for domain (Issue #234, #314)
-                # Ensures domain is always defined before LookupAccountName
+                # Validate domain - ensure it's defined before LookupAccountName (Issue #234)
+                # Security fix (Issue #329): Do NOT fall back to environment variables
                 if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
-                    domain = os.environ.get('USERDOMAIN', '.')
+                    raise RuntimeError(
+                        "Cannot set Windows security: Unable to determine domain. "
+                        "Domain is None or empty after Windows API calls. "
+                        "Install pywin32: pip install pywin32"
+                    )
 
                 # Validate user before calling LookupAccountName (Issue #240)
                 # Ensure user is initialized and non-empty to prevent passing invalid values
@@ -256,38 +267,16 @@ class Storage:
                         f"GetUserName() returned invalid value."
                     )
 
-                # Fix Issue #314: Try LookupAccountName with fallback to environment variables
+                # Security fix (Issue #329): Do NOT fall back to environment variables
+                # when LookupAccountName fails. Environment variables can be manipulated.
                 try:
                     sid, _, _ = win32security.LookupAccountName(domain, user)
-                except Exception:
-                    # LookupAccountName failed - try with environment variable username
-                    env_username = os.environ.get('USERNAME', '').strip()
-                    if env_username and env_username != user:
-                        logger.warning(
-                            f"LookupAccountName failed for user '{user}', "
-                            f"retrying with environment variable USERNAME '{env_username}'"
-                        )
-                        user = env_username
-                        # Update domain as well if available
-                        env_domain = os.environ.get('USERDOMAIN', '').strip()
-                        if env_domain:
-                            domain = env_domain
-                        try:
-                            sid, _, _ = win32security.LookupAccountName(domain, user)
-                        except Exception as e:
-                            # Still failed - raise RuntimeError
-                            raise RuntimeError(
-                                f"Failed to set Windows ACLs: Unable to lookup account '{user}' in domain '{domain}'. "
-                                f"Both win32api.GetUserName() and environment variables (USERNAME={os.environ.get('USERNAME')}, "
-                                f"USERDOMAIN={os.environ.get('USERDOMAIN')}) failed to provide valid security context. "
-                                f"Original error: {e}"
-                            ) from e
-                    else:
-                        # No environment variable fallback available
-                        raise RuntimeError(
-                            f"Failed to set Windows ACLs: Unable to lookup account '{user}' in domain '{domain}'. "
-                            f"Install pywin32: pip install pywin32"
-                        )
+                except Exception as e:
+                    # LookupAccountName failed - raise error without fallback
+                    raise RuntimeError(
+                        f"Failed to set Windows ACLs: Unable to lookup account '{user}' in domain '{domain}'. "
+                        f"Install pywin32: pip install pywin32. Error: {e}"
+                    ) from e
 
                 # Create a security descriptor with owner-only access
                 security_descriptor = win32security.SECURITY_DESCRIPTOR()
