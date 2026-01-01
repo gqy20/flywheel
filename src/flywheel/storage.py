@@ -89,9 +89,9 @@ class Storage:
         if os.name == 'nt':  # Windows
             # On Windows, msvcrt.locking requires the lock range to not exceed
             # the file size to avoid IOError (Error 33) (Issue #346)
-            # Use the file name from the file handle to get the size
+            # Use file descriptor instead of path to avoid race conditions (Issue #371)
             try:
-                file_size = os.path.getsize(file_handle.name)
+                file_size = os.fstat(file_handle.fileno()).st_size
                 # Ensure minimum lock range of 4096 bytes for small files
                 return max(file_size, 4096)
             except OSError:
