@@ -75,35 +75,39 @@ class Storage:
         """Get the Windows file lock range.
 
         This method returns a lock range for Windows file locking. On Windows,
-        the lock range is based on the actual file size to prevent IOError
-        (Error 33: Lock region not granted) when the lock range exceeds the
-        file size (Issue #346). A minimum of 4096 bytes is used to ensure
-        reasonable locking for small files.
+        a fixed large lock range (0x7FFFFFFF) is used to prevent deadlocks when
+        the file size changes between lock acquisition and release (Issue #375).
 
         Args:
-            file_handle: The open file handle used to determine file size.
+            file_handle: The open file handle (unused, kept for API compatibility).
 
         Returns:
-            On Windows: The file size or minimum 4096 bytes, whichever is larger.
+            On Windows: A fixed large lock range (0x7FFFFFFF).
             On Unix: A placeholder value (ignored by fcntl.flock).
 
         Note:
-            - On Windows, uses file size to prevent IOError (Issue #346)
-            - Minimum 4096 bytes ensures reasonable lock coverage for small files
+            - On Windows, uses a fixed large range to prevent deadlock (Issue #375)
+            - 0x7FFFFFFF (2,147,483,647 bytes) is sufficiently large to handle
+              reasonable file sizes while avoiding potential overflow issues
+            - This approach prevents the issue where file grows between lock
+              acquisition and release, which would cause unlock to fail
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
         """
         if os.name == 'nt':  # Windows
-            # On Windows, msvcrt.locking requires the lock range to not exceed
-            # the file size to avoid IOError (Error 33) (Issue #346)
-            # Use file descriptor instead of path to avoid race conditions (Issue #371)
-            try:
-                file_size = os.fstat(file_handle.fileno()).st_size
-                # Ensure minimum lock range of 4096 bytes for small files
-                return max(file_size, 4096)
-            except OSError:
-                # If we can't get file size, use a reasonable default
-                # This is a fallback that should rarely be hit
-                return 4096
+            # Security fix for Issue #375: Use a fixed large lock range
+            # instead of calculating from file size to prevent deadlocks
+            # when file size changes between lock acquisition and release
+            #
+            # The lock range is determined at acquisition time. If the file
+            # size grows between acquisition and release, the cached range
+            # (self._lock_range) may be smaller than the actual file size.
+            # On Windows, msvcrt.locking requires the unlock range to match
+            # the locked region. Using a fixed large range ensures the lock
+            # can handle file growth without deadlock.
+            #
+            # 0x7FFFFFFF (2GB) is used instead of 0xFFFFFFFF to avoid
+            # potential signed/unsigned conversion issues with msvcrt.locking
+            return 0x7FFFFFFF
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
             # Return a placeholder value (will be ignored)
@@ -119,32 +123,33 @@ class Storage:
             IOError: If the lock cannot be acquired.
 
         Note:
-            For Windows, the lock range is based on the file size to prevent
-            IOError (Error 33) when the range exceeds file size (Issue #346).
-            The lock range is cached to ensure consistency between acquire and
-            release operations, preventing potential deadlocks if the file size
-            changes between these calls (Issue #351).
+            For Windows, a fixed large lock range (0x7FFFFFFF) is used to prevent
+            deadlocks when the file size changes between lock acquisition and
+            release (Issue #375). The lock range is cached to ensure consistency
+            between acquire and release operations (Issue #351).
+
+            This approach eliminates the risk of deadlock that existed when using
+            file size-based locking, where file growth between acquire and release
+            would cause unlock failures.
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
-            # Lock based on file size to prevent IOError (Issue #346)
+            # Use fixed large lock range to prevent deadlock (Issue #375)
             try:
-                # Get the lock range based on file size
+                # Get the lock range (fixed large value for Windows)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
 
                 # Validate lock range before caching (Issue #366)
+                # With the fixed range approach (Issue #375), lock_range is always
+                # 0x7FFFFFFF on Windows, but we validate for defensive programming
                 # Security fix (Issue #374): Raise exception instead of insecure fallback
-                # If lock_range is invalid (<= 0), falling back to 4096 might lock only a
-                # portion of the file while the rest remains accessible, violating the
-                # exclusive lock requirement. It is safer to fail the operation.
                 if lock_range <= 0:
                     raise RuntimeError(
                         f"Invalid lock range {lock_range} returned for file {file_handle.name}. "
                         f"Cannot acquire secure file lock with invalid range. "
-                        f"The file size may be corrupted or fstat failed. "
                         f"Refusing to use insecure partial lock fallback."
                     )
 
@@ -181,11 +186,13 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            For Windows, the lock range matches the range used during acquisition
-            to avoid "permission denied" errors (Issue #271, #346).
-            Uses the cached lock range from _acquire_file_lock to prevent
-            potential deadlocks if the file size changes between lock and unlock
-            (Issue #351).
+            For Windows, the lock range matches the fixed large range (0x7FFFFFFF)
+            used during acquisition to avoid "permission denied" errors (Issue #271).
+            Uses the cached lock range from _acquire_file_lock (Issue #351).
+
+            With the fixed range approach (Issue #375), file size changes between
+            lock and unlock no longer cause deadlocks or unlock failures, as the
+            locked region is always large enough to cover the actual file size.
 
             The lock range cache is thread-safe because all file operations are
             serialized by self._lock (RLock), ensuring proper acquire/release
