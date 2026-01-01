@@ -39,44 +39,42 @@ class Storage:
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
 
-    def _get_windows_lock_range(self, file_path: Path) -> int:
-        """Get the Windows file lock range based on actual file size.
+    def _get_file_lock_range_from_handle(self, file_handle) -> int:
+        """Get the Windows file lock range based on open file handle size.
 
         This method returns a lock range for Windows file locking that is based
-        on the actual file size to avoid invalid parameter errors when the file
-        is smaller than the lock range (Issue #306). A minimum buffer is added
-        to handle small amounts of file growth without requiring re-locking.
+        on the actual file size from an open file handle. This prevents race
+        conditions (Issue #311) by using the file handle that's already open,
+        rather than making a separate file system check.
 
         Args:
-            file_path: Path to the file to be locked.
+            file_handle: The open file handle to get size from.
 
         Returns:
             A lock range based on file size plus a buffer, or a default if the
-            file doesn't exist.
+            size cannot be determined.
 
         Note:
-            - Uses actual file size when available to avoid locking beyond file bounds (Issue #306)
+            - Uses file handle to avoid TOCTOU race conditions (Issue #311)
             - Adds a 1MB buffer to handle moderate file growth without re-locking
-            - Falls back to 1MB default for non-existent files
+            - Falls back to 1MB default when size cannot be determined
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        # Issue #306: Use actual file size to avoid invalid parameter errors
-        # when file is smaller than the lock range
-        if file_path.exists() and file_path.is_file():
-            try:
-                # Get actual file size
-                file_size = os.path.getsize(file_path)
-                # Add a 1MB buffer to handle file growth without requiring re-locking
-                # This balances between protecting against growth and avoiding errors
-                buffer_size = 1024 * 1024  # 1MB
-                return file_size + buffer_size
-            except OSError:
-                # If we can't get file size, fall back to default
-                pass
+        try:
+            # Get file position and seek to end to get size
+            current_pos = file_handle.tell()
+            file_handle.seek(0, os.SEEK_END)
+            file_size = file_handle.tell()
+            file_handle.seek(current_pos)  # Restore original position
 
-        # Default for non-existent files or when size cannot be determined
-        # Use 1MB as a reasonable default that won't cause parameter errors
-        return 1024 * 1024  # 1MB
+            # Add a 1MB buffer to handle file growth without requiring re-locking
+            # This balances between protecting against growth and avoiding errors
+            buffer_size = 1024 * 1024  # 1MB
+            return file_size + buffer_size
+        except (OSError, IOError):
+            # If we can't get file size from handle, fall back to default
+            # Use 1MB as a reasonable default that won't cause parameter errors
+            return 1024 * 1024  # 1MB
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -86,15 +84,22 @@ class Storage:
 
         Raises:
             IOError: If the lock cannot be acquired.
+
+        Note:
+            For Windows (Issue #311), the lock range is calculated using the
+            open file handle to prevent race conditions between size check and
+            lock acquisition.
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Lock the entire file (LK_LOCK) with blocking mode
             # Use file size + buffer to handle file growth without errors (Issue #281, #306)
+            # Calculate lock range from open file handle to prevent TOCTOU race (Issue #311)
             try:
-                # Get the lock range - based on file size to avoid parameter errors
-                # with a buffer to handle moderate file growth
-                lock_range = self._get_windows_lock_range(self.path)
+                # Get the lock range from the open file handle
+                # This prevents race conditions where file could be modified/deleted
+                # between size check and lock acquisition (Issue #311)
+                lock_range = self._get_file_lock_range_from_handle(file_handle)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, lock_range)
@@ -119,14 +124,19 @@ class Storage:
 
         Raises:
             IOError: If the lock cannot be released.
+
+        Note:
+            For Windows (Issue #311), the lock range is calculated using the
+            open file handle to match the range used during lock acquisition.
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use the same file size + buffer calculation as acquire (Issue #306)
+            # Use the same file size + buffer calculation as acquire (Issue #306, #311)
             try:
-                # Get the lock range - must match the range used in _acquire_file_lock
-                lock_range = self._get_windows_lock_range(self.path)
+                # Get the lock range from the open file handle - must match the range
+                # used in _acquire_file_lock to avoid "permission denied" errors
+                lock_range = self._get_file_lock_range_from_handle(file_handle)
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
