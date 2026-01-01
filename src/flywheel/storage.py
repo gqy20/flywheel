@@ -40,29 +40,43 @@ class Storage:
         atexit.register(self._cleanup)
 
     def _get_windows_lock_range(self, file_path: Path) -> int:
-        """Get the Windows file lock range as a large fixed value.
+        """Get the Windows file lock range based on actual file size.
 
-        This method returns a large fixed lock range for Windows file locking
-        to ensure the entire file is locked even after it grows. Using the actual
-        file size would leave new data unlocked if the file grows after locking,
-        potentially causing data corruption (Issue #281).
+        This method returns a lock range for Windows file locking that is based
+        on the actual file size to avoid invalid parameter errors when the file
+        is smaller than the lock range (Issue #306). A minimum buffer is added
+        to handle small amounts of file growth without requiring re-locking.
 
         Args:
-            file_path: Path to the file to be locked (unused, kept for interface).
+            file_path: Path to the file to be locked.
 
         Returns:
-            A large fixed lock range (0xFFFF0000 ≈ 4GB) to ensure all current and
-            future data is locked.
+            A lock range based on file size plus a buffer, or a default if the
+            file doesn't exist.
 
         Note:
-            - Uses a fixed large value (0xFFFF0000) instead of actual file size
-            - This ensures that even if the file grows after locking, all data is protected
+            - Uses actual file size when available to avoid locking beyond file bounds (Issue #306)
+            - Adds a 1MB buffer to handle moderate file growth without re-locking
+            - Falls back to 1MB default for non-existent files
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        # Use a large fixed lock range to handle file growth (Issue #281)
-        # 0xFFFF0000 ≈ 4GB should be sufficient for most use cases
-        # This ensures that all data is locked even if the file grows after the lock is acquired
-        return 0xFFFF0000
+        # Issue #306: Use actual file size to avoid invalid parameter errors
+        # when file is smaller than the lock range
+        if file_path.exists() and file_path.is_file():
+            try:
+                # Get actual file size
+                file_size = os.path.getsize(file_path)
+                # Add a 1MB buffer to handle file growth without requiring re-locking
+                # This balances between protecting against growth and avoiding errors
+                buffer_size = 1024 * 1024  # 1MB
+                return file_size + buffer_size
+            except OSError:
+                # If we can't get file size, fall back to default
+                pass
+
+        # Default for non-existent files or when size cannot be determined
+        # Use 1MB as a reasonable default that won't cause parameter errors
+        return 1024 * 1024  # 1MB
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -76,10 +90,10 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Lock the entire file (LK_LOCK) with blocking mode
-            # Use a large fixed range (0xFFFF0000) to handle file growth (Issue #281)
+            # Use file size + buffer to handle file growth without errors (Issue #281, #306)
             try:
-                # Get the lock range - a large fixed value to ensure all data is locked
-                # even if the file grows after the lock is acquired
+                # Get the lock range - based on file size to avoid parameter errors
+                # with a buffer to handle moderate file growth
                 lock_range = self._get_windows_lock_range(self.path)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -109,7 +123,7 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use a large fixed range (0xFFFF0000) to match acquire (Issue #281)
+            # Use the same file size + buffer calculation as acquire (Issue #306)
             try:
                 # Get the lock range - must match the range used in _acquire_file_lock
                 lock_range = self._get_windows_lock_range(self.path)
