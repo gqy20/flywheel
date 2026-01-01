@@ -679,6 +679,13 @@ class Storage:
         Uses Copy-on-Write pattern: captures data under lock, releases lock,
         then performs I/O. This minimizes lock contention and prevents blocking
         other threads during file operations.
+
+        Note on file truncation (Issue #370):
+        This implementation uses tempfile.mkstemp() + os.replace() which
+        naturally prevents data corruption from size reduction:
+        - mkstemp creates a new empty file (no old data remnants possible)
+        - os.replace atomically replaces the target file
+        This is superior to manual truncation as it's atomic and safer.
         """
         import tempfile
         import copy
@@ -797,6 +804,10 @@ class Storage:
         Note:
             This method updates self._todos ONLY after successful file write
             to maintain consistency and prevent race conditions (fixes Issue #95, #105, #121).
+
+            File truncation (Issue #370): Uses tempfile.mkstemp() + os.replace()
+            which naturally prevents data corruption from size reduction by creating
+            a new empty file and atomically replacing the target.
         """
         import tempfile
         import copy
