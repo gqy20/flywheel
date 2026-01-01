@@ -190,6 +190,10 @@ class Storage:
             The lock range cache is thread-safe because all file operations are
             serialized by self._lock (RLock), ensuring proper acquire/release
             pairing (Issue #366).
+
+            Error handling is consistent with _acquire_file_lock - IOError is
+            re-raised to ensure lock release failures are not silently ignored
+            (Issue #376).
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
@@ -213,16 +217,15 @@ class Storage:
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
-                logger.warning(f"Failed to release Windows file lock: {e}")
-                # Don't raise - we want to continue even if unlock fails
-                # The lock will be released when the file handle is closed
+                logger.error(f"Failed to release Windows file lock: {e}")
+                raise
         else:  # Unix-like systems
             # Unix unlocking
             try:
                 fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
             except IOError as e:
-                logger.warning(f"Failed to release Unix file lock: {e}")
-                # Don't raise - we want to continue even if unlock fails
+                logger.error(f"Failed to release Unix file lock: {e}")
+                raise
 
     def _secure_directory(self, directory: Path) -> None:
         """Set restrictive permissions on the storage directory.
