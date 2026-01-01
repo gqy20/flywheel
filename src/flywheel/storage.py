@@ -19,25 +19,19 @@ if os.name == 'nt':  # Windows
 else:  # Unix-like systems
     import fcntl
 
+# Platform-specific security dependencies (Issue #324)
+# Import Windows security modules at module level for fail-fast behavior
+# instead of dynamically importing in _secure_directory method
+if os.name == 'nt':  # Windows
+    import win32security
+    import win32con
+    import win32api
+
 
 class Storage:
     """File-based todo storage."""
 
     def __init__(self, path: str = "~/.flywheel/todos.json"):
-        # Security check: Verify pywin32 is available on Windows (Issue #359)
-        # This check must happen early, before any directory operations,
-        # to fail fast if the required security dependency is missing
-        if os.name == 'nt':  # Windows
-            try:
-                import win32security
-                import win32con
-                import win32api
-            except ImportError as e:
-                raise RuntimeError(
-                    f"pywin32 is required on Windows for secure directory permissions. "
-                    f"Install pywin32: pip install pywin32"
-                ) from e
-
         self.path = Path(path).expanduser()
         # Create directory with restrictive permissions from the start (Issue #364)
         # This minimizes the security window before _secure_directory can apply ACLs.
@@ -269,12 +263,9 @@ class Storage:
                 ) from e
         else:  # Windows
             # Attempt to use Windows ACLs for security (Issue #226)
+            # Note: win32security, win32con, win32api are imported at module level (Issue #324)
             win32_success = False
             try:
-                import win32security
-                import win32con
-                import win32api
-
                 # Get the current user's SID using Windows API (Issue #229)
                 # Use GetUserNameEx to get the primary domain instead of relying
                 # on environment variables which can be manipulated or missing
@@ -452,15 +443,9 @@ class Storage:
                 logger.debug(f"Applied restrictive ACLs to {directory}")
                 win32_success = True
 
-            except ImportError as e:
-                # pywin32 is not installed - raise error for security (Issue #304)
-                raise RuntimeError(
-                    f"pywin32 is required on Windows for secure directory permissions. "
-                    f"Directory {directory} cannot be secured without pywin32. "
-                    f"Install pywin32: pip install pywin32"
-                ) from e
             except Exception as e:
                 # Failed to set ACLs - raise error for security (Issue #304)
+                # Note: ImportError for missing pywin32 is now caught at module import time (Issue #324)
                 raise RuntimeError(
                     f"Failed to set Windows ACLs on {directory}: {e}. "
                     f"Cannot continue without secure directory permissions. "
