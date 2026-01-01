@@ -89,6 +89,9 @@ class Storage:
         Note:
             For Windows, the lock range is based on the file size to prevent
             IOError (Error 33) when the range exceeds file size (Issue #346).
+            The lock range is cached to ensure consistency between acquire and
+            release operations, preventing potential deadlocks if the file size
+            changes between these calls (Issue #351).
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
@@ -96,6 +99,9 @@ class Storage:
             try:
                 # Get the lock range based on file size
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
+                # Cache the lock range for use in _release_file_lock (Issue #351)
+                # This ensures we use the same range for unlock, even if file size changes
+                self._lock_range = lock_range
                 # Move to beginning of file before locking
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, lock_range)
@@ -107,6 +113,10 @@ class Storage:
             # LOCK_EX = exclusive lock
             # LOCK_NB = non-blocking mode (not set - we want to block)
             try:
+                # Cache a placeholder lock range for consistency (Issue #351)
+                # On Unix, this isn't used by fcntl.flock but we cache it
+                # to maintain consistent API behavior across platforms
+                self._lock_range = 0
                 fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
             except IOError as e:
                 logger.error(f"Failed to acquire Unix file lock: {e}")
@@ -124,15 +134,18 @@ class Storage:
         Note:
             For Windows, the lock range matches the range used during acquisition
             to avoid "permission denied" errors (Issue #271, #346).
+            Uses the cached lock range from _acquire_file_lock to prevent
+            potential deadlocks if the file size changes between lock and unlock
+            (Issue #351).
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Get the same lock range as used in acquire to avoid errors
+            # Use the cached lock range from _acquire_file_lock (Issue #351)
+            # This prevents potential deadlocks if file size changed between lock and unlock
             try:
-                # Get the lock range based on file size
-                # This must match the range used in _acquire_file_lock
-                lock_range = self._get_file_lock_range_from_handle(file_handle)
+                # Use the cached lock range from acquire to ensure consistency (Issue #351)
+                lock_range = self._lock_range
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
