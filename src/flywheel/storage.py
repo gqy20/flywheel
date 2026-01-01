@@ -39,11 +39,22 @@ class Storage:
                 ) from e
 
         self.path = Path(path).expanduser()
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        # Create directory with restrictive permissions from the start (Issue #364)
+        # This minimizes the security window before _secure_directory can apply ACLs.
+        # On Unix: mode=0o700 sets owner-only permissions (subject to umask).
+        # On Windows: mode parameter is ignored, ACLs are set by _secure_directory.
+        # We still call _secure_directory after to ensure permissions are set
+        # regardless of umask and to apply Windows ACLs.
+        if os.name != 'nt':  # Unix-like systems
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        else:  # Windows - mode parameter is ignored
+            self.path.parent.mkdir(parents=True, exist_ok=True)
         # Set restrictive directory permissions to protect temporary files
         # from the race condition between mkstemp and fchmod (Issue #194)
         # This ensures that even if temp files have loose permissions momentarily,
         # they cannot be accessed by other users
+        # Also ensures permissions are correct even if umask affected the mkdir call
+        # and applies Windows ACLs for security (Issue #226)
         self._secure_directory(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
