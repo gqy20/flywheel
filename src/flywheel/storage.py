@@ -40,36 +40,29 @@ class Storage:
         atexit.register(self._cleanup)
 
     def _get_windows_lock_range(self, file_path: Path) -> int:
-        """Calculate the Windows file lock range based on actual file size.
+        """Get the Windows file lock range as a large fixed value.
 
-        This method determines the appropriate lock range for Windows file locking.
-        Instead of using a hardcoded value (0x7FFF0000 ≈ 2GB), it uses the actual
-        file size to ensure the entire file is locked, preventing data corruption
-        for large files (Issue #276).
+        This method returns a large fixed lock range for Windows file locking
+        to ensure the entire file is locked even after it grows. Using the actual
+        file size would leave new data unlocked if the file grows after locking,
+        potentially causing data corruption (Issue #281).
 
         Args:
-            file_path: Path to the file to be locked.
+            file_path: Path to the file to be locked (unused, kept for interface).
 
         Returns:
-            The number of bytes to lock from the beginning of the file.
+            A large fixed lock range (0xFFFF0000 ≈ 4GB) to ensure all current and
+            future data is locked.
 
         Note:
-            - If the file exists, returns its actual size
-            - If the file doesn't exist, returns a reasonable default (1MB)
+            - Uses a fixed large value (0xFFFF0000) instead of actual file size
+            - This ensures that even if the file grows after locking, all data is protected
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        try:
-            if file_path.exists():
-                # Get the actual file size
-                return os.path.getsize(file_path)
-            else:
-                # File doesn't exist yet - use a reasonable default
-                # 1MB should be sufficient for most new files
-                return 1024 * 1024
-        except OSError:
-            # If getsize fails, use a safe default
-            # This prevents lock failures due to file access issues
-            return 1024 * 1024
+        # Use a large fixed lock range to handle file growth (Issue #281)
+        # 0xFFFF0000 ≈ 4GB should be sufficient for most use cases
+        # This ensures that all data is locked even if the file grows after the lock is acquired
+        return 0xFFFF0000
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -83,10 +76,10 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Lock the entire file (LK_LOCK) with blocking mode
-            # Use actual file size instead of hardcoded 0x7FFF0000 (Issue #276)
+            # Use a large fixed range (0xFFFF0000) to handle file growth (Issue #281)
             try:
-                # Get the lock range based on actual file size
-                # This handles files larger than 2GB correctly
+                # Get the lock range - a large fixed value to ensure all data is locked
+                # even if the file grows after the lock is acquired
                 lock_range = self._get_windows_lock_range(self.path)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -116,10 +109,9 @@ class Storage:
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use actual file size instead of hardcoded 0x7FFF0000 (Issue #276)
+            # Use a large fixed range (0xFFFF0000) to match acquire (Issue #281)
             try:
-                # Get the lock range based on actual file size
-                # This must match the range used in _acquire_file_lock
+                # Get the lock range - must match the range used in _acquire_file_lock
                 lock_range = self._get_windows_lock_range(self.path)
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
