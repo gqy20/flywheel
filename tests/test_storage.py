@@ -120,3 +120,59 @@ def test_storage_get_next_id():
 
         storage.add(Todo(id=2, title="Second"))
         assert storage.get_next_id() == 3
+
+
+def test_storage_file_not_truncated():
+    """Verify that storage.py is complete and not truncated (Issue #289)."""
+    import ast
+    import inspect
+
+    # Parse the storage.py file to verify it's syntactically complete
+    storage_path = inspect.getfile(Storage)
+    with open(storage_path, 'r') as f:
+        source_code = f.read()
+
+    # Verify the file can be parsed as valid Python
+    try:
+        ast.parse(source_code)
+    except SyntaxError as e:
+        raise AssertionError(
+            f"storage.py has syntax errors (file may be truncated): {e}"
+        )
+
+    # Verify the Storage class has all expected methods
+    expected_methods = [
+        '__init__',
+        '_get_windows_lock_range',
+        '_acquire_file_lock',
+        '_release_file_lock',
+        '_secure_directory',
+        '_create_backup',
+        '_cleanup',
+        '_calculate_checksum',
+        '_validate_storage_schema',
+        '_load',
+        '_save',
+        '_save_with_todos',
+        'add',
+        'list',
+        'get',
+        'update',
+        'delete',
+        'get_next_id',
+        'close',
+    ]
+
+    for method_name in expected_methods:
+        assert hasattr(Storage, method_name), (
+            f"Storage class is missing method '{method_name}'. "
+            f"File may be truncated (Issue #289)."
+        )
+
+    # Verify the file has a reasonable length (not cut off mid-function)
+    # The complete file should be around 876 lines
+    line_count = len(source_code.split('\n'))
+    assert line_count > 800, (
+        f"storage.py appears to be truncated: only {line_count} lines. "
+        f"Expected at least 800 lines (Issue #289)."
+    )
