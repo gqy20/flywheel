@@ -40,45 +40,37 @@ class Storage:
         atexit.register(self._cleanup)
 
     def _get_file_lock_range_from_handle(self, file_handle) -> int:
-        """Get the Windows file lock range based on open file handle size.
+        """Get the Windows file lock range.
 
-        This method returns a lock range for Windows file locking that is based
-        on the actual file size from an open file handle. This prevents race
-        conditions (Issue #311) by using the file handle that's already open,
-        rather than making a separate file system check.
+        This method returns a static lock range for Windows file locking to
+        prevent race conditions (Issue #331). Using a static large value
+        (0xFFFF0000) ensures that the lock covers the entire file regardless
+        of its current or future size, eliminating the race condition that
+        would occur if the file grows between size calculation and locking.
 
         Args:
-            file_handle: The open file handle to get size from.
+            file_handle: The open file handle (not used, but kept for API
+                compatibility with the method signature).
 
         Returns:
-            A lock range that covers the entire file to prevent concurrent
-            writes (Issue #326). The range is capped at a reasonable maximum
-            to prevent integer overflow (Issue #316).
+            A static lock range (0xFFFF0000 = ~4GB) that covers the entire
+            file to prevent concurrent writes (Issue #326). This static value
+            prevents race conditions (Issue #331) and avoids integer overflow
+            (Issue #316).
 
         Note:
-            - Uses file handle to avoid TOCTOU race conditions (Issue #311)
-            - Locks the entire file to prevent concurrent writes (Issue #326)
-            - Caps lock range at 100MB to prevent integer overflow (Issue #316)
+            - Uses static value to avoid TOCTOU race conditions (Issue #331)
+            - Locks the entire file (up to ~4GB) to prevent concurrent writes (Issue #326)
+            - 0xFFFF0000 is sufficiently large for todo list files while preventing
+              integer overflow (Issue #316)
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        # Get current position
-        current_pos = file_handle.tell()
-
-        # Seek to end to get file size
-        file_handle.seek(0, 2)  # Seek to end
-        file_size = file_handle.tell()
-
-        # Restore original position
-        file_handle.seek(current_pos)
-
-        # Lock the entire file to prevent concurrent writes (Issue #326)
-        # Cap at 100MB to prevent integer overflow (Issue #316)
-        # This is sufficient for todo lists and prevents overflow
-        max_lock_range = 100 * 1024 * 1024  # 100MB
-        lock_range = min(file_size, max_lock_range)
-
-        # Ensure minimum lock range of 1 byte for empty files
-        return max(lock_range, 1)
+        # Use a static large lock range to prevent race condition (Issue #331)
+        # 0xFFFF0000 = 4,294,901,760 bytes (~4GB)
+        # This is sufficiently large to cover any reasonable todo list file
+        # and prevents the race condition that occurs when calculating lock
+        # range based on current file size
+        return 0xFFFF0000
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -90,17 +82,16 @@ class Storage:
             IOError: If the lock cannot be acquired.
 
         Note:
-            For Windows (Issue #311, #316, #326), the lock covers the entire
-            file (up to 100MB) to prevent concurrent writes while avoiding
-            integer overflow for very large files.
+            For Windows (Issue #331, #316, #326), the lock covers the entire
+            file (up to ~4GB) using a static range to prevent race conditions
+            (Issue #331) while avoiding integer overflow (Issue #316).
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
-            # Lock the entire file (up to 100MB) with blocking mode
-            # This prevents concurrent writes (Issue #326) while avoiding
-            # integer overflow (Issue #316)
+            # Lock the entire file (up to ~4GB) with blocking mode using a
+            # static range to prevent race conditions (Issue #331)
             try:
-                # Get the lock range (entire file, capped at 100MB)
+                # Get the static lock range (0xFFFF0000 = ~4GB)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -128,15 +119,16 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            For Windows (Issue #311, #316, #326), the lock range matches
-            the range used during acquisition to avoid "permission denied" errors.
+            For Windows (Issue #331, #316, #326), the lock range matches
+            the static range used during acquisition to avoid "permission
+            denied" errors (Issue #271).
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use the same lock range as acquire (entire file, capped at 100MB)
+            # Use the same static lock range as acquire (0xFFFF0000 = ~4GB)
             try:
-                # Get the lock range (entire file, capped at 100MB)
+                # Get the static lock range (0xFFFF0000 = ~4GB)
                 # This must match the range used in _acquire_file_lock to avoid
                 # "permission denied" errors (Issue #271)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
