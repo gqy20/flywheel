@@ -107,6 +107,9 @@ class Storage:
             The lock range is cached to ensure consistency between acquire and
             release operations, preventing potential deadlocks if the file size
             changes between these calls (Issue #351).
+
+            All file operations are serialized by self._lock (RLock), ensuring
+            that acquire and release are always properly paired (Issue #366).
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
@@ -114,6 +117,15 @@ class Storage:
             try:
                 # Get the lock range based on file size
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
+
+                # Validate lock range before caching (Issue #366)
+                if lock_range <= 0:
+                    logger.error(
+                        f"Invalid lock range {lock_range} returned for file {file_handle.name}. "
+                        f"Using minimum safe range of 4096 bytes."
+                    )
+                    lock_range = 4096
+
                 # Cache the lock range for use in _release_file_lock (Issue #351)
                 # This ensures we use the same range for unlock, even if file size changes
                 self._lock_range = lock_range
@@ -152,6 +164,10 @@ class Storage:
             Uses the cached lock range from _acquire_file_lock to prevent
             potential deadlocks if the file size changes between lock and unlock
             (Issue #351).
+
+            The lock range cache is thread-safe because all file operations are
+            serialized by self._lock (RLock), ensuring proper acquire/release
+            pairing (Issue #366).
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
@@ -160,12 +176,23 @@ class Storage:
             # This prevents potential deadlocks if file size changed between lock and unlock
             try:
                 # Use the cached lock range from acquire to ensure consistency (Issue #351)
+                # Validate lock range before using it (Issue #366)
                 lock_range = self._lock_range
+                if lock_range <= 0:
+                    # Invalid lock range - this should never happen if acquire was called
+                    logger.error(
+                        f"Invalid lock range {lock_range} in _release_file_lock. "
+                        f"This indicates acquire/release are not properly paired (Issue #366)."
+                    )
+                    # Use minimum valid range as fallback to prevent total failure
+                    lock_range = 4096
+
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
                 logger.warning(f"Failed to release Windows file lock: {e}")
                 # Don't raise - we want to continue even if unlock fails
+                # The lock will be released when the file handle is closed
         else:  # Unix-like systems
             # Unix unlocking
             try:
