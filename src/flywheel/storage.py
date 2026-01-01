@@ -186,7 +186,26 @@ class Storage:
                 # on environment variables which can be manipulated or missing
                 # Initialize domain to ensure it's always defined (Issue #234)
                 domain = None
-                user = win32api.GetUserName()
+
+                # Fix Issue #314: Fallback to environment variables when GetUserName fails
+                # or returns edge case values (None, empty string, whitespace only)
+                try:
+                    user = win32api.GetUserName()
+                except Exception:
+                    # GetUserName failed - try environment variable fallback
+                    user = os.environ.get('USERNAME', '').strip()
+
+                # Validate user and use environment variable fallback if needed
+                if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                    # GetUserName returned invalid value - try environment variable
+                    user = os.environ.get('USERNAME', '').strip()
+                    if not user:
+                        # No valid username available - raise error
+                        raise RuntimeError(
+                            "Cannot set Windows security: Unable to determine username. "
+                            "Both win32api.GetUserName() and USERNAME environment variable are unavailable. "
+                            "Install pywin32: pip install pywin32"
+                        )
 
                 # Fix Issue #251: Extract pure username if GetUserName returns
                 # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
@@ -216,12 +235,13 @@ class Storage:
                     try:
                         domain = win32api.GetComputerName()
                     except Exception:
-                        pass  # domain remains None, will use fallback below
+                        # Fix Issue #314: Use USERDOMAIN environment variable as fallback
+                        domain = os.environ.get('USERDOMAIN', '.')
 
-                # Final fallback for domain (Issue #234)
+                # Final fallback for domain (Issue #234, #314)
                 # Ensures domain is always defined before LookupAccountName
-                if domain is None:
-                    domain = '.'
+                if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                    domain = os.environ.get('USERDOMAIN', '.')
 
                 # Validate user before calling LookupAccountName (Issue #240)
                 # Ensure user is initialized and non-empty to prevent passing invalid values
@@ -231,7 +251,38 @@ class Storage:
                         f"GetUserName() returned invalid value."
                     )
 
-                sid, _, _ = win32security.LookupAccountName(domain, user)
+                # Fix Issue #314: Try LookupAccountName with fallback to environment variables
+                try:
+                    sid, _, _ = win32security.LookupAccountName(domain, user)
+                except Exception:
+                    # LookupAccountName failed - try with environment variable username
+                    env_username = os.environ.get('USERNAME', '').strip()
+                    if env_username and env_username != user:
+                        logger.warning(
+                            f"LookupAccountName failed for user '{user}', "
+                            f"retrying with environment variable USERNAME '{env_username}'"
+                        )
+                        user = env_username
+                        # Update domain as well if available
+                        env_domain = os.environ.get('USERDOMAIN', '').strip()
+                        if env_domain:
+                            domain = env_domain
+                        try:
+                            sid, _, _ = win32security.LookupAccountName(domain, user)
+                        except Exception as e:
+                            # Still failed - raise RuntimeError
+                            raise RuntimeError(
+                                f"Failed to set Windows ACLs: Unable to lookup account '{user}' in domain '{domain}'. "
+                                f"Both win32api.GetUserName() and environment variables (USERNAME={os.environ.get('USERNAME')}, "
+                                f"USERDOMAIN={os.environ.get('USERDOMAIN')}) failed to provide valid security context. "
+                                f"Original error: {e}"
+                            ) from e
+                    else:
+                        # No environment variable fallback available
+                        raise RuntimeError(
+                            f"Failed to set Windows ACLs: Unable to lookup account '{user}' in domain '{domain}'. "
+                            f"Install pywin32: pip install pywin32"
+                        )
 
                 # Create a security descriptor with owner-only access
                 security_descriptor = win32security.SECURITY_DESCRIPTOR()
