@@ -34,6 +34,7 @@ class Storage:
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
+        self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
         self._load()
         # Register cleanup handler to save dirty data on exit (Issue #203)
