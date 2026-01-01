@@ -51,23 +51,34 @@ class Storage:
             file_handle: The open file handle to get size from.
 
         Returns:
-            A fixed lock range that is safe for all file sizes, preventing
-            overflow issues (Issue #316).
+            A lock range that covers the entire file to prevent concurrent
+            writes (Issue #326). The range is capped at a reasonable maximum
+            to prevent integer overflow (Issue #316).
 
         Note:
             - Uses file handle to avoid TOCTOU race conditions (Issue #311)
-            - Uses fixed lock range to prevent integer overflow (Issue #316)
-            - Windows msvcrt.locking works best with fixed regions
-            - A 1MB fixed region is sufficient for mutual exclusion
+            - Locks the entire file to prevent concurrent writes (Issue #326)
+            - Caps lock range at 100MB to prevent integer overflow (Issue #316)
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        # Use a fixed lock range to prevent integer overflow (Issue #316)
-        # Windows msvcrt.locking doesn't require locking the entire file
-        # A fixed region is sufficient for mutual exclusion and avoids:
-        # 1. Integer overflow for large files
-        # 2. Excessive lock ranges for small files
-        # 3. Issues with file size changes between check and lock
-        return 1024 * 1024  # 1MB fixed region
+        # Get current position
+        current_pos = file_handle.tell()
+
+        # Seek to end to get file size
+        file_handle.seek(0, 2)  # Seek to end
+        file_size = file_handle.tell()
+
+        # Restore original position
+        file_handle.seek(current_pos)
+
+        # Lock the entire file to prevent concurrent writes (Issue #326)
+        # Cap at 100MB to prevent integer overflow (Issue #316)
+        # This is sufficient for todo lists and prevents overflow
+        max_lock_range = 100 * 1024 * 1024  # 100MB
+        lock_range = min(file_size, max_lock_range)
+
+        # Ensure minimum lock range of 1 byte for empty files
+        return max(lock_range, 1)
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -79,16 +90,17 @@ class Storage:
             IOError: If the lock cannot be acquired.
 
         Note:
-            For Windows (Issue #311, #316), a fixed 1MB lock region is used
-            to prevent integer overflow and avoid excessive lock ranges.
+            For Windows (Issue #311, #316, #326), the lock covers the entire
+            file (up to 100MB) to prevent concurrent writes while avoiding
+            integer overflow for very large files.
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
-            # Lock a fixed 1MB region (LK_LOCK) with blocking mode
-            # Using fixed region prevents integer overflow (Issue #316)
-            # and avoids excessive lock ranges for small files
+            # Lock the entire file (up to 100MB) with blocking mode
+            # This prevents concurrent writes (Issue #326) while avoiding
+            # integer overflow (Issue #316)
             try:
-                # Get the fixed lock range (1MB)
+                # Get the lock range (entire file, capped at 100MB)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -116,16 +128,17 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            For Windows (Issue #311, #316), a fixed 1MB lock region is used
-            to match the range used during lock acquisition.
+            For Windows (Issue #311, #316, #326), the lock range matches
+            the range used during acquisition to avoid "permission denied" errors.
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use the same fixed 1MB region as acquire (Issue #316)
+            # Use the same lock range as acquire (entire file, capped at 100MB)
             try:
-                # Get the fixed lock range (1MB) - must match the range
-                # used in _acquire_file_lock to avoid "permission denied" errors
+                # Get the lock range (entire file, capped at 100MB)
+                # This must match the range used in _acquire_file_lock to avoid
+                # "permission denied" errors (Issue #271)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
