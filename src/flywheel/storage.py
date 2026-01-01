@@ -42,35 +42,40 @@ class Storage:
     def _get_file_lock_range_from_handle(self, file_handle) -> int:
         """Get the Windows file lock range.
 
-        This method returns a static lock range for Windows file locking to
-        prevent race conditions (Issue #331). Using a static large value
-        (0xFFFF0000) ensures that the lock covers the entire file regardless
-        of its current or future size, eliminating the race condition that
-        would occur if the file grows between size calculation and locking.
+        This method returns a lock range for Windows file locking. On Windows,
+        the lock range is based on the actual file size to prevent IOError
+        (Error 33: Lock region not granted) when the lock range exceeds the
+        file size (Issue #346). A minimum of 4096 bytes is used to ensure
+        reasonable locking for small files.
 
         Args:
-            file_handle: The open file handle (not used, but kept for API
-                compatibility with the method signature).
+            file_handle: The open file handle used to determine file size.
 
         Returns:
-            A static lock range (0xFFFF0000 = ~4GB) that covers the entire
-            file to prevent concurrent writes (Issue #326). This static value
-            prevents race conditions (Issue #331) and avoids integer overflow
-            (Issue #316).
+            On Windows: The file size or minimum 4096 bytes, whichever is larger.
+            On Unix: A placeholder value (ignored by fcntl.flock).
 
         Note:
-            - Uses static value to avoid TOCTOU race conditions (Issue #331)
-            - Locks the entire file (up to ~4GB) to prevent concurrent writes (Issue #326)
-            - 0xFFFF0000 is sufficiently large for todo list files while preventing
-              integer overflow (Issue #316)
-            - The lock range must be a positive integer for msvcrt.locking()
+            - On Windows, uses file size to prevent IOError (Issue #346)
+            - Minimum 4096 bytes ensures reasonable lock coverage for small files
+            - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
         """
-        # Use a static large lock range to prevent race condition (Issue #331)
-        # 0xFFFF0000 = 4,294,901,760 bytes (~4GB)
-        # This is sufficiently large to cover any reasonable todo list file
-        # and prevents the race condition that occurs when calculating lock
-        # range based on current file size
-        return 0xFFFF0000
+        if os.name == 'nt':  # Windows
+            # On Windows, msvcrt.locking requires the lock range to not exceed
+            # the file size to avoid IOError (Error 33) (Issue #346)
+            # Use the file name from the file handle to get the size
+            try:
+                file_size = os.path.getsize(file_handle.name)
+                # Ensure minimum lock range of 4096 bytes for small files
+                return max(file_size, 4096)
+            except OSError:
+                # If we can't get file size, use a reasonable default
+                # This is a fallback that should rarely be hit
+                return 4096
+        else:
+            # On Unix, fcntl.flock doesn't use lock ranges
+            # Return a placeholder value (will be ignored)
+            return 0
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -82,16 +87,14 @@ class Storage:
             IOError: If the lock cannot be acquired.
 
         Note:
-            For Windows (Issue #331, #316, #326), the lock covers the entire
-            file (up to ~4GB) using a static range to prevent race conditions
-            (Issue #331) while avoiding integer overflow (Issue #316).
+            For Windows, the lock range is based on the file size to prevent
+            IOError (Error 33) when the range exceeds file size (Issue #346).
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
-            # Lock the entire file (up to ~4GB) with blocking mode using a
-            # static range to prevent race conditions (Issue #331)
+            # Lock based on file size to prevent IOError (Issue #346)
             try:
-                # Get the static lock range (0xFFFF0000 = ~4GB)
+                # Get the lock range based on file size
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -119,18 +122,16 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            For Windows (Issue #331, #316, #326), the lock range matches
-            the static range used during acquisition to avoid "permission
-            denied" errors (Issue #271).
+            For Windows, the lock range matches the range used during acquisition
+            to avoid "permission denied" errors (Issue #271, #346).
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use the same static lock range as acquire (0xFFFF0000 = ~4GB)
+            # Get the same lock range as used in acquire to avoid errors
             try:
-                # Get the static lock range (0xFFFF0000 = ~4GB)
-                # This must match the range used in _acquire_file_lock to avoid
-                # "permission denied" errors (Issue #271)
+                # Get the lock range based on file size
+                # This must match the range used in _acquire_file_lock
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
