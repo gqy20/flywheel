@@ -166,15 +166,15 @@ class TestWindowsSecurityFailure(unittest.TestCase):
         the program should raise a RuntimeError instead of silently continuing
         with GetComputerName fallback.
 
-        This tests the specific issue at line 234 where domain parsing could fail
-        silently.
+        This tests the specific fix at line 232-268 where domain parsing now
+        validates data format and raises errors instead of silently continuing.
         """
         # Mock GetUserName to succeed
         mock_win32api.GetUserName.return_value = "testuser"
         mock_win32api.GetComputerName.return_value = "TESTPC"
 
         # Mock GetUserNameEx to return a non-string value (e.g., integer)
-        # This should cause the split() operation at line 233 to fail
+        # This should be caught by the isinstance check at line 232
         mock_win32api.GetUserNameEx.return_value = 12345  # Invalid: not a string
 
         # Mock the rest of the security setup
@@ -185,14 +185,14 @@ class TestWindowsSecurityFailure(unittest.TestCase):
         mock_sacl = MagicMock()
         mock_win32security.ACL.return_value = mock_sacl
 
-        # This should raise an exception during domain parsing
-        # The issue is that line 241 catches ALL exceptions and silently
-        # falls back to GetComputerName, which is insecure
-        with self.assertRaises((RuntimeError, AttributeError, TypeError)) as context:
+        # This should raise RuntimeError due to type validation at line 232
+        with self.assertRaises(RuntimeError) as context:
             Storage(path=os.path.join(self.temp_dir, "todos.json"))
 
-        # If we get here, the exception was raised (good)
-        # If the test fails, it means the code silently continued (bad)
+        error_message = str(context.exception)
+        self.assertIn("Cannot set Windows security", error_message)
+        self.assertIn("GetUserNameEx returned invalid data", error_message)
+        self.assertIn("non-string value", error_message)
 
     @patch('flywheel.storage.win32security')
     @patch('flywheel.storage.win32api')
@@ -203,16 +203,16 @@ class TestWindowsSecurityFailure(unittest.TestCase):
         """Test that GetUserNameEx returning malformed DN raises RuntimeError (Issue #349).
 
         When GetUserNameEx returns a malformed DN string that causes parsing
-        errors (e.g., IndexError at line 235), the program should raise an
+        errors (e.g., missing value after '='), the program should raise an
         exception instead of silently falling back to GetComputerName.
         """
         # Mock GetUserName to succeed
         mock_win32api.GetUserName.return_value = "testuser"
         mock_win32api.GetComputerName.return_value = "TESTPC"
 
-        # Mock GetUserNameEx to return a malformed DN that lacks '=' characters
-        # This will cause p.split('=')[1] at line 235 to raise IndexError
-        mock_win32api.GetUserNameEx.return_value = "CN=user,DC=noparts"
+        # Mock GetUserNameEx to return a malformed DN that has 'DC=' without a value
+        # This will be caught by the validation at line 245-253
+        mock_win32api.GetUserNameEx.return_value = "CN=user,DC="  # Malformed: DC= with no value
 
         # Mock the rest of the security setup
         mock_sd = MagicMock()
@@ -222,11 +222,14 @@ class TestWindowsSecurityFailure(unittest.TestCase):
         mock_sacl = MagicMock()
         mock_win32security.ACL.return_value = mock_sacl
 
-        # This should raise an exception during domain parsing
-        # The issue is that line 241 catches ALL exceptions including IndexError
-        # and silently falls back to GetComputerName
-        with self.assertRaises((RuntimeError, IndexError)) as context:
+        # This should raise RuntimeError due to format validation at line 245-253
+        with self.assertRaises(RuntimeError) as context:
             Storage(path=os.path.join(self.temp_dir, "todos2.json"))
+
+        error_message = str(context.exception)
+        self.assertIn("Cannot set Windows security", error_message)
+        self.assertIn("GetUserNameEx returned invalid data", error_message)
+        self.assertIn("Malformed domain component", error_message)
 
 
 if __name__ == "__main__":

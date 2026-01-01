@@ -228,18 +228,47 @@ class Storage:
                 try:
                     # Try to get the fully qualified domain name
                     name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                    # Validate that name is a string before parsing (Issue #349)
+                    if not isinstance(name, str):
+                        raise TypeError(
+                            f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                        )
                     # Extract domain from the qualified DN
                     # Format: CN=user,OU=users,DC=domain,DC=com
                     parts = name.split(',')
                     # Build domain from all DC= parts (execute once, not in loop)
-                    dc_parts = [p.split('=')[1] for p in parts if p.strip().startswith('DC=')]
+                    # Validate that split results have expected format (Issue #349)
+                    dc_parts = []
+                    for p in parts:
+                        p = p.strip()
+                        if p.startswith('DC='):
+                            split_parts = p.split('=', 1)
+                            if len(split_parts) >= 2:
+                                dc_parts.append(split_parts[1])
+                            else:
+                                # Malformed DN - raise error instead of silently continuing (Issue #349)
+                                raise ValueError(
+                                    f"Malformed domain component in DN: '{p}'. "
+                                    f"Expected format 'DC=value', got '{p}'"
+                                )
                     if dc_parts:
                         domain = '.'.join(dc_parts)
                     else:
                         # Fallback to local computer if no domain found
                         domain = win32api.GetComputerName()
+                except (TypeError, ValueError) as e:
+                    # Parsing failed due to invalid format - raise error (Issue #349)
+                    # These exceptions indicate GetUserNameEx returned invalid data
+                    # We should NOT silently fall back to GetComputerName in this case
+                    # as it could lead to insecure configuration
+                    raise RuntimeError(
+                        f"Cannot set Windows security: GetUserNameEx returned invalid data. "
+                        f"Unable to parse domain information. Error: {e}. "
+                        f"Install pywin32: pip install pywin32"
+                    ) from e
                 except Exception:
-                    # Fallback: Use local computer for non-domain environments
+                    # GetUserNameEx failed (not a parsing error) - fallback to GetComputerName
+                    # This is expected in non-domain environments
                     # Security fix (Issue #329): Do NOT fall back to environment variables
                     try:
                         domain = win32api.GetComputerName()
