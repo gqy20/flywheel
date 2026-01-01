@@ -292,8 +292,10 @@ class Storage:
                 # Use minimal permissions instead of FILE_ALL_ACCESS (Issue #239)
                 # Following the principle of least privilege (Issue #249)
                 # Do NOT use FILE_GENERIC_READ | FILE_GENERIC_WRITE as they include DELETE
-                # Use explicit minimal permissions without DELETE
+                # Use explicit minimal permissions
                 # Remove FILE_READ_EA and FILE_WRITE_EA (Issue #254)
+                # Add DELETE permission to allow file management (Issue #274)
+                # This prevents disk space leaks from old/temporary files
                 dacl = win32security.ACL()
                 dacl.AddAccessAllowedAce(
                     win32security.ACL_REVISION,
@@ -301,6 +303,7 @@ class Storage:
                     win32con.FILE_ADD_FILE |
                     win32con.FILE_READ_ATTRIBUTES |
                     win32con.FILE_WRITE_ATTRIBUTES |
+                    win32con.DELETE |
                     win32con.SYNCHRONIZE,
                     sid
                 )
