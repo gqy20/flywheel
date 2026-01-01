@@ -132,29 +132,33 @@ class Storage:
         This method attempts to set restrictive permissions on the storage
         directory to protect sensitive data. The approach varies by platform:
 
-        - Unix-like systems: Uses chmod(0o700) to set owner-only access
-        - Windows: Attempts to use win32security to set restrictive ACLs.
-          If win32security is not available, logs a warning about unprotected
-          directory permissions and continues without setting permissions.
+        - Unix-like systems: Uses chmod(0o700) to set owner-only access.
+          Raises RuntimeError if chmod fails.
+        - Windows: Uses win32security to set restrictive ACLs.
+          Raises RuntimeError if pywin32 is not installed or ACL setup fails.
 
         Args:
             directory: The directory path to secure.
 
+        Raises:
+            RuntimeError: If directory permissions cannot be set securely.
+
         Note:
-            On Windows, if pywin32 is not installed, the directory will be
-            created with default permissions and a warning will be logged.
-            Users requiring strict security on Windows should install pywin32
-            or manually configure ACLs. The chmod fallback has been removed
-            as it provides no meaningful security on Windows.
+            This method will raise an exception and prevent execution if
+            secure directory permissions cannot be established. This ensures
+            the application does not run with unprotected sensitive data (Issue #304).
+
+            On Windows, pywin32 is required. Install it with: pip install pywin32
         """
         if os.name != 'nt':  # Unix-like systems
             try:
                 directory.chmod(0o700)
             except OSError as e:
-                logger.warning(
+                # Raise error instead of warning for security (Issue #304)
+                raise RuntimeError(
                     f"Failed to set directory permissions on {directory}: {e}. "
-                    f"Directory may have less restrictive permissions than intended."
-                )
+                    f"Cannot continue without secure directory permissions."
+                ) from e
         else:  # Windows
             # Attempt to use Windows ACLs for security (Issue #226)
             win32_success = False
@@ -268,19 +272,20 @@ class Storage:
                 logger.debug(f"Applied restrictive ACLs to {directory}")
                 win32_success = True
 
-            except ImportError:
-                # pywin32 is not installed - log warning about unprotected directory
-                logger.warning(
-                    f"pywin32 not installed. Directory permissions on {directory} are not protected. "
-                    f"For enhanced security on Windows, install pywin32: pip install pywin32"
-                )
+            except ImportError as e:
+                # pywin32 is not installed - raise error for security (Issue #304)
+                raise RuntimeError(
+                    f"pywin32 is required on Windows for secure directory permissions. "
+                    f"Directory {directory} cannot be secured without pywin32. "
+                    f"Install pywin32: pip install pywin32"
+                ) from e
             except Exception as e:
-                # Failed to set ACLs - log warning about unprotected directory
-                logger.warning(
+                # Failed to set ACLs - raise error for security (Issue #304)
+                raise RuntimeError(
                     f"Failed to set Windows ACLs on {directory}: {e}. "
-                    f"Directory permissions are not protected. "
-                    f"For enhanced security on Windows, install pywin32: pip install pywin32"
-                )
+                    f"Cannot continue without secure directory permissions. "
+                    f"Install pywin32: pip install pywin32"
+                ) from e
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
