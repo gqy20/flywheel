@@ -51,30 +51,23 @@ class Storage:
             file_handle: The open file handle to get size from.
 
         Returns:
-            A lock range based on file size plus a buffer, or a default if the
-            size cannot be determined.
+            A fixed lock range that is safe for all file sizes, preventing
+            overflow issues (Issue #316).
 
         Note:
             - Uses file handle to avoid TOCTOU race conditions (Issue #311)
-            - Adds a 1MB buffer to handle moderate file growth without re-locking
-            - Falls back to 1MB default when size cannot be determined
+            - Uses fixed lock range to prevent integer overflow (Issue #316)
+            - Windows msvcrt.locking works best with fixed regions
+            - A 1MB fixed region is sufficient for mutual exclusion
             - The lock range must be a positive integer for msvcrt.locking()
         """
-        try:
-            # Get file position and seek to end to get size
-            current_pos = file_handle.tell()
-            file_handle.seek(0, os.SEEK_END)
-            file_size = file_handle.tell()
-            file_handle.seek(current_pos)  # Restore original position
-
-            # Add a 1MB buffer to handle file growth without requiring re-locking
-            # This balances between protecting against growth and avoiding errors
-            buffer_size = 1024 * 1024  # 1MB
-            return file_size + buffer_size
-        except (OSError, IOError):
-            # If we can't get file size from handle, fall back to default
-            # Use 1MB as a reasonable default that won't cause parameter errors
-            return 1024 * 1024  # 1MB
+        # Use a fixed lock range to prevent integer overflow (Issue #316)
+        # Windows msvcrt.locking doesn't require locking the entire file
+        # A fixed region is sufficient for mutual exclusion and avoids:
+        # 1. Integer overflow for large files
+        # 2. Excessive lock ranges for small files
+        # 3. Issues with file size changes between check and lock
+        return 1024 * 1024  # 1MB fixed region
 
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268).
@@ -86,19 +79,16 @@ class Storage:
             IOError: If the lock cannot be acquired.
 
         Note:
-            For Windows (Issue #311), the lock range is calculated using the
-            open file handle to prevent race conditions between size check and
-            lock acquisition.
+            For Windows (Issue #311, #316), a fixed 1MB lock region is used
+            to prevent integer overflow and avoid excessive lock ranges.
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
-            # Lock the entire file (LK_LOCK) with blocking mode
-            # Use file size + buffer to handle file growth without errors (Issue #281, #306)
-            # Calculate lock range from open file handle to prevent TOCTOU race (Issue #311)
+            # Lock a fixed 1MB region (LK_LOCK) with blocking mode
+            # Using fixed region prevents integer overflow (Issue #316)
+            # and avoids excessive lock ranges for small files
             try:
-                # Get the lock range from the open file handle
-                # This prevents race conditions where file could be modified/deleted
-                # between size check and lock acquisition (Issue #311)
+                # Get the fixed lock range (1MB)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 # Move to beginning of file before locking
                 file_handle.seek(0)
@@ -126,15 +116,15 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            For Windows (Issue #311), the lock range is calculated using the
-            open file handle to match the range used during lock acquisition.
+            For Windows (Issue #311, #316), a fixed 1MB lock region is used
+            to match the range used during lock acquisition.
         """
         if os.name == 'nt':  # Windows
             # Windows unlocking
             # Unlock range must match lock range exactly (Issue #271)
-            # Use the same file size + buffer calculation as acquire (Issue #306, #311)
+            # Use the same fixed 1MB region as acquire (Issue #316)
             try:
-                # Get the lock range from the open file handle - must match the range
+                # Get the fixed lock range (1MB) - must match the range
                 # used in _acquire_file_lock to avoid "permission denied" errors
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
                 file_handle.seek(0)
