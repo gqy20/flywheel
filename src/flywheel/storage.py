@@ -49,13 +49,19 @@ class Storage:
             self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         else:  # Windows - mode parameter is ignored
             self.path.parent.mkdir(parents=True, exist_ok=True)
+
         # Set restrictive directory permissions to protect temporary files
         # from the race condition between mkstemp and fchmod (Issue #194)
         # This ensures that even if temp files have loose permissions momentarily,
         # they cannot be accessed by other users
         # Also ensures permissions are correct even if umask affected the mkdir call
         # and applies Windows ACLs for security (Issue #226)
-        self._secure_directory(self.path.parent)
+        #
+        # Security fix for Windows (Issue #369): Apply _secure_directory to all
+        # parent directories created by mkdir, not just the final directory.
+        # On Windows, mkdir with parents=True may create parent directories that
+        # inherit insecure default permissions. We need to secure all of them.
+        self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
@@ -444,6 +450,54 @@ class Storage:
                     f"Cannot continue without secure directory permissions. "
                     f"Install pywin32: pip install pywin32"
                 ) from e
+
+    def _secure_all_parent_directories(self, directory: Path) -> None:
+        """Secure all parent directories with restrictive permissions.
+
+        This method secures not just the final directory, but all parent
+        directories that may have been created by mkdir(parents=True).
+        This is critical on Windows where mkdir's mode parameter is ignored
+        and parent directories may inherit insecure default permissions.
+
+        The method walks up the directory tree from the target directory
+        to the root (or until it finds a directory that's already secured),
+        applying _secure_directory to each one.
+
+        Args:
+            directory: The target directory whose parents should be secured.
+
+        Raises:
+            RuntimeError: If any directory cannot be secured.
+
+        Note:
+            This is a security fix for Issue #369. On Windows, when mkdir
+            creates parent directories, they inherit default permissions which
+            may be too permissive. By explicitly securing each parent directory,
+            we ensure the entire directory chain is protected.
+
+            On Unix, this is less critical since mkdir's mode parameter works,
+            but we still apply it for defense in depth.
+        """
+        # Get all parent directories from root to target
+        # We want to secure them in order: from outermost to innermost
+        # This ensures that if we need to create any intermediate structure,
+        # we do it from the outside in
+        parents_to_secure = []
+
+        # Start from the target directory and walk up
+        current = directory
+        while current != current.parent:  # Stop at filesystem root
+            parents_to_secure.append(current)
+            current = current.parent
+
+        # Reverse to secure from outermost to innermost
+        parents_to_secure.reverse()
+
+        # Secure each parent directory
+        for parent_dir in parents_to_secure:
+            # Only secure if it exists (mkdir should have created it)
+            if parent_dir.exists():
+                self._secure_directory(parent_dir)
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
