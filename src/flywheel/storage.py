@@ -24,6 +24,20 @@ class Storage:
     """File-based todo storage."""
 
     def __init__(self, path: str = "~/.flywheel/todos.json"):
+        # Security check: Verify pywin32 is available on Windows (Issue #359)
+        # This check must happen early, before any directory operations,
+        # to fail fast if the required security dependency is missing
+        if os.name == 'nt':  # Windows
+            try:
+                import win32security
+                import win32con
+                import win32api
+            except ImportError as e:
+                raise RuntimeError(
+                    f"pywin32 is required on Windows for secure directory permissions. "
+                    f"Install pywin32: pip install pywin32"
+                ) from e
+
         self.path = Path(path).expanduser()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         # Set restrictive directory permissions to protect temporary files
