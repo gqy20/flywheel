@@ -64,40 +64,22 @@ class Storage:
                     f"Original error: {e}"
                 ) from e
 
-        # Create directory with restrictive permissions from the start (Issue #364)
-        # This minimizes the security window before _secure_directory can apply ACLs.
-        # On Unix: mode=0o700 sets owner-only permissions (subject to umask).
-        # On Windows: mode parameter is ignored, ACLs are set by _secure_directory.
-        # We still call _secure_directory after to ensure permissions are set
-        # regardless of umask and to apply Windows ACLs.
+        # Security fix for Issue #486: Create and secure parent directories atomically.
+        # This eliminates the race condition window between the previous separate calls
+        # to _create_and_secure_directories and _secure_all_parent_directories.
         #
-        # Security fix for Issue #419: Use _create_and_secure_directories on BOTH
-        # Unix and Windows to properly handle race conditions where directories
-        # might be created by another process between the existence check and
-        # creation attempt. The _create_and_secure_directories method implements
-        # a retry mechanism with FileExistsError handling that properly handles
-        # this race condition on all platforms.
-        self._create_and_secure_directories(self.path.parent)
-
-        # Set restrictive directory permissions to protect temporary files
-        # from the race condition between mkstemp and fchmod (Issue #194)
-        # This ensures that even if temp files have loose permissions momentarily,
-        # they cannot be accessed by other users
-        # Also ensures permissions are correct even if umask affected the mkdir call
-        # and applies Windows ACLs for security (Issue #226)
+        # The _secure_all_parent_directories method now handles both creation and securing
+        # in a single atomic operation, ensuring there's no window where directories
+        # can be created with insecure permissions.
         #
-        # Security fix for Issue #369, #419, and #441: Apply _secure_directory to all
-        # parent directories, not just the ones we created. This is a defensive
-        # measure to ensure that even if parent directories were created by other
-        # processes with insecure permissions, we secure them now.
-        # Note: _create_and_secure_directories (called above) already secures
-        # the directories it creates, but this call secures ALL parent directories
-        # even if they already existed before we ran.
+        # This approach:
+        # 1. Creates directories that don't exist with secure permissions from the start
+        # 2. Secures all parent directories (even those created by other processes)
+        # 3. Handles race conditions where multiple processes create directories concurrently
+        # 4. Uses retry logic with exponential backoff to handle TOCTOU issues
         #
-        # Security fix for Issue #441: Apply this on ALL platforms (Windows and Unix).
-        # Previously, this was only done on Unix-like systems, leaving Windows parent
-        # directories potentially insecure if they were created by other processes.
-        # Now we secure parent directories on both Windows and Unix.
+        # On Unix: Creates directories with mode=0o700 using restricted umask (Issue #474, #479)
+        # On Windows: Creates directories with atomic ACLs using win32file.CreateDirectory (Issue #400)
         self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
@@ -990,7 +972,7 @@ class Storage:
             directory: The target directory whose parents should be secured.
 
         Raises:
-            RuntimeError: If any directory cannot be secured.
+            RuntimeError: If any directory cannot be created or secured.
 
         Note:
             This is a security fix for Issue #369, #441, and #476. This method is now
@@ -1003,6 +985,13 @@ class Storage:
             each directory and handles the case where it doesn't exist gracefully,
             rather than checking existence first. This ensures that if a directory
             is created by another process at any point, it will be secured.
+
+            Security fix for Issue #486: This method now CREATES directories if they
+            don't exist, eliminating the race condition window between
+            _create_and_secure_directories and _secure_all_parent_directories. By
+            combining creation and securing in a single method, we ensure atomicity
+            and eliminate the security window where directories could be created with
+            insecure permissions.
 
             On Windows: When mkdir creates parent directories, they inherit
             default permissions which may be too permissive. By explicitly
@@ -1028,33 +1017,182 @@ class Storage:
         # Reverse to secure from outermost to innermost
         parents_to_secure.reverse()
 
-        # Secure each parent directory with race condition handling (Issue #476)
+        # Security fix for Issue #486: Create and secure each parent directory atomically
+        # This eliminates the race condition window between the separate
+        # _create_and_secure_directories call and _secure_all_parent_directories call.
+        # By combining creation and securing in a single loop, we ensure that directories
+        # are created and secured in one atomic operation.
         for parent_dir in parents_to_secure:
-            # Security fix for Issue #476: Try to secure the directory regardless of
-            # whether it existed when we checked. Handle the case where it doesn't
-            # exist gracefully. This prevents TOCTOU vulnerabilities where:
-            # 1. Directory doesn't exist at check time (we skip it)
-            # 2. Directory is created by another process with insecure permissions
-            # 3. We never secure it because we already skipped it
-            #
-            # By always trying to secure and handling FileNotFoundError, we ensure
-            # that if the directory is created by another process at any point,
-            # it will be secured.
-            try:
-                self._secure_directory(parent_dir)
-            except FileNotFoundError:
-                # Directory doesn't exist - this is fine, it means the directory
-                # wasn't created yet and we don't need to secure it.
-                # If it's created later by another process, it will be secured
-                # when the next Storage instance is created.
-                logger.debug(f"Directory {parent_dir} doesn't exist yet, skipping.")
-            except OSError as e:
-                # Other OS errors (e.g., permission denied) should be raised
-                # as they indicate a real security problem
+            # Retry loop for handling race conditions (Issue #409, #486)
+            import time
+            max_retries = 5
+            base_delay = 0.01  # 10ms starting delay
+            success = False
+            last_error = None
+
+            for attempt in range(max_retries):
+                try:
+                    # Security fix for Issue #486: Create the directory if it doesn't exist
+                    # This ensures creation and securing happen atomically in the same loop,
+                    # eliminating the race condition window.
+                    if not parent_dir.exists():
+                        if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                            # Security fix for Issue #449: Add defensive import check
+                            try:
+                                import win32security
+                                import win32con
+                                import win32api
+                                import win32file
+                            except ImportError as e:
+                                raise RuntimeError(
+                                    f"Windows security module became unavailable at runtime: {e}. "
+                                    f"This may indicate that pywin32 was dynamically unloaded. "
+                                    f"Restart the application to restore security functionality. "
+                                    f"Install pywin32: pip install pywin32"
+                                ) from e
+
+                            # Use CreateDirectory with security descriptor (Issue #400)
+                            user = win32api.GetUserName()
+
+                            # Fix Issue #251: Extract pure username
+                            if '\\' in user:
+                                parts = user.rsplit('\\', 1)
+                                if len(parts) == 2:
+                                    user = parts[1]
+
+                            # Get domain
+                            try:
+                                name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                                if not isinstance(name, str):
+                                    raise TypeError(
+                                        f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                                    )
+                                parts = name.split(',')
+                                dc_parts = []
+                                for p in parts:
+                                    p = p.strip()
+                                    if p.startswith('DC='):
+                                        split_parts = p.split('=', 1)
+                                        if len(split_parts) >= 2:
+                                            dc_parts.append(split_parts[1])
+                                if dc_parts:
+                                    domain = '.'.join(dc_parts)
+                                else:
+                                    domain = win32api.GetComputerName()
+                            except (TypeError, ValueError):
+                                raise RuntimeError(
+                                    f"Cannot set Windows security: GetUserNameEx returned invalid data. "
+                                    f"Install pywin32: pip install pywin32"
+                                )
+                            except Exception:
+                                domain = win32api.GetComputerName()
+
+                            # Validate domain
+                            if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                                raise RuntimeError(
+                                    "Cannot set Windows security: Unable to determine domain. "
+                                    "Install pywin32: pip install pywin32"
+                                )
+
+                            # Validate user
+                            if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                                raise ValueError(
+                                    f"Invalid user name '{user}': Cannot set Windows security."
+                                )
+
+                            # Lookup account SID
+                            try:
+                                sid, _, _ = win32security.LookupAccountName(domain, user)
+                            except Exception as e:
+                                raise RuntimeError(
+                                    f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
+                                    f"Install pywin32: pip install pywin32. Error: {e}"
+                                ) from e
+
+                            # Create security descriptor
+                            security_descriptor = win32security.SECURITY_DESCRIPTOR()
+                            security_descriptor.SetSecurityDescriptorOwner(sid, False)
+
+                            # Create DACL with minimal permissions
+                            dacl = win32security.ACL()
+                            dacl.AddAccessAllowedAce(
+                                win32security.ACL_REVISION,
+                                win32con.FILE_LIST_DIRECTORY |
+                                win32con.FILE_ADD_FILE |
+                                win32con.FILE_READ_ATTRIBUTES |
+                                win32con.FILE_WRITE_ATTRIBUTES |
+                                win32con.DELETE |
+                                win32con.SYNCHRONIZE,
+                                sid
+                            )
+
+                            security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+
+                            # Create SACL for auditing
+                            sacl = win32security.ACL()
+                            security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
+
+                            # Set DACL protection
+                            security_descriptor.SetSecurityDescriptorControl(
+                                win32security.SE_DACL_PROTECTED, 1
+                            )
+
+                            # Create directory atomically with security descriptor
+                            win32file.CreateDirectory(
+                                str(parent_dir),
+                                security_descriptor
+                            )
+
+                        else:  # Unix-like systems
+                            # Security fix for Issue #474 and #479: Temporarily restrict umask
+                            # to 0o077 during directory creation
+                            old_umask = os.umask(0o077)
+                            try:
+                                parent_dir.mkdir(mode=0o700)
+                            finally:
+                                os.umask(old_umask)
+
+                    # Always secure the directory (Issue #481, #486)
+                    # Even if we just created it, call _secure_directory to ensure consistency
+                    # This is safe because _secure_directory is idempotent
+                    self._secure_directory(parent_dir)
+
+                    # Success - break out of retry loop
+                    success = True
+                    break
+
+                except FileExistsError:
+                    # Security fix for Issue #481: Directory was created by another process
+                    # Always verify and secure it, don't just assume it's secure
+                    if parent_dir.exists():
+                        try:
+                            self._secure_directory(parent_dir)
+                            success = True
+                            break
+                        except Exception as verify_error:
+                            last_error = verify_error
+                            if attempt < max_retries - 1:
+                                delay = base_delay * (2 ** attempt)
+                                time.sleep(delay)
+                    else:
+                        # Directory doesn't exist but we got FileExistsError
+                        last_error = Exception("Got FileExistsError but directory doesn't exist")
+                        if attempt < max_retries - 1:
+                            delay = base_delay * (2 ** attempt)
+                            time.sleep(delay)
+
+                except Exception as e:
+                    # Non-retryable error
+                    last_error = e
+                    break
+
+            # After all retries, check if we succeeded
+            if not success:
                 raise RuntimeError(
-                    f"Failed to secure directory {parent_dir}: {e}. "
+                    f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
+                    f"Last error: {last_error}. "
                     f"Cannot continue without secure directory permissions."
-                ) from e
+                ) from last_error
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
