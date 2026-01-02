@@ -109,26 +109,29 @@ class Storage:
         """Get the Windows file lock range.
 
         This method returns a lock range for Windows file locking. On Windows,
-        a fixed large lock range (0x7FFFFFFF) is used to prevent deadlocks when
-        the file size changes between lock acquisition and release (Issue #375).
+        a fixed very large lock range (0x7FFFFFFFFFFFFFFF) is used to prevent
+        deadlocks when the file size changes between lock acquisition and
+        release (Issue #375, #426).
 
         Args:
             file_handle: The open file handle (unused, kept for API compatibility).
 
         Returns:
-            On Windows: A fixed large lock range (0x7FFFFFFF).
+            On Windows: A fixed very large lock range (0x7FFFFFFFFFFFFFFF).
             On Unix: A placeholder value (ignored by fcntl.flock).
 
         Note:
-            - On Windows, uses a fixed large range to prevent deadlock (Issue #375)
-            - 0x7FFFFFFF (2,147,483,647 bytes) is sufficiently large to handle
-              reasonable file sizes while avoiding potential overflow issues
+            - On Windows, uses a fixed very large range to prevent deadlock (Issue #375)
+            - 0x7FFFFFFFFFFFFFFF (9,223,372,036,854,775,807 bytes) is the maximum
+              signed 64-bit integer, sufficient to handle any realistic file size
+            - This fixes Issue #426 where the previous 2GB limit (0x7FFFFFFF) could
+              lead to data corruption if the JSON file grows larger than 2GB
             - This approach prevents the issue where file grows between lock
               acquisition and release, which would cause unlock to fail
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
         """
         if os.name == 'nt':  # Windows
-            # Security fix for Issue #375: Use a fixed large lock range
+            # Security fix for Issue #375 and #426: Use a fixed very large lock range
             # instead of calculating from file size to prevent deadlocks
             # when file size changes between lock acquisition and release
             #
@@ -139,9 +142,9 @@ class Storage:
             # the locked region. Using a fixed large range ensures the lock
             # can handle file growth without deadlock.
             #
-            # 0x7FFFFFFF (2GB) is used instead of 0xFFFFFFFF to avoid
-            # potential signed/unsigned conversion issues with msvcrt.locking
-            return 0x7FFFFFFF
+            # 0x7FFFFFFFFFFFFFFF (max signed 64-bit int) is used instead of
+            # 0x7FFFFFFF (2GB) to handle files larger than 2GB (Issue #426)
+            return 0x7FFFFFFFFFFFFFFF
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
             # Return a placeholder value (will be ignored)
@@ -171,10 +174,10 @@ class Storage:
             - Provides stronger synchronization guarantees
             - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
 
-            For Windows, a fixed large lock range (0x7FFFFFFF) is used to prevent
-            deadlocks when the file size changes between lock acquisition and
-            release (Issue #375). The lock range is cached to ensure consistency
-            between acquire and release operations (Issue #351).
+            For Windows, a fixed very large lock range (0x7FFFFFFFFFFFFFFF) is
+            used to prevent deadlocks when the file size changes between lock
+            acquisition and release (Issue #375, #426). The lock range is cached
+            to ensure consistency between acquire and release operations (Issue #351).
 
             This approach eliminates the risk of deadlock that existed when using
             file size-based locking, where file growth between acquire and release
@@ -204,8 +207,9 @@ class Storage:
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
 
                 # Validate lock range before caching (Issue #366)
-                # With the fixed range approach (Issue #375), lock_range is always
-                # 0x7FFFFFFF on Windows, but we validate for defensive programming
+                # With the fixed range approach (Issue #375, #426), lock_range is
+                # always 0x7FFFFFFFFFFFFFFF on Windows, but we validate for
+                # defensive programming
                 # Security fix (Issue #374): Raise exception instead of insecure fallback
                 if lock_range <= 0:
                     raise RuntimeError(
@@ -342,8 +346,9 @@ class Storage:
             - Provides stronger release guarantees
             - Simple unlock without range matching
 
-            For Windows, the lock range matches the fixed large range (0x7FFFFFFF)
-            used during acquisition to avoid "permission denied" errors (Issue #271).
+            For Windows, the lock range matches the fixed very large range
+            (0x7FFFFFFFFFFFFFFF) used during acquisition to avoid "permission
+            denied" errors (Issue #271).
             Uses the cached lock range from _acquire_file_lock (Issue #351).
 
             With the fixed range approach (Issue #375), file size changes between
