@@ -158,6 +158,12 @@ class Storage:
                 # Cache the lock range for use in _release_file_lock (Issue #351)
                 # This ensures we use the same range for unlock, even if file size changes
                 self._lock_range = lock_range
+                # CRITICAL: Flush buffers before locking (Issue #390)
+                # Python file objects have buffers that must be flushed before
+                # locking to ensure data is synchronized to disk. Without flush,
+                # the lock may not correctly synchronize, leading to data corruption.
+                file_handle.flush()
+
                 # CRITICAL: Seek to position 0 before locking (Issue #386)
                 # msvcrt.locking locks bytes starting from the CURRENT file position,
                 # not from position 0. Without this seek, if the file pointer is at
