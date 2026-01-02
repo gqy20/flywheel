@@ -8,6 +8,7 @@ dependencies = [
     "pygithub>=2.5.0",
     "pyyaml>=6.0.2",
     "requests>=2.32.0",
+    "pywin32>=305; sys_platform == 'win32'",
 ]
 
 [project.scripts]
