@@ -871,11 +871,12 @@ class Storage:
                         # or error), the directory has secure permissions and is not left
                         # with umask-dependent insecure permissions.
                         #
-                        # Security fix for Issue #474: Temporarily restrict umask to 0o077
-                        # during directory creation to prevent umask from making the
+                        # Security fix for Issue #474 and #479: Temporarily restrict umask
+                        # to 0o077 during directory creation to prevent umask from making the
                         # directory more permissive than intended. This eliminates the
-                        # security window where mkdir(mode=0o700) could create a directory
-                        # with 0o755 permissions if umask is 0o022.
+                        # TOCTOU security window where mkdir(mode=0o700) could create a
+                        # directory with 0o755 permissions if umask is 0o022. The umask
+                        # restriction ensures atomic creation with secure permissions.
                         old_umask = os.umask(0o077)  # Restrictive umask for mkdir
                         try:
                             directory.mkdir(mode=0o700)  # Create with secure permissions
