@@ -11,7 +11,11 @@ from flywheel.todo import Todo
 
 
 def test_invalid_json_format_creates_backup():
-    """Test that when JSON file has invalid format (neither dict nor list), a backup is created."""
+    """Test that when JSON file has invalid format (neither dict nor list), a backup is created.
+
+    Updated for Issue #456: Storage now gracefully handles corrupted files by starting
+    with an empty state instead of raising an exception.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         storage_path = Path(tmpdir) / "todos.json"
         backup_path = Path(str(storage_path) + ".backup")
@@ -27,12 +31,13 @@ def test_invalid_json_format_creates_backup():
         storage_path.write_text('"just a string"')
 
         # Try to load the corrupted file
-        # This should raise RuntimeError and create a backup
-        with pytest.raises(RuntimeError) as exc_info:
-            Storage(str(storage_path))
+        # Updated for Issue #456: Storage now creates backup and starts with empty state
+        # instead of raising an exception
+        storage2 = Storage(str(storage_path))
 
-        # Verify the error message mentions backup
-        assert "Backup saved to" in str(exc_info.value)
+        # Verify storage started with empty state
+        assert len(storage2.list()) == 0
+        assert storage2.get_next_id() == 1
 
         # Verify backup was created
         assert backup_path.exists()
@@ -43,7 +48,11 @@ def test_invalid_json_format_creates_backup():
 
 
 def test_invalid_json_format_with_number():
-    """Test that when JSON file contains a number, a backup is created."""
+    """Test that when JSON file contains a number, a backup is created.
+
+    Updated for Issue #456: Storage now gracefully handles corrupted files by starting
+    with an empty state instead of raising an exception.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         storage_path = Path(tmpdir) / "todos.json"
         backup_path = Path(str(storage_path) + ".backup")
@@ -59,12 +68,12 @@ def test_invalid_json_format_with_number():
         storage_path.write_text('42')
 
         # Try to load the corrupted file
-        # This should raise RuntimeError and create a backup
-        with pytest.raises(RuntimeError) as exc_info:
-            Storage(str(storage_path))
+        # Updated for Issue #456: Storage now creates backup and starts with empty state
+        storage2 = Storage(str(storage_path))
 
-        # Verify the error message mentions backup
-        assert "Backup saved to" in str(exc_info.value)
+        # Verify storage started with empty state
+        assert len(storage2.list()) == 0
+        assert storage2.get_next_id() == 1
 
         # Verify backup was created
         assert backup_path.exists()
@@ -75,7 +84,11 @@ def test_invalid_json_format_with_number():
 
 
 def test_invalid_json_format_with_boolean():
-    """Test that when JSON file contains a boolean, a backup is created."""
+    """Test that when JSON file contains a boolean, a backup is created.
+
+    Updated for Issue #456: Storage now gracefully handles corrupted files by starting
+    with an empty state instead of raising an exception.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         storage_path = Path(tmpdir) / "todos.json"
         backup_path = Path(str(storage_path) + ".backup")
@@ -91,12 +104,12 @@ def test_invalid_json_format_with_boolean():
         storage_path.write_text('true')
 
         # Try to load the corrupted file
-        # This should raise RuntimeError and create a backup
-        with pytest.raises(RuntimeError) as exc_info:
-            Storage(str(storage_path))
+        # Updated for Issue #456: Storage now creates backup and starts with empty state
+        storage2 = Storage(str(storage_path))
 
-        # Verify the error message mentions backup
-        assert "Backup saved to" in str(exc_info.value)
+        # Verify storage started with empty state
+        assert len(storage2.list()) == 0
+        assert storage2.get_next_id() == 1
 
         # Verify backup was created
         assert backup_path.exists()
@@ -107,7 +120,11 @@ def test_invalid_json_format_with_boolean():
 
 
 def test_invalid_json_format_with_null():
-    """Test that when JSON file contains null, a backup is created."""
+    """Test that when JSON file contains null, a backup is created.
+
+    Updated for Issue #456: Storage now gracefully handles corrupted files by starting
+    with an empty state instead of raising an exception.
+    """
     with tempfile.TemporaryDirectory() as tmpdir:
         storage_path = Path(tmpdir) / "todos.json"
         backup_path = Path(str(storage_path) + ".backup")
@@ -123,12 +140,12 @@ def test_invalid_json_format_with_null():
         storage_path.write_text('null')
 
         # Try to load the corrupted file
-        # This should raise RuntimeError and create a backup
-        with pytest.raises(RuntimeError) as exc_info:
-            Storage(str(storage_path))
+        # Updated for Issue #456: Storage now creates backup and starts with empty state
+        storage2 = Storage(str(storage_path))
 
-        # Verify the error message mentions backup
-        assert "Backup saved to" in str(exc_info.value)
+        # Verify storage started with empty state
+        assert len(storage2.list()) == 0
+        assert storage2.get_next_id() == 1
 
         # Verify backup was created
         assert backup_path.exists()

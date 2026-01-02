@@ -110,7 +110,21 @@ class Storage:
         # Retry interval for non-blocking lock attempts (Issue #396)
         # 100ms allows for responsive retries without excessive CPU usage
         self._lock_retry_interval: float = 0.1
-        self._load()
+        # Gracefully handle load failures to allow object instantiation (Issue #456)
+        # If the file is corrupted or malformed, log the error and start with empty state
+        try:
+            self._load()
+        except RuntimeError as e:
+            # _load() already created a backup and wrapped the error
+            # Log the error and continue with empty state
+            logger.warning(
+                f"Failed to load todos from {self.path}: {e}. "
+                f"Starting with empty state. Backup file created."
+            )
+            # Reset to empty state (already initialized above)
+            self._todos = []
+            self._next_id = 1
+            self._dirty = False
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
 

@@ -22,17 +22,15 @@ class TestIssue456:
             # 写入无效的 JSON 内容
             storage_path.write_text("{invalid json content")
 
-            # 尝试创建 Storage 实例
-            # 当前实现会抛出 RuntimeError
-            # 修复后应该允许实例化（可能以空状态启动）
-            try:
-                storage = Storage(str(storage_path))
-                # 如果能成功创建，验证它处于可用状态
-                assert storage.list() == []
-                assert storage.get_next_id() == 1
-            except RuntimeError as e:
-                # 当前实现会失败，这是预期行为（RED Phase）
-                assert "Invalid JSON" in str(e) or "Failed to load todos" in str(e)
+            # 创建 Storage 实例 - 应该成功创建并处于空状态
+            storage = Storage(str(storage_path))
+            assert storage.list() == []
+            assert storage.get_next_id() == 1
+
+            # 验证可以正常添加新 todo
+            todo = storage.add(Todo(title="Test task"))
+            assert todo.id == 1
+            assert len(storage.list()) == 1
 
     def test_init_with_empty_file(self):
         """测试当存储文件为空时，Storage 能否优雅处理"""
@@ -42,16 +40,15 @@ class TestIssue456:
             # 创建空文件
             storage_path.write_text("")
 
-            # 尝试创建 Storage 实例
-            # 当前实现会抛出 json.JSONDecodeError (被包装为 RuntimeError)
-            try:
-                storage = Storage(str(storage_path))
-                # 如果能成功创建，验证它处于可用状态
-                assert storage.list() == []
-                assert storage.get_next_id() == 1
-            except RuntimeError as e:
-                # 当前实现会失败，这是预期行为（RED Phase）
-                assert "Invalid JSON" in str(e) or "Failed to load todos" in str(e)
+            # 创建 Storage 实例 - 应该成功创建并处于空状态
+            storage = Storage(str(storage_path))
+            assert storage.list() == []
+            assert storage.get_next_id() == 1
+
+            # 验证可以正常添加新 todo
+            todo = storage.add(Todo(title="Test task"))
+            assert todo.id == 1
+            assert len(storage.list()) == 1
 
     def test_init_with_malformed_data_structure(self):
         """测试当存储文件包含格式错误的数据结构时，Storage 能否优雅处理"""
@@ -61,13 +58,12 @@ class TestIssue456:
             # 写入格式错误的数据（例如，顶层是字符串而不是对象或数组）
             storage_path.write_text('"just a string"')
 
-            # 尝试创建 Storage 实例
-            # 当前实现会抛出 RuntimeError (schema validation failed)
-            try:
-                storage = Storage(str(storage_path))
-                # 如果能成功创建，验证它处于可用状态
-                assert storage.list() == []
-                assert storage.get_next_id() == 1
-            except RuntimeError as e:
-                # 当前实现会失败，这是预期行为（RED Phase）
-                assert "Invalid schema" in str(e)
+            # 创建 Storage 实例 - 应该成功创建并处于空状态
+            storage = Storage(str(storage_path))
+            assert storage.list() == []
+            assert storage.get_next_id() == 1
+
+            # 验证可以正常添加新 todo
+            todo = storage.add(Todo(title="Test task"))
+            assert todo.id == 1
+            assert len(storage.list()) == 1
