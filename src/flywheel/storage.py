@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import threading
+import time
 from pathlib import Path
 
 from flywheel.todo import Todo
@@ -69,6 +70,12 @@ class Storage:
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
+        # File lock timeout to prevent indefinite hangs (Issue #396)
+        # 30 seconds is a reasonable timeout for file operations
+        self._lock_timeout: float = 30.0
+        # Retry interval for non-blocking lock attempts (Issue #396)
+        # 100ms allows for responsive retries without excessive CPU usage
+        self._lock_retry_interval: float = 0.1
         self._load()
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
@@ -123,6 +130,7 @@ class Storage:
 
         Raises:
             IOError: If the lock cannot be acquired.
+            RuntimeError: If lock acquisition times out (Issue #396).
 
         Note:
             For Windows, a fixed large lock range (0x7FFFFFFF) is used to prevent
@@ -136,10 +144,18 @@ class Storage:
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
+
+            Timeout mechanism (Issue #396):
+            - Windows: Uses LK_NBLCK (non-blocking) with retry loop and timeout
+              instead of LK_LOCK to prevent indefinite hangs when a competing
+              process dies while holding the lock
+            - Unix: Uses LOCK_EX | LOCK_NB with retry loop and timeout for
+              consistent behavior across platforms
         """
         if os.name == 'nt':  # Windows
             # Windows locking: msvcrt.locking
             # Use fixed large lock range to prevent deadlock (Issue #375)
+            # Use non-blocking mode with retry to prevent indefinite hangs (Issue #396)
             try:
                 # Get the lock range (fixed large value for Windows)
                 lock_range = self._get_file_lock_range_from_handle(file_handle)
@@ -170,23 +186,96 @@ class Storage:
                 # position N, we would lock bytes [N, N+lock_range) instead of [0, lock_range).
                 # This could leave the beginning of the file unprotected.
                 file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, lock_range)
-            except IOError as e:
-                logger.error(f"Failed to acquire Windows file lock: {e}")
-                raise
+
+                # Timeout mechanism for lock acquisition (Issue #396)
+                # Use LK_NBLCK (non-blocking) with retry loop instead of LK_LOCK
+                # to prevent indefinite hangs when a competing process dies while
+                # holding the lock
+                start_time = time.time()
+                last_error = None
+
+                while True:
+                    elapsed = time.time() - start_time
+                    if elapsed >= self._lock_timeout:
+                        # Timeout exceeded - raise error with details
+                        raise RuntimeError(
+                            f"File lock acquisition timed out after {elapsed:.1f}s "
+                            f"(timeout: {self._lock_timeout}s). "
+                            f"This may indicate a competing process died while holding "
+                            f"the lock or a deadlock condition. File: {file_handle.name}"
+                        )
+
+                    try:
+                        # Try non-blocking lock (LK_NBLCK)
+                        # This returns immediately with IOError if lock is held
+                        msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, lock_range)
+                        # Lock acquired successfully
+                        break
+                    except IOError as e:
+                        # Lock is held by another process
+                        # Save error for potential reporting
+                        last_error = e
+                        # Wait before retrying
+                        time.sleep(self._lock_retry_interval)
+                        # Continue retry loop
+
+            except (IOError, RuntimeError) as e:
+                if isinstance(e, RuntimeError):
+                    # Re-raise timeout errors as-is
+                    logger.error(f"Failed to acquire Windows file lock: {e}")
+                    raise
+                else:
+                    logger.error(f"Failed to acquire Windows file lock: {e}")
+                    raise
         else:  # Unix-like systems
             # Unix locking: fcntl.flock
             # LOCK_EX = exclusive lock
-            # LOCK_NB = non-blocking mode (not set - we want to block)
+            # LOCK_NB = non-blocking mode
+            # Use retry loop with timeout for consistency with Windows (Issue #396)
             try:
                 # Cache a placeholder lock range for consistency (Issue #351)
                 # On Unix, this isn't used by fcntl.flock but we cache it
                 # to maintain consistent API behavior across platforms
                 self._lock_range = 0
-                fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX)
-            except IOError as e:
-                logger.error(f"Failed to acquire Unix file lock: {e}")
-                raise
+
+                # Timeout mechanism for lock acquisition (Issue #396)
+                # Use non-blocking mode with retry loop for consistency with Windows
+                start_time = time.time()
+                last_error = None
+
+                while True:
+                    elapsed = time.time() - start_time
+                    if elapsed >= self._lock_timeout:
+                        # Timeout exceeded - raise error with details
+                        raise RuntimeError(
+                            f"File lock acquisition timed out after {elapsed:.1f}s "
+                            f"(timeout: {self._lock_timeout}s). "
+                            f"This may indicate a competing process died while holding "
+                            f"the lock or a deadlock condition. File: {file_handle.name}"
+                        )
+
+                    try:
+                        # Try non-blocking lock (LOCK_EX | LOCK_NB)
+                        # This returns immediately with IOError if lock is held
+                        fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        # Lock acquired successfully
+                        break
+                    except IOError as e:
+                        # Lock is held by another process
+                        # Save error for potential reporting
+                        last_error = e
+                        # Wait before retrying
+                        time.sleep(self._lock_retry_interval)
+                        # Continue retry loop
+
+            except (IOError, RuntimeError) as e:
+                if isinstance(e, RuntimeError):
+                    # Re-raise timeout errors as-is
+                    logger.error(f"Failed to acquire Unix file lock: {e}")
+                    raise
+                else:
+                    logger.error(f"Failed to acquire Unix file lock: {e}")
+                    raise
 
     def _release_file_lock(self, file_handle) -> None:
         """Release a file lock for multi-process safety (Issue #268).
