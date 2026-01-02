@@ -812,8 +812,14 @@ class Storage:
                         # condition where the directory is created by another process.
                         # Instead, let FileExistsError be raised and handle it in the
                         # exception handler below.
-                        directory.mkdir()  # No exist_ok - let FileExistsError be raised
-                        self._secure_directory(directory)
+                        #
+                        # Security fix for Issue #439: Use mode=0o700 to create directory
+                        # with restrictive permissions from the start. This ensures that
+                        # even if _secure_directory fails (e.g., due to race condition
+                        # or error), the directory has secure permissions and is not left
+                        # with umask-dependent insecure permissions.
+                        directory.mkdir(mode=0o700)  # Create with secure permissions
+                        self._secure_directory(directory)  # Ensure consistency
 
                     # If we get here, creation succeeded
                     success = True
