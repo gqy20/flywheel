@@ -14,15 +14,16 @@ from flywheel.todo import Todo
 
 logger = logging.getLogger(__name__)
 
-# Platform-specific file locking (Issue #268, #411)
-# IMPORTANT: Windows file locking limitations
-# - Windows uses msvcrt.locking which is an ADVISORY LOCK
-# - Advisory locks do not enforce mutual exclusion on all systems
-# - Cooperative processes can still access the file concurrently
-# - Unix systems use fcntl.flock which provides stronger synchronization
-# - Consider using win32file for mandatory locking if required
+# Platform-specific file locking (Issue #268, #411, #451)
+# IMPORTANT: Windows file locking implementation
+# - Windows uses win32file.LockFileEx which provides MANDATORY LOCKING
+# - Mandatory locks enforce mutual exclusion and prevent concurrent access
+# - All processes are blocked from writing while the lock is held
+# - Unix systems use fcntl.flock which provides strong synchronization
 if os.name == 'nt':  # Windows
-    import msvcrt
+    import pywintypes
+    import win32file
+    import win32con
 else:  # Unix-like systems
     import fcntl
 
@@ -43,18 +44,22 @@ class Storage:
         self.path = Path(path).expanduser()
 
         # SECURITY CHECK: Verify pywin32 availability on Windows before any
-        # directory operations (Issue #414). This provides early, clear error
-        # messages instead of runtime crashes when trying to secure directories.
+        # directory operations (Issue #414, #451). This provides early, clear error
+        # messages instead of runtime crashes when trying to secure directories
+        # or acquire mandatory file locks.
         if os.name == 'nt':  # Windows
             try:
                 import win32security  # noqa: F401
                 import win32con  # noqa: F401
                 import win32api  # noqa: F401
                 import win32file  # noqa: F401
+                import pywintypes  # noqa: F401
             except ImportError as e:
                 # pywin32 is not installed - provide clear error message
+                # Note: pywin32 is required for both security (ACLs) and mandatory locking
                 raise ImportError(
-                    f"pywin32 is required on Windows for secure directory permissions. "
+                    f"pywin32 is required on Windows for secure directory permissions "
+                    f"and mandatory file locking (Issue #451). "
                     f"Install it with: pip install pywin32. "
                     f"Original error: {e}"
                 ) from e
@@ -109,53 +114,51 @@ class Storage:
         # Register cleanup handler to save dirty data on exit (Issue #203)
         atexit.register(self._cleanup)
 
-    def _get_file_lock_range_from_handle(self, file_handle) -> int:
-        """Get the Windows file lock range.
+    def _get_file_lock_range_from_handle(self, file_handle) -> tuple:
+        """Get the Windows file lock range for mandatory locking.
 
-        This method returns a lock range for Windows file locking. On Windows,
-        a fixed very large lock range (0x7FFFFFFFFFFFFFFF) is used to prevent
-        deadlocks when the file size changes between lock acquisition and
-        release (Issue #375, #426).
+        This method returns lock range parameters for Windows mandatory file
+        locking using win32file.LockFileEx. On Windows, a fixed very large
+        lock range is used to prevent deadlocks when the file size changes
+        between lock acquisition and release (Issue #375, #426, #451).
 
         Args:
             file_handle: The open file handle (unused, kept for API compatibility).
 
         Returns:
-            On Windows: A fixed very large lock range (0x7FFFFFFFFFFFFFFF).
+            On Windows: A tuple of (low, high) representing the lock range in bytes.
             On Unix: A placeholder value (ignored by fcntl.flock).
 
         Note:
-            - On Windows, uses a fixed very large range to prevent deadlock (Issue #375)
-            - 0x7FFFFFFFFFFFFFFF (9,223,372,036,854,775,807 bytes) is the maximum
-              signed 64-bit integer, sufficient to handle any realistic file size
-            - This fixes Issue #426 where the previous 2GB limit (0x7FFFFFFF) could
-              lead to data corruption if the JSON file grows larger than 2GB
+            - On Windows, uses win32file.LockFileEx for MANDATORY locking (Issue #451)
+            - Mandatory locks enforce mutual exclusion on all systems
+            - 0xFFFFFFFF (max 32-bit) is used for both high and low parts
             - This approach prevents the issue where file grows between lock
-              acquisition and release, which would cause unlock to fail
+              acquisition and release
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
         """
         if os.name == 'nt':  # Windows
-            # Security fix for Issue #375 and #426: Use a fixed very large lock range
-            # instead of calculating from file size to prevent deadlocks
-            # when file size changes between lock acquisition and release
+            # Security fix for Issue #375, #426, and #451: Use a fixed very large
+            # lock range with win32file.LockFileEx for mandatory locking
             #
-            # The lock range is determined at acquisition time. If the file
-            # size grows between acquisition and release, the cached range
-            # (self._lock_range) may be smaller than the actual file size.
-            # On Windows, msvcrt.locking requires the unlock range to match
-            # the locked region. Using a fixed large range ensures the lock
-            # can handle file growth without deadlock.
+            # Mandatory locking (Issue #451):
+            # - Uses win32file.LockFileEx instead of msvcrt.locking
+            # - Enforces mutual exclusion on ALL processes, not just cooperative ones
+            # - Prevents malicious or unaware processes from writing concurrently
+            # - Provides data integrity guarantees that advisory locks cannot
             #
-            # 0x7FFFFFFFFFFFFFFF (max signed 64-bit int) is used instead of
-            # 0x7FFFFFFF (2GB) to handle files larger than 2GB (Issue #426)
-            return 0x7FFFFFFFFFFFFFFF
+            # The lock range is specified as two 32-bit values (low, high):
+            # - Low: 0xFFFFFFFF (max 32-bit unsigned int)
+            # - High: 0xFFFFFFFF (max 32-bit unsigned int)
+            # This represents a very large range covering any realistic file size.
+            return (0xFFFFFFFF, 0xFFFFFFFF)
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
             # Return a placeholder value (will be ignored)
             return 0
 
     def _acquire_file_lock(self, file_handle) -> None:
-        """Acquire an exclusive file lock for multi-process safety (Issue #268).
+        """Acquire an exclusive file lock for multi-process safety (Issue #268, #451).
 
         Args:
             file_handle: The file handle to lock.
@@ -165,85 +168,62 @@ class Storage:
             RuntimeError: If lock acquisition times out (Issue #396).
 
         Note:
-            PLATFORM DIFFERENCES (Issue #411):
+            PLATFORM DIFFERENCES (Issue #411, #451):
 
-            Windows (msvcrt.locking):
-            - Uses ADVISORY LOCKING - cannot enforce mutual exclusion
-            - Cooperative processes may still access the file concurrently
-            - Does not prevent malicious or unaware processes from writing
-            - For mandatory locking, consider using win32file APIs
-            - Uses non-blocking mode (LK_NBLCK) with retry to prevent hangs
+            Windows (win32file.LockFileEx):
+            - Uses MANDATORY LOCKING - enforces mutual exclusion on ALL processes
+            - Blocks ALL processes from writing, including malicious or unaware ones
+            - Provides strong data integrity guarantees
+            - Uses LOCKFILE_FAIL_IMMEDIATELY | LOCKFILE_EXCLUSIVE_LOCK flags
+            - Non-blocking mode with retry to prevent hangs (Issue #396)
 
             Unix-like systems (fcntl.flock):
-            - Provides stronger synchronization guarantees
+            - Provides strong synchronization guarantees
             - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
 
-            For Windows, a fixed very large lock range (0x7FFFFFFFFFFFFFFF) is
-            used to prevent deadlocks when the file size changes between lock
-            acquisition and release (Issue #375, #426). The lock range is cached
-            to ensure consistency between acquire and release operations (Issue #351).
-
-            This approach eliminates the risk of deadlock that existed when using
-            file size-based locking, where file growth between acquire and release
-            would cause unlock failures.
+            For Windows, a fixed very large lock range (0xFFFFFFFF, 0xFFFFFFFF)
+            is used to prevent deadlocks when the file size changes between lock
+            acquisition and release (Issue #375, #426, #451).
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
 
             Timeout mechanism (Issue #396):
-            - Windows: Uses LK_NBLCK (non-blocking) with retry loop and timeout
-              instead of LK_LOCK to prevent indefinite hangs when a competing
-              process dies while holding the lock
-            - Unix: Uses LOCK_EX | LOCK_NB with retry loop and timeout for
-              consistent behavior across platforms
+            - Windows: Uses LOCKFILE_FAIL_IMMEDIATELY with retry loop and timeout
+            - Unix: Uses LOCK_EX | LOCK_NB with retry loop and timeout
         """
         if os.name == 'nt':  # Windows
-            # Windows locking: msvcrt.locking (Issue #411)
-            # WARNING: msvcrt.locking is an ADVISORY LOCK
-            # - Cannot enforce mutual exclusion on all systems
-            # - Cooperative processes can still access the file concurrently
-            # - For mandatory locking, consider using win32file APIs
-            #
-            # Use fixed large lock range to prevent deadlock (Issue #375)
-            # Use non-blocking mode with retry to prevent indefinite hangs (Issue #396)
+            # Windows locking: win32file.LockFileEx for MANDATORY locking (Issue #451)
+            # SECURITY: Mandatory locks enforce mutual exclusion on ALL processes
+            # - Prevents malicious or unaware processes from writing concurrently
+            # - Provides data integrity guarantees that advisory locks cannot
+            # - Uses win32file.LockFileEx instead of msvcrt.locking
             try:
-                # Get the lock range (fixed large value for Windows)
-                lock_range = self._get_file_lock_range_from_handle(file_handle)
+                # Get the Windows file handle from Python file object
+                win_handle = win32file._get_osfhandle(file_handle.fileno())
 
-                # Validate lock range before caching (Issue #366)
-                # With the fixed range approach (Issue #375, #426), lock_range is
-                # always 0x7FFFFFFFFFFFFFFF on Windows, but we validate for
-                # defensive programming
-                # Security fix (Issue #374): Raise exception instead of insecure fallback
-                if lock_range <= 0:
-                    raise RuntimeError(
-                        f"Invalid lock range {lock_range} returned for file {file_handle.name}. "
-                        f"Cannot acquire secure file lock with invalid range. "
-                        f"Refusing to use insecure partial lock fallback."
-                    )
+                # Get the lock range (fixed large value for mandatory locking)
+                lock_range_low, lock_range_high = self._get_file_lock_range_from_handle(file_handle)
 
                 # Cache the lock range for use in _release_file_lock (Issue #351)
-                # This ensures we use the same range for unlock, even if file size changes
-                self._lock_range = lock_range
+                # This ensures we use the same range for unlock
+                self._lock_range = (lock_range_low, lock_range_high)
+
                 # CRITICAL: Flush buffers before locking (Issue #390)
                 # Python file objects have buffers that must be flushed before
-                # locking to ensure data is synchronized to disk. Without flush,
-                # the lock may not correctly synchronize, leading to data corruption.
+                # locking to ensure data is synchronized to disk
                 file_handle.flush()
 
-                # CRITICAL: Seek to position 0 before locking (Issue #386)
-                # msvcrt.locking locks bytes starting from the CURRENT file position,
-                # not from position 0. Without this seek, if the file pointer is at
-                # position N, we would lock bytes [N, N+lock_range) instead of [0, lock_range).
-                # This could leave the beginning of the file unprotected.
-                file_handle.seek(0)
+                # Create overlapped structure for async operation
+                overlapped = pywintypes.OVERLAPPED()
 
                 # Timeout mechanism for lock acquisition (Issue #396)
-                # Use LK_NBLCK (non-blocking) with retry loop instead of LK_LOCK
-                # to prevent indefinite hangs when a competing process dies while
-                # holding the lock
+                # Use LOCKFILE_FAIL_IMMEDIATELY with retry loop
                 start_time = time.time()
                 last_error = None
+
+                # Lock flags: LOCKFILE_FAIL_IMMEDIATELY | LOCKFILE_EXCLUSIVE_LOCK
+                lock_flags = win32con.LOCKFILE_FAIL_IMMEDIATELY | win32con.LOCKFILE_EXCLUSIVE_LOCK
 
                 while True:
                     elapsed = time.time() - start_time
@@ -257,30 +237,45 @@ class Storage:
                         )
 
                     try:
-                        # Try non-blocking lock (LK_NBLCK)
-                        # This returns immediately with IOError if lock is held
-                        msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, lock_range)
+                        # Try non-blocking mandatory lock (Issue #451)
+                        # win32file.LockFileEx provides MANDATORY locking on Windows
+                        # This blocks ALL processes from writing, not just cooperative ones
+                        win32file.LockFileEx(
+                            win_handle,
+                            lock_flags,
+                            0,  # Reserved
+                            lock_range_low,  # NumberOfBytesToLockLow
+                            lock_range_high,  # NumberOfBytesToLockHigh
+                            overlapped
+                        )
                         # Lock acquired successfully
                         break
-                    except IOError as e:
+                    except pywintypes.error as e:
                         # Lock is held by another process
-                        # Save error for potential reporting
-                        last_error = e
-                        # Wait before retrying
-                        time.sleep(self._lock_retry_interval)
-                        # Continue retry loop
+                        # Error code 33: ERROR_LOCK_VIOLATION
+                        # Error code 167: ERROR_LOCK_FAILED
+                        if e.winerror in (33, 167):
+                            # Save error for potential reporting
+                            last_error = e
+                            # Wait before retrying
+                            time.sleep(self._lock_retry_interval)
+                            # Continue retry loop
+                        else:
+                            # Unexpected error - raise immediately
+                            logger.error(f"Failed to acquire Windows mandatory lock: {e}")
+                            raise
 
-            except (IOError, RuntimeError) as e:
+            except (pywintypes.error, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
                     # Re-raise timeout errors as-is
-                    logger.error(f"Failed to acquire Windows file lock: {e}")
+                    logger.error(f"Failed to acquire Windows mandatory lock: {e}")
                     raise
                 else:
-                    logger.error(f"Failed to acquire Windows file lock: {e}")
+                    logger.error(f"Failed to acquire Windows mandatory lock: {e}")
                     raise
         else:  # Unix-like systems
             # Unix locking: fcntl.flock (Issue #411)
-            # Provides stronger synchronization than Windows advisory locks
+            # Provides strong synchronization guarantees
             # LOCK_EX = exclusive lock
             # LOCK_NB = non-blocking mode
             # Use retry loop with timeout for consistency with Windows (Issue #396)
@@ -330,7 +325,7 @@ class Storage:
                     raise
 
     def _release_file_lock(self, file_handle) -> None:
-        """Release a file lock for multi-process safety (Issue #268).
+        """Release a file lock for multi-process safety (Issue #268, #451).
 
         Args:
             file_handle: The file handle to unlock.
@@ -339,62 +334,71 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
-            PLATFORM DIFFERENCES (Issue #411):
+            PLATFORM DIFFERENCES (Issue #411, #451):
 
-            Windows (msvcrt.locking):
-            - Advisory lock release - no enforcement guarantee
+            Windows (win32file.UnlockFile):
+            - Mandatory lock release - enforces mutual exclusion
             - Must match exact lock range used during acquisition
             - Uses cached range to prevent deadlocks
 
             Unix-like systems (fcntl.flock):
-            - Provides stronger release guarantees
+            - Provides strong release guarantees
             - Simple unlock without range matching
 
             For Windows, the lock range matches the fixed very large range
-            (0x7FFFFFFFFFFFFFFF) used during acquisition to avoid "permission
-            denied" errors (Issue #271).
+            (0xFFFFFFFF, 0xFFFFFFFF) used during acquisition to avoid errors.
             Uses the cached lock range from _acquire_file_lock (Issue #351).
 
-            With the fixed range approach (Issue #375), file size changes between
-            lock and unlock no longer cause deadlocks or unlock failures, as the
-            locked region is always large enough to cover the actual file size.
+            With the fixed range approach (Issue #375, #426, #451), file size
+            changes between lock and unlock no longer cause deadlocks or unlock
+            failures, as the locked region is always large enough.
 
             The lock range cache is thread-safe because all file operations are
             serialized by self._lock (RLock), ensuring proper acquire/release
             pairing (Issue #366).
 
-            Error handling is consistent with _acquire_file_lock - IOError is
-            re-raised to ensure lock release failures are not silently ignored
-            (Issue #376).
+            Error handling is consistent with _acquire_file_lock - exceptions
+            are re-raised to ensure lock release failures are not silently
+            ignored (Issue #376).
         """
         if os.name == 'nt':  # Windows
-            # Windows unlocking
+            # Windows unlocking: win32file.UnlockFile (Issue #451)
+            # Mandatory lock release for strong synchronization
             # Unlock range must match lock range exactly (Issue #271)
             # Use the cached lock range from _acquire_file_lock (Issue #351)
-            # This prevents potential deadlocks if file size changed between lock and unlock
             try:
+                # Get the Windows file handle from Python file object
+                win_handle = win32file._get_osfhandle(file_handle.fileno())
+
                 # Use the cached lock range from acquire to ensure consistency (Issue #351)
                 # Validate lock range before using it (Issue #366)
                 # Security fix (Issue #374): Raise exception instead of insecure fallback
                 lock_range = self._lock_range
-                if lock_range <= 0:
+                if not isinstance(lock_range, tuple) or len(lock_range) != 2:
                     # Invalid lock range - this should never happen if acquire was called
-                    # Security fix (Issue #374): Raise instead of falling back to 4096
+                    # Security fix (Issue #374): Raise instead of falling back
                     raise RuntimeError(
                         f"Invalid lock range {lock_range} in _release_file_lock. "
                         f"This indicates acquire/release are not properly paired (Issue #366). "
                         f"Refusing to use insecure partial lock fallback."
                     )
 
-                # CRITICAL: Seek to position 0 before unlocking (Issue #386)
-                # Must match the seek(0) in _acquire_file_lock to ensure we unlock
-                # the same region we locked. msvcrt.locking unlocks bytes starting
-                # from the CURRENT file position.
-                file_handle.seek(0)
-                msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
-            except IOError as e:
-                logger.error(f"Failed to release Windows file lock: {e}")
-                raise
+                lock_range_low, lock_range_high = lock_range
+
+                # Unlock the file using win32file.UnlockFile (Issue #451)
+                # This releases the mandatory lock acquired by LockFileEx
+                win32file.UnlockFile(
+                    win_handle,
+                    lock_range_low,  # NumberOfBytesToUnlockLow
+                    lock_range_high  # NumberOfBytesToUnlockHigh
+                )
+            except (pywintypes.error, RuntimeError) as e:
+                if isinstance(e, RuntimeError):
+                    logger.error(f"Failed to release Windows mandatory lock: {e}")
+                    raise
+                else:
+                    logger.error(f"Failed to release Windows mandatory lock: {e}")
+                    raise
         else:  # Unix-like systems
             # Unix unlocking
             try:
