@@ -162,10 +162,13 @@ class Storage:
             # - Provides data integrity guarantees that advisory locks cannot
             #
             # The lock range is specified as two 32-bit values (low, high):
-            # - Low: 0xFFFFFFFF (max 32-bit unsigned int)
+            # - Low: 0 (start from beginning of file)
             # - High: 0xFFFFFFFF (max 32-bit unsigned int)
-            # This represents a very large range covering any realistic file size.
-            return (0xFFFFFFFF, 0xFFFFFFFF)
+            # This represents a range from 0 to 4GB (0xFFFFFFFF in low + 0xFFFFFFFF << 32 in high).
+            # Security fix for Issue #465: Starting from 0 instead of 0xFFFFFFFF prevents
+            # lock failures on files smaller than 4GB. The previous value (0xFFFFFFFF, 0xFFFFFFFF)
+            # attempted to lock from beyond EOF, causing ERROR_LOCK_VIOLATION (error 33).
+            return (0, 0xFFFFFFFF)
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
             # Return a placeholder value (will be ignored)
@@ -195,9 +198,9 @@ class Storage:
             - Provides strong synchronization guarantees
             - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
 
-            For Windows, a fixed very large lock range (0xFFFFFFFF, 0xFFFFFFFF)
+            For Windows, a fixed very large lock range (0, 0xFFFFFFFF)
             is used to prevent deadlocks when the file size changes between lock
-            acquisition and release (Issue #375, #426, #451).
+            acquisition and release (Issue #375, #426, #451, #465).
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
@@ -360,8 +363,8 @@ class Storage:
             - Simple unlock without range matching
 
             For Windows, the lock range matches the fixed very large range
-            (0xFFFFFFFF, 0xFFFFFFFF) used during acquisition to avoid errors.
-            Uses the cached lock range from _acquire_file_lock (Issue #351).
+            (0, 0xFFFFFFFF) used during acquisition to avoid errors.
+            Uses the cached lock range from _acquire_file_lock (Issue #351, #465).
 
             With the fixed range approach (Issue #375, #426, #451), file size
             changes between lock and unlock no longer cause deadlocks or unlock
