@@ -146,7 +146,7 @@ class Storage:
         Note:
             - On Windows, uses win32file.LockFileEx for MANDATORY locking (Issue #451)
             - Mandatory locks enforce mutual exclusion on all systems
-            - 0xFFFFFFFF (max 32-bit) is used for both high and low parts
+            - Returns (0, 1) representing exactly 4GB (0x100000000 bytes)
             - This approach prevents the issue where file grows between lock
               acquisition and release
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
@@ -162,16 +162,20 @@ class Storage:
             # - Provides data integrity guarantees that advisory locks cannot
             #
             # The lock range is specified as two 32-bit values (low, high):
-            # - Low: 0xFFFFFFFF (max 32-bit unsigned int, lower 32 bits)
-            # - High: 0 (upper 32 bits)
-            # This represents a range from 0 to 4GB (0xFFFFFFFF + 0 << 32 = 0xFFFFFFFF bytes).
+            # - Low: 0 (lower 32 bits)
+            # - High: 1 (upper 32 bits)
+            # This represents a range from 0 to 4GB (0 + 1 << 32 = 0x100000000 bytes).
             # Security fix for Issue #465: Starting from 0 instead of 0xFFFFFFFF prevents
             # lock failures on files smaller than 4GB. The previous value (0xFFFFFFFF, 0xFFFFFFFF)
             # attempted to lock from beyond EOF, causing ERROR_LOCK_VIOLATION (error 33).
             # Security fix for Issue #469: Corrected from (0, 0xFFFFFFFF) to (0xFFFFFFFF, 0)
             # to accurately represent 4GB. The old value (0, 0xFFFFFFFF) locked ~16 Exabytes,
             # which did not match the documented behavior.
-            return (0xFFFFFFFF, 0)
+            # Security fix for Issue #480: Corrected from (0xFFFFFFFF, 0) to (0, 1) to
+            # represent exactly 4GB (0x100000000 bytes). The old value (0xFFFFFFFF, 0)
+            # represented 4GB-1 (0xFFFFFFFF bytes), which is not exactly 4GB as documented.
+            # With (0, 1): low=0, high=1, range = 0 + 1 << 32 = 0x100000000 = 4GB exactly.
+            return (0, 1)
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
             # Return a placeholder value (will be ignored)
@@ -201,9 +205,9 @@ class Storage:
             - Provides strong synchronization guarantees
             - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
 
-            For Windows, a fixed 4GB lock range (0xFFFFFFFF, 0)
+            For Windows, a fixed 4GB lock range (0, 1)
             is used to prevent deadlocks when the file size changes between lock
-            acquisition and release (Issue #375, #426, #451, #465, #469).
+            acquisition and release (Issue #375, #426, #451, #465, #469, #480).
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
@@ -366,8 +370,8 @@ class Storage:
             - Simple unlock without range matching
 
             For Windows, the lock range matches the fixed 4GB range
-            (0xFFFFFFFF, 0) used during acquisition to avoid errors.
-            Uses the cached lock range from _acquire_file_lock (Issue #351, #465, #469).
+            (0, 1) used during acquisition to avoid errors.
+            Uses the cached lock range from _acquire_file_lock (Issue #351, #465, #469, #480).
 
             With the fixed range approach (Issue #375, #426, #451), file size
             changes between lock and unlock no longer cause deadlocks or unlock
@@ -697,12 +701,19 @@ class Storage:
             backoff to handle TOCTOU (Time-of-Check-Time-of-Use) race conditions where
             multiple threads/processes attempt to create the same directory simultaneously.
 
+            Security fix for Issue #481: When FileExistsError is caught (indicating
+            another process created the directory), ALWAYS verify and fix permissions
+            by calling _secure_directory, rather than checking permissions first and
+            conditionally fixing them. This ensures we never assume the other process
+            created the directory securely. The verification is critical because we
+            cannot trust that another process created the directory with correct permissions.
+
             The algorithm:
             1. Build list of directories from root to target
             2. For each directory that doesn't exist:
                a. On Windows: Create with win32file.CreateDirectory() + security descriptor
                b. On Unix: Create with mkdir() and immediately chmod()
-            3. If creation fails with FileExistsError, verify directory is secure and retry
+            3. If creation fails with FileExistsError, ALWAYS verify and secure directory
             4. Use exponential backoff for retries (max 5 attempts, ~500ms total)
         """
         # Build list of directories from outermost to innermost
@@ -896,39 +907,35 @@ class Storage:
                     # regardless of platform. This prevents TOCTOU vulnerabilities where
                     # another process could create the directory with insecure permissions.
                     #
-                    # The algorithm:
-                    # 1. Check if directory exists
-                    # 2. If it exists, ALWAYS call _secure_directory to ensure permissions are correct
-                    # 3. This is defensive: even if another process created it with wrong permissions,
-                    #    we fix it before proceeding
+                    # Security fix for Issue #481: ALWAYS call _secure_directory to verify
+                    # and fix permissions, rather than checking first. This ensures we don't
+                    # assume the other process created the directory securely. The verification
+                    # is critical because we cannot trust that another process (especially a
+                    # malicious or compromised one) created the directory with correct permissions.
+                    # By always securing, we guarantee the directory meets our security requirements.
                     if directory.exists():
                         try:
-                            # Security fix for Issue #424: Always verify and secure the directory,
-                            # regardless of platform. This prevents TOCTOU vulnerabilities where
-                            # another process could create the directory with insecure permissions.
+                            # Security fix for Issue #481: Always verify permissions after catching
+                            # FileExistsError, regardless of platform. Do NOT check permissions first
+                            # and conditionally call _secure_directory - this could leave a window
+                            # where we proceed with insecure permissions. Instead, ALWAYS secure to
+                            # ensure correctness, even if it's slightly less efficient.
                             #
-                            # On Unix: Check permissions first, only call _secure_directory if needed
-                            # On Windows: Always call _secure_directory (ACL verification is complex)
-                            if os.name != 'nt':
-                                # Unix: Check if directory already has correct permissions
-                                stat_info = directory.stat()
-                                mode = stat_info.st_mode & 0o777
-                                if mode != 0o700:
-                                    # Permissions are incorrect - fix them
-                                    self._secure_directory(directory)
-                                # else: permissions already correct, no action needed
-                            else:
-                                # Windows: Always secure to ensure ACLs are correct
-                                # ACL verification is complex, so we just reapply them
-                                # This is safe because _secure_directory is idempotent
-                                self._secure_directory(directory)
+                            # This is safe because _secure_directory is idempotent and efficient.
+                            # On Unix: chmod(0o700) is a fast syscall even if permissions are correct.
+                            # On Windows: ACL reapplication is necessary because verification is complex.
+                            #
+                            # The tradeoff: A few extra microseconds of syscall time for guaranteed
+                            # security. This is acceptable because directory creation is a rare operation
+                            # (only happens during initialization), not a hot path.
+                            self._secure_directory(directory)
 
                             # Directory exists and is now secure
                             # Consider this a success (another process created it for us)
                             success = True
                             logger.debug(
                                 f"Directory {directory} already exists (created by competing process). "
-                                f"Secured directory and continuing."
+                                f"Verified and secured directory to ensure correct permissions (Issue #481)."
                             )
                             break
                         except Exception as verify_error:
