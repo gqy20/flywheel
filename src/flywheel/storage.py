@@ -823,29 +823,43 @@ class Storage:
                     # Race condition fix (Issue #409): Directory was created by another thread/process
                     # between our check and creation attempt.
                     #
-                    # Verify the directory exists and is properly secured
+                    # Security fix for Issue #424: Always verify and secure the directory,
+                    # regardless of platform. This prevents TOCTOU vulnerabilities where
+                    # another process could create the directory with insecure permissions.
+                    #
+                    # The algorithm:
+                    # 1. Check if directory exists
+                    # 2. If it exists, ALWAYS call _secure_directory to ensure permissions are correct
+                    # 3. This is defensive: even if another process created it with wrong permissions,
+                    #    we fix it before proceeding
                     if directory.exists():
-                        # Directory exists - verify it's secure
-                        # If it's secure, we can continue (success)
-                        # If not, we should retry to secure it
                         try:
-                            # Try to verify/secure the directory
-                            # On Windows, we can't easily verify ACLs without win32security
-                            # On Unix, we can check permissions
+                            # Security fix for Issue #424: Always verify and secure the directory,
+                            # regardless of platform. This prevents TOCTOU vulnerabilities where
+                            # another process could create the directory with insecure permissions.
+                            #
+                            # On Unix: Check permissions first, only call _secure_directory if needed
+                            # On Windows: Always call _secure_directory (ACL verification is complex)
                             if os.name != 'nt':
-                                # Check if directory has correct permissions
+                                # Unix: Check if directory already has correct permissions
                                 stat_info = directory.stat()
                                 mode = stat_info.st_mode & 0o777
                                 if mode != 0o700:
-                                    # Permissions are incorrect - try to fix them
+                                    # Permissions are incorrect - fix them
                                     self._secure_directory(directory)
+                                # else: permissions already correct, no action needed
+                            else:
+                                # Windows: Always secure to ensure ACLs are correct
+                                # ACL verification is complex, so we just reapply them
+                                # This is safe because _secure_directory is idempotent
+                                self._secure_directory(directory)
 
-                            # Directory exists and appears secure
+                            # Directory exists and is now secure
                             # Consider this a success (another process created it for us)
                             success = True
                             logger.debug(
                                 f"Directory {directory} already exists (created by competing process). "
-                                f"Verified security and continuing."
+                                f"Secured directory and continuing."
                             )
                             break
                         except Exception as verify_error:
