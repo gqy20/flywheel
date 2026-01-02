@@ -65,19 +65,14 @@ class Storage:
         # On Windows: mode parameter is ignored, ACLs are set by _secure_directory.
         # We still call _secure_directory after to ensure permissions are set
         # regardless of umask and to apply Windows ACLs.
-        if os.name != 'nt':  # Unix-like systems
-            self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        else:  # Windows - mode parameter is ignored
-            # Security fix for Issue #395: Create and secure directories atomically
-            # to prevent race condition between mkdir and _secure_directory.
-            # On Windows, mkdir(parents=True) creates directories with inherited ACLs
-            # which are often permissive. If the process crashes after mkdir but before
-            # _secure_directory, directories remain insecure.
-            #
-            # Solution: Create directories one by one, securing each immediately
-            # This eliminates the security window by ensuring no directory exists
-            # without proper ACLs for more than a few milliseconds.
-            self._create_and_secure_directories(self.path.parent)
+        #
+        # Security fix for Issue #419: Use _create_and_secure_directories on BOTH
+        # Unix and Windows to properly handle race conditions where directories
+        # might be created by another process between the existence check and
+        # creation attempt. The _create_and_secure_directories method implements
+        # a retry mechanism with FileExistsError handling that properly handles
+        # this race condition on all platforms.
+        self._create_and_secure_directories(self.path.parent)
 
         # Set restrictive directory permissions to protect temporary files
         # from the race condition between mkstemp and fchmod (Issue #194)
@@ -86,10 +81,13 @@ class Storage:
         # Also ensures permissions are correct even if umask affected the mkdir call
         # and applies Windows ACLs for security (Issue #226)
         #
-        # Security fix for Windows (Issue #369): Apply _secure_directory to all
-        # parent directories created by mkdir, not just the final directory.
-        # On Windows, mkdir with parents=True may create parent directories that
-        # inherit insecure default permissions. We need to secure all of them.
+        # Security fix for Issue #369 and #419: Apply _secure_directory to all
+        # parent directories, not just the ones we created. This is a defensive
+        # measure to ensure that even if parent directories were created by other
+        # processes with insecure permissions, we secure them now.
+        # Note: _create_and_secure_directories (called above) already secures
+        # the directories it creates, but this call secures ALL parent directories
+        # even if they already existed before we ran.
         if os.name != 'nt':  # Unix-like systems
             self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
@@ -802,7 +800,14 @@ class Storage:
                         # On Unix, create the directory and immediately secure it
                         # The time window is extremely small (microseconds) and acceptable
                         # for practical purposes
-                        directory.mkdir(exist_ok=True)
+                        #
+                        # Security fix for Issue #419: Do NOT use exist_ok=True
+                        # If we use exist_ok=True, the FileExistsError handling below
+                        # won't be triggered, and we won't properly handle the race
+                        # condition where the directory is created by another process.
+                        # Instead, let FileExistsError be raised and handle it in the
+                        # exception handler below.
+                        directory.mkdir()  # No exist_ok - let FileExistsError be raised
                         self._secure_directory(directory)
 
                     # If we get here, creation succeeded
