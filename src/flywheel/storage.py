@@ -442,11 +442,24 @@ class Storage:
                     f"Cannot continue without secure directory permissions."
                 ) from e
         else:  # Windows
-            # Windows security modules are already checked in __init__ (Issue #414)
-            # These imports should never fail since we verified availability earlier
-            import win32security
-            import win32con
-            import win32api
+            # Security fix for Issue #449: Add defensive import check to prevent
+            # runtime crashes if modules are dynamically unloaded or modified after __init__.
+            # Even though we verified availability in __init__, we check again here
+            # to handle edge cases where the runtime environment may have changed.
+            try:
+                import win32security
+                import win32con
+                import win32api
+            except ImportError as e:
+                # pywin32 module became unavailable at runtime
+                # This should never happen under normal conditions, but we handle it
+                # defensively to prevent crashes if modules are dynamically unloaded
+                raise RuntimeError(
+                    f"Windows security module became unavailable at runtime: {e}. "
+                    f"This may indicate that pywin32 was dynamically unloaded. "
+                    f"Restart the application to restore security functionality. "
+                    f"Install pywin32: pip install pywin32"
+                ) from e
 
             # Attempt to use Windows ACLs for security (Issue #226)
             win32_success = False
@@ -699,12 +712,23 @@ class Storage:
             for attempt in range(max_retries):
                 try:
                     if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
-                        # Windows security modules are already checked in __init__ (Issue #414)
-                        # These imports should never fail since we verified availability earlier
-                        import win32security
-                        import win32con
-                        import win32api
-                        import win32file
+                        # Security fix for Issue #449: Add defensive import check to prevent
+                        # runtime crashes if modules are dynamically unloaded or modified after __init__.
+                        # Even though we verified availability in __init__, we check again here
+                        # to handle edge cases where the runtime environment may have changed.
+                        try:
+                            import win32security
+                            import win32con
+                            import win32api
+                            import win32file
+                        except ImportError as e:
+                            # pywin32 module became unavailable at runtime
+                            raise RuntimeError(
+                                f"Windows security module became unavailable at runtime: {e}. "
+                                f"This may indicate that pywin32 was dynamically unloaded. "
+                                f"Restart the application to restore security functionality. "
+                                f"Install pywin32: pip install pywin32"
+                            ) from e
 
                         # Security fix for Issue #400: Use CreateDirectory with security descriptor
                         # to eliminate the time window between directory creation and ACL application.
