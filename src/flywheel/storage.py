@@ -23,9 +23,17 @@ else:  # Unix-like systems
 # Import Windows security modules at module level for fail-fast behavior
 # instead of dynamically importing in _secure_directory method
 if os.name == 'nt':  # Windows
-    import win32security
-    import win32con
-    import win32api
+    try:
+        import win32security
+        import win32con
+        import win32api
+    except ImportError as e:
+        # Provide a clear error message if pywin32 is not installed (Issue #384)
+        raise ImportError(
+            f"pywin32 is required on Windows but not installed. "
+            f"Install it with: pip install pywin32. "
+            f"Original error: {e}"
+        ) from e
 
 
 class Storage:
