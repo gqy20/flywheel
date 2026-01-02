@@ -81,15 +81,19 @@ class Storage:
         # Also ensures permissions are correct even if umask affected the mkdir call
         # and applies Windows ACLs for security (Issue #226)
         #
-        # Security fix for Issue #369 and #419: Apply _secure_directory to all
+        # Security fix for Issue #369, #419, and #441: Apply _secure_directory to all
         # parent directories, not just the ones we created. This is a defensive
         # measure to ensure that even if parent directories were created by other
         # processes with insecure permissions, we secure them now.
         # Note: _create_and_secure_directories (called above) already secures
         # the directories it creates, but this call secures ALL parent directories
         # even if they already existed before we ran.
-        if os.name != 'nt':  # Unix-like systems
-            self._secure_all_parent_directories(self.path.parent)
+        #
+        # Security fix for Issue #441: Apply this on ALL platforms (Windows and Unix).
+        # Previously, this was only done on Unix-like systems, leaving Windows parent
+        # directories potentially insecure if they were created by other processes.
+        # Now we secure parent directories on both Windows and Unix.
+        self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
@@ -923,13 +927,18 @@ class Storage:
             RuntimeError: If any directory cannot be secured.
 
         Note:
-            This is a security fix for Issue #369. On Windows, when mkdir
-            creates parent directories, they inherit default permissions which
-            may be too permissive. By explicitly securing each parent directory,
-            we ensure the entire directory chain is protected.
+            This is a security fix for Issue #369 and #441. This method is now
+            called on ALL platforms (Windows and Unix) to ensure parent directories
+            are secured even if they were created by other processes.
 
-            On Unix, this is less critical since mkdir's mode parameter works,
-            but we still apply it for defense in depth.
+            On Windows: When mkdir creates parent directories, they inherit
+            default permissions which may be too permissive. By explicitly
+            securing each parent directory, we ensure the entire directory chain
+            is protected with proper ACLs.
+
+            On Unix: This is less critical since mkdir's mode parameter works,
+            but we still apply it for defense in depth. Parent directories might
+            have been created by other processes with insecure umask settings.
         """
         # Get all parent directories from root to target
         # We want to secure them in order: from outermost to innermost
