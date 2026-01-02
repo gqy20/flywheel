@@ -150,7 +150,11 @@ class Storage:
                 # Cache the lock range for use in _release_file_lock (Issue #351)
                 # This ensures we use the same range for unlock, even if file size changes
                 self._lock_range = lock_range
-                # Move to beginning of file before locking
+                # CRITICAL: Seek to position 0 before locking (Issue #386)
+                # msvcrt.locking locks bytes starting from the CURRENT file position,
+                # not from position 0. Without this seek, if the file pointer is at
+                # position N, we would lock bytes [N, N+lock_range) instead of [0, lock_range).
+                # This could leave the beginning of the file unprotected.
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_LOCK, lock_range)
             except IOError as e:
@@ -215,6 +219,10 @@ class Storage:
                         f"Refusing to use insecure partial lock fallback."
                     )
 
+                # CRITICAL: Seek to position 0 before unlocking (Issue #386)
+                # Must match the seek(0) in _acquire_file_lock to ensure we unlock
+                # the same region we locked. msvcrt.locking unlocks bytes starting
+                # from the CURRENT file position.
                 file_handle.seek(0)
                 msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, lock_range)
             except IOError as e:
