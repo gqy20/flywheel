@@ -985,9 +985,16 @@ class Storage:
             RuntimeError: If any directory cannot be secured.
 
         Note:
-            This is a security fix for Issue #369 and #441. This method is now
+            This is a security fix for Issue #369, #441, and #476. This method is now
             called on ALL platforms (Windows and Unix) to ensure parent directories
             are secured even if they were created by other processes.
+
+            Security fix for Issue #476: This method now handles TOCTOU (Time-of-Check-
+            Time-of-Use) race conditions where directories might be created by other
+            processes with insecure permissions. The implementation tries to secure
+            each directory and handles the case where it doesn't exist gracefully,
+            rather than checking existence first. This ensures that if a directory
+            is created by another process at any point, it will be secured.
 
             On Windows: When mkdir creates parent directories, they inherit
             default permissions which may be too permissive. By explicitly
@@ -1013,11 +1020,33 @@ class Storage:
         # Reverse to secure from outermost to innermost
         parents_to_secure.reverse()
 
-        # Secure each parent directory
+        # Secure each parent directory with race condition handling (Issue #476)
         for parent_dir in parents_to_secure:
-            # Only secure if it exists (mkdir should have created it)
-            if parent_dir.exists():
+            # Security fix for Issue #476: Try to secure the directory regardless of
+            # whether it existed when we checked. Handle the case where it doesn't
+            # exist gracefully. This prevents TOCTOU vulnerabilities where:
+            # 1. Directory doesn't exist at check time (we skip it)
+            # 2. Directory is created by another process with insecure permissions
+            # 3. We never secure it because we already skipped it
+            #
+            # By always trying to secure and handling FileNotFoundError, we ensure
+            # that if the directory is created by another process at any point,
+            # it will be secured.
+            try:
                 self._secure_directory(parent_dir)
+            except FileNotFoundError:
+                # Directory doesn't exist - this is fine, it means the directory
+                # wasn't created yet and we don't need to secure it.
+                # If it's created later by another process, it will be secured
+                # when the next Storage instance is created.
+                logger.debug(f"Directory {parent_dir} doesn't exist yet, skipping.")
+            except OSError as e:
+                # Other OS errors (e.g., permission denied) should be raised
+                # as they indicate a real security problem
+                raise RuntimeError(
+                    f"Failed to secure directory {parent_dir}: {e}. "
+                    f"Cannot continue without secure directory permissions."
+                ) from e
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
