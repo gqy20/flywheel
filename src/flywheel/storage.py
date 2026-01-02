@@ -14,7 +14,13 @@ from flywheel.todo import Todo
 
 logger = logging.getLogger(__name__)
 
-# Platform-specific file locking (Issue #268)
+# Platform-specific file locking (Issue #268, #411)
+# IMPORTANT: Windows file locking limitations
+# - Windows uses msvcrt.locking which is an ADVISORY LOCK
+# - Advisory locks do not enforce mutual exclusion on all systems
+# - Cooperative processes can still access the file concurrently
+# - Unix systems use fcntl.flock which provides stronger synchronization
+# - Consider using win32file for mandatory locking if required
 if os.name == 'nt':  # Windows
     import msvcrt
 else:  # Unix-like systems
@@ -134,6 +140,19 @@ class Storage:
             RuntimeError: If lock acquisition times out (Issue #396).
 
         Note:
+            PLATFORM DIFFERENCES (Issue #411):
+
+            Windows (msvcrt.locking):
+            - Uses ADVISORY LOCKING - cannot enforce mutual exclusion
+            - Cooperative processes may still access the file concurrently
+            - Does not prevent malicious or unaware processes from writing
+            - For mandatory locking, consider using win32file APIs
+            - Uses non-blocking mode (LK_NBLCK) with retry to prevent hangs
+
+            Unix-like systems (fcntl.flock):
+            - Provides stronger synchronization guarantees
+            - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
+
             For Windows, a fixed large lock range (0x7FFFFFFF) is used to prevent
             deadlocks when the file size changes between lock acquisition and
             release (Issue #375). The lock range is cached to ensure consistency
@@ -154,7 +173,12 @@ class Storage:
               consistent behavior across platforms
         """
         if os.name == 'nt':  # Windows
-            # Windows locking: msvcrt.locking
+            # Windows locking: msvcrt.locking (Issue #411)
+            # WARNING: msvcrt.locking is an ADVISORY LOCK
+            # - Cannot enforce mutual exclusion on all systems
+            # - Cooperative processes can still access the file concurrently
+            # - For mandatory locking, consider using win32file APIs
+            #
             # Use fixed large lock range to prevent deadlock (Issue #375)
             # Use non-blocking mode with retry to prevent indefinite hangs (Issue #396)
             try:
@@ -229,7 +253,8 @@ class Storage:
                     logger.error(f"Failed to acquire Windows file lock: {e}")
                     raise
         else:  # Unix-like systems
-            # Unix locking: fcntl.flock
+            # Unix locking: fcntl.flock (Issue #411)
+            # Provides stronger synchronization than Windows advisory locks
             # LOCK_EX = exclusive lock
             # LOCK_NB = non-blocking mode
             # Use retry loop with timeout for consistency with Windows (Issue #396)
@@ -288,6 +313,17 @@ class Storage:
             IOError: If the lock cannot be released.
 
         Note:
+            PLATFORM DIFFERENCES (Issue #411):
+
+            Windows (msvcrt.locking):
+            - Advisory lock release - no enforcement guarantee
+            - Must match exact lock range used during acquisition
+            - Uses cached range to prevent deadlocks
+
+            Unix-like systems (fcntl.flock):
+            - Provides stronger release guarantees
+            - Simple unlock without range matching
+
             For Windows, the lock range matches the fixed large range (0x7FFFFFFF)
             used during acquisition to avoid "permission denied" errors (Issue #271).
             Uses the cached lock range from _acquire_file_lock (Issue #351).
