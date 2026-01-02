@@ -870,7 +870,17 @@ class Storage:
                         # even if _secure_directory fails (e.g., due to race condition
                         # or error), the directory has secure permissions and is not left
                         # with umask-dependent insecure permissions.
-                        directory.mkdir(mode=0o700)  # Create with secure permissions
+                        #
+                        # Security fix for Issue #474: Temporarily restrict umask to 0o077
+                        # during directory creation to prevent umask from making the
+                        # directory more permissive than intended. This eliminates the
+                        # security window where mkdir(mode=0o700) could create a directory
+                        # with 0o755 permissions if umask is 0o022.
+                        old_umask = os.umask(0o077)  # Restrictive umask for mkdir
+                        try:
+                            directory.mkdir(mode=0o700)  # Create with secure permissions
+                        finally:
+                            os.umask(old_umask)  # Restore original umask
                         self._secure_directory(directory)  # Ensure consistency
 
                     # If we get here, creation succeeded
