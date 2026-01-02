@@ -105,8 +105,8 @@ class Todo:
         if completed_at is not None and not isinstance(completed_at, str):
             raise ValueError(f"Field 'completed_at' must be str or None, got {type(completed_at).__name__}")
 
-        tags = data.get("tags", [])
-        if not isinstance(tags, list):
+        tags = data.get("tags")
+        if tags is not None and not isinstance(tags, list):
             raise ValueError(f"Field 'tags' must be list, got {type(tags).__name__}")
         # Validate all tags are strings
         if tags and not all(isinstance(tag, str) for tag in tags):
