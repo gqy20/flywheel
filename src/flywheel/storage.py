@@ -28,6 +28,7 @@ if os.name == 'nt':  # Windows
         import win32security
         import win32con
         import win32api
+        import win32file  # Required for atomic directory creation (Issue #400)
     except ImportError as e:
         # Provide a clear error message if pywin32 is not installed (Issue #384)
         raise ImportError(
@@ -589,17 +590,19 @@ class Storage:
             RuntimeError: If any directory cannot be created or secured.
 
         Note:
-            This is a security fix for Issue #395. On Windows, mkdir creates
-            directories with inherited ACLs which are often permissive. By creating
-            and securing each directory immediately, we ensure there's no window
-            where a directory exists with insecure permissions.
+            This is a security fix for Issue #395 and Issue #400. On Windows, we use
+            win32file.CreateDirectory() with a security descriptor to create directories
+            atomically with the correct ACLs, eliminating the time window entirely.
+
+            On Unix, we use mkdir() followed by chmod() which is still atomic enough
+            for practical purposes (the time window is microseconds).
 
             The algorithm:
             1. Build list of directories from root to target
             2. For each directory that doesn't exist:
-               a. Create it
-               b. Immediately secure it with _secure_directory
-            3. If creation succeeds but securing fails, clean up the created directory
+               a. On Windows: Create with win32file.CreateDirectory() + security descriptor
+               b. On Unix: Create with mkdir() and immediately chmod()
+            3. If creation fails, clean up the created directory
         """
         # Build list of directories from outermost to innermost
         # Start from the target and walk up to find what needs to be created
@@ -618,15 +621,119 @@ class Storage:
         # Create and secure each directory
         for directory in directories_to_create:
             try:
-                # Create the directory (without parents to avoid creating multiple dirs)
-                directory.mkdir(exist_ok=True)
+                if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                    # Security fix for Issue #400: Use CreateDirectory with security descriptor
+                    # to eliminate the time window between directory creation and ACL application.
+                    # This is truly atomic - the directory is created with the correct ACLs
+                    # from the very moment it exists.
+                    #
+                    # First, prepare the security descriptor
+                    # Get the current user's SID
+                    user = win32api.GetUserName()
 
-                # Immediately secure it to minimize the security window
-                # This should complete within milliseconds
-                self._secure_directory(directory)
+                    # Fix Issue #251: Extract pure username if GetUserName returns
+                    # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
+                    if '\\' in user:
+                        parts = user.rsplit('\\', 1)
+                        if len(parts) == 2:
+                            user = parts[1]
+
+                    # Get domain
+                    try:
+                        name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                        if not isinstance(name, str):
+                            raise TypeError(
+                                f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                            )
+                        # Extract domain from the qualified DN
+                        parts = name.split(',')
+                        dc_parts = []
+                        for p in parts:
+                            p = p.strip()
+                            if p.startswith('DC='):
+                                split_parts = p.split('=', 1)
+                                if len(split_parts) >= 2:
+                                    dc_parts.append(split_parts[1])
+                        if dc_parts:
+                            domain = '.'.join(dc_parts)
+                        else:
+                            domain = win32api.GetComputerName()
+                    except (TypeError, ValueError):
+                        raise RuntimeError(
+                            f"Cannot set Windows security: GetUserNameEx returned invalid data. "
+                            f"Install pywin32: pip install pywin32"
+                        )
+                    except Exception:
+                        domain = win32api.GetComputerName()
+
+                    # Validate domain
+                    if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                        raise RuntimeError(
+                            "Cannot set Windows security: Unable to determine domain. "
+                            "Install pywin32: pip install pywin32"
+                        )
+
+                    # Validate user
+                    if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                        raise ValueError(
+                            f"Invalid user name '{user}': Cannot set Windows security."
+                        )
+
+                    # Lookup account SID
+                    try:
+                        sid, _, _ = win32security.LookupAccountName(domain, user)
+                    except Exception as e:
+                        raise RuntimeError(
+                            f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
+                            f"Install pywin32: pip install pywin32. Error: {e}"
+                        ) from e
+
+                    # Create security descriptor with owner-only access
+                    security_descriptor = win32security.SECURITY_DESCRIPTOR()
+                    security_descriptor.SetSecurityDescriptorOwner(sid, False)
+
+                    # Create DACL with minimal permissions (Issue #239, #249, #254, #274)
+                    dacl = win32security.ACL()
+                    dacl.AddAccessAllowedAce(
+                        win32security.ACL_REVISION,
+                        win32con.FILE_LIST_DIRECTORY |
+                        win32con.FILE_ADD_FILE |
+                        win32con.FILE_READ_ATTRIBUTES |
+                        win32con.FILE_WRITE_ATTRIBUTES |
+                        win32con.DELETE |
+                        win32con.SYNCHRONIZE,
+                        sid
+                    )
+
+                    security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+
+                    # Create SACL for auditing (Issue #244)
+                    sacl = win32security.ACL()
+                    security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
+
+                    # Set DACL protection to prevent inheritance (Issue #256)
+                    security_descriptor.SetSecurityDescriptorControl(
+                        win32security.SE_DACL_PROTECTED, 1
+                    )
+
+                    # Create directory atomically with security descriptor (Issue #400)
+                    # win32file.CreateDirectory creates the directory with the specified
+                    # security attributes atomically - there's no time window where
+                    # the directory exists with insecure permissions.
+                    win32file.CreateDirectory(
+                        str(directory),
+                        security_descriptor
+                    )
+
+                else:  # Unix-like systems
+                    # On Unix, create the directory and immediately secure it
+                    # The time window is extremely small (microseconds) and acceptable
+                    # for practical purposes
+                    directory.mkdir(exist_ok=True)
+                    self._secure_directory(directory)
 
             except Exception as e:
-                # If we fail to secure a directory, we should clean it up
+                # If we fail to create or secure a directory, we should clean it up
                 # to avoid leaving an insecure directory on the filesystem
                 try:
                     if directory.exists():
