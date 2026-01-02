@@ -20,22 +20,12 @@ if os.name == 'nt':  # Windows
 else:  # Unix-like systems
     import fcntl
 
-# Platform-specific security dependencies (Issue #324)
-# Import Windows security modules at module level for fail-fast behavior
-# instead of dynamically importing in _secure_directory method
-if os.name == 'nt':  # Windows
-    try:
-        import win32security
-        import win32con
-        import win32api
-        import win32file  # Required for atomic directory creation (Issue #400)
-    except ImportError as e:
-        # Provide a clear error message if pywin32 is not installed (Issue #384)
-        raise ImportError(
-            f"pywin32 is required on Windows but not installed. "
-            f"Install it with: pip install pywin32. "
-            f"Original error: {e}"
-        ) from e
+# Platform-specific security dependencies (Issue #324, #401)
+# Windows security modules are now imported lazily in the methods that use them
+# (_secure_directory and _create_and_secure_directories) instead of at module level.
+# This allows the storage module to be imported as a library even when pywin32 is
+# not installed, with errors only occurring when actually trying to use Windows
+# security features.
 
 
 class Storage:
@@ -372,7 +362,9 @@ class Storage:
             secure directory permissions cannot be established. This ensures
             the application does not run with unprotected sensitive data (Issue #304).
 
-            On Windows, pywin32 is required. Install it with: pip install pywin32
+            On Windows, pywin32 is lazily imported when this method is called.
+            This allows the storage module to be imported as a library even when
+            pywin32 is not installed (Issue #401). Install it with: pip install pywin32
         """
         if os.name != 'nt':  # Unix-like systems
             try:
@@ -384,8 +376,23 @@ class Storage:
                     f"Cannot continue without secure directory permissions."
                 ) from e
         else:  # Windows
+            # Import Windows security modules lazily (Issue #401)
+            # This allows the storage module to be imported as a library even when
+            # pywin32 is not installed. The import only fails when actually trying
+            # to use Windows security features.
+            try:
+                import win32security
+                import win32con
+                import win32api
+            except ImportError as e:
+                # pywin32 is not installed - provide clear error message
+                raise RuntimeError(
+                    f"pywin32 is required on Windows for secure directory permissions. "
+                    f"Install it with: pip install pywin32. "
+                    f"Original error: {e}"
+                ) from e
+
             # Attempt to use Windows ACLs for security (Issue #226)
-            # Note: win32security, win32con, win32api are imported at module level (Issue #324)
             win32_success = False
             try:
                 # Get the current user's SID using Windows API (Issue #229)
@@ -622,6 +629,21 @@ class Storage:
         for directory in directories_to_create:
             try:
                 if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                    # Import Windows security modules lazily (Issue #401)
+                    # This includes win32file which is needed for atomic directory creation
+                    try:
+                        import win32security
+                        import win32con
+                        import win32api
+                        import win32file
+                    except ImportError as e:
+                        # pywin32 is not installed - provide clear error message
+                        raise RuntimeError(
+                            f"pywin32 is required on Windows for secure directory permissions. "
+                            f"Install it with: pip install pywin32. "
+                            f"Original error: {e}"
+                        ) from e
+
                     # Security fix for Issue #400: Use CreateDirectory with security descriptor
                     # to eliminate the time window between directory creation and ACL application.
                     # This is truly atomic - the directory is created with the correct ACLs
