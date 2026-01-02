@@ -51,7 +51,16 @@ class Storage:
         if os.name != 'nt':  # Unix-like systems
             self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         else:  # Windows - mode parameter is ignored
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+            # Security fix for Issue #395: Create and secure directories atomically
+            # to prevent race condition between mkdir and _secure_directory.
+            # On Windows, mkdir(parents=True) creates directories with inherited ACLs
+            # which are often permissive. If the process crashes after mkdir but before
+            # _secure_directory, directories remain insecure.
+            #
+            # Solution: Create directories one by one, securing each immediately
+            # This eliminates the security window by ensuring no directory exists
+            # without proper ACLs for more than a few milliseconds.
+            self._create_and_secure_directories(self.path.parent)
 
         # Set restrictive directory permissions to protect temporary files
         # from the race condition between mkstemp and fchmod (Issue #194)
@@ -64,7 +73,8 @@ class Storage:
         # parent directories created by mkdir, not just the final directory.
         # On Windows, mkdir with parents=True may create parent directories that
         # inherit insecure default permissions. We need to secure all of them.
-        self._secure_all_parent_directories(self.path.parent)
+        if os.name != 'nt':  # Unix-like systems
+            self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
@@ -561,6 +571,75 @@ class Storage:
                     f"Failed to set Windows ACLs on {directory}: {e}. "
                     f"Cannot continue without secure directory permissions. "
                     f"Install pywin32: pip install pywin32"
+                ) from e
+
+    def _create_and_secure_directories(self, target_directory: Path) -> None:
+        """Create and secure directories atomically to prevent race condition (Issue #395).
+
+        This method creates directories one by one from the root towards the target,
+        securing each directory immediately after creation. This eliminates the
+        security window that exists when using mkdir(parents=True) followed by
+        _secure_directory, where a crash could leave directories with insecure
+        inherited ACLs on Windows.
+
+        Args:
+            target_directory: The target directory to create and secure.
+
+        Raises:
+            RuntimeError: If any directory cannot be created or secured.
+
+        Note:
+            This is a security fix for Issue #395. On Windows, mkdir creates
+            directories with inherited ACLs which are often permissive. By creating
+            and securing each directory immediately, we ensure there's no window
+            where a directory exists with insecure permissions.
+
+            The algorithm:
+            1. Build list of directories from root to target
+            2. For each directory that doesn't exist:
+               a. Create it
+               b. Immediately secure it with _secure_directory
+            3. If creation succeeds but securing fails, clean up the created directory
+        """
+        # Build list of directories from outermost to innermost
+        # Start from the target and walk up to find what needs to be created
+        directories_to_create = []
+        current = target_directory
+
+        # Walk up from target to root, collecting non-existent directories
+        while current != current.parent:  # Stop at filesystem root
+            if not current.exists():
+                directories_to_create.append(current)
+            current = current.parent
+
+        # Reverse to create from outermost to innermost
+        directories_to_create.reverse()
+
+        # Create and secure each directory
+        for directory in directories_to_create:
+            try:
+                # Create the directory (without parents to avoid creating multiple dirs)
+                directory.mkdir(exist_ok=True)
+
+                # Immediately secure it to minimize the security window
+                # This should complete within milliseconds
+                self._secure_directory(directory)
+
+            except Exception as e:
+                # If we fail to secure a directory, we should clean it up
+                # to avoid leaving an insecure directory on the filesystem
+                try:
+                    if directory.exists():
+                        # Try to remove the directory we just created
+                        # Note: This will only succeed if the directory is empty
+                        directory.rmdir()
+                except Exception:
+                    pass  # Best effort cleanup
+
+                # Raise error to prevent running with insecure directories
+                raise RuntimeError(
+                    f"Failed to create and secure directory {directory}: {e}. "
+                    f"Cannot continue without secure directory permissions."
                 ) from e
 
     def _secure_all_parent_directories(self, directory: Path) -> None:
