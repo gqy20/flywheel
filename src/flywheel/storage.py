@@ -2115,6 +2115,74 @@ class Storage:
         with self._lock:
             return self._next_id
 
+    def health_check(self) -> bool:
+        """Check if storage backend is healthy and functional.
+
+        This method performs a quick diagnostic check to verify that:
+        1. The storage directory exists and is writable
+        2. File locks can be acquired and released
+        3. Temporary files can be created and cleaned up
+
+        This is useful for startup diagnostics and configuration validation.
+
+        Returns:
+            True if the storage backend is healthy, False otherwise.
+
+        Example:
+            >>> storage = Storage()
+            >>> if storage.health_check():
+            ...     print("Storage is healthy")
+            ... else:
+            ...     print("Storage has issues")
+        """
+        import tempfile
+
+        try:
+            # Create a test temporary file in the storage directory
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=".health_check_",
+                suffix=".tmp"
+            )
+
+            try:
+                # Try to acquire a file lock on the temp file
+                # This tests both write permissions and locking mechanism
+                self._acquire_file_lock(os.fdopen(fd, 'r'))
+
+                # If we got here, we can write and lock successfully
+                # Release the lock
+                self._release_file_lock(os.fdopen(fd, 'r'))
+
+                # Clean up the temp file
+                try:
+                    os.close(fd)
+                except:
+                    pass  # Already closed or invalid
+                os.remove(temp_path)
+
+                return True
+
+            except Exception:
+                # Lock acquisition failed - clean up and return False
+                try:
+                    os.close(fd)
+                except:
+                    pass
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                except:
+                    pass
+                return False
+
+        except (OSError, IOError, PermissionError):
+            # Cannot create temp file - directory doesn't exist or isn't writable
+            return False
+        except Exception:
+            # Any other error indicates unhealthy storage
+            return False
+
     def close(self) -> None:
         """Close storage and release resources.
 
