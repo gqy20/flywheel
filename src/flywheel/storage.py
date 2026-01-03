@@ -40,11 +40,11 @@ if os.name == 'nt':  # Windows
         import win32file
         import pywintypes
     except ImportError as e:
-        # Security fix for Issue #514: Allow optional degraded mode
-        # Check if user has explicitly opted in to insecure mode
-        allow_insecure = os.environ.get('FLYWHEEL_ALLOW_INSECURE_NO_WIN32', '').lower() in ('1', 'true', 'yes')
+        # Security fix for Issue #519: Only allow degraded mode with explicit debug flag
+        # Check if user has explicitly enabled debug mode (for development only)
+        debug_mode = os.environ.get('FLYWHEEL_DEBUG', '').lower() in ('1', 'true', 'yes')
 
-        if not allow_insecure:
+        if not debug_mode:
             # pywin32 is not installed - fail fast at module import time
             # This is preferable to failing at runtime in __init__ or methods
             # Security fix for Issue #509: Log detailed error, but show simplified message to user
@@ -58,7 +58,7 @@ if os.name == 'nt':  # Windows
                 "Install it with: pip install pywin32"
             ) from e
 
-        # User has opted in to degraded mode - continue without pywin32
+        # User has explicitly enabled debug mode - continue without pywin32
         # Set module variables to None so code can check for availability
         win32security = None
         win32con = None
@@ -66,7 +66,7 @@ if os.name == 'nt':  # Windows
         win32file = None
         pywintypes = None
         logger.warning(
-            f"Running in DEGRADED MODE without pywin32 (Issue #514). "
+            f"Running in DEBUG MODE without pywin32 (Issue #519). "
             f"File locking and directory security features will be DISABLED. "
             f"This is UNSAFE for multi-process or production use. "
             f"Install pywin32 for full security: pip install pywin32"
