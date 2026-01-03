@@ -50,18 +50,16 @@ if os.name == 'nt':  # Windows
         import win32file
         import pywintypes
     except ImportError as e:
-        # Security fix for Issue #539: Remove environment variable bypass
-        # pywin32 is now strictly required on Windows - no degraded mode allowed
-        # This prevents security bypass through environment variable manipulation
-        logger.error(
-            f"pywin32 import failed: {e}",
+        # Issue #550: Allow degraded mode when pywin32 is not available
+        # Instead of raising ImportError, we log a warning and let the
+        # variables remain None. _is_degraded_mode() will detect this and
+        # disable Windows-specific features (file locking, directory security).
+        logger.warning(
+            f"pywin32 import failed: {e}. "
+            f"Running in degraded mode without file locking and directory security. "
+            f"For full functionality, install pywin32: pip install pywin32",
             exc_info=True
         )
-        raise ImportError(
-            "pywin32 is required on Windows for secure directory permissions "
-            "and mandatory file locking (Issue #451, #429, #539). "
-            "Install it with: pip install pywin32"
-        ) from e
 else:  # Unix-like systems
     import fcntl
 
