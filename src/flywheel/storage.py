@@ -2141,28 +2141,80 @@ class Storage:
         with self._lock:
             return self._next_id
 
-    def health_check(self) -> bool:
+    def health_check(self) -> dict:
         """Check if storage backend is healthy and functional.
 
-        This method performs a quick diagnostic check to verify that:
+        This method performs a comprehensive diagnostic check to verify that:
         1. The storage directory exists and is writable
         2. File locks can be acquired and released
         3. Temporary files can be created and cleaned up
+        4. Sufficient disk space is available
+        5. File permissions are correct
 
         This is useful for startup diagnostics and configuration validation.
 
         Returns:
-            True if the storage backend is healthy, False otherwise.
+            A dictionary containing:
+                - writable (bool): Whether the storage directory is writable
+                - disk_space (dict): Disk space information with keys:
+                    - total (int): Total disk space in bytes
+                    - used (int): Used disk space in bytes
+                    - free (int): Free disk space in bytes
+                - permissions (dict): Permission information with keys:
+                    - readable (bool): Whether the directory is readable
+                    - writable (bool): Whether the directory is writable
+                    - executable (bool): Whether the directory is executable
+                - file_lock (bool): Whether file locking works correctly
+                - healthy (bool): Overall health status (True if all checks pass)
 
         Example:
             >>> storage = Storage()
-            >>> if storage.health_check():
+            >>> status = storage.health_check()
+            >>> if status["healthy"]:
             ...     print("Storage is healthy")
             ... else:
-            ...     print("Storage has issues")
+            ...     print(f"Storage has issues: {status}")
         """
         import tempfile
+        import shutil
 
+        result = {
+            "writable": False,
+            "disk_space": {"total": 0, "used": 0, "free": 0},
+            "permissions": {"readable": False, "writable": False, "executable": False},
+            "file_lock": False,
+            "healthy": False
+        }
+
+        # Check permissions
+        try:
+            parent_dir = self.path.parent
+            if parent_dir.exists():
+                result["permissions"]["readable"] = os.access(parent_dir, os.R_OK)
+                result["permissions"]["writable"] = os.access(parent_dir, os.W_OK)
+                result["permissions"]["executable"] = os.access(parent_dir, os.X_OK)
+            else:
+                # Directory doesn't exist yet, create it for checking
+                parent_dir.mkdir(parents=True, exist_ok=True)
+                result["permissions"]["readable"] = os.access(parent_dir, os.R_OK)
+                result["permissions"]["writable"] = os.access(parent_dir, os.W_OK)
+                result["permissions"]["executable"] = os.access(parent_dir, os.X_OK)
+        except Exception:
+            pass
+
+        # Check disk space
+        try:
+            disk_usage = shutil.disk_usage(self.path.parent)
+            result["disk_space"]["total"] = disk_usage.total
+            result["disk_space"]["used"] = disk_usage.used
+            result["disk_space"]["free"] = disk_usage.free
+        except Exception:
+            pass
+
+        # Check if directory is writable
+        result["writable"] = result["permissions"]["writable"]
+
+        # Check file locking mechanism
         try:
             # Create a test temporary file in the storage directory
             fd, temp_path = tempfile.mkstemp(
@@ -2174,25 +2226,27 @@ class Storage:
             try:
                 # Try to acquire a file lock on the temp file
                 # This tests both write permissions and locking mechanism
-                self._acquire_file_lock(os.fdopen(fd, 'r'))
+                file_obj = os.fdopen(fd, 'r')
+                self._acquire_file_lock(file_obj)
 
                 # If we got here, we can write and lock successfully
+                result["file_lock"] = True
+
                 # Release the lock
-                self._release_file_lock(os.fdopen(fd, 'r'))
+                self._release_file_lock(file_obj)
 
                 # Clean up the temp file
                 try:
-                    os.close(fd)
+                    file_obj.close()
                 except:
                     pass  # Already closed or invalid
                 os.remove(temp_path)
 
-                return True
-
             except Exception:
-                # Lock acquisition failed - clean up and return False
+                # Lock acquisition failed - clean up
+                result["file_lock"] = False
                 try:
-                    os.close(fd)
+                    os.fdopen(fd, 'r').close()
                 except:
                     pass
                 try:
@@ -2200,14 +2254,23 @@ class Storage:
                         os.remove(temp_path)
                 except:
                     pass
-                return False
 
         except (OSError, IOError, PermissionError):
             # Cannot create temp file - directory doesn't exist or isn't writable
-            return False
+            result["file_lock"] = False
+            result["writable"] = False
         except Exception:
             # Any other error indicates unhealthy storage
-            return False
+            result["file_lock"] = False
+
+        # Determine overall health
+        result["healthy"] = (
+            result["writable"] and
+            result["file_lock"] and
+            result["disk_space"]["free"] > 0
+        )
+
+        return result
 
     def close(self) -> None:
         """Close storage and release resources.

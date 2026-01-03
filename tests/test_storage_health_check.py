@@ -19,25 +19,26 @@ def test_health_check_is_callable():
     assert callable(storage.health_check), "Storage.health_check should be callable"
 
 
-def test_health_check_returns_bool():
-    """Test that health_check returns a boolean."""
+def test_health_check_returns_dict():
+    """Test that health_check returns a dictionary with health status."""
     storage = Storage()
     result = storage.health_check()
-    assert isinstance(result, bool), "health_check should return a boolean"
+    assert isinstance(result, dict), "health_check should return a dictionary"
+    assert "healthy" in result, "health_check result should include 'healthy' key"
 
 
 def test_health_check_success_normal_path():
-    """Test health_check returns True for normal, writable path."""
+    """Test health_check returns healthy=True for normal, writable path."""
     with tempfile.TemporaryDirectory() as tmpdir:
         test_path = os.path.join(tmpdir, "todos.json")
         storage = Storage(path=test_path)
         result = storage.health_check()
-        assert result is True, "health_check should return True for writable path"
+        assert result["healthy"] is True, "health_check should return healthy=True for writable path"
         storage.close()
 
 
 def test_health_check_fails_read_only_directory():
-    """Test health_check returns False for read-only directory."""
+    """Test health_check returns healthy=False for read-only directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         test_path = os.path.join(tmpdir, "todos.json")
         storage = Storage(path=test_path)
@@ -47,7 +48,7 @@ def test_health_check_fails_read_only_directory():
 
         try:
             result = storage.health_check()
-            assert result is False, "health_check should return False for read-only directory"
+            assert result["healthy"] is False, "health_check should return healthy=False for read-only directory"
         finally:
             # Restore permissions for cleanup
             os.chmod(tmpdir, 0o755)
@@ -62,7 +63,7 @@ def test_health_check_creates_temp_file():
 
         # Health check should succeed
         result = storage.health_check()
-        assert result is True
+        assert result["healthy"] is True
 
         # Verify the storage file exists and is accessible
         assert storage.path.exists(), "Storage file should exist after health check"
@@ -77,7 +78,7 @@ def test_health_check_with_disk_full_simulation():
 
         # In normal conditions, health check should pass
         result = storage.health_check()
-        assert result is True, "health_check should return True when disk has space"
+        assert result["healthy"] is True, "health_check should return healthy=True when disk has space"
         storage.close()
 
 
@@ -88,7 +89,7 @@ def test_health_check_idempotent():
     result2 = storage.health_check()
     result3 = storage.health_check()
 
-    assert result1 is True, "First health_check should return True"
-    assert result2 is True, "Second health_check should return True"
-    assert result3 is True, "Third health_check should return True"
+    assert result1["healthy"] is True, "First health_check should return healthy=True"
+    assert result2["healthy"] is True, "Second health_check should return healthy=True"
+    assert result3["healthy"] is True, "Third health_check should return healthy=True"
     storage.close()
