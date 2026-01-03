@@ -109,7 +109,7 @@ class Todo:
         if tags is not None and not isinstance(tags, list):
             raise ValueError(f"Field 'tags' must be list, got {type(tags).__name__}")
         # Validate all tags are strings
-        if tags and not all(isinstance(tag, str) for tag in tags):
+        if tags is not None and not all(isinstance(tag, str) for tag in tags):
             raise ValueError("All items in 'tags' must be str")
 
         return cls(
@@ -121,5 +121,5 @@ class Todo:
             due_date=due_date,
             created_at=created_at,
             completed_at=completed_at,
-            tags=tags,
+            tags=tags if tags is not None else [],
         )
