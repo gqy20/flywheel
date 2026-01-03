@@ -124,13 +124,27 @@ class Storage:
             file_handle: The open file handle (unused, kept for API compatibility).
 
         Returns:
-            On Windows: A tuple of (low, high) representing the lock range in bytes.
+            On Windows: A tuple of (low, high) representing the LENGTH to lock in bytes.
+                The actual lock region starts from offset 0 (file beginning) and extends
+                for (low + high << 32) bytes. Returns (0, 1) for exactly 4GB.
             On Unix: A placeholder value (ignored by fcntl.flock).
 
         Note:
+            PYWIN32 API SEMANTICS (Issue #496):
+            The pywin32 LockFileEx wrapper uses these parameters:
+                LockFileEx(hFile, dwFlags, dwReserved,
+                          NumberOfBytesToLockLow, NumberOfBytesToLockHigh,
+                          overlapped)
+
+            - The 4th and 5th parameters (returned by this method) specify the LENGTH
+              to lock, NOT the offset. The offset is specified via the overlapped
+              structure, which defaults to 0 (file start).
+            - Therefore, (0, 1) means: lock 4GB bytes starting from file beginning
+              (offset 0) to offset 4GB.
+
             - On Windows, uses win32file.LockFileEx for MANDATORY locking (Issue #451)
             - Mandatory locks enforce mutual exclusion on all systems
-            - Returns (0, 1) representing exactly 4GB (0x100000000 bytes)
+            - Returns (0, 1) representing exactly 4GB (0x100000000 bytes) of lock LENGTH
             - This approach prevents the issue where file grows between lock
               acquisition and release
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
@@ -145,20 +159,30 @@ class Storage:
             # - Prevents malicious or unaware processes from writing concurrently
             # - Provides data integrity guarantees that advisory locks cannot
             #
-            # The lock range is specified as two 32-bit values (low, high):
-            # - Low: 0 (lower 32 bits)
-            # - High: 1 (upper 32 bits)
-            # This represents a range from 0 to 4GB (0 + 1 << 32 = 0x100000000 bytes).
-            # Security fix for Issue #465: Starting from 0 instead of 0xFFFFFFFF prevents
-            # lock failures on files smaller than 4GB. The previous value (0xFFFFFFFF, 0xFFFFFFFF)
+            # PYWIN32 API SEMANTICS (Issue #496):
+            # The pywin32 LockFileEx wrapper has signature:
+            #   LockFileEx(hFile, dwFlags, dwReserved, NumberOfBytesToLockLow,
+            #              NumberOfBytesToLockHigh, overlapped)
+            #
+            # - The 4th and 5th parameters specify the LENGTH to lock (not offset)
+            # - The offset is specified via the overlapped structure (defaults to 0)
+            # - We use a default OVERLAPPED() which locks from offset 0 (file start)
+            #
+            # Therefore, (0, 1) means: lock 4GB bytes starting from file beginning
+            # - Length = 0 + (1 << 32) = 0x100000000 = 4294967296 bytes = exactly 4GB
+            # - Offset = 0 (from default OVERLAPPED structure)
+            #
+            # Security fix for Issue #465: Starting from offset 0 instead of 0xFFFFFFFF
+            # prevents lock failures on files smaller than 4GB. The previous approach
             # attempted to lock from beyond EOF, causing ERROR_LOCK_VIOLATION (error 33).
             # Security fix for Issue #469: Corrected from (0, 0xFFFFFFFF) to (0xFFFFFFFF, 0)
-            # to accurately represent 4GB. The old value (0, 0xFFFFFFFF) locked ~16 Exabytes,
-            # which did not match the documented behavior.
+            # to accurately represent 4GB. The old value (0, 0xFFFFFFFF) would lock
+            # ~16 Exabytes, which did not match the documented behavior.
             # Security fix for Issue #480: Corrected from (0xFFFFFFFF, 0) to (0, 1) to
             # represent exactly 4GB (0x100000000 bytes). The old value (0xFFFFFFFF, 0)
             # represented 4GB-1 (0xFFFFFFFF bytes), which is not exactly 4GB as documented.
-            # With (0, 1): low=0, high=1, range = 0 + 1 << 32 = 0x100000000 = 4GB exactly.
+            # Security fix for Issue #496: Clarified that (0, 1) specifies LENGTH, not offset.
+            # The offset is 0 (file start) from the default OVERLAPPED structure.
             return (0, 1)
         else:
             # On Unix, fcntl.flock doesn't use lock ranges
@@ -189,9 +213,14 @@ class Storage:
             - Provides strong synchronization guarantees
             - Uses non-blocking mode (LOCK_EX | LOCK_NB) with retry
 
-            For Windows, a fixed 4GB lock range (0, 1)
-            is used to prevent deadlocks when the file size changes between lock
-            acquisition and release (Issue #375, #426, #451, #465, #469, #480).
+            For Windows, a fixed 4GB lock LENGTH (0, 1) is used to prevent
+            deadlocks when the file size changes between lock acquisition and
+            release (Issue #375, #426, #451, #465, #469, #480, #496).
+
+            IMPORTANT (Issue #496): The values (0, 1) represent LENGTH, not offset.
+            The pywin32 LockFileEx wrapper specifies lock length via parameters and
+            offset via the overlapped structure (which defaults to 0). Therefore,
+            (0, 1) locks 4GB bytes starting from file offset 0 (file beginning).
 
             All file operations are serialized by self._lock (RLock), ensuring
             that acquire and release are always properly paired (Issue #366).
@@ -262,13 +291,21 @@ class Storage:
                         # Try non-blocking mandatory lock (Issue #451)
                         # win32file.LockFileEx provides MANDATORY locking on Windows
                         # This blocks ALL processes from writing, not just cooperative ones
+                        #
+                        # PYWIN32 API (Issue #496):
+                        # LockFileEx(hFile, dwFlags, dwReserved,
+                        #            NumberOfBytesToLockLow, NumberOfBytesToLockHigh,
+                        #            overlapped)
+                        # - lock_range_low/high: LENGTH to lock (not offset)
+                        # - overlapped: specifies offset (defaults to 0 = file start)
+                        # - Therefore: locks from file start for 4GB bytes
                         win32file.LockFileEx(
                             win_handle,
                             lock_flags,
                             0,  # Reserved
-                            lock_range_low,  # NumberOfBytesToLockLow
-                            lock_range_high,  # NumberOfBytesToLockHigh
-                            overlapped
+                            lock_range_low,  # NumberOfBytesToLockLow (LENGTH, not offset)
+                            lock_range_high,  # NumberOfBytesToLockHigh (LENGTH, not offset)
+                            overlapped  # Specifies offset (defaults to 0)
                         )
                         # Lock acquired successfully
                         break
@@ -360,22 +397,27 @@ class Storage:
 
             Windows (win32file.UnlockFile):
             - Mandatory lock release - enforces mutual exclusion
-            - Must match exact lock range used during acquisition
-            - Uses cached range to prevent deadlocks
+            - Must match exact lock length used during acquisition
+            - Uses cached length to prevent deadlocks
 
             Unix-like systems (fcntl.flock):
             - Provides strong release guarantees
             - Simple unlock without range matching
 
-            For Windows, the lock range matches the fixed 4GB range
+            For Windows, the lock length matches the fixed 4GB LENGTH
             (0, 1) used during acquisition to avoid errors.
-            Uses the cached lock range from _acquire_file_lock (Issue #351, #465, #469, #480).
+            Uses the cached lock length from _acquire_file_lock (Issue #351, #465, #469, #480, #496).
 
-            With the fixed range approach (Issue #375, #426, #451), file size
+            IMPORTANT (Issue #496): The cached values (0, 1) represent LENGTH, not offset.
+            The pywin32 UnlockFile wrapper takes the length to unlock as parameters.
+            The offset is implied from the overlapped structure used during LockFileEx.
+            Therefore, (0, 1) unlocks 4GB bytes starting from file offset 0 (file beginning).
+
+            With the fixed length approach (Issue #375, #426, #451), file size
             changes between lock and unlock no longer cause deadlocks or unlock
             failures, as the locked region is always large enough.
 
-            The lock range cache is thread-safe because all file operations are
+            The lock length cache is thread-safe because all file operations are
             serialized by self._lock (RLock), ensuring proper acquire/release
             pairing (Issue #366).
 
@@ -422,10 +464,16 @@ class Storage:
 
                 # Unlock the file using win32file.UnlockFile (Issue #451)
                 # This releases the mandatory lock acquired by LockFileEx
+                #
+                # PYWIN32 API (Issue #496):
+                # UnlockFile(hFile, NumberOfBytesToUnlockLow, NumberOfBytesToUnlockHigh)
+                # - The parameters specify the LENGTH to unlock (must match lock length)
+                # - The offset is specified via the overlapped structure used during LockFileEx
+                # - Therefore: unlocks 4GB bytes starting from file start (offset 0)
                 win32file.UnlockFile(
                     win_handle,
-                    lock_range_low,  # NumberOfBytesToUnlockLow
-                    lock_range_high  # NumberOfBytesToUnlockHigh
+                    lock_range_low,  # NumberOfBytesToUnlockLow (LENGTH, must match lock)
+                    lock_range_high  # NumberOfBytesToUnlockHigh (LENGTH, must match lock)
                 )
             except (pywintypes.error, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
