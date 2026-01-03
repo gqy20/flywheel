@@ -1845,17 +1845,57 @@ class FileStorage(AbstractStorage):
 
                 # Auto-detect compression from file extension (Issue #583)
                 is_compressed = str(self.path).endswith('.json.gz')
-                open_func = gzip.open if is_compressed else open
 
-                # Use appropriate mode for compressed vs uncompressed files
-                mode = 'rt' if is_compressed else 'r'
-
-                with open_func(self.path, mode, encoding='utf-8') as f:
+                # Read file as bytes first to verify integrity hash (Issue #588)
+                # This allows us to detect file truncation or corruption
+                with open(self.path, 'rb') as f:
                     self._acquire_file_lock(f)
                     try:
-                        raw_data = json.load(f)
+                        file_bytes = f.read()
                     finally:
                         self._release_file_lock(f)
+
+                # Extract and verify integrity hash from end of file (Issue #588)
+                # Format: \n##INTEGRITY:<hash>##\n
+                file_str = file_bytes.decode('utf-8')
+                integrity_marker = '##INTEGRITY:'
+                marker_start = file_str.rfind(integrity_marker)
+
+                if marker_start != -1:
+                    # Found integrity marker - extract and verify hash
+                    marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                    if marker_end != -1:
+                        stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+
+                        # Calculate hash of the data before the integrity marker
+                        # Find the newline before the marker
+                        data_end = file_str.rfind('\n', 0, marker_start)
+                        if data_end == -1:
+                            data_end = 0  # No newline found, use entire content before marker
+
+                        actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                        calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                        if calculated_hash != stored_hash:
+                            # Hash mismatch - data corruption detected
+                            backup_path = self._create_backup(
+                                f"Integrity hash mismatch in {self.path}: "
+                                f"expected {stored_hash}, got {calculated_hash}"
+                            )
+                            raise RuntimeError(
+                                f"Data integrity verification failed. Hash mismatch. "
+                                f"Backup saved to {backup_path}"
+                            )
+
+                        # Remove integrity marker from data for JSON parsing
+                        file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
+                        file_bytes = file_str.encode('utf-8')
+
+                # Decompress if needed
+                if is_compressed:
+                    file_bytes = gzip.decompress(file_bytes)
+
+                raw_data = json.loads(file_bytes.decode('utf-8'))
 
                 # Validate schema before deserializing (Issue #7)
                 # This prevents injection attacks and malformed data from causing crashes
@@ -1996,6 +2036,13 @@ class FileStorage(AbstractStorage):
         if is_compressed:
             data_bytes = gzip.compress(data_bytes, compresslevel=6)
 
+        # Add SHA256 hash at the end for data integrity verification (Issue #588)
+        # This helps detect silent data corruption or JSON truncation
+        file_hash = hashlib.sha256(data_bytes).hexdigest()
+        # Use a special delimiter that won't appear in JSON
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        data_bytes_with_hash = data_bytes + hash_footer
+
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
             dir=self.path.parent,
@@ -2027,9 +2074,9 @@ class FileStorage(AbstractStorage):
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
             total_written = 0
-            while total_written < len(data_bytes):
+            while total_written < len(data_bytes_with_hash):
                 try:
-                    written = os.write(fd, data_bytes[total_written:])
+                    written = os.write(fd, data_bytes_with_hash[total_written:])
                     if written == 0:
                         raise OSError("Write returned 0 bytes - disk full?")
                     total_written += written
@@ -2136,6 +2183,13 @@ class FileStorage(AbstractStorage):
         if is_compressed:
             data_bytes = gzip.compress(data_bytes, compresslevel=6)
 
+        # Add SHA256 hash at the end for data integrity verification (Issue #588)
+        # This helps detect silent data corruption or JSON truncation
+        file_hash = hashlib.sha256(data_bytes).hexdigest()
+        # Use a special delimiter that won't appear in JSON
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        data_bytes_with_hash = data_bytes + hash_footer
+
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
             dir=self.path.parent,
@@ -2167,9 +2221,9 @@ class FileStorage(AbstractStorage):
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
             total_written = 0
-            while total_written < len(data_bytes):
+            while total_written < len(data_bytes_with_hash):
                 try:
-                    written = os.write(fd, data_bytes[total_written:])
+                    written = os.write(fd, data_bytes_with_hash[total_written:])
                     if written == 0:
                         raise OSError("Write returned 0 bytes - disk full?")
                     total_written += written
