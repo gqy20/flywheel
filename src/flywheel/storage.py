@@ -1061,6 +1061,153 @@ class Storage:
                     f"Cannot continue without secure directory permissions."
                 ) from last_error
 
+    def _acquire_directory_lock(self, directory: Path) -> None:
+        """Acquire a lock file for directory creation to prevent TOCTOU race conditions.
+
+        This method creates a lock file in the parent directory to ensure atomic
+        directory creation. The lock prevents multiple processes from creating the
+        same directory concurrently, which could lead to permission issues.
+
+        This is a security fix for Issue #521 to address TOCTOU race conditions
+        in directory creation.
+
+        Args:
+            directory: The directory for which to acquire a lock.
+
+        Raises:
+            RuntimeError: If the lock cannot be acquired after multiple attempts.
+            OSError: If the lock file cannot be created.
+        """
+        # Use the parent directory for the lock file location
+        # If parent doesn't exist, we need to handle that
+        parent_dir = directory.parent
+
+        # Create a lock file path
+        # Use a hash of the directory path to avoid filesystem issues
+        dir_hash = hashlib.sha256(str(directory).encode()).hexdigest()[:16]
+        lock_path = parent_dir / f".flywheel_lock_{dir_hash}.lock"
+
+        # Try to acquire the lock with retries
+        max_retries = 10
+        base_delay = 0.005  # 5ms starting delay
+
+        for attempt in range(max_retries):
+            try:
+                # Try to create the lock file exclusively (atomic operation)
+                # This uses O_CREAT | O_EXCL flags which are atomic
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+
+                # Lock acquired successfully
+                try:
+                    # Write our PID to the lock file for debugging
+                    os.write(fd, str(os.getpid()).encode())
+                finally:
+                    os.close(fd)
+
+                # Lock acquired - store the lock path for cleanup
+                if not hasattr(self, '_directory_locks'):
+                    self._directory_locks = []
+                self._directory_locks.append(lock_path)
+
+                return
+
+            except FileExistsError:
+                # Lock file exists - check if it's stale (from a crashed process)
+                try:
+                    # Try to read the lock file
+                    with open(lock_path, 'r') as f:
+                        pid_str = f.read().strip()
+
+                    # Check if the process is still running
+                    try:
+                        pid = int(pid_str)
+                        # Try to send signal 0 to check if process exists
+                        os.kill(pid, 0)
+                        # Process is still running - lock is valid
+                        # Wait and retry
+                        if attempt < max_retries - 1:
+                            delay = base_delay * (2 ** attempt)
+                            time.sleep(delay)
+                            continue
+                        else:
+                            raise RuntimeError(
+                                f"Could not acquire directory lock for {directory} "
+                                f"after {max_retries} attempts. Lock file: {lock_path}"
+                            )
+                    except (OSError, ValueError, ProcessLookupError):
+                        # Process is not running - stale lock file
+                        # Remove it and retry
+                        try:
+                            os.remove(lock_path)
+                            # Continue to next iteration to try acquiring again
+                            continue
+                        except OSError:
+                            # Someone else removed it or we can't remove it
+                            # Just retry
+                            if attempt < max_retries - 1:
+                                delay = base_delay * (2 ** attempt)
+                                time.sleep(delay)
+                                continue
+                            else:
+                                raise RuntimeError(
+                                    f"Could not acquire directory lock for {directory} "
+                                    f"after {max_retries} attempts"
+                                )
+
+                except (OSError, IOError) as e:
+                    # Can't read lock file - treat as locked and retry
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        time.sleep(delay)
+                        continue
+                    else:
+                        raise RuntimeError(
+                            f"Could not acquire directory lock for {directory}: {e}"
+                        ) from e
+
+            except OSError as e:
+                # Other error creating lock file
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    time.sleep(delay)
+                    continue
+                else:
+                    raise RuntimeError(
+                        f"Failed to create lock file for {directory}: {e}"
+                    ) from e
+
+        # Should not reach here
+        raise RuntimeError(
+            f"Failed to acquire directory lock for {directory} after {max_retries} attempts"
+        )
+
+    def _release_directory_lock(self, directory: Path) -> None:
+        """Release a directory lock file.
+
+        This method removes the lock file created by _acquire_directory_lock.
+
+        Args:
+            directory: The directory for which to release the lock.
+        """
+        # Calculate the lock path the same way as in _acquire_directory_lock
+        parent_dir = directory.parent
+        dir_hash = hashlib.sha256(str(directory).encode()).hexdigest()[:16]
+        lock_path = parent_dir / f".flywheel_lock_{dir_hash}.lock"
+
+        # Remove the lock file if it exists
+        try:
+            if lock_path.exists():
+                os.remove(lock_path)
+
+            # Remove from our tracking list
+            if hasattr(self, '_directory_locks') and lock_path in self._directory_locks:
+                self._directory_locks.remove(lock_path)
+
+        except OSError:
+            # Lock file might have been removed by another process
+            # This is not a critical error
+            pass
+
     def _secure_all_parent_directories(self, directory: Path) -> None:
         """Secure all parent directories with restrictive permissions.
 
@@ -1098,6 +1245,11 @@ class Storage:
             and eliminate the security window where directories could be created with
             insecure permissions.
 
+            Security fix for Issue #521: This method now uses dedicated lock files
+            to prevent TOCTOU race conditions in directory creation. The lock files
+            ensure that the check-exist-create sequence is atomic, eliminating the
+            window where multiple processes could race to create the same directory.
+
             On Windows: When mkdir creates parent directories, they inherit
             default permissions which may be too permissive. By explicitly
             securing each parent directory, we ensure the entire directory chain
@@ -1128,6 +1280,30 @@ class Storage:
         # By combining creation and securing in a single loop, we ensure that directories
         # are created and secured in one atomic operation.
         for parent_dir in parents_to_secure:
+            # Security fix for Issue #521: Acquire lock before checking/creating directory
+            # This prevents TOCTOU race conditions where multiple processes could
+            # race between the exists() check and mkdir() call.
+            lock_acquired = False
+            try:
+                self._acquire_directory_lock(parent_dir)
+                lock_acquired = True
+            except RuntimeError as lock_error:
+                # If we can't acquire the lock, it means another process is creating
+                # this directory. Wait a bit and check if it gets created.
+                logger.debug(f"Could not acquire lock for {parent_dir}: {lock_error}")
+                if parent_dir.exists():
+                    # Directory was created by another process, just secure it
+                    try:
+                        self._secure_directory(parent_dir)
+                        continue
+                    except Exception as secure_error:
+                        logger.warning(f"Failed to secure directory {parent_dir}: {secure_error}")
+                        continue
+                else:
+                    # Directory doesn't exist and we can't create it
+                    logger.warning(f"Cannot create {parent_dir}: lock acquisition failed")
+                    continue
+
             # Retry loop for handling race conditions (Issue #409, #486)
             import time
             max_retries = 5
@@ -1135,27 +1311,28 @@ class Storage:
             success = False
             last_error = None
 
-            for attempt in range(max_retries):
-                try:
-                    # Security fix for Issue #486: Create the directory if it doesn't exist
-                    # This ensures creation and securing happen atomically in the same loop,
-                    # eliminating the race condition window.
-                    if not parent_dir.exists():
-                        if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
-                            # Security fix for Issue #514: Check for degraded mode
-                            if _is_degraded_mode():
-                                # Running without pywin32 - fall back to Unix-style directory creation
-                                # Security fix for Issue #474 and #479: Temporarily restrict umask
-                                old_umask = os.umask(0o077)
-                                try:
-                                    parent_dir.mkdir(mode=0o700)
-                                finally:
-                                    os.umask(old_umask)
-                                logger.warning(
-                                    f"Using degraded directory creation (Issue #514). "
-                                    f"Directory {parent_dir} may have insecure permissions. "
-                                    f"Install pywin32 for secure directory creation."
-                                )
+            try:
+                for attempt in range(max_retries):
+                    try:
+                        # Security fix for Issue #521: With lock held, check and create directory
+                        # The lock ensures this sequence is atomic - no other process can
+                        # create the directory between the check and creation.
+                        if not parent_dir.exists():
+                            if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                                # Security fix for Issue #514: Check for degraded mode
+                                if _is_degraded_mode():
+                                    # Running without pywin32 - fall back to Unix-style directory creation
+                                    # Security fix for Issue #474 and #479: Temporarily restrict umask
+                                    old_umask = os.umask(0o077)
+                                    try:
+                                        parent_dir.mkdir(mode=0o700)
+                                    finally:
+                                        os.umask(old_umask)
+                                    logger.warning(
+                                        f"Using degraded directory creation (Issue #514). "
+                                        f"Directory {parent_dir} may have insecure permissions. "
+                                        f"Install pywin32 for secure directory creation."
+                                    )
                             else:
                                 # Security fix for Issue #429: Windows modules are imported at module level,
                                 # ensuring thread-safe initialization. Modules are available immediately.
@@ -1338,6 +1515,10 @@ class Storage:
                         f"Last error: {last_error}. "
                         f"Cannot continue without secure directory permissions."
                     ) from last_error
+            finally:
+                # Security fix for Issue #521: Always release the lock, even if an error occurred
+                if lock_acquired:
+                    self._release_directory_lock(parent_dir)
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
