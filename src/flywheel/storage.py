@@ -2193,3 +2193,43 @@ class Storage:
         # This method exists for API completeness and future extensibility
         # It is intentionally idempotent (safe to call multiple times)
         pass
+
+    def __enter__(self):
+        """Enter the context manager.
+
+        This method enables Storage to be used as a context manager, ensuring
+        locks are properly acquired and resources are managed during batch operations.
+
+        Returns:
+            Storage: The storage instance itself.
+
+        Example:
+            >>> with Storage() as storage:
+            ...     storage.add(Todo(title="Task"))
+        """
+        # Acquire the reentrant lock to ensure thread safety
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager.
+
+        This method releases the lock and handles any exceptions that occurred
+        within the context. The lock is always released, even if an exception occurs.
+
+        Args:
+            exc_type: The type of exception raised, if any.
+            exc_val: The exception instance raised, if any.
+            exc_tb: The traceback object, if any.
+
+        Returns:
+            bool: False to indicate exceptions should propagate.
+
+        Example:
+            >>> with Storage() as storage:
+            ...     storage.add(Todo(title="Task"))
+        """
+        # Always release the lock, even if an exception occurred
+        self._lock.release()
+        # Return False to propagate any exceptions
+        return False
