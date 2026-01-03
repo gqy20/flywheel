@@ -122,12 +122,14 @@ class Storage:
         try:
             self._load()
             init_success = True
-        except RuntimeError as e:
-            # _load() already created a backup and wrapped the error
-            # Log the error and continue with empty state
+        except Exception as e:
+            # Catch all exceptions during load to prevent data loss
+            # _load() already created a backup and wrapped the error (if RuntimeError)
+            # For other exceptions (IOError, PermissionError, etc.), we still want to
+            # handle them gracefully to ensure atexit is registered (Issue #556)
             logger.warning(
                 f"Failed to load todos from {self.path}: {e}. "
-                f"Starting with empty state. Backup file created."
+                f"Starting with empty state."
             )
             # Reset to empty state (already initialized above)
             self._todos = []
