@@ -68,7 +68,9 @@ else:  # Unix-like systems
 
 def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without pywin32 (Issue #514)."""
-    return os.name == 'nt' and win32file is None
+    # Use globals().get() to avoid NameError on Unix systems where
+    # win32file is not defined (Issue #540)
+    return os.name == 'nt' and globals().get('win32file') is None
 
 
 class Storage:
