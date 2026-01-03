@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import re
 import sys
 from datetime import datetime
 
@@ -10,6 +11,39 @@ from flywheel.storage import Storage
 from flywheel.todo import Priority, Status, Todo
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_tags(tags_str):
+    """Sanitize tag input to prevent injection attacks.
+
+    Args:
+        tags_str: Comma-separated tag string from user input
+
+    Returns:
+        List of sanitized tags with dangerous characters removed
+    """
+    if not tags_str:
+        return []
+
+    # Split by comma
+    raw_tags = tags_str.split(",")
+    sanitized_tags = []
+
+    # Define dangerous pattern: shell metacharacters, command substitution, null bytes, newlines
+    dangerous_chars = r'[;|&`$()\\<>\n\r\x00]'
+
+    for tag in raw_tags:
+        # Strip whitespace
+        tag = tag.strip()
+
+        # Remove dangerous characters that could be used for injection
+        tag = re.sub(dangerous_chars, '', tag)
+
+        # Only add non-empty tags after sanitization
+        if tag:
+            sanitized_tags.append(tag)
+
+    return sanitized_tags
 
 
 class CLI:
@@ -26,7 +60,7 @@ class CLI:
             description=args.description or "",
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
             due_date=args.due_date,
-            tags=(args.tags or []).split(",") if args.tags else [],
+            tags=sanitize_tags(args.tags) if args.tags else [],
         )
 
         added_todo = self.storage.add(todo)
