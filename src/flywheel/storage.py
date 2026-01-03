@@ -1,5 +1,6 @@
 """Todo storage backend."""
 
+import abc
 import atexit
 import errno
 import hashlib
@@ -9,8 +10,12 @@ import os
 import threading
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from flywheel.todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
 
@@ -77,8 +82,86 @@ def _is_degraded_mode() -> bool:
     return False
 
 
-class Storage:
-    """File-based todo storage."""
+class AbstractStorage(abc.ABC):
+    """Abstract base class for todo storage backends.
+
+    This class defines the interface that all storage implementations must follow.
+    It allows the application to support different storage mechanisms (file-based,
+    SQLite, Redis, etc.) without modifying the core logic.
+    """
+
+    @abc.abstractmethod
+    def add(self, todo: Todo) -> Todo:
+        """Add a new todo to storage.
+
+        Args:
+            todo: The Todo object to add.
+
+        Returns:
+            The added Todo with any generated fields (like ID) populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    def list(self, status: str | None = None) -> list[Todo]:
+        """List all todos, optionally filtered by status.
+
+        Args:
+            status: Optional status filter ('pending', 'completed', etc.).
+
+        Returns:
+            List of Todo objects.
+        """
+        pass
+
+    @abc.abstractmethod
+    def get(self, todo_id: int) -> Todo | None:
+        """Get a todo by ID.
+
+        Args:
+            todo_id: The ID of the todo to retrieve.
+
+        Returns:
+            The Todo object if found, None otherwise.
+        """
+        pass
+
+    @abc.abstractmethod
+    def update(self, todo: Todo) -> Todo | None:
+        """Update an existing todo.
+
+        Args:
+            todo: The Todo object with updated fields.
+
+        Returns:
+            The updated Todo if found, None otherwise.
+        """
+        pass
+
+    @abc.abstractmethod
+    def delete(self, todo_id: int) -> bool:
+        """Delete a todo by ID.
+
+        Args:
+            todo_id: The ID of the todo to delete.
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_next_id(self) -> int:
+        """Get the next available todo ID.
+
+        Returns:
+            The next ID to use for a new todo.
+        """
+        pass
+
+
+class FileStorage(AbstractStorage):
+    """File-based todo storage implementation."""
 
     def __init__(self, path: str = "~/.flywheel/todos.json"):
         self.path = Path(path).expanduser()
@@ -2321,3 +2404,7 @@ class Storage:
         self._lock.release()
         # Return False to propagate any exceptions
         return False
+
+# Backward compatibility alias (issue #568)
+# Storage is now an alias to FileStorage to maintain backward compatibility
+Storage = FileStorage
