@@ -1181,6 +1181,22 @@ class Storage:
                             delay = base_delay * (2 ** attempt)
                             time.sleep(delay)
 
+                except PermissionError as e:
+                    # Security fix for Issue #434: Handle PermissionError gracefully
+                    # when parent directories are owned by another user or have restrictive
+                    # permissions preventing ACL/chmod modification. Log a warning and
+                    # continue rather than crashing the application.
+                    logger.warning(
+                        f"Cannot set secure permissions on {parent_dir}: {e}. "
+                        f"This directory may be owned by another user or have restrictive "
+                        f"permissions. The application will continue, but this directory "
+                        f"may have less restrictive permissions than desired."
+                    )
+                    # Mark as success to continue with other directories
+                    # The immediate application directory will still be secured separately
+                    success = True
+                    break
+
                 except Exception as e:
                     # Non-retryable error
                     last_error = e
@@ -1188,11 +1204,31 @@ class Storage:
 
             # After all retries, check if we succeeded
             if not success:
-                raise RuntimeError(
-                    f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
-                    f"Last error: {last_error}. "
-                    f"Cannot continue without secure directory permissions."
-                ) from last_error
+                # Security fix for Issue #434: Check if the error is permission-related
+                # If so, log a warning and continue instead of crashing
+                error_is_permission_related = (
+                    isinstance(last_error, PermissionError) or
+                    (isinstance(last_error, RuntimeError) and
+                     ("Permission denied" in str(last_error) or
+                      "Cannot continue without secure directory permissions" in str(last_error)))
+                )
+
+                if error_is_permission_related:
+                    # Log a warning and continue
+                    logger.warning(
+                        f"Cannot secure directory {parent_dir}: {last_error}. "
+                        f"This may be due to insufficient permissions. The application will "
+                        f"continue, but this directory may have less restrictive permissions."
+                    )
+                    # Continue to next directory instead of raising
+                    continue
+                else:
+                    # For other errors, still raise to prevent running with insecure state
+                    raise RuntimeError(
+                        f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
+                        f"Last error: {last_error}. "
+                        f"Cannot continue without secure directory permissions."
+                    ) from last_error
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
