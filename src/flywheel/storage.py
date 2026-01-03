@@ -113,6 +113,11 @@ class Storage:
         # Retry interval for non-blocking lock attempts (Issue #396)
         # 100ms allows for responsive retries without excessive CPU usage
         self._lock_retry_interval: float = 0.1
+        # Auto-save interval for periodic saves during operations (Issue #547)
+        # 60 seconds provides a good balance between data durability and performance
+        self.AUTO_SAVE_INTERVAL: float = 60.0
+        # Track last save time for auto-save functionality (Issue #547)
+        self.last_saved_time: float = time.time()
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # If the file is corrupted or malformed, log the error and start with empty state
         init_success = False
@@ -1544,6 +1549,23 @@ class Storage:
             raise RuntimeError(f"{error_message}. Failed to create backup") from backup_error
         return backup_path
 
+    def _check_auto_save(self) -> None:
+        """Check if auto-save should be triggered based on time interval (Issue #547).
+
+        This method checks if the time elapsed since the last save exceeds
+        the AUTO_SAVE_INTERVAL. If so, it triggers a background save operation.
+        The save operation uses the existing thread-safe _save() method with RLock.
+        """
+        current_time = time.time()
+        if current_time - self.last_saved_time > self.AUTO_SAVE_INTERVAL:
+            if self._dirty:
+                try:
+                    self._save()
+                    self.last_saved_time = current_time
+                    logger.debug("Auto-save triggered after interval")
+                except Exception as e:
+                    logger.error(f"Auto-save failed: {e}")
+
     def _cleanup(self) -> None:
         """Cleanup handler called on program exit.
 
@@ -2000,6 +2022,8 @@ class Storage:
                         self._next_id = max_id + 1
                 # Mark as clean after successful save (Issue #203)
                 self._dirty = False
+                # Update last saved time for auto-save functionality (Issue #547)
+                self.last_saved_time = time.time()
         except Exception:
             # Clean up temp file on error
             try:
@@ -2062,6 +2086,8 @@ class Storage:
             # _save_with_todos will update self._todos and self._next_id
             # only after successful write (fixes Issue #9)
             self._save_with_todos(new_todos)
+            # Check if auto-save should be triggered (Issue #547)
+            self._check_auto_save()
             return todo
 
     def list(self, status: str | None = None) -> list[Todo]:
@@ -2091,6 +2117,8 @@ class Storage:
                     self._dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
+                    # Check if auto-save should be triggered (Issue #547)
+                    self._check_auto_save()
                     return todo
             return None
 
@@ -2105,6 +2133,8 @@ class Storage:
                     self._dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
+                    # Check if auto-save should be triggered (Issue #547)
+                    self._check_auto_save()
                     return True
             return False
 
