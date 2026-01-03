@@ -20,11 +20,13 @@ logger = logging.getLogger(__name__)
 # - Mandatory locks enforce mutual exclusion and prevent concurrent access
 # - All processes are blocked from writing while the lock is held
 # - Unix systems use fcntl.flock which provides strong synchronization
-if os.name == 'nt':  # Windows
-    import pywintypes
-    import win32file
-    import win32con
-else:  # Unix-like systems
+#
+# Security fix for Issue #494: Windows modules (pywintypes, win32file, win32con)
+# are NOT imported at module level to allow proper error handling in __init__.
+# If pywin32 is not installed, __init__ will provide a clear error message
+# instead of crashing at import time. Windows modules are imported lazily in
+# the methods that use them (_acquire_file_lock, _release_file_lock, etc.).
+if os.name != 'nt':  # Unix-like systems
     import fcntl
 
 # Platform-specific security dependencies (Issue #324, #401, #414)
@@ -204,6 +206,20 @@ class Storage:
             # - Prevents malicious or unaware processes from writing concurrently
             # - Provides data integrity guarantees that advisory locks cannot
             # - Uses win32file.LockFileEx instead of msvcrt.locking
+            #
+            # Security fix for Issue #494: Import Windows modules here (lazy import)
+            # instead of at module level. This allows __init__ to provide clear error
+            # messages when pywin32 is not installed.
+            try:
+                import pywintypes
+                import win32file
+                import win32con
+            except ImportError as e:
+                raise RuntimeError(
+                    f"pywin32 is required on Windows for mandatory file locking. "
+                    f"Install it with: pip install pywin32. Original error: {e}"
+                ) from e
+
             try:
                 # Get the Windows file handle from Python file object
                 win_handle = win32file._get_osfhandle(file_handle.fileno())
@@ -372,6 +388,19 @@ class Storage:
             # Mandatory lock release for strong synchronization
             # Unlock range must match lock range exactly (Issue #271)
             # Use the cached lock range from _acquire_file_lock (Issue #351)
+            #
+            # Security fix for Issue #494: Import Windows modules here (lazy import)
+            # instead of at module level. This allows __init__ to provide clear error
+            # messages when pywin32 is not installed.
+            try:
+                import pywintypes
+                import win32file
+            except ImportError as e:
+                raise RuntimeError(
+                    f"pywin32 is required on Windows for mandatory file locking. "
+                    f"Install it with: pip install pywin32. Original error: {e}"
+                ) from e
+
             try:
                 # Get the Windows file handle from Python file object
                 win_handle = win32file._get_osfhandle(file_handle.fileno())
