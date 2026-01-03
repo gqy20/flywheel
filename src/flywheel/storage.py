@@ -122,6 +122,11 @@ class Storage:
         self.AUTO_SAVE_INTERVAL: float = 60.0
         # Track last save time for auto-save functionality (Issue #547)
         self.last_saved_time: float = time.time()
+        # Minimum save interval to batch rapid small writes (Issue #563)
+        # Only save to disk if this much time has passed since the last save,
+        # even if _cleanup is called. This reduces I/O for applications making
+        # rapid small changes.
+        self.MIN_SAVE_INTERVAL: float = 5.0
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # If the file is corrupted or malformed, log the error and start with empty state
         init_success = False
@@ -1514,13 +1519,28 @@ class Storage:
 
         Ensures any pending changes are saved before the program exits.
         This prevents data loss when the program terminates unexpectedly.
+
+        Uses MIN_SAVE_INTERVAL to batch rapid small writes (Issue #563).
+        Only saves if enough time has passed since the last save.
         """
         if self._dirty:
-            try:
-                self._save()
-                logger.info("Saved pending changes on exit")
-            except Exception as e:
-                logger.error(f"Failed to save pending changes on exit: {e}")
+            current_time = time.time()
+            time_since_last_save = current_time - self.last_saved_time
+
+            # Only save if enough time has passed since the last save
+            # This batches rapid small writes to reduce I/O
+            if time_since_last_save >= self.MIN_SAVE_INTERVAL:
+                try:
+                    self._save()
+                    self.last_saved_time = current_time
+                    logger.info("Saved pending changes on exit")
+                except Exception as e:
+                    logger.error(f"Failed to save pending changes on exit: {e}")
+            else:
+                logger.debug(
+                    f"Skipping save: only {time_since_last_save:.2f}s "
+                    f"since last save (threshold: {self.MIN_SAVE_INTERVAL}s)"
+                )
 
     def _calculate_checksum(self, todos: list) -> str:
         """Calculate SHA256 checksum of todos data (Issue #223).
