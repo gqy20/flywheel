@@ -213,6 +213,8 @@ class FileStorage(AbstractStorage):
         self.MIN_SAVE_INTERVAL: float = 5.0
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # If the file is corrupted or malformed, log the error and start with empty state
+        # Track initialization success to control cleanup registration (Issue #596)
+        # This prevents calling cleanup on partially initialized objects
         init_success = False
         try:
             self._load()
