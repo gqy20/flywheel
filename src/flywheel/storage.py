@@ -1220,14 +1220,19 @@ class Storage:
             ensure that the check-exist-create sequence is atomic, eliminating the
             window where multiple processes could race to create the same directory.
 
-            On Windows: When mkdir creates parent directories, they inherit
-            default permissions which may be too permissive. By explicitly
-            securing each parent directory, we ensure the entire directory chain
-            is protected with proper ACLs.
+            Security fix for Issue #561: This method now uses os.makedirs() with
+            controlled umask on Unix systems, which is simpler and more atomic than
+            the previous lock-based approach. os.makedirs with exist_ok=True handles
+            the race condition where multiple processes try to create the same directory
+            - one will succeed and others will see that it already exists.
 
-            On Unix: This is less critical since mkdir's mode parameter works,
-            but we still apply it for defense in depth. Parent directories might
-            have been created by other processes with insecure umask settings.
+            On Windows: Uses win32file.CreateDirectory with security descriptors for
+            atomic directory creation with proper ACLs. Parent directories may inherit
+            default permissions which are then secured by _secure_directory.
+
+            On Unix: Uses os.makedirs() with umask=0o077 to ensure directories are
+            created with mode 0o700 atomically. This is simpler than the previous
+            lock-based approach and leverages the atomicity guarantees of os.makedirs.
         """
         # Get all parent directories from root to target
         # We want to secure them in order: from outermost to innermost
@@ -1241,54 +1246,84 @@ class Storage:
             parents_to_secure.append(current)
             current = current.parent
 
-        # Reverse to secure from outermost to innermost
-        parents_to_secure.reverse()
-
-        # Security fix for Issue #486: Create and secure each parent directory atomically
-        # This eliminates the race condition window between the separate
-        # _create_and_secure_directories call and _secure_all_parent_directories call.
-        # By combining creation and securing in a single loop, we ensure that directories
-        # are created and secured in one atomic operation.
-        for parent_dir in parents_to_secure:
-            # Security fix for Issue #521: Acquire lock before checking/creating directory
-            # This prevents TOCTOU race conditions where multiple processes could
-            # race between the exists() check and mkdir() call.
-            lock_acquired = False
+        # Security fix for Issue #561: Use os.makedirs for atomic directory creation
+        # On Unix: Use os.makedirs with controlled umask (0o077) to ensure directories
+        # are created with mode 0o700. This is simpler and more atomic than the previous
+        # lock-based approach.
+        # On Windows: Use the existing loop-based approach with win32file.CreateDirectory
+        # for atomic directory creation with proper ACLs.
+        if os.name != 'nt':  # Unix-like systems
+            # Security fix for Issue #561: Use os.makedirs with controlled umask
+            # This is simpler and more atomic than the lock-based approach.
+            # os.makedirs with exist_ok=True handles race conditions where multiple
+            # processes try to create the same directory.
+            old_umask = os.umask(0o077)
             try:
-                self._acquire_directory_lock(parent_dir)
-                lock_acquired = True
-            except RuntimeError as lock_error:
-                # If we can't acquire the lock, it means another process is creating
-                # this directory. Wait a bit and check if it gets created.
-                logger.debug(f"Could not acquire lock for {parent_dir}: {lock_error}")
+                # Create all parent directories with secure permissions in one call
+                os.makedirs(directory, mode=0o700, exist_ok=True)
+            finally:
+                os.umask(old_umask)
+
+            # Security fix for Issue #481: Secure all parent directories even if they
+            # were created by other processes with insecure permissions.
+            for parent_dir in parents_to_secure:
                 if parent_dir.exists():
-                    # Directory was created by another process, just secure it
                     try:
                         self._secure_directory(parent_dir)
+                    except PermissionError as e:
+                        # Security fix for Issue #434: Handle PermissionError gracefully
+                        logger.warning(
+                            f"Cannot set secure permissions on {parent_dir}: {e}. "
+                            f"This directory may be owned by another user or have restrictive "
+                            f"permissions. The application will continue, but this directory "
+                            f"may have less restrictive permissions than desired."
+                        )
+        else:  # Windows - use atomic directory creation with ACLs
+            # Security fix for Issue #486: Create and secure each parent directory atomically
+            # This eliminates the race condition window between the separate
+            # _create_and_secure_directories call and _secure_all_parent_directories call.
+            # By combining creation and securing in a single loop, we ensure that directories
+            # are created and secured in one atomic operation.
+            for parent_dir in parents_to_secure:
+                # Security fix for Issue #521: Acquire lock before checking/creating directory
+                # This prevents TOCTOU race conditions where multiple processes could
+                # race between the exists() check and mkdir() call.
+                lock_acquired = False
+                try:
+                    self._acquire_directory_lock(parent_dir)
+                    lock_acquired = True
+                except RuntimeError as lock_error:
+                    # If we can't acquire the lock, it means another process is creating
+                    # this directory. Wait a bit and check if it gets created.
+                    logger.debug(f"Could not acquire lock for {parent_dir}: {lock_error}")
+                    if parent_dir.exists():
+                        # Directory was created by another process, just secure it
+                        try:
+                            self._secure_directory(parent_dir)
+                            continue
+                        except Exception as secure_error:
+                            logger.warning(f"Failed to secure directory {parent_dir}: {secure_error}")
+                            continue
+                    else:
+                        # Directory doesn't exist and we can't create it
+                        logger.warning(f"Cannot create {parent_dir}: lock acquisition failed")
                         continue
-                    except Exception as secure_error:
-                        logger.warning(f"Failed to secure directory {parent_dir}: {secure_error}")
-                        continue
-                else:
-                    # Directory doesn't exist and we can't create it
-                    logger.warning(f"Cannot create {parent_dir}: lock acquisition failed")
-                    continue
 
-            # Retry loop for handling race conditions (Issue #409, #486)
-            import time
-            max_retries = 5
-            base_delay = 0.01  # 10ms starting delay
-            success = False
-            last_error = None
+                # Retry loop for handling race conditions (Issue #409, #486)
+                import time
+                max_retries = 5
+                base_delay = 0.01  # 10ms starting delay
+                success = False
+                last_error = None
 
-            try:
-                for attempt in range(max_retries):
-                    try:
-                        # Security fix for Issue #521: With lock held, check and create directory
-                        # The lock ensures this sequence is atomic - no other process can
-                        # create the directory between the check and creation.
-                        if not parent_dir.exists():
-                            if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                try:
+                    for attempt in range(max_retries):
+                        try:
+                            # Security fix for Issue #521: With lock held, check and create directory
+                            # The lock ensures this sequence is atomic - no other process can
+                            # create the directory between the check and creation.
+                            if not parent_dir.exists():
+                                # Windows - use atomic directory creation (Issue #400)
                                 # Security fix for Issue #429: Windows modules are imported at module level,
                                 # ensuring thread-safe initialization. Modules are available immediately.
 
@@ -1383,96 +1418,88 @@ class Storage:
                                     str(parent_dir),
                                     security_descriptor
                                 )
-                            else:  # Unix-like systems
-                                # Security fix for Issue #474 and #479: Temporarily restrict umask
-                                # to 0o077 during directory creation
-                                old_umask = os.umask(0o077)
-                                try:
-                                    parent_dir.mkdir(mode=0o700)
-                                finally:
-                                    os.umask(old_umask)
 
-                    # Always secure the directory (Issue #481, #486)
-                    # Even if we just created it, call _secure_directory to ensure consistency
-                    # This is safe because _secure_directory is idempotent
-                    self._secure_directory(parent_dir)
-
-                    # Success - break out of retry loop
-                    success = True
-                    break
-
-                except FileExistsError:
-                    # Security fix for Issue #481: Directory was created by another process
-                    # Always verify and secure it, don't just assume it's secure
-                    if parent_dir.exists():
-                        try:
+                            # Always secure the directory (Issue #481, #486)
+                            # Even if we just created it, call _secure_directory to ensure consistency
+                            # This is safe because _secure_directory is idempotent
                             self._secure_directory(parent_dir)
+
+                            # Success - break out of retry loop
                             success = True
                             break
-                        except Exception as verify_error:
-                            last_error = verify_error
-                            if attempt < max_retries - 1:
-                                delay = base_delay * (2 ** attempt)
-                                time.sleep(delay)
+
+                        except FileExistsError:
+                            # Security fix for Issue #481: Directory was created by another process
+                            # Always verify and secure it, don't just assume it's secure
+                            if parent_dir.exists():
+                                try:
+                                    self._secure_directory(parent_dir)
+                                    success = True
+                                    break
+                                except Exception as verify_error:
+                                    last_error = verify_error
+                                    if attempt < max_retries - 1:
+                                        delay = base_delay * (2 ** attempt)
+                                        time.sleep(delay)
+                            else:
+                                # Directory doesn't exist but we got FileExistsError
+                                last_error = Exception("Got FileExistsError but directory doesn't exist")
+                                if attempt < max_retries - 1:
+                                    delay = base_delay * (2 ** attempt)
+                                    time.sleep(delay)
+
+                        except PermissionError as e:
+                            # Security fix for Issue #434: Handle PermissionError gracefully
+                            # when parent directories are owned by another user or have restrictive
+                            # permissions preventing ACL/chmod modification. Log a warning and
+                            # continue rather than crashing the application.
+                            logger.warning(
+                                f"Cannot set secure permissions on {parent_dir}: {e}. "
+                                f"This directory may be owned by another user or have restrictive "
+                                f"permissions. The application will continue, but this directory "
+                                f"may have less restrictive permissions than desired."
+                            )
+                            # Mark as success to continue with other directories
+                            # The immediate application directory will still be secured separately
+                            success = True
+                            break
+
+                        except Exception as e:
+                            # Non-retryable error
+                            last_error = e
+                            break
+
+                # After all retries, check if we succeeded
+                if not success:
+                    # Security fix for Issue #434: Check if the error is permission-related
+                    # If so, log a warning and continue instead of crashing
+                    error_is_permission_related = (
+                        isinstance(last_error, PermissionError) or
+                        (isinstance(last_error, RuntimeError) and
+                         ("Permission denied" in str(last_error) or
+                          "Cannot continue without secure directory permissions" in str(last_error)))
+                    )
+
+                    if error_is_permission_related:
+                        # Log a warning and continue
+                        logger.warning(
+                            f"Cannot secure directory {parent_dir}: {last_error}. "
+                            f"This may be due to insufficient permissions. The application will "
+                            f"continue, but this directory may have less restrictive permissions."
+                        )
+                        # Continue to next directory instead of raising
+                        continue
                     else:
-                        # Directory doesn't exist but we got FileExistsError
-                        last_error = Exception("Got FileExistsError but directory doesn't exist")
-                        if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
-                            time.sleep(delay)
-
-                except PermissionError as e:
-                    # Security fix for Issue #434: Handle PermissionError gracefully
-                    # when parent directories are owned by another user or have restrictive
-                    # permissions preventing ACL/chmod modification. Log a warning and
-                    # continue rather than crashing the application.
-                    logger.warning(
-                        f"Cannot set secure permissions on {parent_dir}: {e}. "
-                        f"This directory may be owned by another user or have restrictive "
-                        f"permissions. The application will continue, but this directory "
-                        f"may have less restrictive permissions than desired."
-                    )
-                    # Mark as success to continue with other directories
-                    # The immediate application directory will still be secured separately
-                    success = True
-                    break
-
-                except Exception as e:
-                    # Non-retryable error
-                    last_error = e
-                    break
-
-            # After all retries, check if we succeeded
-            if not success:
-                # Security fix for Issue #434: Check if the error is permission-related
-                # If so, log a warning and continue instead of crashing
-                error_is_permission_related = (
-                    isinstance(last_error, PermissionError) or
-                    (isinstance(last_error, RuntimeError) and
-                     ("Permission denied" in str(last_error) or
-                      "Cannot continue without secure directory permissions" in str(last_error)))
-                )
-
-                if error_is_permission_related:
-                    # Log a warning and continue
-                    logger.warning(
-                        f"Cannot secure directory {parent_dir}: {last_error}. "
-                        f"This may be due to insufficient permissions. The application will "
-                        f"continue, but this directory may have less restrictive permissions."
-                    )
-                    # Continue to next directory instead of raising
-                    continue
-                else:
-                    # For other errors, still raise to prevent running with insecure state
-                    raise RuntimeError(
-                        f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
-                        f"Last error: {last_error}. "
-                        f"Cannot continue without secure directory permissions."
-                    ) from last_error
-            finally:
-                # Security fix for Issue #521: Always release the lock, even if an error occurred
-                if lock_acquired:
-                    self._release_directory_lock(parent_dir)
+                        # For other errors, still raise to prevent running with insecure state
+                        raise RuntimeError(
+                            f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
+                            f"Last error: {last_error}. "
+                            f"Cannot continue without secure directory permissions."
+                        ) from last_error
+                finally:
+                    # Security fix for Issue #521: Always release the lock, even if an error occurred
+                    if lock_acquired:
+                        self._release_directory_lock(parent_dir)
 
     def _create_backup(self, error_message: str) -> str:
         """Create a backup of the todo file.
