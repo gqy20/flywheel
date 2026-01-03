@@ -1739,7 +1739,12 @@ class Storage:
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Invalid JSON in {self.path}")
-                raise RuntimeError(f"Invalid JSON in {self.path}. Backup saved to {backup_path}") from e
+                # Include detailed error context: line number, column, and position
+                # This helps users locate and fix JSON syntax errors manually (Issue #548)
+                raise RuntimeError(
+                    f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
+                    f"Backup saved to {backup_path}"
+                ) from e
             except RuntimeError as e:
                 # Re-raise RuntimeError without creating backup
                 # This handles format validation errors that should not trigger backup
