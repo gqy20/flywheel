@@ -219,15 +219,14 @@ class FileStorage(AbstractStorage):
         except (
             json.JSONDecodeError,  # JSON parsing errors
             OSError,  # File I/O errors (includes IOError, PermissionError)
-            RuntimeError,  # Data integrity errors (e.g., checksum mismatch)
             ValueError,  # Invalid data values
         ) as e:
             # Catch specific exceptions during load to prevent data loss (Issue #570)
             # We do NOT catch broad Exception to avoid masking system-level errors
             # like SystemExit or KeyboardInterrupt.
-            # _load() already created a backup and wrapped the error (if RuntimeError)
-            # For other exceptions, we still want to handle them gracefully to ensure
-            # atexit is registered (Issue #556)
+            # NOTE: _load() converts these exceptions to RuntimeError with backup info.
+            # If we reach here, it means _load() didn't convert them properly,
+            # which should not happen. Log and handle gracefully (Issue #556).
             logger.warning(
                 f"Failed to load todos from {self.path}: {e}. "
                 f"Starting with empty state."
@@ -236,8 +235,37 @@ class FileStorage(AbstractStorage):
             self._todos = []
             self._next_id = 1
             self._dirty = False
-            # Still mark as success since we handled the error gracefully
+            # Mark as success since we handled the error gracefully
             init_success = True
+        except RuntimeError as e:
+            # RuntimeError from _load() may or may not have successful backup (Issue #580)
+            # Check error message to determine if backup was created
+            error_msg = str(e)
+            if "Backup saved to" in error_msg or "Backup created at" in error_msg:
+                # Backup was created successfully, we can recover gracefully
+                logger.warning(
+                    f"Data integrity issue in {self.path}: {e}. "
+                    f"Starting with empty state."
+                )
+                # Reset to empty state (already initialized above)
+                self._todos = []
+                self._next_id = 1
+                self._dirty = False
+                # Mark as success since backup exists and we handled the error
+                init_success = True
+            else:
+                # Critical failure without successful backup (Issue #580)
+                # This could mean:
+                # 1. Original RuntimeError from _load() (e.g., format validation failure)
+                # 2. Backup creation failed
+                # In either case, init_success should remain False
+                logger.error(
+                    f"Critical initialization failure for {self.path}: {e}. "
+                    f"Object not properly initialized."
+                )
+                # init_success remains False, atexit will not be registered
+                # Re-raise to inform the caller of the failure
+                raise
         finally:
             # Register cleanup handler to save dirty data on exit (Issue #203)
             # IMPORTANT: Only register if initialization succeeded (Issue #525)
