@@ -47,11 +47,15 @@ if os.name == 'nt':  # Windows
         if not allow_insecure:
             # pywin32 is not installed - fail fast at module import time
             # This is preferable to failing at runtime in __init__ or methods
+            # Security fix for Issue #509: Log detailed error, but show simplified message to user
+            logger.error(
+                f"pywin32 import failed: {e}",
+                exc_info=True
+            )
             raise ImportError(
-                f"pywin32 is required on Windows for secure directory permissions "
-                f"and mandatory file locking (Issue #451, #429). "
-                f"Install it with: pip install pywin32. "
-                f"Original error: {e}"
+                "pywin32 is required on Windows for secure directory permissions "
+                "and mandatory file locking (Issue #451, #429). "
+                "Install it with: pip install pywin32"
             ) from e
 
         # User has opted in to degraded mode - continue without pywin32
