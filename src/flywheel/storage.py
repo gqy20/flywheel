@@ -3,6 +3,7 @@
 import abc
 import atexit
 import errno
+import gzip
 import hashlib
 import json
 import logging
@@ -1841,7 +1842,15 @@ class FileStorage(AbstractStorage):
                 # This prevents TOCTOU issues by keeping the file handle open
                 # during parsing, instead of separating read_text() and json.loads()
                 # Acquire file lock for multi-process safety (Issue #268)
-                with self.path.open('r') as f:
+
+                # Auto-detect compression from file extension (Issue #583)
+                is_compressed = str(self.path).endswith('.json.gz')
+                open_func = gzip.open if is_compressed else open
+
+                # Use appropriate mode for compressed vs uncompressed files
+                mode = 'rt' if is_compressed else 'r'
+
+                with open_func(self.path, mode, encoding='utf-8') as f:
                     self._acquire_file_lock(f)
                     try:
                         raw_data = json.load(f)
@@ -1977,6 +1986,16 @@ class FileStorage(AbstractStorage):
             }
         }, indent=2)
 
+        # Auto-detect compression from file extension (Issue #583)
+        is_compressed = str(self.path).endswith('.json.gz')
+
+        # Encode data to bytes
+        data_bytes = data.encode('utf-8')
+
+        # Compress data if compression is enabled
+        if is_compressed:
+            data_bytes = gzip.compress(data_bytes, compresslevel=6)
+
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
             dir=self.path.parent,
@@ -2007,7 +2026,6 @@ class FileStorage(AbstractStorage):
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
-            data_bytes = data.encode('utf-8')
             total_written = 0
             while total_written < len(data_bytes):
                 try:
@@ -2108,6 +2126,16 @@ class FileStorage(AbstractStorage):
             }
         }, indent=2)
 
+        # Auto-detect compression from file extension (Issue #583)
+        is_compressed = str(self.path).endswith('.json.gz')
+
+        # Encode data to bytes
+        data_bytes = data.encode('utf-8')
+
+        # Compress data if compression is enabled
+        if is_compressed:
+            data_bytes = gzip.compress(data_bytes, compresslevel=6)
+
         # Write to temporary file first
         fd, temp_path = tempfile.mkstemp(
             dir=self.path.parent,
@@ -2138,7 +2166,6 @@ class FileStorage(AbstractStorage):
 
             # Write data directly to file descriptor to avoid duplication
             # Use a loop to handle partial writes and EINTR errors
-            data_bytes = data.encode('utf-8')
             total_written = 0
             while total_written < len(data_bytes):
                 try:
