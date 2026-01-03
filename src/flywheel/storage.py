@@ -50,32 +50,18 @@ if os.name == 'nt':  # Windows
         import win32file
         import pywintypes
     except ImportError as e:
-        # Security fix for Issue #519: Only allow degraded mode with explicit debug flag
-        # Check if user has explicitly enabled debug mode (for development only)
-        debug_mode = os.environ.get('FLYWHEEL_DEBUG', '').lower() in ('1', 'true', 'yes')
-
-        if not debug_mode:
-            # pywin32 is not installed - fail fast at module import time
-            # This is preferable to failing at runtime in __init__ or methods
-            # Security fix for Issue #509: Log detailed error, but show simplified message to user
-            logger.error(
-                f"pywin32 import failed: {e}",
-                exc_info=True
-            )
-            raise ImportError(
-                "pywin32 is required on Windows for secure directory permissions "
-                "and mandatory file locking (Issue #451, #429). "
-                "Install it with: pip install pywin32"
-            ) from e
-
-        # User has explicitly enabled debug mode - continue without pywin32
-        # Module variables already initialized to None above (Issue #535)
-        logger.warning(
-            f"Running in DEBUG MODE without pywin32 (Issue #519). "
-            f"File locking and directory security features will be DISABLED. "
-            f"This is UNSAFE for multi-process or production use. "
-            f"Install pywin32 for full security: pip install pywin32"
+        # Security fix for Issue #539: Remove environment variable bypass
+        # pywin32 is now strictly required on Windows - no degraded mode allowed
+        # This prevents security bypass through environment variable manipulation
+        logger.error(
+            f"pywin32 import failed: {e}",
+            exc_info=True
         )
+        raise ImportError(
+            "pywin32 is required on Windows for secure directory permissions "
+            "and mandatory file locking (Issue #451, #429, #539). "
+            "Install it with: pip install pywin32"
+        ) from e
 else:  # Unix-like systems
     import fcntl
 
