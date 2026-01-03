@@ -33,6 +33,16 @@ if os.name == 'nt':  # Windows
     # Thread-safe module-level imports for Windows security (Issue #429)
     # These imports happen once when the module is loaded, ensuring all threads
     # see consistent module availability and preventing race conditions.
+    #
+    # Security fix for Issue #535: Declare module variables at global scope
+    # before try/except to ensure they are accessible everywhere in the module.
+    # This prevents NameError when _is_degraded_mode() tries to access win32file.
+    win32security = None
+    win32con = None
+    win32api = None
+    win32file = None
+    pywintypes = None
+
     try:
         import win32security
         import win32con
@@ -59,12 +69,7 @@ if os.name == 'nt':  # Windows
             ) from e
 
         # User has explicitly enabled debug mode - continue without pywin32
-        # Set module variables to None so code can check for availability
-        win32security = None
-        win32con = None
-        win32api = None
-        win32file = None
-        pywintypes = None
+        # Module variables already initialized to None above (Issue #535)
         logger.warning(
             f"Running in DEBUG MODE without pywin32 (Issue #519). "
             f"File locking and directory security features will be DISABLED. "
