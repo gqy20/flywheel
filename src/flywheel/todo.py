@@ -73,15 +73,18 @@ class Todo:
         if not isinstance(description, str):
             raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
 
-        # Validate and sanitize enum values with safe defaults
+        # Validate enum values strictly
         status_value = data.get("status", "todo")
         if not isinstance(status_value, str):
             raise ValueError(f"Field 'status' must be str, got {type(status_value).__name__}")
         try:
             status = Status(status_value)
         except ValueError:
-            # Use safe default if invalid value provided
-            status = Status.TODO
+            # Raise error to notify about invalid data
+            raise ValueError(
+                f"Invalid status value: '{status_value}'. "
+                f"Valid values are: {[s.value for s in Status]}"
+            )
 
         priority_value = data.get("priority", "medium")
         if not isinstance(priority_value, str):
@@ -89,8 +92,11 @@ class Todo:
         try:
             priority = Priority(priority_value)
         except ValueError:
-            # Use safe default if invalid value provided
-            priority = Priority.MEDIUM
+            # Raise error to notify about invalid data
+            raise ValueError(
+                f"Invalid priority value: '{priority_value}'. "
+                f"Valid values are: {[p.value for p in Priority]}"
+            )
 
         # Validate other optional fields
         due_date = data.get("due_date")
