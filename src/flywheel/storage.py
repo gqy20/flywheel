@@ -216,11 +216,18 @@ class FileStorage(AbstractStorage):
         try:
             self._load()
             init_success = True
-        except Exception as e:
-            # Catch all exceptions during load to prevent data loss
+        except (
+            json.JSONDecodeError,  # JSON parsing errors
+            OSError,  # File I/O errors (includes IOError, PermissionError)
+            RuntimeError,  # Data integrity errors (e.g., checksum mismatch)
+            ValueError,  # Invalid data values
+        ) as e:
+            # Catch specific exceptions during load to prevent data loss (Issue #570)
+            # We do NOT catch broad Exception to avoid masking system-level errors
+            # like SystemExit or KeyboardInterrupt.
             # _load() already created a backup and wrapped the error (if RuntimeError)
-            # For other exceptions (IOError, PermissionError, etc.), we still want to
-            # handle them gracefully to ensure atexit is registered (Issue #556)
+            # For other exceptions, we still want to handle them gracefully to ensure
+            # atexit is registered (Issue #556)
             logger.warning(
                 f"Failed to load todos from {self.path}: {e}. "
                 f"Starting with empty state."
