@@ -274,6 +274,17 @@ class FileStorage(AbstractStorage):
             if init_success:
                 atexit.register(self._cleanup)
 
+                # Start auto-save background thread (Issue #592)
+                # This thread periodically checks if data has been modified (_dirty flag)
+                # and automatically saves to disk to prevent data loss if the program crashes
+                self._auto_save_stop_event = threading.Event()
+                self._auto_save_thread = threading.Thread(
+                    target=self._auto_save_worker,
+                    daemon=True,
+                    name="FileStorage-auto-save"
+                )
+                self._auto_save_thread.start()
+
     def _get_file_lock_range_from_handle(self, file_handle) -> tuple:
         """Get the Windows file lock range for mandatory locking.
 
@@ -1700,6 +1711,28 @@ class FileStorage(AbstractStorage):
             logger.error(f"Failed to create backup: {backup_error}")
             raise RuntimeError(f"{error_message}. Failed to create backup") from backup_error
         return backup_path
+
+    def _auto_save_worker(self) -> None:
+        """Background thread worker for auto-save functionality (Issue #592).
+
+        This method runs in a daemon thread and periodically checks if the data
+        has been modified (_dirty flag). If dirty and enough time has passed since
+        the last save, it triggers a save operation to prevent data loss.
+
+        The thread sleeps for 1 second between checks to balance responsiveness
+        with CPU usage. The check interval is independent of AUTO_SAVE_INTERVAL.
+        """
+        while not self._auto_save_stop_event.is_set():
+            try:
+                # Check if auto-save should be triggered
+                self._check_auto_save()
+            except Exception as e:
+                # Log error but continue running to prevent thread crash
+                logger.error(f"Auto-save worker error: {e}")
+
+            # Sleep for 1 second before next check
+            # This provides responsive checking without excessive CPU usage
+            self._auto_save_stop_event.wait(1.0)
 
     def _check_auto_save(self) -> None:
         """Check if auto-save should be triggered based on time interval (Issue #547).
