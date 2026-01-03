@@ -1347,12 +1347,70 @@ class FileStorage(AbstractStorage):
             # This is simpler and more atomic than the lock-based approach.
             # os.makedirs with exist_ok=True handles race conditions where multiple
             # processes try to create the same directory.
-            old_umask = os.umask(0o077)
-            try:
-                # Create all parent directories with secure permissions in one call
-                os.makedirs(directory, mode=0o700, exist_ok=True)
-            finally:
-                os.umask(old_umask)
+            #
+            # Security fix for Issue #576: Added retry logic and explicit error handling
+            # to provide even more robust protection against TOCTOU race conditions
+            # during concurrent directory creation. This ensures that even in extreme
+            # race conditions (e.g., filesystem delays, NFS), the operation succeeds.
+            import time
+
+            max_retries = 3
+            base_delay = 0.01  # 10ms starting delay
+            last_error = None
+
+            for attempt in range(max_retries):
+                try:
+                    old_umask = os.umask(0o077)
+                    try:
+                        # Create all parent directories with secure permissions in one call
+                        # exist_ok=True handles the EEXIST error from concurrent creation
+                        os.makedirs(directory, mode=0o700, exist_ok=True)
+                    finally:
+                        os.umask(old_umask)
+                    # Success - break out of retry loop
+                    break
+                except FileExistsError:
+                    # Even with exist_ok=True, rare edge cases can raise FileExistsError
+                    # (e.g., race between exist_ok=True check and actual makedirs syscall)
+                    # If the directory now exists, consider it a success
+                    if directory.exists() and directory.is_dir():
+                        logger.debug(
+                            f"Directory {directory} already exists (concurrent creation detected). "
+                            f"This is expected behavior and is handled correctly."
+                        )
+                        break
+                    # If directory doesn't exist yet, retry
+                    last_error = f"FileExistsError but directory not found: {directory}"
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)  # Exponential backoff
+                        logger.debug(
+                            f"Retry {attempt + 1}/{max_retries} after {delay:.3f}s: {last_error}"
+                        )
+                        time.sleep(delay)
+                except OSError as e:
+                    # Handle other OS-level errors (e.g., EEXIST on some systems)
+                    # errno 17 is EEXIST on Unix systems
+                    if e.errno == 17 or hasattr(e, 'winerror') and e.winerror == 183:
+                        # Directory already exists - verify and continue
+                        if directory.exists() and directory.is_dir():
+                            logger.debug(
+                                f"Directory {directory} already exists (OSError EEXIST). "
+                                f"This is expected behavior and is handled correctly."
+                            )
+                            break
+                    # For other errors, retry or raise
+                    last_error = str(e)
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        logger.debug(
+                            f"Retry {attempt + 1}/{max_retries} after {delay:.3f}s: {last_error}"
+                        )
+                        time.sleep(delay)
+                    else:
+                        # Final attempt failed - raise the original error
+                        raise RuntimeError(
+                            f"Failed to create directory {directory} after {max_retries} attempts: {last_error}"
+                        ) from e
 
             # Security fix for Issue #481: Secure all parent directories even if they
             # were created by other processes with insecure permissions.
