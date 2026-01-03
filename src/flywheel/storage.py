@@ -21,22 +21,35 @@ logger = logging.getLogger(__name__)
 # - All processes are blocked from writing while the lock is held
 # - Unix systems use fcntl.flock which provides strong synchronization
 #
-# Security fix for Issue #494: Windows modules (pywintypes, win32file, win32con)
-# are NOT imported at module level to allow proper error handling in __init__.
-# If pywin32 is not installed, __init__ will provide a clear error message
-# instead of crashing at import time. Windows modules are imported lazily in
-# the methods that use them (_acquire_file_lock, _release_file_lock, etc.).
-if os.name != 'nt':  # Unix-like systems
-    import fcntl
-
-# Platform-specific security dependencies (Issue #324, #401, #414)
-# Windows security modules are imported lazily in _secure_directory and
-# _create_and_secure_directories instead of at module level. This allows the
-# storage module to be imported as a library even when pywin32 is not installed.
+# Security fix for Issue #429: Windows modules are now imported at module level
+# to prevent race conditions in multi-threaded environments. Module-level imports
+# ensure thread-safe initialization and eliminate TOCTOU vulnerabilities between
+# __init__ checks and actual module usage.
 #
-# SECURITY CHECK: On Windows, we verify pywin32 availability in __init__ before
-# any directory operations to provide early, clear error messages instead of
-# runtime crashes (Issue #414).
+# On Windows, all pywin32 modules are imported at module level. If pywin32 is not
+# installed, the import will fail immediately with a clear ImportError, preventing
+# runtime crashes later. This is preferred over lazy imports for thread safety.
+if os.name == 'nt':  # Windows
+    # Thread-safe module-level imports for Windows security (Issue #429)
+    # These imports happen once when the module is loaded, ensuring all threads
+    # see consistent module availability and preventing race conditions.
+    try:
+        import win32security
+        import win32con
+        import win32api
+        import win32file
+        import pywintypes
+    except ImportError as e:
+        # pywin32 is not installed - fail fast at module import time
+        # This is preferable to failing at runtime in __init__ or methods
+        raise ImportError(
+            f"pywin32 is required on Windows for secure directory permissions "
+            f"and mandatory file locking (Issue #451, #429). "
+            f"Install it with: pip install pywin32. "
+            f"Original error: {e}"
+        ) from e
+else:  # Unix-like systems
+    import fcntl
 
 
 class Storage:
@@ -45,26 +58,11 @@ class Storage:
     def __init__(self, path: str = "~/.flywheel/todos.json"):
         self.path = Path(path).expanduser()
 
-        # SECURITY CHECK: Verify pywin32 availability on Windows before any
-        # directory operations (Issue #414, #451). This provides early, clear error
-        # messages instead of runtime crashes when trying to secure directories
-        # or acquire mandatory file locks.
-        if os.name == 'nt':  # Windows
-            try:
-                import win32security  # noqa: F401
-                import win32con  # noqa: F401
-                import win32api  # noqa: F401
-                import win32file  # noqa: F401
-                import pywintypes  # noqa: F401
-            except ImportError as e:
-                # pywin32 is not installed - provide clear error message
-                # Note: pywin32 is required for both security (ACLs) and mandatory locking
-                raise ImportError(
-                    f"pywin32 is required on Windows for secure directory permissions "
-                    f"and mandatory file locking (Issue #451). "
-                    f"Install it with: pip install pywin32. "
-                    f"Original error: {e}"
-                ) from e
+        # Security fix for Issue #429: Module-level imports ensure thread safety.
+        # Windows modules (win32security, win32con, win32api, win32file, pywintypes)
+        # are now imported at module level, preventing race conditions in multi-threaded
+        # environments. The ImportError is raised immediately if pywin32 is missing,
+        # so no need to check again here.
 
         # Security fix for Issue #486: Create and secure parent directories atomically.
         # This eliminates the race condition window between the previous separate calls
@@ -236,18 +234,8 @@ class Storage:
             # - Provides data integrity guarantees that advisory locks cannot
             # - Uses win32file.LockFileEx instead of msvcrt.locking
             #
-            # Security fix for Issue #494: Import Windows modules here (lazy import)
-            # instead of at module level. This allows __init__ to provide clear error
-            # messages when pywin32 is not installed.
-            try:
-                import pywintypes
-                import win32file
-                import win32con
-            except ImportError as e:
-                raise RuntimeError(
-                    f"pywin32 is required on Windows for mandatory file locking. "
-                    f"Install it with: pip install pywin32. Original error: {e}"
-                ) from e
+            # Security fix for Issue #429: Windows modules are imported at module level,
+            # ensuring thread-safe initialization. No need to import here.
 
             try:
                 # Get the Windows file handle from Python file object
@@ -431,17 +419,8 @@ class Storage:
             # Unlock range must match lock range exactly (Issue #271)
             # Use the cached lock range from _acquire_file_lock (Issue #351)
             #
-            # Security fix for Issue #494: Import Windows modules here (lazy import)
-            # instead of at module level. This allows __init__ to provide clear error
-            # messages when pywin32 is not installed.
-            try:
-                import pywintypes
-                import win32file
-            except ImportError as e:
-                raise RuntimeError(
-                    f"pywin32 is required on Windows for mandatory file locking. "
-                    f"Install it with: pip install pywin32. Original error: {e}"
-                ) from e
+            # Security fix for Issue #429: Windows modules are imported at module level,
+            # ensuring thread-safe initialization. No need to import here.
 
             try:
                 # Get the Windows file handle from Python file object
@@ -525,24 +504,9 @@ class Storage:
                     f"Cannot continue without secure directory permissions."
                 ) from e
         else:  # Windows
-            # Security fix for Issue #449: Add defensive import check to prevent
-            # runtime crashes if modules are dynamically unloaded or modified after __init__.
-            # Even though we verified availability in __init__, we check again here
-            # to handle edge cases where the runtime environment may have changed.
-            try:
-                import win32security
-                import win32con
-                import win32api
-            except ImportError as e:
-                # pywin32 module became unavailable at runtime
-                # This should never happen under normal conditions, but we handle it
-                # defensively to prevent crashes if modules are dynamically unloaded
-                raise RuntimeError(
-                    f"Windows security module became unavailable at runtime: {e}. "
-                    f"This may indicate that pywin32 was dynamically unloaded. "
-                    f"Restart the application to restore security functionality. "
-                    f"Install pywin32: pip install pywin32"
-                ) from e
+            # Security fix for Issue #429: Windows modules are imported at module level,
+            # ensuring thread-safe initialization. Modules are available immediately
+            # when this code runs, preventing race conditions.
 
             # Attempt to use Windows ACLs for security (Issue #226)
             win32_success = False
@@ -802,23 +766,8 @@ class Storage:
             for attempt in range(max_retries):
                 try:
                     if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
-                        # Security fix for Issue #449: Add defensive import check to prevent
-                        # runtime crashes if modules are dynamically unloaded or modified after __init__.
-                        # Even though we verified availability in __init__, we check again here
-                        # to handle edge cases where the runtime environment may have changed.
-                        try:
-                            import win32security
-                            import win32con
-                            import win32api
-                            import win32file
-                        except ImportError as e:
-                            # pywin32 module became unavailable at runtime
-                            raise RuntimeError(
-                                f"Windows security module became unavailable at runtime: {e}. "
-                                f"This may indicate that pywin32 was dynamically unloaded. "
-                                f"Restart the application to restore security functionality. "
-                                f"Install pywin32: pip install pywin32"
-                            ) from e
+                        # Security fix for Issue #429: Windows modules are imported at module level,
+                        # ensuring thread-safe initialization. Modules are available immediately.
 
                         # Security fix for Issue #400: Use CreateDirectory with security descriptor
                         # to eliminate the time window between directory creation and ACL application.
@@ -1114,19 +1063,8 @@ class Storage:
                     # eliminating the race condition window.
                     if not parent_dir.exists():
                         if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
-                            # Security fix for Issue #449: Add defensive import check
-                            try:
-                                import win32security
-                                import win32con
-                                import win32api
-                                import win32file
-                            except ImportError as e:
-                                raise RuntimeError(
-                                    f"Windows security module became unavailable at runtime: {e}. "
-                                    f"This may indicate that pywin32 was dynamically unloaded. "
-                                    f"Restart the application to restore security functionality. "
-                                    f"Install pywin32: pip install pywin32"
-                                ) from e
+                            # Security fix for Issue #429: Windows modules are imported at module level,
+                            # ensuring thread-safe initialization. Modules are available immediately.
 
                             # Use CreateDirectory with security descriptor (Issue #400)
                             user = win32api.GetUserName()
