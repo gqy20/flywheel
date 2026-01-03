@@ -2559,8 +2559,9 @@ class FileStorage(AbstractStorage):
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the context manager.
 
-        This method releases the lock and handles any exceptions that occurred
-        within the context. The lock is always released, even if an exception occurs.
+        This method releases resources, handles cleanup, and manages any exceptions
+        that occurred within the context. Resources are always cleaned up and the
+        lock is always released, even if an exception occurs (issue #587).
 
         Args:
             exc_type: The type of exception raised, if any.
@@ -2576,6 +2577,8 @@ class FileStorage(AbstractStorage):
         """
         # Always release the lock, even if an exception occurred
         self._lock.release()
+        # Call cleanup to ensure data is flushed and resources are released (issue #587)
+        self._cleanup()
         # Return False to propagate any exceptions
         return False
 
