@@ -122,8 +122,10 @@ class Storage:
         self._lock_retry_interval: float = 0.1
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # If the file is corrupted or malformed, log the error and start with empty state
+        init_success = False
         try:
             self._load()
+            init_success = True
         except RuntimeError as e:
             # _load() already created a backup and wrapped the error
             # Log the error and continue with empty state
@@ -135,8 +137,14 @@ class Storage:
             self._todos = []
             self._next_id = 1
             self._dirty = False
-        # Register cleanup handler to save dirty data on exit (Issue #203)
-        atexit.register(self._cleanup)
+            # Still mark as success since we handled the error gracefully
+            init_success = True
+        finally:
+            # Register cleanup handler to save dirty data on exit (Issue #203)
+            # IMPORTANT: Only register if initialization succeeded (Issue #525)
+            # This prevents calling cleanup on partially initialized objects
+            if init_success:
+                atexit.register(self._cleanup)
 
     def _get_file_lock_range_from_handle(self, file_handle) -> tuple:
         """Get the Windows file lock range for mandatory locking.
