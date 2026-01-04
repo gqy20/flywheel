@@ -289,6 +289,11 @@ class FileStorage(AbstractStorage):
         # even if _cleanup is called. This reduces I/O for applications making
         # rapid small changes.
         self.MIN_SAVE_INTERVAL: float = 5.0
+        # Compaction threshold for automatic file rewriting on delete (Issue #683)
+        # When the ratio of deleted items to total items exceeds this threshold,
+        # the file will be rewritten to remove deleted items and prevent bloat.
+        # 20% (0.2) provides a good balance between performance and storage efficiency.
+        self.COMPACTION_THRESHOLD: float = 0.2
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # If the file is corrupted or malformed, log the error and start with empty state
         # Track initialization success to control cleanup registration (Issue #596)
@@ -429,6 +434,7 @@ class FileStorage(AbstractStorage):
         instance.AUTO_SAVE_INTERVAL = 60.0
         instance.last_saved_time = time.time()
         instance.MIN_SAVE_INTERVAL = 5.0
+        instance.COMPACTION_THRESHOLD = 0.2
 
         # Gracefully handle load failures to allow object instantiation (Issue #456)
         # Load data asynchronously in thread pool to avoid blocking event loop (Issue #646)
@@ -2858,8 +2864,18 @@ class FileStorage(AbstractStorage):
                     self._dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
-                    # Check if auto-save should be triggered (Issue #547)
-                    self._check_auto_save()
+
+                    # Check if automatic file compaction should be triggered (Issue #683)
+                    # Calculate the ratio of deleted items to total items
+                    total_count = len(self._todos) + 1  # +1 because we just deleted one
+                    deleted_count = 1  # Count of items deleted in this operation
+                    deleted_ratio = deleted_count / total_count if total_count > 0 else 0
+
+                    # If deleted ratio exceeds threshold, trigger background save for compaction
+                    if deleted_ratio > self.COMPACTION_THRESHOLD:
+                        # Trigger auto-save to rewrite file without deleted items
+                        self._check_auto_save()
+
                     return True
             return False
 
