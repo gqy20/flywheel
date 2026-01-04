@@ -220,7 +220,7 @@ class FileStorage(AbstractStorage):
         # This prevents calling cleanup on partially initialized objects
         init_success = False
         try:
-            self._load()
+            asyncio.run(self._load())
             init_success = True
         except (
             json.JSONDecodeError,  # JSON parsing errors
