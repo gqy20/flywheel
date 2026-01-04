@@ -69,7 +69,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     return s
 
 
-def sanitize_tags(tags_str):
+def sanitize_tags(tags_str, max_length=10000, max_tags=100):
     """Sanitize tag input to prevent injection attacks.
 
     This function uses a whitelist approach to only allow safe characters:
@@ -83,9 +83,12 @@ def sanitize_tags(tags_str):
     - Command injection (newlines, null bytes)
     - Unicode spoofing characters (fullwidth characters, zero-width characters,
       homoglyphs, control characters, bidirectional overrides, etc.)
+    - ReDoS attacks (by limiting input length and number of tags)
 
     Args:
         tags_str: Comma-separated tag string from user input
+        max_length: Maximum length of input string to prevent DoS (default: 10000)
+        max_tags: Maximum number of tags to process (default: 100)
 
     Returns:
         List of sanitized tags containing only allowed characters
@@ -95,12 +98,23 @@ def sanitize_tags(tags_str):
         including JSON files and potential SQL databases.
         Addresses Issue #604 - Uses whitelist approach to block Unicode
         spoofing characters and control characters.
+        Addresses Issue #635 - Prevents ReDoS by limiting input length and
+        tag count before processing.
     """
     if not tags_str:
         return []
 
+    # Prevent DoS by limiting input length before processing
+    if len(tags_str) > max_length:
+        tags_str = tags_str[:max_length]
+
     # Split by comma
     raw_tags = tags_str.split(",")
+
+    # Prevent DoS by limiting number of tags processed
+    if len(raw_tags) > max_tags:
+        raw_tags = raw_tags[:max_tags]
+
     sanitized_tags = []
 
     for tag in raw_tags:
