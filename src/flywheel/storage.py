@@ -229,15 +229,19 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0):
         """Initialize FileStorage.
 
         Args:
             path: Path to the storage file.
             compression: Whether to use gzip compression (Issue #652).
                         When True, .gz extension is automatically added to the path.
+            backup_count: Number of backup versions to keep (Issue #693).
+                          If 0, no backups are created. If > 0, backups are rotated
+                          (e.g., .bak, .bak.1, .bak.2, etc.).
         """
         self.compression = compression
+        self.backup_count = backup_count
         # Add .gz extension if compression is enabled and path doesn't already have it
         path_obj = Path(path).expanduser()
         if compression and not str(path_obj).endswith('.gz'):
@@ -2069,6 +2073,54 @@ class FileStorage(AbstractStorage):
                     f"since last save (threshold: {self.MIN_SAVE_INTERVAL}s)"
                 )
 
+    def _rotate_backups(self) -> None:
+        """Rotate backup files to keep last N versions (Issue #693).
+
+        Backup rotation scheme:
+        - todos.json.bak (most recent backup)
+        - todos.json.bak.1 (second most recent)
+        - todos.json.bak.2 (third most recent)
+        - ...
+        - todos.json.bak.N (oldest backup within backup_count)
+
+        If backup_count is 3, we keep:
+        - .bak (most recent)
+        - .bak.1 (second most recent)
+        - .bak.2 (third most recent)
+
+        Older backups (.bak.3, .bak.4, etc.) are removed.
+        """
+        import shutil
+
+        # First, delete the oldest backup if it exists
+        oldest_backup = self.path.parent / f"{self.path.name}.bak.{self.backup_count - 1}"
+        if oldest_backup.exists():
+            try:
+                oldest_backup.unlink()
+            except OSError:
+                # Ignore errors when removing old backup
+                pass
+
+        # Rotate existing backups: .bak.N-1 -> .bak.N
+        for i in range(self.backup_count - 1, 0, -1):
+            old_backup = self.path.parent / f"{self.path.name}.bak.{i - 1}" if i > 1 else self.path.parent / f"{self.path.name}.bak"
+            new_backup = self.path.parent / f"{self.path.name}.bak.{i}"
+
+            if old_backup.exists():
+                try:
+                    shutil.copy2(old_backup, new_backup)
+                except OSError:
+                    # Ignore errors during backup rotation
+                    pass
+
+        # Create new backup from current file
+        backup_path = self.path.parent / f"{self.path.name}.bak"
+        try:
+            shutil.copy2(self.path, backup_path)
+        except OSError:
+            # Ignore errors when creating backup
+            pass
+
     def _calculate_checksum(self, todos: list) -> str:
         """Calculate SHA256 checksum of todos data (Issue #223).
 
@@ -2635,6 +2687,10 @@ class FileStorage(AbstractStorage):
 
             # Close is handled by the context manager
 
+            # Create backup before replacing if backup_count > 0 (Issue #693)
+            if self.backup_count > 0 and self.path.exists():
+                self._rotate_backups()
+
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
@@ -2741,6 +2797,10 @@ class FileStorage(AbstractStorage):
                 os.fsync(f.fileno())  # Ensure data is written to disk
 
             # Close is handled by the context manager
+
+            # Create backup before replacing if backup_count > 0 (Issue #693)
+            if self.backup_count > 0 and self.path.exists():
+                self._rotate_backups()
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
