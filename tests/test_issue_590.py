@@ -16,7 +16,7 @@ import pytest
 from unittest.mock import patch, mock_open
 from pathlib import Path
 
-from flywheel.storage import TodoList
+from flywheel.storage import FileStorage
 
 
 class TestIssue590RuntimeErrorWithoutBackup:
@@ -42,9 +42,9 @@ class TestIssue590RuntimeErrorWithoutBackup:
                 # Invalid schema: 'metadata' is not a dict
                 f.write('{"todos": [], "metadata": "invalid"}')
 
-            # Attempting to create TodoList should raise RuntimeError
+            # Attempting to create FileStorage should raise RuntimeError
             with pytest.raises(RuntimeError) as exc_info:
-                TodoList(storage_path)
+                FileStorage(storage_path)
 
             # Verify the exception was raised
             assert exc_info is not None
@@ -71,12 +71,12 @@ class TestIssue590RuntimeErrorWithoutBackup:
                 f.write('{"invalid json content')
 
             # This should succeed because backup is created
-            todo_list = TodoList(storage_path)
+            storage = FileStorage(storage_path)
 
             # Should be initialized with empty state
-            assert todo_list._todos == []
-            assert todo_list._next_id == 1
-            assert not todo_list._dirty
+            assert storage._todos == []
+            assert storage._next_id == 1
+            assert not storage._dirty
 
     def test_init_success_not_set_when_runtime_error_re_raised(self):
         """
@@ -96,9 +96,9 @@ class TestIssue590RuntimeErrorWithoutBackup:
             import atexit
             initial_handlers = len(atexit._exithandlers)
 
-            # Attempting to create TodoList should raise
+            # Attempting to create FileStorage should raise
             with pytest.raises(RuntimeError):
-                TodoList(storage_path)
+                FileStorage(storage_path)
 
             # Number of handlers should not have increased
             # (no atexit registration happened for the failed object)
@@ -123,7 +123,7 @@ class TestIssue590RuntimeErrorWithoutBackup:
 
             # Should raise RuntimeError
             with pytest.raises(RuntimeError) as exc_info:
-                todo_list = TodoList(storage_path)
+                storage = FileStorage(storage_path)
 
                 # If we somehow get here (which we shouldn't), verify object is NOT usable
                 assert False, "Should have raised RuntimeError"
