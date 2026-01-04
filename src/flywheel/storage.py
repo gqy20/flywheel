@@ -74,7 +74,20 @@ if os.name == 'nt':  # Windows
             "Please install pywin32: pip install pywin32"
         ) from e
 else:  # Unix-like systems
-    import fcntl
+    # Security fix for Issue #679: Handle missing fcntl gracefully
+    # On some Unix-like systems (e.g., Cygwin, restricted environments),
+    # fcntl may not be available. We handle this at import time to prevent
+    # crashes and provide a clear error message about platform requirements.
+    try:
+        import fcntl
+    except ImportError as e:
+        raise ImportError(
+            "fcntl is required on Unix-like systems for safe operation. "
+            "Without fcntl, file locking is disabled, which can cause "
+            "data corruption when multiple instances run concurrently. "
+            "This platform may not be supported. If you are on Cygwin, "
+            "consider using native Windows or a full Unix environment."
+        ) from e
 
 
 def _is_degraded_mode() -> bool:
