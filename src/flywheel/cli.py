@@ -13,7 +13,7 @@ from flywheel.todo import Priority, Status, Todo
 logger = logging.getLogger(__name__)
 
 
-def sanitize_string(s: str) -> str:
+def sanitize_string(s: str, max_length: int = 100000) -> str:
     """Sanitize string input to prevent injection attacks.
 
     This function removes dangerous characters that could be used for:
@@ -31,6 +31,7 @@ def sanitize_string(s: str) -> str:
 
     Args:
         s: String to sanitize
+        max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
     Returns:
         Sanitized string with dangerous characters removed
@@ -38,18 +39,21 @@ def sanitize_string(s: str) -> str:
     Security:
         Addresses Issue #609 - Ensures title and description fields are safe
         for storage backends that may render HTML or execute shell commands.
+        Addresses Issue #619 - Prevents ReDoS via input length limits and
+        safe regex patterns.
     """
     if not s:
         return ""
 
-    # Define whitelist of safe characters:
-    # - \w: word characters (a-z, A-Z, 0-9, _)
-    # - \s: whitespace (space, tab, newline - but we'll remove control chars separately)
-    # - -.: hyphen, period, colon
-    # ,!?!: comma, exclamation, question mark
-    # Keep basic alphanumeric, spaces, and safe punctuation
-    # Remove: < > " ' ` $ & | ; ( ) [ ] { } and other dangerous chars
-    s = re.sub(r'[<>"\'`$&|;()\[\]{}\\]', '', s)
+    # Prevent DoS by limiting input length
+    if len(s) > max_length:
+        s = s[:max_length]
+
+    # Define blacklist of dangerous characters to remove.
+    # Using a simple character class with explicit escaping to prevent ReDoS.
+    # Characters removed: < > " ' ` $ & | ; ( ) [ ] { } \
+    dangerous_chars = r'<>\"\'`$&|;()\[\]{}\\'
+    s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove control characters (except newline and tab for basic formatting)
     s = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', s)
