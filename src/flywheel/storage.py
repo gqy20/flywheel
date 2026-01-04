@@ -2042,7 +2042,14 @@ class FileStorage(AbstractStorage):
 
         Uses MIN_SAVE_INTERVAL to batch rapid small writes (Issue #563).
         Only saves if enough time has passed since the last save.
+
+        If the storage has been explicitly closed via close(), this method
+        does nothing (Issue #688).
         """
+        # Skip cleanup if already closed (Issue #688)
+        if hasattr(self, '_closed') and self._closed:
+            return
+
         if self._dirty:
             current_time = time.time()
             time_since_last_save = current_time - self.last_saved_time
@@ -3088,20 +3095,54 @@ class FileStorage(AbstractStorage):
     def close(self) -> None:
         """Close storage and release resources.
 
-        This method is provided for API completeness and resource management.
-        Currently, RLock does not require explicit cleanup, but this method
-        allows for future expansion (e.g., closing file handles, connections).
+        This method properly cleans up resources by:
+        1. Saving any pending changes (if dirty)
+        2. Stopping the auto-save background thread
+        3. Unregistering the atexit handler
+
         The method is idempotent and can be called multiple times safely.
+        Once closed, the storage object should not be used for further operations.
 
         Example:
-            >>> storage = Storage()
+            >>> storage = FileStorage()
             >>> storage.add(Todo(title="Task"))
             >>> storage.close()
         """
-        # RLock in Python does not need explicit cleanup
-        # This method exists for API completeness and future extensibility
-        # It is intentionally idempotent (safe to call multiple times)
-        pass
+        # Idempotency check - only close once
+        if hasattr(self, '_closed') and self._closed:
+            return
+
+        # Save any pending changes before closing
+        # This ensures data durability even if the program crashes after close()
+        if self._dirty:
+            try:
+                self._save()
+                logger.info("Saved pending changes on close")
+            except Exception as e:
+                logger.error(f"Failed to save pending changes on close: {e}")
+
+        # Stop the auto-save background thread
+        if hasattr(self, '_auto_save_stop_event'):
+            self._auto_save_stop_event.set()
+
+        # Wait for the auto-save thread to finish (with timeout)
+        if hasattr(self, '_auto_save_thread') and self._auto_save_thread.is_alive():
+            # Give thread up to 2 seconds to finish gracefully
+            self._auto_save_thread.join(timeout=2.0)
+            if self._auto_save_thread.is_alive():
+                logger.warning("Auto-save thread did not stop gracefully within timeout")
+
+        # Mark as closed to prevent further operations
+        self._closed = True
+
+        # Try to unregister the atexit handler
+        # Note: atexit.unregister() was added in Python 3.9
+        try:
+            atexit.unregister(self._cleanup)
+        except AttributeError:
+            # Python < 3.9 doesn't support unregister
+            # The _cleanup method will check _closed flag and do nothing
+            pass
 
     def transaction(self):
         """Create a transaction context manager for batch operations.
