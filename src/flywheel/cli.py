@@ -107,8 +107,9 @@ def sanitize_tags(tags_str):
         # Strip whitespace
         tag = tag.strip()
 
-        # Use whitelist approach: only keep word characters (\w = [a-zA-Z0-9_])
-        # and hyphens. This removes all dangerous characters including:
+        # Use whitelist approach: only keep ASCII word characters ([a-zA-Z0-9_])
+        # and hyphens. Using explicit ASCII range prevents Unicode spoofing.
+        # This removes all dangerous characters including:
         # - Shell metacharacters
         # - Unicode spoofing characters
         # - Control characters
@@ -116,7 +117,7 @@ def sanitize_tags(tags_str):
         # - Bidirectional overrides
         # - Fullwidth characters
         # - Emoji and symbols
-        tag = re.sub(r'[^\w\-]', '', tag)
+        tag = re.sub(r'[^a-zA-Z0-9_\-]', '', tag)
 
         # Only add non-empty tags after sanitization
         if tag:
