@@ -163,6 +163,36 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def add_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos in a single batch operation.
+
+        This is more efficient than calling add() multiple times as it
+        reduces disk I/O operations.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    def update_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Update multiple todos in a single batch operation.
+
+        This is more efficient than calling update() multiple times as it
+        reduces disk I/O operations.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        pass
+
 
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
@@ -2761,6 +2791,105 @@ class FileStorage(AbstractStorage):
         """Get next available ID."""
         with self._lock:
             return self._next_id
+
+    def add_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos in a single batch operation.
+
+        This is more efficient than calling add() multiple times as it
+        reduces disk I/O operations by only triggering auto-save once
+        after all todos are added.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        if not todos:
+            return []
+
+        with self._lock:
+            added_todos = []
+            max_id = self._next_id
+
+            # First pass: validate no duplicate IDs and prepare todos
+            for todo in todos:
+                todo_id = todo.id
+
+                # Check for duplicate ID
+                if todo_id is not None:
+                    for existing_todo in self._todos:
+                        if existing_todo.id == todo_id:
+                            raise ValueError(
+                                f"Todo with ID {todo_id} already exists. Use update() instead."
+                            )
+                    # Track max ID for _next_id update
+                    if todo_id >= max_id:
+                        max_id = todo_id + 1
+
+            # Second pass: generate IDs for todos without them
+            new_todos_list = []
+            for todo in todos:
+                if todo.id is None:
+                    # Generate ID atomically
+                    todo_id = self._next_id
+                    self._next_id += 1
+                    new_todo = Todo(id=todo_id, title=todo.title, status=todo.status)
+                    new_todos_list.append(new_todo)
+                else:
+                    new_todos_list.append(todo)
+
+            # Combine existing and new todos
+            combined_todos = self._todos + new_todos_list
+
+            # Mark as dirty and save once for all todos
+            self._dirty = True
+            self._save_with_todos(combined_todos)
+
+            # Check auto-save once after all additions
+            self._check_auto_save()
+
+            return new_todos_list
+
+    def update_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Update multiple todos in a single batch operation.
+
+        This is more efficient than calling update() multiple times as it
+        reduces disk I/O operations by only triggering auto-save once
+        after all todos are updated.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        if not todos:
+            return []
+
+        with self._lock:
+            updated_todos = []
+            new_todos = self._todos.copy()
+            todo_indices = {}  # Map todo_id to index in new_todos
+
+            # Build index of existing todos
+            for i, todo in enumerate(new_todos):
+                todo_indices[todo.id] = i
+
+            # Update todos that exist
+            for todo in todos:
+                if todo.id in todo_indices:
+                    idx = todo_indices[todo.id]
+                    new_todos[idx] = todo
+                    updated_todos.append(todo)
+
+            # Only save if we actually updated something
+            if updated_todos:
+                self._dirty = True
+                self._save_with_todos(new_todos)
+                self._check_auto_save()
+
+            return updated_todos
 
     def health_check(self) -> dict:
         """Check if storage backend is healthy and functional.
