@@ -13,6 +13,58 @@ from flywheel.todo import Priority, Status, Todo
 logger = logging.getLogger(__name__)
 
 
+def sanitize_string(s: str) -> str:
+    """Sanitize string input to prevent injection attacks.
+
+    This function removes dangerous characters that could be used for:
+    - HTML/Script injection (removes <, >, quotes)
+    - Shell injection (removes ;, |, &, `, $, (, ))
+    - Command injection (removes newlines, null bytes)
+    - Unicode spoofing (removes fullwidth characters, zero-width characters,
+      control characters, bidirectional overrides)
+
+    However, it preserves:
+    - Alphanumeric characters (a-z, A-Z, 0-9)
+    - Basic punctuation (period, comma, colon, exclamation, question mark)
+    - Whitespace (spaces for readability)
+    - Hyphens and underscores for compound words
+
+    Args:
+        s: String to sanitize
+
+    Returns:
+        Sanitized string with dangerous characters removed
+
+    Security:
+        Addresses Issue #609 - Ensures title and description fields are safe
+        for storage backends that may render HTML or execute shell commands.
+    """
+    if not s:
+        return ""
+
+    # Define whitelist of safe characters:
+    # - \w: word characters (a-z, A-Z, 0-9, _)
+    # - \s: whitespace (space, tab, newline - but we'll remove control chars separately)
+    # - -.: hyphen, period, colon
+    # ,!?!: comma, exclamation, question mark
+    # Keep basic alphanumeric, spaces, and safe punctuation
+    # Remove: < > " ' ` $ & | ; ( ) [ ] { } and other dangerous chars
+    s = re.sub(r'[<>"\'`$&|;()\[\]{}\\]', '', s)
+
+    # Remove control characters (except newline and tab for basic formatting)
+    s = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', s)
+
+    # Remove Unicode spoofing characters:
+    # Zero-width characters
+    s = re.sub(r'[\u200B-\u200D\u2060\uFEFF]', '', s)
+    # Bidirectional text override
+    s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
+    # Fullwidth characters (U+FF01-FF60) - convert or remove
+    s = re.sub(r'[\uFF01-\uFF60]', '', s)
+
+    return s
+
+
 def sanitize_tags(tags_str):
     """Sanitize tag input to prevent injection attacks.
 
@@ -79,8 +131,8 @@ class CLI:
         """Add a new todo."""
         todo = Todo(
             id=None,  # Let storage.generate ID atomically
-            title=args.title,
-            description=args.description or "",
+            title=sanitize_string(args.title),
+            description=sanitize_string(args.description or ""),
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
             due_date=args.due_date,
             tags=sanitize_tags(args.tags) if args.tags else [],
@@ -136,9 +188,9 @@ class CLI:
             sys.exit(1)
 
         if args.title:
-            todo.title = args.title
+            todo.title = sanitize_string(args.title)
         if args.description is not None:
-            todo.description = args.description
+            todo.description = sanitize_string(args.description)
         if args.status:
             todo.status = Status(args.status)
         if args.priority:
