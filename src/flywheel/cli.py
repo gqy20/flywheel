@@ -60,7 +60,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Characters removed: ; | & ` $ ( ) < > \ { }
     # Note: We preserve quotes, %, [, ] for legitimate content
     # Backslash and braces removed to prevent format string attacks (Issue #690)
-    dangerous_chars = r';|&`$()<>\{}'
+    # Hyphen placed at end to prevent range interpretation (Issue #694)
+    dangerous_chars = r';|&`$()<>{}\-'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
