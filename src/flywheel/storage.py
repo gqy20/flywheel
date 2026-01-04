@@ -194,6 +194,24 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def health_check(self) -> bool:
+        """Check if storage backend is healthy and functional.
+
+        This method performs a diagnostic check to verify that the storage
+        backend is working properly. It should test file locks, permissions,
+        and basic read/write operations.
+
+        Returns:
+            True if the storage is healthy, False otherwise.
+
+        Example:
+            >>> storage = FileStorage()
+            >>> if storage.health_check():
+            ...     print("Storage is healthy")
+        """
+        pass
+
 
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
@@ -2936,10 +2954,10 @@ class FileStorage(AbstractStorage):
 
             return updated_todos
 
-    def health_check(self) -> dict:
+    def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
 
-        This method performs a comprehensive diagnostic check to verify that:
+        This method performs a diagnostic check to verify that:
         1. The storage directory exists and is writable
         2. File locks can be acquired and released
         3. Temporary files can be created and cleaned up
@@ -2949,65 +2967,42 @@ class FileStorage(AbstractStorage):
         This is useful for startup diagnostics and configuration validation.
 
         Returns:
-            A dictionary containing:
-                - writable (bool): Whether the storage directory is writable
-                - disk_space (dict): Disk space information with keys:
-                    - total (int): Total disk space in bytes
-                    - used (int): Used disk space in bytes
-                    - free (int): Free disk space in bytes
-                - permissions (dict): Permission information with keys:
-                    - readable (bool): Whether the directory is readable
-                    - writable (bool): Whether the directory is writable
-                    - executable (bool): Whether the directory is executable
-                - file_lock (bool): Whether file locking works correctly
-                - healthy (bool): Overall health status (True if all checks pass)
+            True if the storage is healthy, False otherwise.
 
         Example:
             >>> storage = Storage()
-            >>> status = storage.health_check()
-            >>> if status["healthy"]:
+            >>> if storage.health_check():
             ...     print("Storage is healthy")
-            ... else:
-            ...     print(f"Storage has issues: {status}")
         """
         import tempfile
         import shutil
 
-        result = {
-            "writable": False,
-            "disk_space": {"total": 0, "used": 0, "free": 0},
-            "permissions": {"readable": False, "writable": False, "executable": False},
-            "file_lock": False,
-            "healthy": False
-        }
+        writable = False
+        file_lock = False
+        disk_space_free = 0
 
         # Check permissions
         try:
             parent_dir = self.path.parent
             if parent_dir.exists():
-                result["permissions"]["readable"] = os.access(parent_dir, os.R_OK)
-                result["permissions"]["writable"] = os.access(parent_dir, os.W_OK)
-                result["permissions"]["executable"] = os.access(parent_dir, os.X_OK)
+                readable = os.access(parent_dir, os.R_OK)
+                writable = os.access(parent_dir, os.W_OK)
+                executable = os.access(parent_dir, os.X_OK)
             else:
                 # Directory doesn't exist yet, create it for checking
                 parent_dir.mkdir(parents=True, exist_ok=True)
-                result["permissions"]["readable"] = os.access(parent_dir, os.R_OK)
-                result["permissions"]["writable"] = os.access(parent_dir, os.W_OK)
-                result["permissions"]["executable"] = os.access(parent_dir, os.X_OK)
+                readable = os.access(parent_dir, os.R_OK)
+                writable = os.access(parent_dir, os.W_OK)
+                executable = os.access(parent_dir, os.X_OK)
         except Exception:
-            pass
+            return False
 
         # Check disk space
         try:
             disk_usage = shutil.disk_usage(self.path.parent)
-            result["disk_space"]["total"] = disk_usage.total
-            result["disk_space"]["used"] = disk_usage.used
-            result["disk_space"]["free"] = disk_usage.free
+            disk_space_free = disk_usage.free
         except Exception:
             pass
-
-        # Check if directory is writable
-        result["writable"] = result["permissions"]["writable"]
 
         # Check file locking mechanism
         try:
@@ -3025,7 +3020,7 @@ class FileStorage(AbstractStorage):
                 self._acquire_file_lock(file_obj)
 
                 # If we got here, we can write and lock successfully
-                result["file_lock"] = True
+                file_lock = True
 
                 # Release the lock
                 self._release_file_lock(file_obj)
@@ -3039,7 +3034,7 @@ class FileStorage(AbstractStorage):
 
             except Exception:
                 # Lock acquisition failed - clean up
-                result["file_lock"] = False
+                file_lock = False
                 try:
                     os.fdopen(fd, 'r').close()
                 except:
@@ -3052,20 +3047,14 @@ class FileStorage(AbstractStorage):
 
         except (OSError, IOError, PermissionError):
             # Cannot create temp file - directory doesn't exist or isn't writable
-            result["file_lock"] = False
-            result["writable"] = False
+            file_lock = False
+            writable = False
         except Exception:
             # Any other error indicates unhealthy storage
-            result["file_lock"] = False
+            file_lock = False
 
         # Determine overall health
-        result["healthy"] = (
-            result["writable"] and
-            result["file_lock"] and
-            result["disk_space"]["free"] > 0
-        )
-
-        return result
+        return writable and file_lock and disk_space_free > 0
 
     def close(self) -> None:
         """Close storage and release resources.
