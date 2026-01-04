@@ -221,7 +221,6 @@ class FileStorage(AbstractStorage):
             init_success = True
         except (
             json.JSONDecodeError,  # JSON parsing errors
-            OSError,  # File I/O errors (includes IOError, PermissionError)
             ValueError,  # Invalid data values
         ) as e:
             # Catch specific exceptions during load to prevent data loss (Issue #570)
@@ -230,6 +229,27 @@ class FileStorage(AbstractStorage):
             # NOTE: _load() converts these exceptions to RuntimeError with backup info.
             # If we reach here, it means _load() didn't convert them properly,
             # which should not happen. Log and handle gracefully (Issue #556).
+            logger.warning(
+                f"Failed to load todos from {self.path}: {e}. "
+                f"Starting with empty state."
+            )
+            # Reset to empty state (already initialized above)
+            self._todos = []
+            self._next_id = 1
+            self._dirty = False
+            # Mark as success since we handled the error gracefully
+            init_success = True
+        except FileNotFoundError:
+            # File doesn't exist - normal case for first run (Issue #601)
+            # No warning needed, just start with empty state
+            # Reset to empty state (already initialized above)
+            self._todos = []
+            self._next_id = 1
+            self._dirty = False
+            # Mark as success since this is normal for first run
+            init_success = True
+        except OSError as e:
+            # Other OSErrors (PermissionError, IOError, etc.) should log warning (Issue #601)
             logger.warning(
                 f"Failed to load todos from {self.path}: {e}. "
                 f"Starting with empty state."
