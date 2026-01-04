@@ -1728,7 +1728,8 @@ class FileStorage(AbstractStorage):
         """
         import shutil
 
-        backup_path = str(self.path) + ".backup"
+        # Use .bak extension for backup files (Issue #632)
+        backup_path = str(self.path) + ".bak"
         try:
             shutil.copy2(self.path, backup_path)
             logger.error(f"{error_message}. Backup created at {backup_path}")
@@ -1880,6 +1881,70 @@ class FileStorage(AbstractStorage):
                 f"Invalid schema: expected dict or list at top level, got {type(data).__name__}"
             )
 
+    def _validate_and_repair_todos(self, todos: list[Todo]) -> list[Todo]:
+        """Validate and repair todos by detecting and fixing data integrity issues.
+
+        This method implements data validation and repair mechanism (Issue #632):
+        - Detects and removes duplicate IDs (keeps first occurrence)
+        - Validates field types
+        - Logs warnings for any repairs made
+
+        Args:
+            todos: List of Todo objects to validate and repair.
+
+        Returns:
+            A repaired list of todos with duplicates removed and only valid items.
+        """
+        if not todos:
+            return []
+
+        # Track seen IDs to detect duplicates
+        seen_ids = set()
+        repaired_todos = []
+        duplicates_removed = 0
+
+        for todo in todos:
+            # Validate ID is an integer (basic type check)
+            if not isinstance(todo.id, int):
+                logger.warning(f"Skipping todo with invalid ID type: {type(todo.id).__name__}")
+                continue
+
+            # Check for duplicate IDs
+            if todo.id in seen_ids:
+                duplicates_removed += 1
+                logger.warning(
+                    f"Duplicate ID detected: {todo.id}. "
+                    f"Keeping first occurrence, removing: '{todo.title}'"
+                )
+                continue
+
+            # Validate basic field types
+            if not isinstance(todo.title, str):
+                logger.warning(
+                    f"Skipping todo {todo.id} with invalid title type: "
+                    f"{type(todo.title).__name__}"
+                )
+                continue
+
+            if not isinstance(todo.status, str):
+                logger.warning(
+                    f"Skipping todo {todo.id} with invalid status type: "
+                    f"{type(todo.status).__name__}"
+                )
+                continue
+
+            # Todo is valid, add it to the repaired list
+            seen_ids.add(todo.id)
+            repaired_todos.append(todo)
+
+        if duplicates_removed > 0:
+            logger.info(
+                f"Data repair completed: Removed {duplicates_removed} duplicate(s). "
+                f"Retained {len(repaired_todos)} unique todo(s)."
+            )
+
+        return repaired_todos
+
     async def _load(self) -> None:
         """Load todos from file asynchronously.
 
@@ -2028,6 +2093,10 @@ class FileStorage(AbstractStorage):
                     except (ValueError, TypeError, KeyError) as e:
                         # Skip invalid todo items but continue loading valid ones
                         logger.warning(f"Skipping invalid todo at index {i}: {e}")
+
+                # Validate and repair todos (Issue #632)
+                # This checks for duplicate IDs, invalid field types, and attempts auto-repair
+                todos = self._validate_and_repair_todos(todos)
 
                 # Update internal state
                 self._todos = todos
