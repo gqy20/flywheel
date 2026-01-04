@@ -167,8 +167,20 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json"):
-        self.path = Path(path).expanduser()
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False):
+        """Initialize FileStorage.
+
+        Args:
+            path: Path to the storage file.
+            compression: Whether to use gzip compression (Issue #652).
+                        When True, .gz extension is automatically added to the path.
+        """
+        self.compression = compression
+        # Add .gz extension if compression is enabled and path doesn't already have it
+        path_obj = Path(path).expanduser()
+        if compression and not str(path_obj).endswith('.gz'):
+            path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
+        self.path = path_obj
 
         # Security fix for Issue #429: Module-level imports ensure thread safety.
         # Windows modules (win32security, win32con, win32api, win32file, pywintypes)
@@ -2101,8 +2113,8 @@ class FileStorage(AbstractStorage):
                 # during parsing, instead of separating read_text() and json.loads()
                 # Acquire file lock for multi-process safety (Issue #268)
 
-                # Auto-detect compression from file extension (Issue #583)
-                is_compressed = str(self.path).endswith('.json.gz')
+                # Use compression setting from initialization (Issue #652)
+                is_compressed = self.compression
 
                 # Read file as bytes first to verify integrity hash (Issue #588)
                 # This allows us to detect file truncation or corruption
@@ -2277,8 +2289,8 @@ class FileStorage(AbstractStorage):
             # during parsing, instead of separating read_text() and json.loads()
             # Acquire file lock for multi-process safety (Issue #268)
 
-            # Auto-detect compression from file extension (Issue #583)
-            is_compressed = str(self.path).endswith('.json.gz')
+            # Use compression setting from initialization (Issue #652)
+            is_compressed = self.compression
 
             # Read file as bytes first to verify integrity hash (Issue #588)
             # This allows us to detect file truncation or corruption
@@ -2465,8 +2477,8 @@ class FileStorage(AbstractStorage):
             }
         }, indent=2)
 
-        # Auto-detect compression from file extension (Issue #583)
-        is_compressed = str(self.path).endswith('.json.gz')
+        # Use compression setting from initialization (Issue #652)
+        is_compressed = self.compression
 
         # Encode data to bytes
         data_bytes = data.encode('utf-8')
@@ -2572,8 +2584,8 @@ class FileStorage(AbstractStorage):
             }
         }, indent=2)
 
-        # Auto-detect compression from file extension (Issue #583)
-        is_compressed = str(self.path).endswith('.json.gz')
+        # Use compression setting from initialization (Issue #652)
+        is_compressed = self.compression
 
         # Encode data to bytes
         data_bytes = data.encode('utf-8')
