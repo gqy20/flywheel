@@ -93,3 +93,49 @@ def test_health_check_idempotent():
     assert result2["healthy"] is True, "Second health_check should return healthy=True"
     assert result3["healthy"] is True, "Third health_check should return healthy=True"
     storage.close()
+
+
+# Tests for Issue #677 - health_check should return bool
+def test_health_check_returns_bool_not_dict(tmp_path):
+    """Test that health_check returns bool (Issue #677)."""
+    from flywheel.storage import AbstractStorage, FileStorage
+
+    # Test that AbstractStorage has health_check as abstract method
+    assert hasattr(AbstractStorage, 'health_check'), \
+        "AbstractStorage should have health_check method"
+
+    # Test that FileStorage.health_check returns bool
+    storage_path = tmp_path / "test_bool.json"
+    storage = FileStorage(str(storage_path))
+    result = storage.health_check()
+    assert isinstance(result, bool), \
+        f"health_check should return bool, got {type(result).__name__}"
+
+
+def test_health_check_bool_true_for_healthy(tmp_path):
+    """Test that health_check returns True for healthy storage (Issue #677)."""
+    from flywheel.storage import FileStorage
+
+    storage_path = tmp_path / "test_healthy_bool.json"
+    storage = FileStorage(str(storage_path))
+    assert storage.health_check() is True, \
+        "health_check should return True for healthy storage"
+
+
+def test_health_check_bool_false_for_unhealthy(tmp_path):
+    """Test that health_check returns False for unhealthy storage (Issue #677)."""
+    from flywheel.storage import FileStorage
+
+    storage_path = tmp_path / "test_unhealthy_bool.json"
+    storage = FileStorage(str(storage_path))
+
+    # Make file read-only to simulate unhealthy state
+    storage_path.touch()
+    storage_path.chmod(0o444)
+
+    try:
+        result = storage.health_check()
+        assert result is False, \
+            f"health_check should return False for read-only storage, got {result}"
+    finally:
+        storage_path.chmod(0o644)  # Restore permissions for cleanup
