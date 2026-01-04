@@ -311,6 +311,138 @@ class FileStorage(AbstractStorage):
                 )
                 self._auto_save_thread.start()
 
+    @classmethod
+    async def create(cls, path: str = "~/.flywheel/todos.json") -> "FileStorage":
+        """Asynchronously create a FileStorage instance without blocking the event loop.
+
+        This is an async factory method that creates a FileStorage instance and runs
+        the synchronous file I/O in a thread pool executor to avoid blocking the event loop (Issue #646).
+
+        The regular __init__ method performs synchronous file I/O which can block the event loop
+        when called from async code. This method uses asyncio.to_thread() to run the file I/O
+        in a separate thread, allowing other async tasks to run concurrently.
+
+        Args:
+            path: The path to the storage file. Defaults to ~/.flywheel/todos.json.
+
+        Returns:
+            A fully initialized FileStorage instance with data loaded from disk.
+
+        Raises:
+            RuntimeError: If a critical initialization failure occurs and no backup was created.
+
+        Example:
+            >>> # In async context
+            >>> storage = await FileStorage.create()
+            >>> # Or with custom path
+            >>> storage = await FileStorage.create(path="/custom/path/todos.json")
+        """
+        # Create instance with minimal initialization
+        # We need to bypass __init__ to avoid blocking, so we use __new__ and manually initialize
+        instance = cls.__new__(cls)
+        instance.path = Path(path).expanduser()
+
+        # Initialize all instance attributes (same as __init__)
+        instance._secure_all_parent_directories(instance.path.parent)
+        instance._todos = []
+        instance._next_id = 1
+        instance._lock = asyncio.Lock()
+        instance._lock_range = 0
+        instance._dirty = False
+        instance._lock_timeout = 30.0
+        instance._lock_retry_interval = 0.1
+        instance.AUTO_SAVE_INTERVAL = 60.0
+        instance.last_saved_time = time.time()
+        instance.MIN_SAVE_INTERVAL = 5.0
+
+        # Gracefully handle load failures to allow object instantiation (Issue #456)
+        # Load data asynchronously in thread pool to avoid blocking event loop (Issue #646)
+        init_success = False
+        try:
+            await asyncio.to_thread(instance._load_sync)
+            init_success = True
+        except (
+            json.JSONDecodeError,  # JSON parsing errors
+            ValueError,  # Invalid data values
+        ) as e:
+            # Catch specific exceptions during load to prevent data loss (Issue #570)
+            logger.warning(
+                f"Failed to load todos from {instance.path}: {e}. "
+                f"Starting with empty state."
+            )
+            # Reset to empty state (already initialized above)
+            instance._todos = []
+            instance._next_id = 1
+            instance._dirty = False
+            # Mark as success since we handled the error gracefully
+            init_success = True
+        except FileNotFoundError:
+            # File doesn't exist - normal case for first run (Issue #601)
+            # No warning needed, just start with empty state
+            # Reset to empty state (already initialized above)
+            instance._todos = []
+            instance._next_id = 1
+            instance._dirty = False
+            # Mark as success since this is normal for first run
+            init_success = True
+        except OSError as e:
+            # Other OSErrors (PermissionError, IOError, etc.) should log warning (Issue #601)
+            logger.warning(
+                f"Failed to load todos from {instance.path}: {e}. "
+                f"Starting with empty state."
+            )
+            # Reset to empty state (already initialized above)
+            instance._todos = []
+            instance._next_id = 1
+            instance._dirty = False
+            # Mark as success since we handled the error gracefully
+            init_success = True
+        except RuntimeError as e:
+            # RuntimeError from _load_sync may or may not have successful backup (Issue #580)
+            # Check error message to determine if backup was created
+            error_msg = str(e)
+            if "Backup saved to" in error_msg or "Backup created at" in error_msg:
+                # Backup was created successfully, we can recover gracefully
+                logger.warning(
+                    f"Data integrity issue in {instance.path}: {e}. "
+                    f"Starting with empty state."
+                )
+                # Reset to empty state (already initialized above)
+                instance._todos = []
+                instance._next_id = 1
+                instance._dirty = False
+                # Mark as success since backup exists and we handled the error
+                init_success = True
+            else:
+                # Critical failure without successful backup (Issue #580)
+                # This could mean:
+                # 1. Original RuntimeError from _load_sync (e.g., format validation failure)
+                # 2. Backup creation failed
+                # In either case, init_success should remain False
+                logger.error(
+                    f"Critical initialization failure for {instance.path}: {e}. "
+                    f"Object not properly initialized."
+                )
+                # init_success remains False, atexit will not be registered
+                # Re-raise to inform the caller of the failure
+                raise
+
+        # Register cleanup handler and start auto-save thread only if initialization succeeded (Issue #525)
+        if init_success:
+            # Register cleanup handler to save dirty data on exit (Issue #203)
+            atexit.register(instance._cleanup)
+
+            # Start auto-save background thread (Issue #592)
+            instance._auto_save_stop_event = threading.Event()
+            instance._auto_save_thread = threading.Thread(
+                target=instance._auto_save_worker,
+                daemon=True,
+                name="FileStorage-auto-save"
+            )
+            instance._auto_save_thread.start()
+
+        return instance
+
     def _get_file_lock_range_from_handle(self, file_handle) -> tuple:
         """Get the Windows file lock range for mandatory locking.
 
