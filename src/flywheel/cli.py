@@ -16,11 +16,20 @@ logger = logging.getLogger(__name__)
 def sanitize_tags(tags_str):
     """Sanitize tag input to prevent injection attacks.
 
+    This function removes characters that could be used for:
+    - Shell injection (metacharacters like ;, |, &, `, $, (), <, >)
+    - JSON injection (quotes and other special characters)
+    - Command injection (newlines, null bytes)
+
     Args:
         tags_str: Comma-separated tag string from user input
 
     Returns:
         List of sanitized tags with dangerous characters removed
+
+    Security:
+        Addresses Issue #599 - Ensures tags are safe for storage backends
+        including JSON files and potential SQL databases.
     """
     if not tags_str:
         return []
@@ -29,8 +38,9 @@ def sanitize_tags(tags_str):
     raw_tags = tags_str.split(",")
     sanitized_tags = []
 
-    # Define dangerous pattern: shell metacharacters, command substitution, null bytes, newlines
-    dangerous_chars = r'[;|&`$()\\<>\n\r\x00]'
+    # Define dangerous pattern: shell metacharacters, command substitution, null bytes, newlines,
+    # and JSON-injection characters (quotes) - Fix for Issue #599
+    dangerous_chars = r'[;|&`$()\\<>\n\r\x00\'"]'
 
     for tag in raw_tags:
         # Strip whitespace
