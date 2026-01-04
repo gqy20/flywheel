@@ -3085,6 +3085,30 @@ class FileStorage(AbstractStorage):
         # It is intentionally idempotent (safe to call multiple times)
         pass
 
+    def transaction(self):
+        """Create a transaction context manager for batch operations.
+
+        This method returns a context manager that acquires the storage lock
+        for the duration of a batch operation, ensuring atomic execution of
+        multiple operations. This is useful for read-modify-write patterns
+        where you need to ensure data isn't modified by other processes
+        during the operation.
+
+        Returns:
+            FileStorage: The storage instance itself as a context manager.
+
+        Example:
+            >>> with storage.transaction():
+            ...     storage.add(Todo(title="Task 1"))
+            ...     storage.update(1, Todo(title="Updated Task 1"))
+            ...     storage.add(Todo(title="Task 2"))
+
+        Note:
+            The transaction is reentrant, so you can nest transactions if needed.
+            The lock is automatically released even if an exception occurs.
+        """
+        return self
+
     def __enter__(self):
         """Enter the context manager.
 
