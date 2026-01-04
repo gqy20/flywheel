@@ -249,7 +249,7 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False):
         """Initialize FileStorage.
 
         Args:
@@ -259,6 +259,9 @@ class FileStorage(AbstractStorage):
             backup_count: Number of backup versions to keep (Issue #693).
                           If 0, no backups are created. If > 0, backups are rotated
                           (e.g., .bak, .bak.1, .bak.2, etc.).
+            enable_cache: Whether to enable memory cache (Issue #703).
+                         When True, get and list operations use cached data,
+                         reducing disk I/O and improving performance.
         """
         self.compression = compression
         self.backup_count = backup_count
@@ -297,6 +300,10 @@ class FileStorage(AbstractStorage):
         self._async_lock = asyncio.Lock()  # Async lock for asynchronous operations (Issue #666)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
+        # Memory cache for improved get/list performance (Issue #703)
+        # When enabled, get and list operations return cached data without disk I/O
+        self._cache_enabled = enable_cache
+        self._cache_dirty = False  # Track if cache needs invalidation
         # File lock timeout to prevent indefinite hangs (Issue #396)
         # 30 seconds is a reasonable timeout for file operations
         self._lock_timeout: float = 30.0
@@ -416,7 +423,7 @@ class FileStorage(AbstractStorage):
                 self._auto_save_thread.start()
 
     @classmethod
-    async def create(cls, path: str = "~/.flywheel/todos.json") -> "FileStorage":
+    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False) -> "FileStorage":
         """Asynchronously create a FileStorage instance without blocking the event loop.
 
         This is an async factory method that creates a FileStorage instance and runs
@@ -428,6 +435,9 @@ class FileStorage(AbstractStorage):
 
         Args:
             path: The path to the storage file. Defaults to ~/.flywheel/todos.json.
+            compression: Whether to use gzip compression (Issue #652).
+            backup_count: Number of backup versions to keep (Issue #693).
+            enable_cache: Whether to enable memory cache (Issue #703).
 
         Returns:
             A fully initialized FileStorage instance with data loaded from disk.
@@ -444,7 +454,13 @@ class FileStorage(AbstractStorage):
         # Create instance with minimal initialization
         # We need to bypass __init__ to avoid blocking, so we use __new__ and manually initialize
         instance = cls.__new__(cls)
-        instance.path = Path(path).expanduser()
+        instance.compression = compression
+        instance.backup_count = backup_count
+        # Add .gz extension if compression is enabled and path doesn't already have it
+        path_obj = Path(path).expanduser()
+        if compression and not str(path_obj).endswith('.gz'):
+            path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
+        instance.path = path_obj
 
         # Initialize all instance attributes (same as __init__)
         instance._secure_all_parent_directories(instance.path.parent)
@@ -453,6 +469,9 @@ class FileStorage(AbstractStorage):
         instance._lock = threading.Lock()
         instance._lock_range = 0
         instance._dirty = False
+        # Memory cache for improved get/list performance (Issue #703)
+        instance._cache_enabled = enable_cache
+        instance._cache_dirty = False
         instance._lock_timeout = 30.0
         instance._lock_retry_interval = 0.1
         instance.AUTO_SAVE_INTERVAL = 60.0
@@ -2900,6 +2919,9 @@ class FileStorage(AbstractStorage):
             new_todos = self._todos + [todo]
             # Mark as dirty since we're modifying the data (Issue #203)
             self._dirty = True
+            # Mark cache as dirty when data changes (Issue #703)
+            if self._cache_enabled:
+                self._cache_dirty = True
             # Save and update internal state atomically
             # _save_with_todos will update self._todos and self._next_id
             # only after successful write (fixes Issue #9)
@@ -2933,6 +2955,9 @@ class FileStorage(AbstractStorage):
                     new_todos[i] = todo
                     # Mark as dirty since we're modifying the data (Issue #203)
                     self._dirty = True
+                    # Mark cache as dirty when data changes (Issue #703)
+                    if self._cache_enabled:
+                        self._cache_dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
                     # Check if auto-save should be triggered (Issue #547)
@@ -2949,6 +2974,9 @@ class FileStorage(AbstractStorage):
                     new_todos = self._todos[:i] + self._todos[i+1:]
                     # Mark as dirty since we're modifying the data (Issue #203)
                     self._dirty = True
+                    # Mark cache as dirty when data changes (Issue #703)
+                    if self._cache_enabled:
+                        self._cache_dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
 
@@ -3023,6 +3051,9 @@ class FileStorage(AbstractStorage):
 
             # Mark as dirty and save once for all todos
             self._dirty = True
+            # Mark cache as dirty when data changes (Issue #703)
+            if self._cache_enabled:
+                self._cache_dirty = True
             self._save_with_todos(combined_todos)
 
             # Check auto-save once after all additions
@@ -3065,6 +3096,9 @@ class FileStorage(AbstractStorage):
             # Only save if we actually updated something
             if updated_todos:
                 self._dirty = True
+                # Mark cache as dirty when data changes (Issue #703)
+                if self._cache_enabled:
+                    self._cache_dirty = True
                 self._save_with_todos(new_todos)
                 self._check_auto_save()
 
