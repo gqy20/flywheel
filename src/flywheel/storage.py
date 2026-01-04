@@ -39,9 +39,10 @@ logger = logging.getLogger(__name__)
 # installed, the import will fail immediately with a clear ImportError, preventing
 # runtime crashes later. This is preferred over lazy imports for thread safety.
 #
-# Security fix for Issue #674: pywin32 is REQUIRED on Windows. The module will
-# raise ImportError if pywin32 is not available, preventing unsafe operation
-# without file locking in multi-process environments.
+# Security fix for Issue #674, #696: pywin32 is preferred on Windows.
+# The module will attempt to import pywin32 for optimal file locking behavior.
+# If pywin32 is not available, the module will fall back to a slower but
+# safe pure Python file lock implementation to maintain portability.
 if os.name == 'nt':  # Windows
     # Thread-safe module-level imports for Windows security (Issue #429, #674)
     # These imports happen once when the module is loaded, ensuring all threads
@@ -50,6 +51,10 @@ if os.name == 'nt':  # Windows
     # Security fix for Issue #535: Declare module variables at global scope
     # before try/except to ensure they are accessible everywhere in the module.
     # This prevents NameError if the variables are accessed before import completes.
+    #
+    # Fix for Issue #696: Allow graceful fallback when pywin32 is not available
+    # instead of raising ImportError. This maintains code portability while still
+    # preferring pywin32 for optimal performance on Windows.
     win32security = None
     win32con = None
     win32api = None
@@ -62,17 +67,20 @@ if os.name == 'nt':  # Windows
         import win32api
         import win32file
         import pywintypes
-    except ImportError as e:
-        # Security fix for Issue #674: Raise error instead of warning
-        # On Windows, pywin32 is REQUIRED for safe operation. Without it,
-        # file locking is disabled, which can cause data corruption in
-        # multi-process/multi-threaded environments.
-        raise ImportError(
-            "pywin32 is required on Windows for safe operation. "
-            "Without pywin32, file locking is disabled, which can cause "
-            "data corruption when multiple instances run concurrently. "
-            "Please install pywin32: pip install pywin32"
-        ) from e
+    except ImportError:
+        # Issue #696: Fall back to degraded mode instead of raising ImportError.
+        # On Windows, pywin32 is preferred for optimal file locking, but the module
+        # will use a slower pure Python fallback to maintain portability. Users
+        # are encouraged to install pywin32 for best performance:
+        #   pip install pywin32
+        import warnings
+        warnings.warn(
+            "pywin32 is not installed. File locking will use a slower pure Python "
+            "fallback. For optimal performance on Windows, install pywin32: "
+            "pip install pywin32",
+            UserWarning,
+            stacklevel=2
+        )
 else:  # Unix-like systems
     # Security fix for Issue #679: Handle missing fcntl gracefully
     # On some Unix-like systems (e.g., Cygwin, restricted environments),
@@ -93,11 +101,23 @@ else:  # Unix-like systems
 def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without pywin32.
 
-    Security fix for Issue #674: On Windows, degraded mode is no longer
-    supported. The module will raise ImportError if pywin32 is not available.
-    This function now always returns False.
+    Returns True if running on Windows without pywin32, which means
+    file locking will use a slower pure Python fallback.
+
+    Fix for Issue #696: Allow degraded mode for portability instead of
+    raising ImportError. This allows the code to run on Windows without
+    pywin32, using a fallback implementation.
+
+    Returns:
+        bool: True if in degraded mode (Windows without pywin32),
+              False otherwise (Windows with pywin32, or Unix systems)
     """
-    return False  # Degraded mode removed for security
+    if os.name != 'nt':
+        # Unix systems always use fcntl, not degraded
+        return False
+
+    # On Windows, check if pywin32 modules are available
+    return win32file is None
 
 
 class AbstractStorage(abc.ABC):
