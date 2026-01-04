@@ -154,7 +154,7 @@ class CLI:
             title=sanitize_string(args.title),
             description=sanitize_string(args.description or ""),
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
-            due_date=args.due_date,
+            due_date=sanitize_string(args.due_date) if args.due_date else None,
             tags=sanitize_tags(args.tags) if args.tags else [],
         )
 
