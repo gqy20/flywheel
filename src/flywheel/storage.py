@@ -237,7 +237,7 @@ class FileStorage(AbstractStorage):
         self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
-        self._lock = asyncio.Lock()  # Async lock for concurrent async operations (Issue #582)
+        self._lock = threading.Lock()  # Thread lock for concurrent operations (Issue #582, #661)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
         # File lock timeout to prevent indefinite hangs (Issue #396)
@@ -388,7 +388,7 @@ class FileStorage(AbstractStorage):
         instance._secure_all_parent_directories(instance.path.parent)
         instance._todos = []
         instance._next_id = 1
-        instance._lock = asyncio.Lock()
+        instance._lock = threading.Lock()
         instance._lock_range = 0
         instance._dirty = False
         instance._lock_timeout = 30.0
