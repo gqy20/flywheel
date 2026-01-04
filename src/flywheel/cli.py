@@ -16,20 +16,29 @@ logger = logging.getLogger(__name__)
 def sanitize_tags(tags_str):
     """Sanitize tag input to prevent injection attacks.
 
-    This function removes characters that could be used for:
+    This function uses a whitelist approach to only allow safe characters:
+    - Alphanumeric characters (a-z, A-Z, 0-9)
+    - Underscores (_)
+    - Hyphens (-)
+
+    This prevents:
     - Shell injection (metacharacters like ;, |, &, `, $, (), <, >)
     - JSON injection (quotes and other special characters)
     - Command injection (newlines, null bytes)
+    - Unicode spoofing characters (fullwidth characters, zero-width characters,
+      homoglyphs, control characters, bidirectional overrides, etc.)
 
     Args:
         tags_str: Comma-separated tag string from user input
 
     Returns:
-        List of sanitized tags with dangerous characters removed
+        List of sanitized tags containing only allowed characters
 
     Security:
         Addresses Issue #599 - Ensures tags are safe for storage backends
         including JSON files and potential SQL databases.
+        Addresses Issue #604 - Uses whitelist approach to block Unicode
+        spoofing characters and control characters.
     """
     if not tags_str:
         return []
@@ -38,16 +47,20 @@ def sanitize_tags(tags_str):
     raw_tags = tags_str.split(",")
     sanitized_tags = []
 
-    # Define dangerous pattern: shell metacharacters, command substitution, null bytes, newlines,
-    # and JSON-injection characters (quotes) - Fix for Issue #599
-    dangerous_chars = r'[;|&`$()\\<>\n\r\x00\'"]'
-
     for tag in raw_tags:
         # Strip whitespace
         tag = tag.strip()
 
-        # Remove dangerous characters that could be used for injection
-        tag = re.sub(dangerous_chars, '', tag)
+        # Use whitelist approach: only keep word characters (\w = [a-zA-Z0-9_])
+        # and hyphens. This removes all dangerous characters including:
+        # - Shell metacharacters
+        # - Unicode spoofing characters
+        # - Control characters
+        # - Zero-width characters
+        # - Bidirectional overrides
+        # - Fullwidth characters
+        # - Emoji and symbols
+        tag = re.sub(r'[^\w\-]', '', tag)
 
         # Only add non-empty tags after sanitization
         if tag:
