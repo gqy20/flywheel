@@ -19,7 +19,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     This function removes dangerous characters that could be used for:
     - HTML/Script injection (removes <, >, quotes)
     - Shell injection (removes ;, |, &, `, $, (, ))
-    - Command injection (removes newlines, null bytes)
+    - Command injection (removes newlines, tabs, null bytes)
     - Format string attacks (removes %)
     - Unicode spoofing (removes fullwidth characters, zero-width characters,
       control characters, bidirectional overrides)
@@ -56,8 +56,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     dangerous_chars = r'<>\"\'`$&|;()\[\]{}\\%'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
-    # Remove control characters (except newline and tab for basic formatting)
-    s = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', s)
+    # Remove all ASCII control characters (including newline and tab)
+    s = re.sub(r'[\x00-\x1F\x7F]', '', s)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
