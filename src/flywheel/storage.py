@@ -38,18 +38,18 @@ logger = logging.getLogger(__name__)
 # On Windows, all pywin32 modules are imported at module level. If pywin32 is not
 # installed, the import will fail immediately with a clear ImportError, preventing
 # runtime crashes later. This is preferred over lazy imports for thread safety.
+#
+# Security fix for Issue #674: pywin32 is REQUIRED on Windows. The module will
+# raise ImportError if pywin32 is not available, preventing unsafe operation
+# without file locking in multi-process environments.
 if os.name == 'nt':  # Windows
-    # Thread-safe module-level imports for Windows security (Issue #429)
+    # Thread-safe module-level imports for Windows security (Issue #429, #674)
     # These imports happen once when the module is loaded, ensuring all threads
     # see consistent module availability and preventing race conditions.
     #
     # Security fix for Issue #535: Declare module variables at global scope
     # before try/except to ensure they are accessible everywhere in the module.
     # This prevents NameError if the variables are accessed before import completes.
-    #
-    # Portability fix for Issue #671: Allow module to import without pywin32
-    # for better portability. The module will operate in degraded mode with
-    # warnings when pywin32 is not available.
     win32security = None
     win32con = None
     win32api = None
@@ -62,16 +62,17 @@ if os.name == 'nt':  # Windows
         import win32api
         import win32file
         import pywintypes
-    except ImportError:
-        # Portability fix for Issue #671: Log warning instead of raising ImportError
-        # This allows the module to be imported on Windows without pywin32,
-        # supporting single-user scenarios while warning about limitations.
-        logger.warning(
-            "pywin32 is not installed on Windows. File locking and directory "
-            "security features are disabled. This may cause data corruption "
-            "when multiple instances run concurrently. For safe operation, "
-            "install pywin32: pip install pywin32"
-        )
+    except ImportError as e:
+        # Security fix for Issue #674: Raise error instead of warning
+        # On Windows, pywin32 is REQUIRED for safe operation. Without it,
+        # file locking is disabled, which can cause data corruption in
+        # multi-process/multi-threaded environments.
+        raise ImportError(
+            "pywin32 is required on Windows for safe operation. "
+            "Without pywin32, file locking is disabled, which can cause "
+            "data corruption when multiple instances run concurrently. "
+            "Please install pywin32: pip install pywin32"
+        ) from e
 else:  # Unix-like systems
     import fcntl
 
@@ -79,15 +80,11 @@ else:  # Unix-like systems
 def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without pywin32.
 
-    Portability fix for Issue #671: Returns True on Windows when pywin32
-    is not available. This allows the module to operate in degraded mode
-    with appropriate warnings rather than failing to import.
+    Security fix for Issue #674: On Windows, degraded mode is no longer
+    supported. The module will raise ImportError if pywin32 is not available.
+    This function now always returns False.
     """
-    if os.name != 'nt':
-        return False  # Unix systems don't have degraded mode
-
-    # On Windows, check if any of the required pywin32 modules are None
-    return win32file is None
+    return False  # Degraded mode removed for security
 
 
 class AbstractStorage(abc.ABC):
