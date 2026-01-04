@@ -218,9 +218,10 @@ class FileStorage(AbstractStorage):
         # If the file is corrupted or malformed, log the error and start with empty state
         # Track initialization success to control cleanup registration (Issue #596)
         # This prevents calling cleanup on partially initialized objects
+        # Use synchronous loading to avoid asyncio.run() in __init__ (Issue #641)
         init_success = False
         try:
-            asyncio.run(self._load())
+            self._load_sync()
             init_success = True
         except (
             json.JSONDecodeError,  # JSON parsing errors
@@ -2120,6 +2121,182 @@ class FileStorage(AbstractStorage):
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Failed to load todos from {self.path}")
                 raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
+
+    def _load_sync(self) -> None:
+        """Load todos from file synchronously.
+
+        This is a synchronous version of _load() for use in __init__.
+        It uses standard file I/O instead of async I/O to avoid issues
+        with asyncio.run() being called from __init__ (Issue #641).
+
+        File read and state update are performed atomically to prevent
+        race conditions where the file could change between reading and
+        updating internal state.
+        """
+        if not self.path.exists():
+            self._todos = []
+            self._next_id = 1
+            self._dirty = False  # Reset dirty flag (Issue #203)
+            return
+
+        try:
+            # Read file and parse JSON atomically using json.load()
+            # This prevents TOCTOU issues by keeping the file handle open
+            # during parsing, instead of separating read_text() and json.loads()
+            # Acquire file lock for multi-process safety (Issue #268)
+
+            # Auto-detect compression from file extension (Issue #583)
+            is_compressed = str(self.path).endswith('.json.gz')
+
+            # Read file as bytes first to verify integrity hash (Issue #588)
+            # This allows us to detect file truncation or corruption
+            # Use standard file I/O for synchronous loading
+            with open(self.path, 'rb') as f:
+                self._acquire_file_lock(f)
+                try:
+                    file_bytes = f.read()
+                finally:
+                    self._release_file_lock(f)
+
+            # Extract and verify integrity hash from end of file (Issue #588)
+            # Format: \n##INTEGRITY:<hash>##\n
+            file_str = file_bytes.decode('utf-8')
+            integrity_marker = '##INTEGRITY:'
+            marker_start = file_str.rfind(integrity_marker)
+
+            if marker_start != -1:
+                # Found integrity marker - extract and verify hash
+                marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                if marker_end != -1:
+                    stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+
+                    # Calculate hash of the data before the integrity marker
+                    # Find the newline before the marker
+                    data_end = file_str.rfind('\n', 0, marker_start)
+                    if data_end == -1:
+                        data_end = 0  # No newline found, use entire content before marker
+
+                    actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                    calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                    if calculated_hash != stored_hash:
+                        # Hash mismatch - data corruption detected
+                        backup_path = self._create_backup(
+                            f"Integrity hash mismatch in {self.path}: "
+                            f"expected {stored_hash}, got {calculated_hash}"
+                        )
+                        raise RuntimeError(
+                            f"Data integrity verification failed. Hash mismatch. "
+                            f"Backup saved to {backup_path}"
+                        )
+
+                    # Remove integrity marker from data for JSON parsing
+                    file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
+                    file_bytes = file_str.encode('utf-8')
+
+            # Decompress if needed
+            if is_compressed:
+                file_bytes = gzip.decompress(file_bytes)
+
+            raw_data = json.loads(file_bytes.decode('utf-8'))
+
+            # Validate schema before deserializing (Issue #7)
+            # This prevents injection attacks and malformed data from causing crashes
+            self._validate_storage_schema(raw_data)
+
+            # Handle both new format (dict with metadata) and old format (list)
+            # Schema validation already performed above (Issue #7)
+            if isinstance(raw_data, dict):
+                # New format with metadata
+                todos_data = raw_data.get("todos", [])
+
+                # Verify data integrity using checksum (Issue #223)
+                metadata = raw_data.get("metadata", {})
+                stored_checksum = metadata.get("checksum")
+
+                if stored_checksum:
+                    # Calculate checksum of loaded todos
+                    calculated_checksum = None
+                    try:
+                        # Temporarily deserialize todos for checksum calculation
+                        temp_todos = []
+                        for item in todos_data:
+                            try:
+                                temp_todos.append(Todo.from_dict(item))
+                            except (ValueError, TypeError, KeyError):
+                                pass
+                        calculated_checksum = self._calculate_checksum(temp_todos)
+
+                        if calculated_checksum != stored_checksum:
+                            # Checksum mismatch - data corruption detected
+                            backup_path = self._create_backup(
+                                f"Checksum mismatch in {self.path}: "
+                                f"expected {stored_checksum}, got {calculated_checksum}"
+                            )
+                            raise RuntimeError(
+                                f"Data integrity check failed. Checksum mismatch. "
+                                f"Backup saved to {backup_path}"
+                            )
+                    except Exception as e:
+                        if isinstance(e, RuntimeError):
+                            raise
+                        # If checksum calculation fails, log warning but continue
+                        logger.warning(f"Failed to verify checksum: {e}")
+
+                # Use direct access after validation to ensure type safety (Issue #219)
+                # _validate_storage_schema already confirmed next_id is an int if it exists
+                next_id = raw_data["next_id"] if "next_id" in raw_data else 1
+            elif isinstance(raw_data, list):
+                # Old format - backward compatibility
+                todos_data = raw_data
+                # Calculate next_id from existing todos, safely handling invalid items
+                valid_ids = []
+                for item in raw_data:
+                    if isinstance(item, dict):
+                        try:
+                            todo = Todo.from_dict(item)
+                            valid_ids.append(todo.id)
+                        except (ValueError, TypeError, KeyError):
+                            # Skip invalid items when calculating next_id
+                            pass
+                next_id = max(set(valid_ids), default=0) + 1
+
+            # Deserialize todo items
+            todos = []
+            for i, item in enumerate(todos_data):
+                try:
+                    todo = Todo.from_dict(item)
+                    todos.append(todo)
+                except (ValueError, TypeError, KeyError) as e:
+                    # Skip invalid todo items but continue loading valid ones
+                    logger.warning(f"Skipping invalid todo at index {i}: {e}")
+
+            # Validate and repair todos (Issue #632)
+            # This checks for duplicate IDs, invalid field types, and attempts auto-repair
+            todos = self._validate_and_repair_todos(todos)
+
+            # Update internal state
+            self._todos = todos
+            self._next_id = next_id
+            # Reset dirty flag after successful load (Issue #203)
+            self._dirty = False
+        except json.JSONDecodeError as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = self._create_backup(f"Invalid JSON in {self.path}")
+            # Include detailed error context: line number, column, and position
+            # This helps users locate and fix JSON syntax errors manually (Issue #548)
+            raise RuntimeError(
+                f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
+                f"Backup saved to {backup_path}"
+            ) from e
+        except RuntimeError as e:
+            # Re-raise RuntimeError without creating backup
+            # This handles format validation errors that should not trigger backup
+            raise
+        except Exception as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = self._create_backup(f"Failed to load todos from {self.path}")
+            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
     async def _save(self) -> None:
         """Save todos to file using atomic write asynchronously.
