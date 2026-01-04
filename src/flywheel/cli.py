@@ -16,19 +16,20 @@ logger = logging.getLogger(__name__)
 def sanitize_string(s: str, max_length: int = 100000) -> str:
     """Sanitize string input to prevent injection attacks.
 
-    This function removes dangerous characters that could be used for:
-    - HTML/Script injection (removes <, >, quotes)
-    - Shell injection (removes ;, |, &, `, $, (, ))
-    - Command injection (removes newlines, tabs, null bytes)
-    - Format string attacks (removes %)
-    - Unicode spoofing (removes fullwidth characters, zero-width characters,
-      control characters, bidirectional overrides)
+    This function takes a minimal approach to sanitization, removing only
+    characters that could cause security issues while preserving legitimate
+    content like quotes, percentage signs, and code snippets.
 
-    However, it preserves:
-    - Alphanumeric characters (a-z, A-Z, 0-9)
-    - Basic punctuation (period, comma, colon, exclamation, question mark)
-    - Whitespace (spaces for readability)
-    - Hyphens and underscores for compound words
+    It removes:
+    - Shell injection metacharacters (;, |, &, `, $, (, ), <, >)
+    - Control characters (newlines, tabs, null bytes) that could break storage formats
+    - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
+
+    It preserves:
+    - All alphanumeric characters and common punctuation
+    - Quotes (single ', double ") for text and code snippets
+    - Percentage (%) for legitimate use cases
+    - Backslash (\) and braces ([, ], {, }) for code and data structures
 
     Args:
         s: String to sanitize
@@ -38,8 +39,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Sanitized string with dangerous characters removed
 
     Security:
-        Addresses Issue #609 - Ensures title and description fields are safe
-        for storage backends that may render HTML or execute shell commands.
+        Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
+        while still preventing injection attacks. Storage backends should use
+        parameterized queries or proper escaping for their specific format.
         Addresses Issue #619 - Prevents ReDoS via input length limits and
         safe regex patterns.
     """
@@ -50,13 +52,15 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     if len(s) > max_length:
         s = s[:max_length]
 
-    # Define blacklist of dangerous characters to remove.
+    # Define blacklist of dangerous shell metacharacters to remove.
     # Using a simple character class with explicit escaping to prevent ReDoS.
-    # Characters removed: < > " ' ` $ & | ; ( ) [ ] { } \ %
-    dangerous_chars = r'<>\"\'`$&|;()\[\]{}\\%'
+    # Characters removed: ; | & ` $ ( ) < >
+    # Note: We preserve quotes, %, \, [, ], {, } for legitimate content
+    dangerous_chars = r';|&`$()<>'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
+    # These could break JSON or other storage formats
     s = re.sub(r'[\x00-\x1F\x7F]', '', s)
 
     # Remove Unicode spoofing characters:
