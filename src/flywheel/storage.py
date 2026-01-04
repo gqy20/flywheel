@@ -46,6 +46,10 @@ if os.name == 'nt':  # Windows
     # Security fix for Issue #535: Declare module variables at global scope
     # before try/except to ensure they are accessible everywhere in the module.
     # This prevents NameError if the variables are accessed before import completes.
+    #
+    # Portability fix for Issue #671: Allow module to import without pywin32
+    # for better portability. The module will operate in degraded mode with
+    # warnings when pywin32 is not available.
     win32security = None
     win32con = None
     win32api = None
@@ -58,17 +62,16 @@ if os.name == 'nt':  # Windows
         import win32api
         import win32file
         import pywintypes
-    except ImportError as e:
-        # Security fix for Issue #559: Windows requires pywin32 for safe operation
-        # Running without file locking on multi-user systems (Windows Terminal Server,
-        # persistent CI workers) can lead to data corruption under concurrency.
-        # It is safer to require pywin32 explicitly than to allow insecure degraded mode.
-        raise ImportError(
-            f"pywin32 is required on Windows for safe operation. "
-            f"Without pywin32, file locking and directory security are disabled, "
-            f"which can cause data corruption when multiple instances run concurrently. "
-            f"Please install pywin32: pip install pywin32"
-        ) from e
+    except ImportError:
+        # Portability fix for Issue #671: Log warning instead of raising ImportError
+        # This allows the module to be imported on Windows without pywin32,
+        # supporting single-user scenarios while warning about limitations.
+        logger.warning(
+            "pywin32 is not installed on Windows. File locking and directory "
+            "security features are disabled. This may cause data corruption "
+            "when multiple instances run concurrently. For safe operation, "
+            "install pywin32: pip install pywin32"
+        )
 else:  # Unix-like systems
     import fcntl
 
@@ -76,14 +79,15 @@ else:  # Unix-like systems
 def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without pywin32.
 
-    Security fix for Issue #559: This function now always returns False.
-    Windows requires pywin32 for safe operation, and the ImportError is
-    raised at module import time if pywin32 is missing. This prevents
-    running in insecure degraded mode without file locking.
+    Portability fix for Issue #671: Returns True on Windows when pywin32
+    is not available. This allows the module to operate in degraded mode
+    with appropriate warnings rather than failing to import.
     """
-    # Always return False since degraded mode is no longer supported
-    # Windows will raise ImportError at import time if pywin32 is missing
-    return False
+    if os.name != 'nt':
+        return False  # Unix systems don't have degraded mode
+
+    # On Windows, check if any of the required pywin32 modules are None
+    return win32file is None
 
 
 class AbstractStorage(abc.ABC):
@@ -604,6 +608,15 @@ class FileStorage(AbstractStorage):
             - Unix: Uses LOCK_EX | LOCK_NB with retry loop and timeout
         """
         if os.name == 'nt':  # Windows
+            # Portability fix for Issue #671: Check if running in degraded mode
+            if _is_degraded_mode():
+                # pywin32 is not available - log warning and skip file locking
+                logger.warning(
+                    "File locking is disabled in degraded mode (pywin32 not installed). "
+                    "Concurrent access may cause data corruption."
+                )
+                return  # Skip file locking in degraded mode
+
             # Windows locking: win32file.LockFileEx for MANDATORY locking (Issue #451)
             # SECURITY: Mandatory locks enforce mutual exclusion on ALL processes
             # - Prevents malicious or unaware processes from writing concurrently
@@ -790,6 +803,11 @@ class FileStorage(AbstractStorage):
             ignored (Issue #376).
         """
         if os.name == 'nt':  # Windows
+            # Portability fix for Issue #671: Check if running in degraded mode
+            if _is_degraded_mode():
+                # pywin32 is not available - nothing to release
+                return  # Skip file unlocking in degraded mode
+
             # Windows unlocking: win32file.UnlockFile (Issue #451)
             # Mandatory lock release for strong synchronization
             # Unlock range must match lock range exactly (Issue #271)
@@ -883,6 +901,16 @@ class FileStorage(AbstractStorage):
                     f"Cannot continue without secure directory permissions."
                 ) from e
         else:  # Windows
+            # Portability fix for Issue #671: Check if running in degraded mode
+            if _is_degraded_mode():
+                # pywin32 is not available - log warning and skip directory security
+                logger.warning(
+                    f"Directory security is disabled in degraded mode (pywin32 not installed). "
+                    f"Directory '{directory}' may have insecure permissions. "
+                    f"This is UNSAFE for production use."
+                )
+                return  # Skip directory security in degraded mode
+
             # Security fix for Issue #429: Windows modules are imported at module level,
             # ensuring thread-safe initialization. Modules are available immediately
             # when this code runs, preventing race conditions.
@@ -1146,111 +1174,120 @@ class FileStorage(AbstractStorage):
                 try:
                     if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
                         if not directory.exists():
-                            # Security fix for Issue #429: Windows modules are imported at module level,
-                            # ensuring thread-safe initialization. Modules are available immediately.
+                            # Portability fix for Issue #671: Check if running in degraded mode
+                            if _is_degraded_mode():
+                                # pywin32 is not available - fall back to basic directory creation
+                                logger.warning(
+                                    f"Creating directory '{directory}' without security in degraded mode "
+                                    f"(pywin32 not installed). This is UNSAFE for production use."
+                                )
+                                directory.mkdir(mode=0o700, exist_ok=True)
+                            else:
+                                # Security fix for Issue #429: Windows modules are imported at module level,
+                                # ensuring thread-safe initialization. Modules are available immediately.
 
-                            # Security fix for Issue #400: Use CreateDirectory with security descriptor
-                            # to eliminate the time window between directory creation and ACL application.
-                            # This is truly atomic - the directory is created with the correct ACLs
-                            # from the very moment it exists.
-                            #
-                            # First, prepare the security descriptor
-                            # Get the current user's SID
-                            user = win32api.GetUserName()
+                                # Security fix for Issue #400: Use CreateDirectory with security descriptor
+                                # to eliminate the time window between directory creation and ACL application.
+                                # This is truly atomic - the directory is created with the correct ACLs
+                                # from the very moment it exists.
+                                #
+                                # First, prepare the security descriptor
+                                # Get the current user's SID
+                                user = win32api.GetUserName()
 
-                            # Fix Issue #251: Extract pure username if GetUserName returns
-                            # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
-                            if '\\' in user:
-                                parts = user.rsplit('\\', 1)
-                                if len(parts) == 2:
-                                    user = parts[1]
+                                # Fix Issue #251: Extract pure username if GetUserName returns
+                                # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
+                                if '\\' in user:
+                                    parts = user.rsplit('\\', 1)
+                                    if len(parts) == 2:
+                                        user = parts[1]
 
-                            # Get domain
-                            try:
-                                name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
-                                if not isinstance(name, str):
-                                    raise TypeError(
-                                        f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                                # Get domain
+                                try:
+                                    name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                                    if not isinstance(name, str):
+                                        raise TypeError(
+                                            f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                                        )
+                                    # Extract domain from the qualified DN
+                                    parts = name.split(',')
+                                    dc_parts = []
+                                    for p in parts:
+                                        p = p.strip()
+                                        if p.startswith('DC='):
+                                            split_parts = p.split('=', 1)
+                                            if len(split_parts) >= 2:
+                                                dc_parts.append(split_parts[1])
+                                    if dc_parts:
+                                        domain = '.'.join(dc_parts)
+                                    else:
+                                        domain = win32api.GetComputerName()
+                                except (TypeError, ValueError):
+                                    raise RuntimeError(
+                                        f"Cannot set Windows security: GetUserNameEx returned invalid data. "
+                                        f"Install pywin32: pip install pywin32"
                                     )
-                                # Extract domain from the qualified DN
-                                parts = name.split(',')
-                                dc_parts = []
-                                for p in parts:
-                                    p = p.strip()
-                                    if p.startswith('DC='):
-                                        split_parts = p.split('=', 1)
-                                        if len(split_parts) >= 2:
-                                            dc_parts.append(split_parts[1])
-                                if dc_parts:
-                                    domain = '.'.join(dc_parts)
-                                else:
+                                except Exception:
                                     domain = win32api.GetComputerName()
-                            except (TypeError, ValueError):
-                                raise RuntimeError(
-                                    f"Cannot set Windows security: GetUserNameEx returned invalid data. "
-                                    f"Install pywin32: pip install pywin32"
+
+                                # Validate domain
+                                if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                                    raise RuntimeError(
+                                        "Cannot set Windows security: Unable to determine domain. "
+                                        "Install pywin32: pip install pywin32"
+                                    )
+
+                                # Validate user
+                                if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                                    raise ValueError(
+                                        f"Invalid user name '{user}': Cannot set Windows security."
+                                    )
+
+                                # Lookup account SID
+                                try:
+                                    sid, _, _ = win32security.LookupAccountName(domain, user)
+                                except Exception as e:
+                                    raise RuntimeError(
+                                        f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
+                                        f"Install pywin32: pip install pywin32. Error: {e}"
+                                    ) from e
+
+                                # Create security descriptor with owner-only access
+                                security_descriptor = win32security.SECURITY_DESCRIPTOR()
+                                security_descriptor.SetSecurityDescriptorOwner(sid, False)
+
+                                # Create DACL with minimal permissions (Issue #239, #249, #254, #274)
+                                dacl = win32security.ACL()
+                                dacl.AddAccessAllowedAce(
+                                    win32security.ACL_REVISION,
+                                    win32con.FILE_LIST_DIRECTORY |
+                                    win32con.FILE_ADD_FILE |
+                                    win32con.FILE_READ_ATTRIBUTES |
+                                    win32con.FILE_WRITE_ATTRIBUTES |
+                                    win32con.DELETE |
+                                    win32con.SYNCHRONIZE,
+                                    sid
                                 )
-                            except Exception:
-                                domain = win32api.GetComputerName()
 
-                            # Validate domain
-                            if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
-                                raise RuntimeError(
-                                    "Cannot set Windows security: Unable to determine domain. "
-                                    "Install pywin32: pip install pywin32"
+                                security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+
+                                # Create SACL for auditing (Issue #244)
+                                sacl = win32security.ACL()
+                                security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
+
+                                # Set DACL protection to prevent inheritance (Issue #256)
+                                security_descriptor.SetSecurityDescriptorControl(
+                                    win32security.SE_DACL_PROTECTED, 1
                                 )
 
-                            # Validate user
-                            if not user or not isinstance(user, str) or len(user.strip()) == 0:
-                                raise ValueError(
-                                    f"Invalid user name '{user}': Cannot set Windows security."
+                                # Create directory atomically with security descriptor (Issue #400)
+                                # win32file.CreateDirectory creates the directory with the specified
+                                # security attributes atomically - there's no time window where
+                                # the directory exists with insecure permissions.
+                                win32file.CreateDirectory(
+                                    str(directory),
+                                    security_descriptor
                                 )
-
-                            # Lookup account SID
-                            try:
-                                sid, _, _ = win32security.LookupAccountName(domain, user)
-                            except Exception as e:
-                                raise RuntimeError(
-                                    f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
-                                    f"Install pywin32: pip install pywin32. Error: {e}"
-                                ) from e
-
-                            # Create security descriptor with owner-only access
-                            security_descriptor = win32security.SECURITY_DESCRIPTOR()
-                            security_descriptor.SetSecurityDescriptorOwner(sid, False)
-
-                            # Create DACL with minimal permissions (Issue #239, #249, #254, #274)
-                            dacl = win32security.ACL()
-                            dacl.AddAccessAllowedAce(
-                                win32security.ACL_REVISION,
-                                win32con.FILE_LIST_DIRECTORY |
-                                win32con.FILE_ADD_FILE |
-                                win32con.FILE_READ_ATTRIBUTES |
-                                win32con.FILE_WRITE_ATTRIBUTES |
-                                win32con.DELETE |
-                                win32con.SYNCHRONIZE,
-                                sid
-                            )
-
-                            security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
-
-                            # Create SACL for auditing (Issue #244)
-                            sacl = win32security.ACL()
-                            security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
-
-                            # Set DACL protection to prevent inheritance (Issue #256)
-                            security_descriptor.SetSecurityDescriptorControl(
-                                win32security.SE_DACL_PROTECTED, 1
-                            )
-
-                            # Create directory atomically with security descriptor (Issue #400)
-                            # win32file.CreateDirectory creates the directory with the specified
-                            # security attributes atomically - there's no time window where
-                            # the directory exists with insecure permissions.
-                            win32file.CreateDirectory(
-                                str(directory),
-                                security_descriptor
-                            )
 
                     else:  # Unix-like systems
                         # On Unix, create the directory and immediately secure it
@@ -1712,101 +1749,111 @@ class FileStorage(AbstractStorage):
                             # The lock ensures this sequence is atomic - no other process can
                             # create the directory between the check and creation.
                             if not parent_dir.exists():
-                                # Windows - use atomic directory creation (Issue #400)
-                                # Security fix for Issue #429: Windows modules are imported at module level,
-                                # ensuring thread-safe initialization. Modules are available immediately.
+                                # Portability fix for Issue #671: Check if running in degraded mode
+                                if _is_degraded_mode():
+                                    # pywin32 is not available - fall back to basic directory creation
+                                    logger.warning(
+                                        f"Creating parent directory '{parent_dir}' without security "
+                                        f"in degraded mode (pywin32 not installed). "
+                                        f"This is UNSAFE for production use."
+                                    )
+                                    parent_dir.mkdir(mode=0o700, exist_ok=True)
+                                else:
+                                    # Windows - use atomic directory creation (Issue #400)
+                                    # Security fix for Issue #429: Windows modules are imported at module level,
+                                    # ensuring thread-safe initialization. Modules are available immediately.
 
-                                # Use CreateDirectory with security descriptor (Issue #400)
-                                user = win32api.GetUserName()
+                                    # Use CreateDirectory with security descriptor (Issue #400)
+                                    user = win32api.GetUserName()
 
-                                # Fix Issue #251: Extract pure username
-                                if '\\' in user:
-                                    parts = user.rsplit('\\', 1)
-                                    if len(parts) == 2:
-                                        user = parts[1]
+                                    # Fix Issue #251: Extract pure username
+                                    if '\\' in user:
+                                        parts = user.rsplit('\\', 1)
+                                        if len(parts) == 2:
+                                            user = parts[1]
 
-                                # Get domain
-                                try:
-                                    name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
-                                    if not isinstance(name, str):
-                                        raise TypeError(
-                                            f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                                    # Get domain
+                                    try:
+                                        name = win32api.GetUserNameEx(win32con.NameFullyQualifiedDN)
+                                        if not isinstance(name, str):
+                                            raise TypeError(
+                                                f"GetUserNameEx returned non-string value: {type(name).__name__}"
+                                            )
+                                        parts = name.split(',')
+                                        dc_parts = []
+                                        for p in parts:
+                                            p = p.strip()
+                                            if p.startswith('DC='):
+                                                split_parts = p.split('=', 1)
+                                                if len(split_parts) >= 2:
+                                                    dc_parts.append(split_parts[1])
+                                        if dc_parts:
+                                            domain = '.'.join(dc_parts)
+                                        else:
+                                            domain = win32api.GetComputerName()
+                                    except (TypeError, ValueError):
+                                        raise RuntimeError(
+                                            f"Cannot set Windows security: GetUserNameEx returned invalid data. "
+                                            f"Install pywin32: pip install pywin32"
                                         )
-                                    parts = name.split(',')
-                                    dc_parts = []
-                                    for p in parts:
-                                        p = p.strip()
-                                        if p.startswith('DC='):
-                                            split_parts = p.split('=', 1)
-                                            if len(split_parts) >= 2:
-                                                dc_parts.append(split_parts[1])
-                                    if dc_parts:
-                                        domain = '.'.join(dc_parts)
-                                    else:
+                                    except Exception:
                                         domain = win32api.GetComputerName()
-                                except (TypeError, ValueError):
-                                    raise RuntimeError(
-                                        f"Cannot set Windows security: GetUserNameEx returned invalid data. "
-                                        f"Install pywin32: pip install pywin32"
+
+                                    # Validate domain
+                                    if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                                        raise RuntimeError(
+                                            "Cannot set Windows security: Unable to determine domain. "
+                                            "Install pywin32: pip install pywin32"
+                                        )
+
+                                    # Validate user
+                                    if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                                        raise ValueError(
+                                            f"Invalid user name '{user}': Cannot set Windows security."
+                                        )
+
+                                    # Lookup account SID
+                                    try:
+                                        sid, _, _ = win32security.LookupAccountName(domain, user)
+                                    except Exception as e:
+                                        raise RuntimeError(
+                                            f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
+                                            f"Install pywin32: pip install pywin32. Error: {e}"
+                                        ) from e
+
+                                    # Create security descriptor
+                                    security_descriptor = win32security.SECURITY_DESCRIPTOR()
+                                    security_descriptor.SetSecurityDescriptorOwner(sid, False)
+
+                                    # Create DACL with minimal permissions
+                                    dacl = win32security.ACL()
+                                    dacl.AddAccessAllowedAce(
+                                        win32security.ACL_REVISION,
+                                        win32con.FILE_LIST_DIRECTORY |
+                                        win32con.FILE_ADD_FILE |
+                                        win32con.FILE_READ_ATTRIBUTES |
+                                        win32con.FILE_WRITE_ATTRIBUTES |
+                                        win32con.DELETE |
+                                        win32con.SYNCHRONIZE,
+                                        sid
                                     )
-                                except Exception:
-                                    domain = win32api.GetComputerName()
 
-                                # Validate domain
-                                if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
-                                    raise RuntimeError(
-                                        "Cannot set Windows security: Unable to determine domain. "
-                                        "Install pywin32: pip install pywin32"
+                                    security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
+
+                                    # Create SACL for auditing
+                                    sacl = win32security.ACL()
+                                    security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
+
+                                    # Set DACL protection
+                                    security_descriptor.SetSecurityDescriptorControl(
+                                        win32security.SE_DACL_PROTECTED, 1
                                     )
 
-                                # Validate user
-                                if not user or not isinstance(user, str) or len(user.strip()) == 0:
-                                    raise ValueError(
-                                        f"Invalid user name '{user}': Cannot set Windows security."
+                                    # Create directory atomically with security descriptor
+                                    win32file.CreateDirectory(
+                                        str(parent_dir),
+                                        security_descriptor
                                     )
-
-                                # Lookup account SID
-                                try:
-                                    sid, _, _ = win32security.LookupAccountName(domain, user)
-                                except Exception as e:
-                                    raise RuntimeError(
-                                        f"Failed to set Windows ACLs: Unable to lookup account '{user}'. "
-                                        f"Install pywin32: pip install pywin32. Error: {e}"
-                                    ) from e
-
-                                # Create security descriptor
-                                security_descriptor = win32security.SECURITY_DESCRIPTOR()
-                                security_descriptor.SetSecurityDescriptorOwner(sid, False)
-
-                                # Create DACL with minimal permissions
-                                dacl = win32security.ACL()
-                                dacl.AddAccessAllowedAce(
-                                    win32security.ACL_REVISION,
-                                    win32con.FILE_LIST_DIRECTORY |
-                                    win32con.FILE_ADD_FILE |
-                                    win32con.FILE_READ_ATTRIBUTES |
-                                    win32con.FILE_WRITE_ATTRIBUTES |
-                                    win32con.DELETE |
-                                    win32con.SYNCHRONIZE,
-                                    sid
-                                )
-
-                                security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
-
-                                # Create SACL for auditing
-                                sacl = win32security.ACL()
-                                security_descriptor.SetSecurityDescriptorSacl(0, sacl, 0)
-
-                                # Set DACL protection
-                                security_descriptor.SetSecurityDescriptorControl(
-                                    win32security.SE_DACL_PROTECTED, 1
-                                )
-
-                                # Create directory atomically with security descriptor
-                                win32file.CreateDirectory(
-                                    str(parent_dir),
-                                    security_descriptor
-                                )
 
                             # Always secure the directory (Issue #481, #486)
                             # Even if we just created it, call _secure_directory to ensure consistency
