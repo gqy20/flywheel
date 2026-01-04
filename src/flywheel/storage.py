@@ -237,7 +237,8 @@ class FileStorage(AbstractStorage):
         self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
-        self._lock = threading.Lock()  # Thread lock for concurrent operations (Issue #582, #661)
+        self._lock = threading.Lock()  # Thread lock for synchronous operations (Issue #582, #661)
+        self._async_lock = asyncio.Lock()  # Async lock for asynchronous operations (Issue #666)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
         # File lock timeout to prevent indefinite hangs (Issue #396)
@@ -2130,7 +2131,7 @@ class FileStorage(AbstractStorage):
         Uses aiofiles for non-blocking async I/O (Issue #582).
         """
         # Acquire lock first to ensure atomicity of read + state update
-        async with self._lock:
+        async with self._async_lock:
             if not self.path.exists():
                 self._todos = []
                 self._next_id = 1
@@ -2490,7 +2491,7 @@ class FileStorage(AbstractStorage):
         import copy
 
         # Phase 1: Capture data under lock (minimal critical section)
-        async with self._lock:
+        async with self._async_lock:
             # Deep copy todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(self._todos)
             next_id_copy = self._next_id
@@ -2589,7 +2590,7 @@ class FileStorage(AbstractStorage):
 
         # Phase 1: Capture data under lock (minimal critical section)
         # DO NOT update internal state yet - wait until write succeeds
-        async with self._lock:
+        async with self._async_lock:
             # Deep copy the new todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(todos)
             # Calculate next_id from the todos being saved (fixes Issue #166, #170)
