@@ -2564,6 +2564,34 @@ class FileStorage(AbstractStorage):
         # Return False to propagate any exceptions
         return False
 
+    def __del__(self) -> None:
+        """Destructor for cleanup when object is garbage collected.
+
+        This method ensures that dirty data is saved when the FileStorage object
+        is destroyed, even if the user doesn't explicitly call close() or use
+        a context manager. It's registered with atexit for additional safety.
+
+        Note: Python doesn't guarantee __del__ will be called in all circumstances
+        (e.g., circular references, interpreter shutdown), so atexit registration
+        is also used for cleanup (issue #615).
+
+        Example:
+            >>> storage = FileStorage()
+            >>> storage.add(Todo(title="Task"))
+            >>> # When storage is garbage collected, __del__ ensures data is saved
+        """
+        # Try to cleanup, but handle any errors gracefully
+        # During interpreter shutdown, some modules may already be cleaned up
+        try:
+            self._cleanup()
+        except (AttributeError, TypeError):
+            # Ignore errors during interpreter shutdown or partial cleanup
+            pass
+        except Exception:
+            # Log but don't raise in destructor - destructors should not raise
+            # The atexit handler will handle proper cleanup
+            pass
+
 # Backward compatibility alias (issue #568)
 # Storage is now an alias to FileStorage to maintain backward compatibility
 Storage = FileStorage
