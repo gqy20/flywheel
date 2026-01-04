@@ -1,6 +1,7 @@
 """Todo storage backend."""
 
 import abc
+import asyncio
 import atexit
 import errno
 import gzip
@@ -12,6 +13,8 @@ import threading
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import aiofiles
 
 from flywheel.todo import Todo
 
@@ -192,7 +195,7 @@ class FileStorage(AbstractStorage):
         self._secure_all_parent_directories(self.path.parent)
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
-        self._lock = threading.RLock()  # Thread safety lock (reentrant for internal lock usage)
+        self._lock = asyncio.Lock()  # Async lock for concurrent async operations (Issue #582)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
         # File lock timeout to prevent indefinite hangs (Issue #396)
@@ -1877,15 +1880,17 @@ class FileStorage(AbstractStorage):
                 f"Invalid schema: expected dict or list at top level, got {type(data).__name__}"
             )
 
-    def _load(self) -> None:
-        """Load todos from file.
+    async def _load(self) -> None:
+        """Load todos from file asynchronously.
 
         File read and state update are performed atomically within the lock
         to prevent race conditions where the file could change between
         reading and updating internal state.
+
+        Uses aiofiles for non-blocking async I/O (Issue #582).
         """
         # Acquire lock first to ensure atomicity of read + state update
-        with self._lock:
+        async with self._lock:
             if not self.path.exists():
                 self._todos = []
                 self._next_id = 1
@@ -1903,10 +1908,11 @@ class FileStorage(AbstractStorage):
 
                 # Read file as bytes first to verify integrity hash (Issue #588)
                 # This allows us to detect file truncation or corruption
-                with open(self.path, 'rb') as f:
+                # Use aiofiles for async non-blocking I/O (Issue #582)
+                async with aiofiles.open(self.path, 'rb') as f:
                     self._acquire_file_lock(f)
                     try:
-                        file_bytes = f.read()
+                        file_bytes = await f.read()
                     finally:
                         self._release_file_lock(f)
 
@@ -2046,12 +2052,12 @@ class FileStorage(AbstractStorage):
                 backup_path = self._create_backup(f"Failed to load todos from {self.path}")
                 raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
-    def _save(self) -> None:
-        """Save todos to file using atomic write.
+    async def _save(self) -> None:
+        """Save todos to file using atomic write asynchronously.
 
         Uses Copy-on-Write pattern: captures data under lock, releases lock,
         then performs I/O. This minimizes lock contention and prevents blocking
-        other threads during file operations.
+        other operations during file I/O (Issue #582).
 
         Note on file truncation (Issue #370):
         This implementation uses tempfile.mkstemp() + os.replace() which
@@ -2064,7 +2070,7 @@ class FileStorage(AbstractStorage):
         import copy
 
         # Phase 1: Capture data under lock (minimal critical section)
-        with self._lock:
+        async with self._lock:
             # Deep copy todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(self._todos)
             next_id_copy = self._next_id
@@ -2099,54 +2105,26 @@ class FileStorage(AbstractStorage):
         data_bytes_with_hash = data_bytes + hash_footer
 
         # Write to temporary file first
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=self.path.name + ".",
-            suffix=".tmp"
-        )
+        # Use random temp file name for async compatibility (Issue #582)
+        temp_path = self.path.parent / f"{self.path.name}.{os.urandom(8).hex()}.tmp"
 
         try:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
-            # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
-            # Check return value and handle errors (Issue #224)
+            # Apply chmod BEFORE any data is written to prevent race condition (Issue #205)
             try:
-                ret = os.fchmod(fd, 0o600)
-                if ret != 0:
-                    # fchmod returned non-zero indicating failure
-                    # Raise OSError to ensure consistent error handling
-                    raise OSError(f"os.fchmod failed with return code {ret}")
-            except AttributeError:
-                # os.fchmod is not available on Windows
-                # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
-                # The file must have restrictive permissions BEFORE any data is written
                 os.chmod(temp_path, 0o600)
             except OSError:
-                # fchmod failed (permission denied, invalid fd, etc.)
-                # Re-raise to prevent writing data with incorrect permissions (Issue #224)
+                # chmod failed - re-raise to prevent writing with incorrect permissions (Issue #224)
                 raise
 
-            # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes and EINTR errors
-            total_written = 0
-            while total_written < len(data_bytes_with_hash):
-                try:
-                    written = os.write(fd, data_bytes_with_hash[total_written:])
-                    if written == 0:
-                        raise OSError("Write returned 0 bytes - disk full?")
-                    total_written += written
-                except OSError as e:
-                    # Handle EINTR (interrupted system call) by retrying
-                    if e.errno == errno.EINTR:
-                        continue
-                    # Re-raise other OSErrors (like ENOSPC - disk full)
-                    raise
-            os.fsync(fd)  # Ensure data is written to disk
+            # Write data asynchronously using aiofiles (Issue #582)
+            async with aiofiles.open(temp_path, 'wb') as f:
+                await f.write(data_bytes_with_hash)
+                await f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
 
-            # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
-            # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
+            # Close is handled by the context manager
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
@@ -2168,24 +2146,13 @@ class FileStorage(AbstractStorage):
             except Exception:
                 pass
             raise
-        finally:
-            # Ensure fd is always closed exactly once
-            # This runs both on success and exception
-            # (on success, fd is already closed and set to -1)
-            try:
-                if fd != -1:
-                    os.close(fd)
-            except OSError:
-                # Catch OSError specifically to prevent masking original exception
-                # os.close() can only raise OSError, so we don't need the broader Exception
-                pass
 
-    def _save_with_todos(self, todos: list[Todo]) -> None:
-        """Save specified todos to file using atomic write.
+    async def _save_with_todos(self, todos: list[Todo]) -> None:
+        """Save specified todos to file using atomic write asynchronously.
 
         Uses Copy-on-Write pattern: captures data under lock, releases lock,
         then performs I/O. This minimizes lock contention and prevents blocking
-        other threads during file operations.
+        other operations during file I/O (Issue #582).
 
         Args:
             todos: The todos list to save. This will become the new internal state.
@@ -2194,16 +2161,15 @@ class FileStorage(AbstractStorage):
             This method updates self._todos ONLY after successful file write
             to maintain consistency and prevent race conditions (fixes Issue #95, #105, #121).
 
-            File truncation (Issue #370): Uses tempfile.mkstemp() + os.replace()
+            File truncation (Issue #370): Uses aiofiles + os.replace()
             which naturally prevents data corruption from size reduction by creating
             a new empty file and atomically replacing the target.
         """
-        import tempfile
         import copy
 
         # Phase 1: Capture data under lock (minimal critical section)
         # DO NOT update internal state yet - wait until write succeeds
-        with self._lock:
+        async with self._lock:
             # Deep copy the new todos to ensure we have a consistent snapshot
             todos_copy = copy.deepcopy(todos)
             # Calculate next_id from the todos being saved (fixes Issue #166, #170)
@@ -2246,54 +2212,26 @@ class FileStorage(AbstractStorage):
         data_bytes_with_hash = data_bytes + hash_footer
 
         # Write to temporary file first
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=self.path.name + ".",
-            suffix=".tmp"
-        )
+        # Use random temp file name for async compatibility (Issue #582)
+        temp_path = self.path.parent / f"{self.path.name}.{os.urandom(8).hex()}.tmp"
 
         try:
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
-            # Moved inside try block to ensure fd is closed in finally block on failure (Issue #196)
-            # Check return value and handle errors (Issue #224)
+            # Apply chmod BEFORE any data is written to prevent race condition (Issue #205)
             try:
-                ret = os.fchmod(fd, 0o600)
-                if ret != 0:
-                    # fchmod returned non-zero indicating failure
-                    # Raise OSError to ensure consistent error handling
-                    raise OSError(f"os.fchmod failed with return code {ret}")
-            except AttributeError:
-                # os.fchmod is not available on Windows
-                # Apply chmod IMMEDIATELY to prevent race condition (Issue #205)
-                # The file must have restrictive permissions BEFORE any data is written
                 os.chmod(temp_path, 0o600)
             except OSError:
-                # fchmod failed (permission denied, invalid fd, etc.)
-                # Re-raise to prevent writing data with incorrect permissions (Issue #224)
+                # chmod failed - re-raise to prevent writing with incorrect permissions (Issue #224)
                 raise
 
-            # Write data directly to file descriptor to avoid duplication
-            # Use a loop to handle partial writes and EINTR errors
-            total_written = 0
-            while total_written < len(data_bytes_with_hash):
-                try:
-                    written = os.write(fd, data_bytes_with_hash[total_written:])
-                    if written == 0:
-                        raise OSError("Write returned 0 bytes - disk full?")
-                    total_written += written
-                except OSError as e:
-                    # Handle EINTR (interrupted system call) by retrying
-                    if e.errno == errno.EINTR:
-                        continue
-                    # Re-raise other OSErrors (like ENOSPC - disk full)
-                    raise
-            os.fsync(fd)  # Ensure data is written to disk
+            # Write data asynchronously using aiofiles (Issue #582)
+            async with aiofiles.open(temp_path, 'wb') as f:
+                await f.write(data_bytes_with_hash)
+                await f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
 
-            # Close file descriptor AFTER chmod to avoid race condition (Issue #200)
-            # Close BEFORE replace to avoid "file being used" errors on Windows (Issue #190)
-            os.close(fd)
-            fd = -1  # Mark as closed to prevent double-close in finally block
+            # Close is handled by the context manager
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
@@ -2333,17 +2271,6 @@ class FileStorage(AbstractStorage):
             except Exception:
                 pass
             raise
-        finally:
-            # Ensure fd is always closed exactly once
-            # This runs both on success and exception
-            # (on success, fd is already closed and set to -1)
-            try:
-                if fd != -1:
-                    os.close(fd)
-            except OSError:
-                # Catch OSError specifically to prevent masking original exception
-                # os.close() can only raise OSError, so we don't need the broader Exception
-                pass
 
     def add(self, todo: Todo) -> Todo:
         """Add a new todo with atomic ID generation.
