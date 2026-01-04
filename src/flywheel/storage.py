@@ -188,6 +188,67 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    # Async methods (Issue #702)
+    @abc.abstractmethod
+    async def async_add(self, todo: Todo) -> Todo:
+        """Asynchronously add a new todo to storage.
+
+        Args:
+            todo: The Todo object to add.
+
+        Returns:
+            The added Todo with any generated fields (like ID) populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_list(self, status: str | None = None) -> list[Todo]:
+        """Asynchronously list all todos, optionally filtered by status.
+
+        Args:
+            status: Optional status filter ('pending', 'completed', etc.).
+
+        Returns:
+            List of Todo objects.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_get(self, todo_id: int) -> Todo | None:
+        """Asynchronously get a todo by ID.
+
+        Args:
+            todo_id: The ID of the todo to retrieve.
+
+        Returns:
+            The Todo object if found, None otherwise.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_update(self, todo: Todo) -> Todo | None:
+        """Asynchronously update an existing todo.
+
+        Args:
+            todo: The Todo object with updated fields.
+
+        Returns:
+            The updated Todo if found, None otherwise.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_delete(self, todo_id: int) -> bool:
+        """Asynchronously delete a todo by ID.
+
+        Args:
+            todo_id: The ID of the todo to delete.
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        pass
+
     @abc.abstractmethod
     def get_next_id(self) -> int:
         """Get the next available todo ID.
@@ -3103,6 +3164,157 @@ class FileStorage(AbstractStorage):
                 self._check_auto_save()
 
             return updated_todos
+
+    # Async public methods (Issue #702)
+    async def async_add(self, todo: Todo) -> Todo:
+        """Asynchronously add a new todo with atomic ID generation.
+
+        This is the async version of add(). Uses asyncio.Lock instead of
+        threading.Lock and async I/O operations for better performance
+        in async contexts.
+
+        Args:
+            todo: The Todo object to add.
+
+        Returns:
+            The added Todo with generated ID.
+
+        Raises:
+            ValueError: If a todo with the same ID already exists.
+        """
+        async with self._async_lock:
+            # Capture the ID from the todo atomically to prevent race conditions
+            todo_id = todo.id
+
+            # Check for duplicate ID FIRST, before any other logic
+            if todo_id is not None:
+                # Direct iteration to avoid reentrant lock acquisition
+                for existing_todo in self._todos:
+                    if existing_todo.id == todo_id:
+                        raise ValueError(
+                            f"Todo with ID {todo_id} already exists. Use update() instead."
+                        )
+
+            # Generate ID if not provided
+            if todo_id is None:
+                todo_id = self._next_id
+                todo = Todo(id=todo_id, title=todo.title, status=todo.status)
+
+            # Create a copy of todos list with the new todo
+            new_todos = self._todos + [todo]
+            # Mark as dirty since we're modifying the data (Issue #203)
+            self._dirty = True
+            # Mark cache as dirty when data changes (Issue #703)
+            if self._cache_enabled:
+                self._cache_dirty = True
+
+            # Save asynchronously using _save_with_todos
+            await self._save_with_todos(new_todos)
+
+            # Check if auto-save should be triggered (Issue #547)
+            self._check_auto_save()
+            return todo
+
+    async def async_list(self, status: str | None = None) -> list[Todo]:
+        """Asynchronously list all todos, optionally filtered by status.
+
+        This is the async version of list(). Returns a copy to prevent
+        external modification.
+
+        Args:
+            status: Optional status filter ('pending', 'completed', etc.).
+
+        Returns:
+            List of Todo objects.
+        """
+        async with self._async_lock:
+            if status:
+                return [t for t in self._todos if t.status == status]
+            return list(self._todos)  # Return a copy to prevent external modification
+
+    async def async_get(self, todo_id: int) -> Todo | None:
+        """Asynchronously get a todo by ID.
+
+        This is the async version of get().
+
+        Args:
+            todo_id: The ID of the todo to retrieve.
+
+        Returns:
+            The Todo object if found, None otherwise.
+        """
+        async with self._async_lock:
+            for todo in self._todos:
+                if todo.id == todo_id:
+                    return todo
+            return None
+
+    async def async_update(self, todo: Todo) -> Todo | None:
+        """Asynchronously update a todo.
+
+        This is the async version of update().
+
+        Args:
+            todo: The Todo object with updated fields.
+
+        Returns:
+            The updated Todo if found, None otherwise.
+        """
+        async with self._async_lock:
+            for i, t in enumerate(self._todos):
+                if t.id == todo.id:
+                    # Create a copy of todos list with the updated todo
+                    new_todos = self._todos.copy()
+                    new_todos[i] = todo
+                    # Mark as dirty since we're modifying the data (Issue #203)
+                    self._dirty = True
+                    # Mark cache as dirty when data changes (Issue #703)
+                    if self._cache_enabled:
+                        self._cache_dirty = True
+                    # Save asynchronously using _save_with_todos
+                    await self._save_with_todos(new_todos)
+                    # Check if auto-save should be triggered (Issue #547)
+                    self._check_auto_save()
+                    return todo
+            return None
+
+    async def async_delete(self, todo_id: int) -> bool:
+        """Asynchronously delete a todo by ID.
+
+        This is the async version of delete().
+
+        Args:
+            todo_id: The ID of the todo to delete.
+
+        Returns:
+            True if deleted, False if not found.
+        """
+        async with self._async_lock:
+            for i, t in enumerate(self._todos):
+                if t.id == todo_id:
+                    # Create a copy of todos list without the deleted todo
+                    new_todos = self._todos[:i] + self._todos[i+1:]
+                    # Mark as dirty since we're modifying the data (Issue #203)
+                    self._dirty = True
+                    # Mark cache as dirty when data changes (Issue #703)
+                    if self._cache_enabled:
+                        self._cache_dirty = True
+                    # Save asynchronously using _save_with_todos
+                    await self._save_with_todos(new_todos)
+
+                    # Check if automatic file compaction should be triggered (Issue #683)
+                    # Calculate the ratio of deleted items to total items
+                    total_count = len(self._todos) + 1  # +1 because we just deleted one
+                    deleted_count = 1  # Count of items deleted in this operation
+                    deleted_ratio = deleted_count / total_count if total_count > 0 else 0
+
+                    # If deleted ratio exceeds threshold, trigger background save for compaction
+                    if deleted_ratio > self.COMPACTION_THRESHOLD:
+                        # Trigger auto-save to rewrite file without deleted items
+                        self._check_auto_save()
+
+                    return True
+            return False
 
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.

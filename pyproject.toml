@@ -17,6 +17,7 @@ todo = "flywheel.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.9.0",
     "mypy>=1.15.0",
@@ -26,6 +27,7 @@ dev = [
 [tool.uv]
 dev-dependencies = [
     "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
     "pytest-cov>=6.0.0",
     "ruff>=0.9.0",
     "mypy>=1.15.0",
@@ -84,6 +86,7 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-v --strict-markers --cov=src --cov-report=term-missing"
+asyncio_mode = "auto"
 
 # Hatch build configuration
 [tool.hatch.build.targets.wheel]
