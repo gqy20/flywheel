@@ -91,6 +91,36 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     return s
 
 
+def validate_date(date_str: str) -> str:
+    """Validate and normalize a date string to ISO format.
+
+    This function uses datetime.fromisoformat to validate that the date string
+    conforms to ISO 8601 format standards. This prevents invalid dates from being
+    stored in the system.
+
+    Args:
+        date_str: Date string to validate
+
+    Returns:
+        The validated date string in ISO format
+
+    Raises:
+        ValueError: If the date string is not a valid ISO 8601 date
+
+    Security:
+        Addresses Issue #715 - Validates date format using datetime.fromisoformat
+        to ensure only valid ISO dates are accepted, preventing format errors and
+        potential injection through malformed date strings.
+    """
+    try:
+        # Attempt to parse the date string - this will raise ValueError if invalid
+        parsed_date = datetime.fromisoformat(date_str)
+        # Return the normalized ISO format
+        return parsed_date.isoformat()
+    except ValueError as e:
+        raise ValueError(f"Invalid date format '{date_str}'. Must be ISO 8601 format (e.g., '2024-01-15' or '2024-01-15T10:30:00')") from e
+
+
 def sanitize_tags(tags_str, max_length=10000, max_tags=100):
     """Sanitize tag input to prevent injection attacks.
 
@@ -173,7 +203,7 @@ class CLI:
             title=sanitize_string(args.title),
             description=sanitize_string(args.description or ""),
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
-            due_date=sanitize_string(args.due_date) if args.due_date else None,
+            due_date=validate_date(args.due_date) if args.due_date else None,
             tags=sanitize_tags(args.tags) if args.tags else [],
         )
 
