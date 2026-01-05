@@ -2785,6 +2785,12 @@ class FileStorage(AbstractStorage):
             # Reset dirty flag after successful load (Issue #203)
             self._dirty = False
 
+            # Initialize cache from loaded data if cache is enabled (Issue #742)
+            # This ensures cache is available immediately after load, rather than
+            # waiting for the first access to rebuild it
+            if self._cache_enabled:
+                self._update_cache_from_todos()
+
             # Log successful load completion
             elapsed = time.time() - start_time
             logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
@@ -2963,6 +2969,12 @@ class FileStorage(AbstractStorage):
             self._next_id = next_id
             # Reset dirty flag after successful load (Issue #203)
             self._dirty = False
+
+            # Initialize cache from loaded data if cache is enabled (Issue #742)
+            # This ensures cache is available immediately after load, rather than
+            # waiting for the first access to rebuild it
+            if self._cache_enabled:
+                self._update_cache_from_todos()
 
             # Log successful load completion
             elapsed = time.time() - start_time
