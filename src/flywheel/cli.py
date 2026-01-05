@@ -196,7 +196,8 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         max_tag_length: Maximum length of individual tags to prevent abuse (default: 100)
 
     Returns:
-        List of sanitized tags containing only allowed characters
+        List of sanitized tags containing only allowed characters and passing
+        format validation (no leading/trailing/consecutive hyphens)
 
     Security:
         Addresses Issue #599 - Ensures tags are safe for storage backends
@@ -205,6 +206,10 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         spoofing characters and control characters.
         Addresses Issue #635 - Prevents ReDoS by limiting input length and
         tag count before processing.
+        Addresses Issue #689 - Validates tag format to reject tags starting
+        or ending with hyphens, or containing consecutive hyphens. This prevents
+        formatting issues and logic errors where hyphen-prefixed tags could be
+        confused with CLI flags or cause parsing problems.
         Addresses Issue #704 - Uses non-regex approach (all() + str.isalnum)
         to completely eliminate ReDoS risk from regex backtracking.
         Addresses Issue #735 - Places hyphen at the end of allowed_chars
@@ -258,8 +263,15 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         # by using Python's built-in character checking methods
         sanitized = ''.join(c for c in tag if c in allowed_chars)
 
-        # Only add non-empty tags after sanitization
-        if sanitized:
+        # SECURITY FIX (Issue #689): Validate tag format to prevent:
+        # - Tags starting with hyphens (could be confused with CLI flags)
+        # - Tags ending with hyphens (formatting issues)
+        # - Tags with consecutive hyphens (could cause parsing issues)
+        # Only add tags that pass all validation checks
+        if (sanitized and
+            not sanitized.startswith('-') and
+            not sanitized.endswith('-') and
+            '--' not in sanitized):
             sanitized_tags.append(sanitized)
 
     return sanitized_tags
