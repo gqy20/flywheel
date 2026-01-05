@@ -3837,6 +3837,7 @@ class FileStorage(AbstractStorage):
         3. Temporary files can be created and cleaned up
         4. Sufficient disk space is available
         5. File permissions are correct
+        6. JSON file integrity is valid (if file exists) (Issue #757)
 
         This is useful for startup diagnostics and configuration validation.
 
@@ -3927,8 +3928,58 @@ class FileStorage(AbstractStorage):
             # Any other error indicates unhealthy storage
             file_lock = False
 
+        # Check JSON file integrity (Issue #757)
+        json_integrity_ok = True
+        if self.path.exists():
+            try:
+                # Try to load and parse the JSON file
+                # Use compression setting from initialization
+                is_compressed = self.compression
+
+                # Read file as bytes
+                with open(self.path, 'rb') as f:
+                    file_bytes = f.read()
+
+                # Check if file is empty
+                if len(file_bytes) == 0:
+                    json_integrity_ok = False
+                else:
+                    # Decompress if needed
+                    if is_compressed:
+                        import gzip
+                        file_bytes = gzip.decompress(file_bytes)
+
+                    # Parse JSON to verify integrity
+                    file_str = file_bytes.decode('utf-8')
+
+                    # Handle integrity marker if present
+                    integrity_marker = '##INTEGRITY:'
+                    marker_start = file_str.rfind(integrity_marker)
+                    if marker_start != -1:
+                        marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                        if marker_end != -1:
+                            # Find the newline before the marker
+                            data_end = file_str.rfind('\n', 0, marker_start)
+                            if data_end == -1:
+                                data_end = 0
+                            file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
+
+                    # Parse and validate JSON structure
+                    data = json.loads(file_str)
+
+                    # Verify it's a list (valid structure for todos)
+                    if not isinstance(data, list):
+                        json_integrity_ok = False
+
+            except (json.JSONDecodeError, ValueError, TypeError, gzip.BadGzipFile, OSError):
+                # JSON parsing failed or file corruption detected
+                json_integrity_ok = False
+            except Exception:
+                # Any other error indicates unhealthy storage
+                json_integrity_ok = False
+
         # Determine overall health
-        return writable and file_lock and disk_space_free > 0
+        return writable and file_lock and disk_space_free > 0 and json_integrity_ok
 
     def close(self) -> None:
         """Close storage and release resources.
