@@ -51,8 +51,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         attacks when sanitized data is used in f-strings or .format().
         Addresses Issue #705 - Preserves backslashes to prevent data corruption
         in Windows paths, Markdown, regex patterns, and other legitimate uses.
-        Addresses Issue #709 - Escapes hyphen in regex to prevent ReDoS
-        via catastrophic backtracking from unintended range interpretation.
+        Addresses Issue #709, #714 - Places hyphen at end of character class to
+        prevent ReDoS via catastrophic backtracking from unintended range
+        interpretation and ensures proper escaping without ambiguity.
     """
     if not s:
         return ""
@@ -63,7 +64,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
     # Define blacklist of dangerous shell metacharacters to remove.
     # Using a simple character class with explicit escaping to prevent ReDoS.
-    # Characters removed: ; | & ` $ ( ) < > { }
+    # Characters removed: ; | & ` $ ( ) < > { } -
     # Note: We preserve quotes, %, [, ] for legitimate content
     # Backslash preserved to prevent data corruption (Issue #705):
     # - Windows paths (C:\Users\...)
@@ -71,8 +72,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # - Regular expressions
     # - LaTeX commands
     # Curly braces removed to prevent format string attacks (Issue #690)
-    # Hyphen escaped and placed at start to prevent range interpretation (Issue #694, #709)
-    dangerous_chars = r'\-;|&`$()<>{}'
+    # Hyphen placed at end to prevent range interpretation (Issue #694, #709, #714)
+    dangerous_chars = r';|&`$()<>{}-'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
