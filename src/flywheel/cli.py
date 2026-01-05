@@ -54,6 +54,13 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         in Windows paths, Markdown, regex patterns, and other legitimate uses.
         Addresses Issue #725 - Preserves hyphens to prevent data corruption
         in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
+        Addresses Issue #730 - SECURITY WARNING: The output of this function
+        preserves backslashes for legitimate use cases (Windows paths, Markdown,
+        regex). However, if the sanitized string is passed to a shell command
+        (e.g., via os.system or subprocess.run with shell=True), a trailing
+        backslash can escape the closing quote and inject arbitrary commands.
+        NEVER use the output directly in shell commands. Storage backends MUST
+        use parameterized queries or proper escaping for their specific format.
     """
     if not s:
         return ""
