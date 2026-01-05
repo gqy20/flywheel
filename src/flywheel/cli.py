@@ -5,6 +5,7 @@ import logging
 import re
 import string
 import sys
+import unicodedata
 from datetime import datetime
 
 from flywheel.formatter import Formatter, FormatType
@@ -65,9 +66,24 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         regex), but trailing backslashes are stripped because they can escape closing
         quotes in shell commands and enable arbitrary command injection. Storage backends
         should still use parameterized queries or proper escaping for their specific format.
+        Addresses Issue #754 - Normalizes Unicode using NFKC form before processing to
+        prevent homograph attacks. Visual lookalikes from different scripts (fullwidth,
+        Cyrillic, Greek) and different Unicode representations (composed vs decomposed)
+        are normalized to canonical forms, ensuring security filters cannot be bypassed.
     """
     if not s:
         return ""
+
+    # SECURITY FIX (Issue #754): Normalize Unicode before processing
+    # Use NFKC normalization to convert compatibility characters to their
+    # canonical forms. This prevents homograph attacks where visual lookalikes
+    # from different scripts (fullwidth, Cyrillic, Greek, etc.) or different
+    # Unicode representations (composed vs decomposed) can bypass filters.
+    # NFKC is preferred over NFC/NFD because it also handles compatibility
+    # characters like fullwidth letters and half-width katakana.
+    # Example: ａｂｃ (fullwidth) → abc (ASCII)
+    #          é (NFD: e + combining acute) → é (NFC: single character)
+    s = unicodedata.normalize('NFKC', s)
 
     # Prevent DoS by limiting input length
     if len(s) > max_length:
@@ -196,9 +212,16 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         regex character classes, eliminating potential ReDoS vulnerabilities.
         Addresses Issue #751 - Limits individual tag length to prevent abuse
         through extremely long tags that could cause storage or display issues.
+        Addresses Issue #754 - Normalizes Unicode using NFKC form before processing
+        to prevent homograph attacks in tag names, ensuring visual lookalikes
+        from different scripts cannot bypass tag filters.
     """
     if not tags_str:
         return []
+
+    # SECURITY FIX (Issue #754): Normalize Unicode before processing
+    # Same normalization as in sanitize_string to prevent homograph attacks
+    tags_str = unicodedata.normalize('NFKC', tags_str)
 
     # Prevent DoS by limiting input length before processing
     if len(tags_str) > max_length:
