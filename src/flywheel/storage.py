@@ -361,10 +361,13 @@ class FileStorage(AbstractStorage):
         self._async_lock = asyncio.Lock()  # Async lock for asynchronous operations (Issue #666)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
-        # Memory cache for improved get/list performance (Issue #703)
+        # Memory cache for improved get/list performance (Issue #703, #718)
         # When enabled, get and list operations return cached data without disk I/O
+        # Write-through cache: writes update both cache and disk immediately
         self._cache_enabled = enable_cache
+        self._cache: dict[int, Todo] = {}  # Cache dictionary for O(1) lookups by ID
         self._cache_dirty = False  # Track if cache needs invalidation
+        self._cache_mtime: float | None = None  # Track file modification time for cache invalidation
         # File lock timeout to prevent indefinite hangs (Issue #396)
         # 30 seconds is a reasonable timeout for file operations
         self._lock_timeout: float = 30.0
@@ -530,9 +533,11 @@ class FileStorage(AbstractStorage):
         instance._lock = threading.Lock()
         instance._lock_range = 0
         instance._dirty = False
-        # Memory cache for improved get/list performance (Issue #703)
+        # Memory cache for improved get/list performance (Issue #703, #718)
         instance._cache_enabled = enable_cache
+        instance._cache: dict[int, Todo] = {}
         instance._cache_dirty = False
+        instance._cache_mtime = None
         instance._lock_timeout = 30.0
         instance._lock_retry_interval = 0.1
         instance.AUTO_SAVE_INTERVAL = 60.0
@@ -2987,6 +2992,10 @@ class FileStorage(AbstractStorage):
             # _save_with_todos will update self._todos and self._next_id
             # only after successful write (fixes Issue #9)
             self._save_with_todos(new_todos)
+            # Update cache immediately after successful write (write-through cache, Issue #718)
+            if self._cache_enabled and todo.id is not None:
+                self._cache[todo.id] = todo
+                self._cache_dirty = False
             # Check if auto-save should be triggered (Issue #547)
             self._check_auto_save()
             return todo
@@ -2994,6 +3003,10 @@ class FileStorage(AbstractStorage):
     def list(self, status: str | None = None) -> list[Todo]:
         """List all todos."""
         with self._lock:
+            # Rebuild cache from _todos if cache is dirty or not yet populated (Issue #718)
+            if self._cache_enabled:
+                self._update_cache_from_todos()
+
             if status:
                 return [t for t in self._todos if t.status == status]
             return list(self._todos)  # Return a copy to prevent external modification
@@ -3001,6 +3014,13 @@ class FileStorage(AbstractStorage):
     def get(self, todo_id: int) -> Todo | None:
         """Get a todo by ID."""
         with self._lock:
+            # Rebuild cache from _todos if cache is dirty or not yet populated (Issue #718)
+            if self._cache_enabled:
+                self._update_cache_from_todos()
+                # Use cache for O(1) lookup
+                return self._cache.get(todo_id)
+
+            # Fallback to linear search when cache is disabled
             for todo in self._todos:
                 if todo.id == todo_id:
                     return todo
@@ -3021,6 +3041,10 @@ class FileStorage(AbstractStorage):
                         self._cache_dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
+                    # Update cache immediately after successful write (write-through cache, Issue #718)
+                    if self._cache_enabled and todo.id is not None:
+                        self._cache[todo.id] = todo
+                        self._cache_dirty = False
                     # Check if auto-save should be triggered (Issue #547)
                     self._check_auto_save()
                     return todo
@@ -3040,6 +3064,10 @@ class FileStorage(AbstractStorage):
                         self._cache_dirty = True
                     # Save and update internal state atomically
                     self._save_with_todos(new_todos)
+                    # Update cache immediately after successful write (write-through cache, Issue #718)
+                    if self._cache_enabled:
+                        self._cache.pop(todo_id, None)
+                        self._cache_dirty = False
 
                     # Check if automatic file compaction should be triggered (Issue #683)
                     # Calculate the ratio of deleted items to total items
@@ -3315,6 +3343,31 @@ class FileStorage(AbstractStorage):
 
                     return True
             return False
+
+    def _update_cache_from_todos(self) -> None:
+        """Update cache from _todos list (Issue #718).
+
+        This method rebuilds the cache from the current _todos list if the cache is dirty
+        or if the file has been modified externally. It's called automatically by get() and list()
+        operations when cache is enabled.
+        """
+        # Check if file has been modified externally
+        if self._cache_mtime is not None and self.path.exists():
+            current_mtime = os.path.getmtime(self.path)
+            if current_mtime != self._cache_mtime:
+                # File was modified externally, mark cache as dirty
+                self._cache_dirty = True
+
+        # Rebuild cache if dirty or empty
+        if self._cache_dirty or not self._cache:
+            self._cache.clear()
+            for todo in self._todos:
+                if todo.id is not None:
+                    self._cache[todo.id] = todo
+            self._cache_dirty = False
+            # Update cache modification time
+            if self.path.exists():
+                self._cache_mtime = os.path.getmtime(self.path)
 
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
