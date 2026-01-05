@@ -98,7 +98,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Build character class safely: don't use f-string interpolation with variables
     # that might contain special regex metacharacters like - or ]
     # Instead, explicitly construct the pattern
-    s = re.sub(r'[;|&`$()<>{}]', '', s)
+    s = re.sub(r'[;|&`$()<>{}{-]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
     # These could break JSON or other storage formats
