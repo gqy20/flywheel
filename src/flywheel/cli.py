@@ -28,6 +28,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Control characters (newlines, tabs, null bytes) that could break storage formats
     - All backslashes (\) to prevent shell injection
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
+    - Non-Latin-script characters (Cyrillic, Greek, Arabic, CJK, etc.) to prevent
+      visual homograph attacks while preserving legitimate Latin-script accented characters
 
     It preserves:
     - All alphanumeric characters and common punctuation
@@ -70,9 +72,14 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Storage backends should still use parameterized queries or proper escaping
         for their specific format.
         Addresses Issue #754 - Normalizes Unicode using NFC form before processing to
-        prevent homograph attacks. Visual lookalikes from different scripts (fullwidth,
-        Cyrillic, Greek) and different Unicode representations (composed vs decomposed)
-        are normalized to canonical forms, ensuring security filters cannot be bypassed.
+        handle canonical equivalence (composed vs decomposed Unicode representations).
+        Addresses Issue #774 - Restricts to Latin-script characters to prevent visual
+        homograph attacks. While NFC normalization handles canonical equivalence, it
+        does NOT prevent cross-script visual spoofing (e.g., Latin 'a' vs Cyrillic 'а').
+        This fix blocks characters from non-Latin scripts (Cyrillic, Greek, Arabic, CJK)
+        while preserving legitimate accented characters used in Latin-based languages
+        (French, Spanish, German, etc.). Visual lookalikes from different scripts and
+        different Unicode representations are now properly handled.
         Addresses Issue #769 - Removes ALL backslashes (not just trailing) to prevent
         shell injection through internal escape sequences like '\n', '\t', '\r', etc.,
         which can be interpreted as control characters in shell contexts.
@@ -97,6 +104,101 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Example: é (NFD: e + combining acute) → é (NFC: single character)
     # Security: Addresses Issue #764 - NFKC causes data loss
     s = unicodedata.normalize('NFC', s)
+
+    # SECURITY FIX (Issue #774): Restrict to Latin-script characters to prevent
+    # visual homograph attacks. NFC normalization only handles canonical
+    # equivalence (composed vs decomposed forms) but does NOT prevent visual
+    # spoofing using homoglyphs from different scripts.
+    #
+    # Examples of visual homographs that NFC does NOT change:
+    # - Latin 'a' (U+0061) vs Cyrillic 'а' (U+0430) - visually identical
+    # - Latin 'e' (U+0065) vs Greek 'ε' (U+03B5) - visually similar
+    # - Latin 'o' (U+006F) vs Greek 'ο' (U+03BF) - visually identical
+    # - Latin 'r' (U+0072) vs Cyrillic 'г' (U+0433) - visually similar
+    #
+    # These homographs can be used for:
+    # - Phishing attacks (e.g., "аdmin.com" vs "admin.com")
+    # - Bypassing security filters
+    # - Creating confusing lookalike text
+    #
+    # Solution: Restrict to Latin-script Unicode blocks only.
+    # This preserves legitimate accented characters used in Latin-based
+    # languages (French, Spanish, German, etc.) while blocking characters
+    # from non-Latin scripts (Cyrillic, Greek, Arabic, Chinese, etc.)
+    #
+    # Allowed Unicode blocks (Latin script):
+    # - Basic Latin (U+0000-U+007F): ASCII characters
+    # - Latin-1 Supplement (U+0080-U+00FF): à, ñ, ü, etc.
+    # - Latin Extended-A (U+0100-U+017F): ā, ă, ē, etc.
+    # - Latin Extended-B (U+0180-U+024F): ƀ, ƃ, ƭ, etc.
+    # - Latin Extended Additional (U+1E00-U+1EFF): ḁ, ḃ, ḇ, etc.
+    # - Latin Extended-C, D, E (U+2C60-U+2C7F, U+A720-U+A7FF): Ⱡ, ⱡ, Ꜳ
+    #
+    # Blocked Unicode blocks (non-Latin scripts):
+    # - Cyrillic (U+0400-U+04FF): а, б, в, г, д, etc.
+    # - Greek (U+0370-U+03FF): α, β, γ, δ, ε, etc.
+    # - Arabic (U+0600-U+06FF): ا, ب, ت, ث, ج, etc.
+    # - Chinese, Japanese, Korean (CJK) ranges
+    # - All other non-Latin scripts
+    #
+    # Security: Addresses Issue #774 - Prevents visual homograph attacks by
+    # restricting to Latin-script characters only. This is a defense-in-depth
+    # approach that complements NFC normalization (which handles canonical
+    # equivalence but not cross-script visual similarity).
+    def is_latin_script(char: str) -> bool:
+        """Check if a character belongs to a Latin-script Unicode block.
+
+        Returns True for characters in Latin-script blocks, False otherwise.
+        This prevents visual homograph attacks from non-Latin scripts.
+        """
+        code = ord(char)
+
+        # Basic Latin (ASCII) - U+0000 to U+007F
+        if 0x0000 <= code <= 0x007F:
+            return True
+
+        # Latin-1 Supplement - U+0080 to U+00FF
+        # Includes: à, á, â, ã, ä, å, æ, ç, è, é, ê, ë, ì, í, î, ï,
+        #           ð, ñ, ò, ó, ô, õ, ö, ø, ù, ú, û, ü, ý, þ, ÿ, etc.
+        if 0x0080 <= code <= 0x00FF:
+            return True
+
+        # Latin Extended-A - U+0100 to U+017F
+        # Includes: ā, ă, ą, ĉ, ċ, č, ď, đ, ē, ė, ę, ě, ĝ, ğ, ġ, ģ,
+        #           ĥ, ħ, ĩ, ī, į, ı, ĵ, ķ, ĸ, ĺ, ļ, ľ, ŀ, ł, ń, ņ, etc.
+        if 0x0100 <= code <= 0x017F:
+            return True
+
+        # Latin Extended-B - U+0180 to U+024F
+        # Includes: ƀ, Ɓ, Ƃ, ƃ, Ƅ, ƅ, Ɔ, Ƈ, ƈ, Ɖ, Ɗ, Ƌ, ƌ, ƍ, Ǝ, Ə, etc.
+        if 0x0180 <= code <= 0x024F:
+            return True
+
+        # Latin Extended Additional - U+1E00 to U+1EFF
+        # Includes: ḁ, ḃ, ḅ, ḇ, ḉ, ḋ, ḍ, ḏ, ḑ, ḓ, ḕ, ḗ, ḙ, ḛ, ḝ, etc.
+        if 0x1E00 <= code <= 0x1EFF:
+            return True
+
+        # Latin Extended-C - U+2C60 to U+2C7F
+        # Includes: Ⱡ, ⱡ, Ɫ, Ᵽ, Ɽ, ⱥ, ⱦ, Ⱨ, ⱨ, Ⱪ, ⱪ, Ⱬ, ⱬ, Ɑ, etc.
+        if 0x2C60 <= code <= 0x2C7F:
+            return True
+
+        # Latin Extended-D - U+A720 to U+A7FF
+        # Includes: ꜠, ꜡, Ꜣ, ꜣ, Ꜥ, ꜥ, Ꜧ, ꜧ, Ꜩ, ꜩ, Ꜫ, ꜫ, etc.
+        if 0xA720 <= code <= 0xA7FF:
+            return True
+
+        # Latin Extended-E - U+AB30 to U+AB6F
+        # Includes: ꝰ, ꝱ, ꝲ, ꝳ, ꝴ, ꝵ, ꝶ, ꝷ, ꝸ, Ꝺ, ꝺ, etc.
+        if 0xAB30 <= code <= 0xAB6F:
+            return True
+
+        # Not a Latin-script character
+        return False
+
+    # Filter out non-Latin-script characters
+    s = ''.join(char for char in s if is_latin_script(char))
 
     # Prevent DoS by limiting input length
     if len(s) > max_length:
@@ -225,9 +327,12 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         regex character classes, eliminating potential ReDoS vulnerabilities.
         Addresses Issue #751 - Limits individual tag length to prevent abuse
         through extremely long tags that could cause storage or display issues.
-        Addresses Issue #754 - Normalizes Unicode using NFKC form before processing
+        Addresses Issue #754 - Normalizes Unicode using NFC form before processing
         to prevent homograph attacks in tag names, ensuring visual lookalikes
         from different scripts cannot bypass tag filters.
+        Addresses Issue #774 - Whitelist approach (ASCII only) already prevents
+        visual homograph attacks from non-Latin scripts (Cyrillic, Greek, etc.)
+        by only allowing ASCII alphanumeric characters, underscores, and hyphens.
     """
     if not tags_str:
         return []
