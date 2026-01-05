@@ -98,7 +98,10 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Build character class safely: don't use f-string interpolation with variables
     # that might contain special regex metacharacters like - or ]
     # Instead, explicitly construct the pattern
-    s = re.sub(r'[;|&`$()<>{}{-]', '', s)
+    # SECURITY FIX (Issue #739): Remove trailing {- to prevent unintended range
+    # interpretation. The hyphen was not meant to be in the character class at all,
+    # as hyphens should be preserved (Issue #725).
+    s = re.sub(r'[;|&`$()<>{}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
     # These could break JSON or other storage formats
