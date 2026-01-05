@@ -82,42 +82,58 @@ if os.name == 'nt':  # Windows
             stacklevel=2
         )
 else:  # Unix-like systems
-    # Security fix for Issue #679: Handle missing fcntl gracefully
+    # Security fix for Issue #679, #791: Handle missing fcntl gracefully
     # On some Unix-like systems (e.g., Cygwin, restricted environments),
-    # fcntl may not be available. We handle this at import time to prevent
-    # crashes and provide a clear error message about platform requirements.
+    # fcntl may not be available. We handle this gracefully to allow
+    # degraded mode operation, similar to Windows pywin32 handling.
+    #
+    # Fix for Issue #791: Allow graceful fallback when fcntl is not available
+    # instead of raising ImportError. This maintains code portability while still
+    # preferring fcntl for optimal performance on Unix systems.
+    fcntl = None
+
     try:
         import fcntl
-    except ImportError as e:
-        raise ImportError(
-            "fcntl is required on Unix-like systems for safe operation. "
-            "Without fcntl, file locking is disabled, which can cause "
-            "data corruption when multiple instances run concurrently. "
-            "This platform may not be supported. If you are on Cygwin, "
-            "consider using native Windows or a full Unix environment."
-        ) from e
+    except ImportError:
+        # Issue #791: Fall back to degraded mode instead of raising ImportError.
+        # On Unix, fcntl is preferred for optimal file locking, but the module
+        # will use a degraded mode to maintain portability. Users are encouraged
+        # to use a proper Unix environment with fcntl support for best safety.
+        import warnings
+        warnings.warn(
+            "fcntl is not available. File locking will be disabled. "
+            "This may cause data corruption when multiple instances run concurrently. "
+            "For optimal performance and safety on Unix-like systems, ensure fcntl is available. "
+            "If you are on Cygwin, consider using native Windows or a full Unix environment.",
+            UserWarning,
+            stacklevel=2
+        )
 
 
 def _is_degraded_mode() -> bool:
-    """Check if running in degraded mode without pywin32.
+    """Check if running in degraded mode without proper file locking.
 
-    Returns True if running on Windows without pywin32, which means
-    file locking will use a slower pure Python fallback.
+    Returns True if running on:
+    - Windows without pywin32 (uses slower pure Python fallback)
+    - Unix-like systems without fcntl (file locking disabled)
 
     Fix for Issue #696: Allow degraded mode for portability instead of
     raising ImportError. This allows the code to run on Windows without
     pywin32, using a fallback implementation.
 
-    Returns:
-        bool: True if in degraded mode (Windows without pywin32),
-              False otherwise (Windows with pywin32, or Unix systems)
-    """
-    if os.name != 'nt':
-        # Unix systems always use fcntl, not degraded
-        return False
+    Fix for Issue #791: Allow degraded mode on Unix systems without fcntl
+    for portability, similar to Windows pywin32 handling.
 
-    # On Windows, check if pywin32 modules are available
-    return win32file is None
+    Returns:
+        bool: True if in degraded mode (Windows without pywin32,
+              or Unix without fcntl), False otherwise.
+    """
+    if os.name == 'nt':
+        # On Windows, check if pywin32 modules are available
+        return win32file is None
+    else:
+        # On Unix-like systems, check if fcntl is available
+        return fcntl is None
 
 
 class AbstractStorage(abc.ABC):
@@ -883,6 +899,15 @@ class FileStorage(AbstractStorage):
                     logger.error(f"Failed to acquire Windows mandatory lock: {e}")
                     raise
         else:  # Unix-like systems
+            # Portability fix for Issue #791: Check if running in degraded mode
+            if _is_degraded_mode():
+                # fcntl is not available - log warning and skip file locking
+                logger.warning(
+                    "File locking is disabled in degraded mode (fcntl not available). "
+                    "Concurrent access may cause data corruption."
+                )
+                return  # Skip file locking in degraded mode
+
             # Unix locking: fcntl.flock (Issue #411)
             # Provides strong synchronization guarantees
             # LOCK_EX = exclusive lock
@@ -1031,6 +1056,11 @@ class FileStorage(AbstractStorage):
                     logger.error(f"Failed to release Windows mandatory lock: {e}")
                     raise
         else:  # Unix-like systems
+            # Portability fix for Issue #791: Check if running in degraded mode
+            if _is_degraded_mode():
+                # fcntl is not available - nothing to release
+                return  # Skip file unlocking in degraded mode
+
             # Unix unlocking
             try:
                 fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
