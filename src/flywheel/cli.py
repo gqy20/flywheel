@@ -187,6 +187,9 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
         tag count before processing.
         Addresses Issue #704 - Uses non-regex approach (all() + str.isalnum)
         to completely eliminate ReDoS risk from regex backtracking.
+        Addresses Issue #735 - Places hyphen at the end of allowed_chars
+        string to prevent it from creating unintended character ranges in
+        regex character classes, eliminating potential ReDoS vulnerabilities.
     """
     if not tags_str:
         return []
@@ -205,7 +208,12 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
     sanitized_tags = []
 
     # Define allowed characters: ASCII alphanumeric, underscore, hyphen
-    allowed_chars = set(string.ascii_letters + string.digits + '_-')
+    # SECURITY FIX (Issue #735): Place hyphen at the end to prevent it from
+    # creating a character range in regex character classes. When used in
+    # patterns like [chars], a hyphen in the middle (e.g., '_-') creates a
+    # range, which can cause ReDoS vulnerabilities. Placing it at the end
+    # ensures it's treated as a literal hyphen character.
+    allowed_chars = set(string.ascii_letters + string.digits + '_' + '-')
 
     for tag in raw_tags:
         # Strip whitespace
