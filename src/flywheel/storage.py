@@ -2375,9 +2375,15 @@ class FileStorage(AbstractStorage):
 
         Uses aiofiles for non-blocking async I/O (Issue #582).
         """
+        import time
+        start_time = time.time()
+        logger.debug(f"Loading todos from {self.path}")
+
         # Acquire lock first to ensure atomicity of read + state update
         async with self._async_lock:
+            logger.debug("Acquiring async lock for load operation")
             if not self.path.exists():
+                logger.debug(f"File {self.path} does not exist, initializing empty storage")
                 self._todos = []
                 self._next_id = 1
                 self._dirty = False  # Reset dirty flag (Issue #203)
@@ -2395,7 +2401,9 @@ class FileStorage(AbstractStorage):
                 # Read file as bytes first to verify integrity hash (Issue #588)
                 # This allows us to detect file truncation or corruption
                 # Use aiofiles for async non-blocking I/O (Issue #582)
+                logger.debug(f"Reading file {self.path}")
                 async with aiofiles.open(self.path, 'rb') as f:
+                    logger.debug("Acquiring file lock for read operation")
                     self._acquire_file_lock(f)
                     try:
                         file_bytes = await f.read()
@@ -2524,6 +2532,10 @@ class FileStorage(AbstractStorage):
                 self._next_id = next_id
                 # Reset dirty flag after successful load (Issue #203)
                 self._dirty = False
+
+                # Log successful load completion
+                elapsed = time.time() - start_time
+                logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -2553,6 +2565,10 @@ class FileStorage(AbstractStorage):
         race conditions where the file could change between reading and
         updating internal state.
         """
+        import time
+        start_time = time.time()
+        logger.debug(f"Loading todos from {self.path} (synchronously)")
+
         if not self.path.exists():
             self._todos = []
             self._next_id = 1
@@ -2700,6 +2716,10 @@ class FileStorage(AbstractStorage):
             self._next_id = next_id
             # Reset dirty flag after successful load (Issue #203)
             self._dirty = False
+
+            # Log successful load completion
+            elapsed = time.time() - start_time
+            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
             backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -2734,6 +2754,10 @@ class FileStorage(AbstractStorage):
         """
         import tempfile
         import copy
+        import time
+
+        start_time = time.time()
+        logger.debug(f"Saving {len(self._todos)} todos to {self.path}")
 
         # Phase 1: Capture data under lock (minimal critical section)
         async with self._async_lock:
@@ -2778,6 +2802,7 @@ class FileStorage(AbstractStorage):
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
             # Apply chmod BEFORE any data is written to prevent race condition (Issue #205)
+            logger.debug(f"Writing to temporary file {temp_path}")
             try:
                 os.chmod(temp_path, 0o600)
             except OSError:
@@ -2809,6 +2834,10 @@ class FileStorage(AbstractStorage):
             else:
                 # If target doesn't exist, no need to lock
                 os.replace(temp_path, self.path)
+
+            # Log successful save completion
+            elapsed = time.time() - start_time
+            logger.debug(f"Save completed in {elapsed:.3f}s")
         except Exception:
             # Clean up temp file on error
             try:
@@ -2889,6 +2918,7 @@ class FileStorage(AbstractStorage):
             # Set strict file permissions (0o600) to prevent unauthorized access
             # This ensures security regardless of umask settings (Issue #179)
             # Apply chmod BEFORE any data is written to prevent race condition (Issue #205)
+            logger.debug(f"Writing to temporary file {temp_path}")
             try:
                 os.chmod(temp_path, 0o600)
             except OSError:
