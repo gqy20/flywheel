@@ -33,6 +33,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
     - Backslash (\) for Windows paths, Markdown, regex, and other legitimate uses
+    - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
 
     Args:
         s: String to sanitize
@@ -51,9 +52,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         attacks when sanitized data is used in f-strings or .format().
         Addresses Issue #705 - Preserves backslashes to prevent data corruption
         in Windows paths, Markdown, regex patterns, and other legitimate uses.
-        Addresses Issue #709, #714 - Places hyphen at end of character class to
-        prevent ReDoS via catastrophic backtracking from unintended range
-        interpretation and ensures proper escaping without ambiguity.
+        Addresses Issue #725 - Preserves hyphens to prevent data corruption
+        in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
     """
     if not s:
         return ""
@@ -64,7 +64,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
     # Define blacklist of dangerous shell metacharacters to remove.
     # Using a simple character class with explicit escaping to prevent ReDoS.
-    # Characters removed: ; | & ` $ ( ) < > { } -
+    # Characters removed: ; | & ` $ ( ) < > { }
     # Note: We preserve quotes, %, [, ] for legitimate content
     # Backslash preserved to prevent data corruption (Issue #705):
     # - Windows paths (C:\Users\...)
@@ -72,8 +72,13 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # - Regular expressions
     # - LaTeX commands
     # Curly braces removed to prevent format string attacks (Issue #690)
-    # Hyphen placed at end to prevent range interpretation (Issue #694, #709, #714)
-    dangerous_chars = r';|&`$()<>{}-'
+    # Hyphen preserved to prevent data corruption (Issue #725):
+    # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
+    # - Hyphenated words (well-known, self-contained)
+    # - ISO dates (2024-01-15)
+    # - Phone numbers (1-800-555-0123)
+    # - URLs and file paths
+    dangerous_chars = r';|&`$()<>{}'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
