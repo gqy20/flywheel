@@ -2850,6 +2850,141 @@ class FileStorage(AbstractStorage):
                 pass
             raise
 
+    def _save_with_todos_sync(self, todos: list[Todo]) -> None:
+        """Save specified todos to file using atomic write synchronously.
+
+        This is the synchronous version of _save_with_todos for use by
+        synchronous methods like add(), update(), add_batch(), etc.
+
+        Uses Copy-on-Write pattern: captures data under lock, releases lock,
+        then performs I/O. This minimizes lock contention and prevents blocking
+        other operations during file I/O (Issue #582).
+
+        Args:
+            todos: The todos list to save. This will become the new internal state.
+
+        Note:
+            This method updates self._todos ONLY after successful file write
+            to maintain consistency and prevent race conditions (fixes Issue #95, #105, #121).
+
+            File truncation (Issue #370): Uses tempfile + os.replace()
+            which naturally prevents data corruption from size reduction by creating
+            a new empty file and atomically replacing the target.
+
+            Transaction support (Issue #748): Uses "write to temp file + atomic replace"
+            pattern to prevent data corruption from crashes or power failures during writes.
+        """
+        import copy
+        import tempfile
+
+        # Phase 1: Capture data under lock (minimal critical section)
+        # DO NOT update internal state yet - wait until write succeeds
+        with self._lock:
+            # Deep copy the new todos to ensure we have a consistent snapshot
+            todos_copy = copy.deepcopy(todos)
+            # Calculate next_id from the todos being saved (fixes Issue #166, #170)
+            # This ensures the saved next_id matches the actual max ID in the file
+            if todos:
+                max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
+                next_id_copy = max(max_id + 1, self._next_id)
+            else:
+                # Preserve current next_id when todos list is empty (fixes Issue #175)
+                # This prevents ID conflicts by not resetting to 1
+                next_id_copy = self._next_id
+
+        # Phase 2: Serialize and perform I/O OUTSIDE the lock
+        # Save with metadata for efficient ID generation and data integrity (Issue #223)
+        # Calculate checksum of todos data
+        checksum = self._calculate_checksum(todos_copy)
+        data = json.dumps({
+            "todos": [t.to_dict() for t in todos_copy],
+            "next_id": next_id_copy,
+            "metadata": {
+                "checksum": checksum
+            }
+        }, indent=2)
+
+        # Use compression setting from initialization (Issue #652)
+        is_compressed = self.compression
+
+        # Encode data to bytes
+        data_bytes = data.encode('utf-8')
+
+        # Compress data if compression is enabled
+        if is_compressed:
+            data_bytes = gzip.compress(data_bytes, compresslevel=6)
+
+        # Add SHA256 hash at the end for data integrity verification (Issue #588)
+        # This helps detect silent data corruption or JSON truncation
+        file_hash = hashlib.sha256(data_bytes).hexdigest()
+        # Use a special delimiter that won't appear in JSON
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        data_bytes_with_hash = data_bytes + hash_footer
+
+        # Write to temporary file first (Issue #748: Transaction support)
+        # Use random temp file name for atomicity
+        temp_path = self.path.parent / f"{self.path.name}.{os.urandom(8).hex()}.tmp"
+
+        try:
+            # Set strict file permissions (0o600) to prevent unauthorized access
+            # This ensures security regardless of umask settings (Issue #179)
+            # Apply chmod BEFORE any data is written to prevent race condition (Issue #205)
+            logger.debug(f"Writing to temporary file {temp_path}")
+            try:
+                os.chmod(temp_path, 0o600)
+            except OSError:
+                # chmod failed - re-raise to prevent writing with incorrect permissions (Issue #224)
+                raise
+
+            # Write data synchronously (Issue #748: uses temp file for transaction safety)
+            with temp_path.open('wb') as f:
+                f.write(data_bytes_with_hash)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure data is written to disk
+
+            # Create backup before replacing if backup_count > 0 (Issue #693)
+            if self.backup_count > 0 and self.path.exists():
+                self._rotate_backups()
+
+            # Atomically replace the original file using os.replace (Issue #227, #748)
+            # os.replace is atomic on POSIX systems and handles target file existence on Windows
+            # This provides transaction support: either all data is written or none (Issue #748)
+            # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
+            if self.path.exists():
+                with self.path.open('r') as target_file:
+                    self._acquire_file_lock(target_file)
+                    try:
+                        os.replace(temp_path, self.path)
+                    finally:
+                        self._release_file_lock(target_file)
+            else:
+                # If target doesn't exist, no need to lock
+                os.replace(temp_path, self.path)
+
+            # Phase 3: Update internal state ONLY after successful write
+            # This ensures consistency between memory and disk (fixes Issue #121, #150)
+            with self._lock:
+                # Use the original todos parameter to update internal state (fixes Issue #150)
+                # Deep copy to prevent external modifications from affecting internal state
+                self._todos = copy.deepcopy(todos)
+                # Recalculate _next_id to maintain consistency (fixes Issue #101)
+                # If the new todos contain higher IDs than current _next_id, update it
+                if todos:
+                    max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
+                    if max_id >= self._next_id:
+                        self._next_id = max_id + 1
+                # Mark as clean after successful save (Issue #203)
+                self._dirty = False
+                # Update last saved time for auto-save functionality (Issue #547)
+                self.last_saved_time = time.time()
+        except Exception:
+            # Clean up temp file on error (Issue #748: ensure no partial writes remain)
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
+            raise
+
     async def _save_with_todos(self, todos: list[Todo]) -> None:
         """Save specified todos to file using atomic write asynchronously.
 
@@ -3023,9 +3158,9 @@ class FileStorage(AbstractStorage):
             if self._cache_enabled:
                 self._cache_dirty = True
             # Save and update internal state atomically
-            # _save_with_todos will update self._todos and self._next_id
+            # _save_with_todos_sync will update self._todos and self._next_id
             # only after successful write (fixes Issue #9)
-            self._save_with_todos(new_todos)
+            self._save_with_todos_sync(new_todos)
             # Update cache immediately after successful write (write-through cache, Issue #718)
             if self._cache_enabled and todo.id is not None:
                 self._cache[todo.id] = todo
@@ -3079,7 +3214,7 @@ class FileStorage(AbstractStorage):
                     if self._cache_enabled:
                         self._cache_dirty = True
                     # Save and update internal state atomically
-                    self._save_with_todos(new_todos)
+                    self._save_with_todos_sync(new_todos)
                     # Update cache immediately after successful write (write-through cache, Issue #718)
                     if self._cache_enabled and todo.id is not None:
                         self._cache[todo.id] = todo
@@ -3102,7 +3237,7 @@ class FileStorage(AbstractStorage):
                     if self._cache_enabled:
                         self._cache_dirty = True
                     # Save and update internal state atomically
-                    self._save_with_todos(new_todos)
+                    self._save_with_todos_sync(new_todos)
                     # Update cache immediately after successful write (write-through cache, Issue #718)
                     if self._cache_enabled:
                         self._cache.pop(todo_id, None)
@@ -3182,7 +3317,7 @@ class FileStorage(AbstractStorage):
             # Mark cache as dirty when data changes (Issue #703)
             if self._cache_enabled:
                 self._cache_dirty = True
-            self._save_with_todos(combined_todos)
+            self._save_with_todos_sync(combined_todos)
 
             # Check auto-save once after all additions
             self._check_auto_save()
@@ -3227,7 +3362,7 @@ class FileStorage(AbstractStorage):
                 # Mark cache as dirty when data changes (Issue #703)
                 if self._cache_enabled:
                     self._cache_dirty = True
-                self._save_with_todos(new_todos)
+                self._save_with_todos_sync(new_todos)
                 self._check_auto_save()
 
             return updated_todos
