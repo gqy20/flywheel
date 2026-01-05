@@ -3551,6 +3551,10 @@ class FileStorage(AbstractStorage):
         reduces disk I/O operations by only triggering auto-save once
         after all todos are added.
 
+        Transactional behavior (Issue #763): This operation is atomic.
+        If the save fails, no todos are added and next_id is not modified.
+        Either all todos are committed, or none are.
+
         Args:
             todos: List of Todo objects to add.
 
@@ -3561,31 +3565,35 @@ class FileStorage(AbstractStorage):
             return []
 
         with self._lock:
-            added_todos = []
+            # Capture current state for validation
             max_id = self._next_id
+            existing_ids = {t.id for t in self._todos}
 
-            # First pass: validate no duplicate IDs and prepare todos
+            # First pass: validate no duplicate IDs and track max ID
             for todo in todos:
                 todo_id = todo.id
 
                 # Check for duplicate ID
                 if todo_id is not None:
-                    for existing_todo in self._todos:
-                        if existing_todo.id == todo_id:
-                            raise ValueError(
-                                f"Todo with ID {todo_id} already exists. Use update() instead."
-                            )
-                    # Track max ID for _next_id update
+                    if todo_id in existing_ids:
+                        raise ValueError(
+                            f"Todo with ID {todo_id} already exists. Use update() instead."
+                        )
+                    # Track max ID for _next_id update (Issue #763)
                     if todo_id >= max_id:
                         max_id = todo_id + 1
 
             # Second pass: generate IDs for todos without them
+            # IMPORTANT: Don't modify self._next_id yet (Issue #763)
+            # Only calculate what IDs should be used. _save_with_todos_sync
+            # will update self._next_id after successful save.
             new_todos_list = []
+            next_id_candidate = self._next_id
             for todo in todos:
                 if todo.id is None:
-                    # Generate ID atomically
-                    todo_id = self._next_id
-                    self._next_id += 1
+                    # Calculate ID but don't increment self._next_id yet
+                    todo_id = next_id_candidate
+                    next_id_candidate += 1
                     new_todo = Todo(id=todo_id, title=todo.title, status=todo.status)
                     new_todos_list.append(new_todo)
                 else:
@@ -3599,6 +3607,12 @@ class FileStorage(AbstractStorage):
             # Mark cache as dirty when data changes (Issue #703)
             if self._cache_enabled:
                 self._cache_dirty = True
+
+            # Transactional save (Issue #763): _save_with_todos_sync will:
+            # 1. Write to temp file
+            # 2. Atomic replace
+            # 3. Update self._todos and self._next_id ONLY on success
+            # If save fails, self._next_id remains unchanged
             self._save_with_todos_sync(combined_todos)
 
             # Check auto-save once after all additions
