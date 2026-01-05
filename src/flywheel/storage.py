@@ -3518,6 +3518,10 @@ class FileStorage(AbstractStorage):
         that occurred within the context. Resources are always cleaned up and the
         lock is always released, even if an exception occurs (issue #587).
 
+        As of issue #707, this method also calls close() to ensure proper lifecycle
+        management, including saving dirty data, stopping the auto-save thread, and
+        releasing all resources.
+
         Args:
             exc_type: The type of exception raised, if any.
             exc_val: The exception instance raised, if any.
@@ -3532,8 +3536,9 @@ class FileStorage(AbstractStorage):
         """
         # Always release the lock, even if an exception occurred
         self._lock.release()
-        # Call cleanup to ensure data is flushed and resources are released (issue #587)
-        self._cleanup()
+        # Call close() to ensure proper lifecycle management (issue #707)
+        # This saves dirty data, stops auto-save thread, and releases resources
+        self.close()
         # Return False to propagate any exceptions
         return False
 
