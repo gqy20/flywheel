@@ -157,7 +157,7 @@ def validate_date(date_str: str) -> str:
         raise ValueError(f"Invalid date format '{date_str}'. Must be ISO 8601 format (e.g., '2024-01-15' or '2024-01-15T10:30:00')") from e
 
 
-def sanitize_tags(tags_str, max_length=10000, max_tags=100):
+def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
     """Sanitize tag input to prevent injection attacks.
 
     This function uses a whitelist approach to only allow safe characters:
@@ -177,6 +177,7 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
         tags_str: Comma-separated tag string from user input
         max_length: Maximum length of input string to prevent DoS (default: 10000)
         max_tags: Maximum number of tags to process (default: 100)
+        max_tag_length: Maximum length of individual tags to prevent abuse (default: 100)
 
     Returns:
         List of sanitized tags containing only allowed characters
@@ -193,6 +194,8 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
         Addresses Issue #735 - Places hyphen at the end of allowed_chars
         string to prevent it from creating unintended character ranges in
         regex character classes, eliminating potential ReDoS vulnerabilities.
+        Addresses Issue #751 - Limits individual tag length to prevent abuse
+        through extremely long tags that could cause storage or display issues.
     """
     if not tags_str:
         return []
@@ -221,6 +224,11 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
     for tag in raw_tags:
         # Strip whitespace
         tag = tag.strip()
+
+        # Truncate tag if it exceeds max_tag_length to prevent abuse
+        # This addresses Issue #751 - individual tag length limit
+        if len(tag) > max_tag_length:
+            tag = tag[:max_tag_length]
 
         # Use non-regex whitelist approach: only keep allowed characters
         # This completely eliminates ReDoS risk from regex backtracking
