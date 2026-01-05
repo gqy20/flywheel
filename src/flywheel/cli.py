@@ -28,8 +28,6 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Control characters (newlines, tabs, null bytes) that could break storage formats
     - All backslashes (\) to prevent shell injection
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
-    - Non-Latin-script characters (Cyrillic, Greek, Arabic, CJK, etc.) to prevent
-      visual homograph attacks while preserving legitimate Latin-script accented characters
 
     It preserves:
     - All alphanumeric characters and common punctuation
@@ -37,11 +35,13 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
     - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
+    - International characters (Cyrillic, CJK, Arabic, etc.) for legitimate multilingual content
 
     Security Implementation:
     - Uses a single combined regex pass to remove all dangerous characters atomically
     - This prevents order-dependency issues and makes the sanitization more robust
     - Addresses Issue #780 - Potential bypass of shell injection protection via newline
+    - Addresses Issue #804 - Removes overly aggressive filtering of non-Latin scripts
 
     Args:
         s: String to sanitize
@@ -73,13 +73,6 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         for their specific format.
         Addresses Issue #754 - Normalizes Unicode using NFC form before processing to
         handle canonical equivalence (composed vs decomposed Unicode representations).
-        Addresses Issue #774 - Restricts to Latin-script characters to prevent visual
-        homograph attacks. While NFC normalization handles canonical equivalence, it
-        does NOT prevent cross-script visual spoofing (e.g., Latin 'a' vs Cyrillic 'а').
-        This fix blocks characters from non-Latin scripts (Cyrillic, Greek, Arabic, CJK)
-        while preserving legitimate accented characters used in Latin-based languages
-        (French, Spanish, German, etc.). Visual lookalikes from different scripts and
-        different Unicode representations are now properly handled.
         Addresses Issue #769 - Removes ALL backslashes (not just trailing) to prevent
         shell injection through internal escape sequences like '\n', '\t', '\r', etc.,
         which can be interpreted as control characters in shell contexts.
@@ -87,10 +80,14 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         characters (shell metacharacters and control characters) in one atomic operation.
         This eliminates order-dependency vulnerabilities and makes the sanitization more
         robust against potential bypasses that could slip through multiple sequential passes.
-        Addresses Issue #794 - Uses unicodedata.name(char).startswith('LATIN') instead of
-        hardcoded Unicode ranges to detect Latin-script characters. This prevents bypasses
-        through unlisted Unicode blocks and mathematical symbols, providing more precise
-        and maintainable script filtering that automatically adapts to Unicode standards.
+        Addresses Issue #804 - Removes overly aggressive filtering of non-Latin scripts.
+        Previous implementation blocked all non-Latin characters (Cyrillic, CJK, Arabic, etc.)
+        to prevent visual homograph attacks, but this was too restrictive for general text
+        input like todo titles and descriptions. Users should be able to write todos in
+        their native languages. Visual homograph attack prevention should be applied only
+        where necessary (e.g., filenames, shell parameters), not to all text input.
+        This change preserves international characters while still removing dangerous
+        shell metacharacters, control characters, and Unicode spoofing characters.
     """
     if not s:
         return ""
@@ -109,79 +106,16 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Security: Addresses Issue #764 - NFKC causes data loss
     s = unicodedata.normalize('NFC', s)
 
-    # SECURITY FIX (Issue #774): Restrict to Latin-script characters to prevent
-    # visual homograph attacks. NFC normalization only handles canonical
-    # equivalence (composed vs decomposed forms) but does NOT prevent visual
-    # spoofing using homoglyphs from different scripts.
+    # SECURITY FIX (Issue #804): Removed overly aggressive filtering of non-Latin scripts.
+    # Previous implementation restricted all input to Latin-script characters only to prevent
+    # visual homograph attacks. However, this was too restrictive for general text input
+    # like todo titles and descriptions, where users should be able to write in their
+    # native languages (Cyrillic, CJK, Arabic, etc.).
     #
-    # Examples of visual homographs that NFC does NOT change:
-    # - Latin 'a' (U+0061) vs Cyrillic 'а' (U+0430) - visually identical
-    # - Latin 'e' (U+0065) vs Greek 'ε' (U+03B5) - visually similar
-    # - Latin 'o' (U+006F) vs Greek 'ο' (U+03BF) - visually identical
-    # - Latin 'r' (U+0072) vs Cyrillic 'г' (U+0433) - visually similar
-    #
-    # These homographs can be used for:
-    # - Phishing attacks (e.g., "аdmin.com" vs "admin.com")
-    # - Bypassing security filters
-    # - Creating confusing lookalike text
-    #
-    # Solution: Restrict to Latin-script Unicode blocks only.
-    # This preserves legitimate accented characters used in Latin-based
-    # languages (French, Spanish, German, etc.) while blocking characters
-    # from non-Latin scripts (Cyrillic, Greek, Arabic, Chinese, etc.)
-    #
-    # Allowed Unicode blocks (Latin script):
-    # Uses unicodedata.name() to check if character names start with 'LATIN'
-    # This includes: BASIC LATIN, LATIN-1 SUPPLEMENT, LATIN EXTENDED-A/B/C/D/E,
-    # and any other Latin-script characters, while blocking Cyrillic, Greek,
-    # Arabic, CJK, and other non-Latin scripts. This approach is more precise
-    # and maintainable than hardcoded code point ranges.
-    #
-    # Blocked Unicode blocks (non-Latin scripts):
-    # - Cyrillic (U+0400-U+04FF): а, б, в, г, д, etc.
-    # - Greek (U+0370-U+03FF): α, β, γ, δ, ε, etc.
-    # - Arabic (U+0600-U+06FF): ا, ب, ت, ث, ج, etc.
-    # - Chinese, Japanese, Korean (CJK) ranges
-    # - All other non-Latin scripts
-    #
-    # Security: Addresses Issue #774 - Prevents visual homograph attacks by
-    # restricting to Latin-script characters only. This is a defense-in-depth
-    # approach that complements NFC normalization (which handles canonical
-    # equivalence but not cross-script visual similarity).
-    def is_latin_script(char: str) -> bool:
-        """Check if a character belongs to a Latin-script Unicode block.
-
-        Returns True for characters in Latin-script blocks, False otherwise.
-        This prevents visual homograph attacks from non-Latin scripts.
-
-        Security (Issue #794): Uses unicodedata.name() to check if the character's
-        Unicode name starts with 'LATIN', providing a more precise and maintainable
-        approach than hardcoding Unicode code point ranges. This automatically
-        adapts to new Unicode standards and prevents bypasses through unlisted ranges.
-        """
-        try:
-            # Check if the character's Unicode name starts with 'LATIN'
-            # This catches all Latin-script characters:
-            # - LATIN CAPITAL LETTER A
-            # - LATIN SMALL LETTER A WITH GRAVE
-            # - LATIN SMALL LETTER SHARP S
-            # - LATIN CAPITAL LIGATURE OE
-            # etc.
-            #
-            # This approach:
-            # 1. Is more precise than hardcoded ranges
-            # 2. Automatically adapts to new Unicode versions
-            # 3. Prevents bypasses through unlisted Unicode blocks
-            # 4. Properly filters out mathematical symbols and other lookalikes
-            #    (e.g., MATHEMATICAL BOLD CAPITAL A is not caught by 'LATIN')
-            return unicodedata.name(char).startswith('LATIN')
-        except ValueError:
-            # Some characters (like control characters) don't have Unicode names
-            # These are definitely not Latin-script characters
-            return False
-
-    # Filter out non-Latin-script characters
-    s = ''.join(char for char in s if is_latin_script(char))
+    # Visual homograph attack prevention should only be applied where necessary (e.g.,
+    # when generating filenames or shell parameters), not to all text input. For general
+    # text storage, we preserve international characters while still removing dangerous
+    # shell metacharacters, control characters, and Unicode spoofing characters below.
 
     # Prevent DoS by limiting input length
     if len(s) > max_length:
