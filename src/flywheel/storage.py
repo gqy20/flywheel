@@ -70,13 +70,18 @@ if os.name == 'nt':  # Windows
     except ImportError:
         # Issue #696: Fall back to degraded mode instead of raising ImportError.
         # On Windows, pywin32 is preferred for optimal file locking, but the module
-        # will use a slower pure Python fallback to maintain portability. Users
-        # are encouraged to install pywin32 for best performance:
+        # will run in degraded mode with file locking DISABLED to maintain portability.
+        # Users are encouraged to install pywin32 for best performance and safety:
         #   pip install pywin32
+        #
+        # Issue #801: Clarified that locking is disabled, not using a fallback.
+        # Without pywin32, file locking is completely disabled, which may cause
+        # data corruption when multiple instances run concurrently.
         import warnings
         warnings.warn(
-            "pywin32 is not installed. File locking will use a slower pure Python "
-            "fallback. For optimal performance on Windows, install pywin32: "
+            "pywin32 is not installed. File locking will be DISABLED. "
+            "This may cause data corruption when multiple instances run concurrently. "
+            "For optimal performance and safety on Windows, install pywin32: "
             "pip install pywin32",
             UserWarning,
             stacklevel=2
@@ -114,15 +119,18 @@ def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without proper file locking.
 
     Returns True if running on:
-    - Windows without pywin32 (uses slower pure Python fallback)
+    - Windows without pywin32 (file locking DISABLED)
     - Unix-like systems without fcntl (file locking disabled)
 
     Fix for Issue #696: Allow degraded mode for portability instead of
     raising ImportError. This allows the code to run on Windows without
-    pywin32, using a fallback implementation.
+    pywin32 or on Unix without fcntl, but with file locking disabled.
 
     Fix for Issue #791: Allow degraded mode on Unix systems without fcntl
     for portability, similar to Windows pywin32 handling.
+
+    Fix for Issue #801: Clarified that file locking is DISABLED on Windows
+    without pywin32, not using a fallback implementation.
 
     Returns:
         bool: True if in degraded mode (Windows without pywin32,
