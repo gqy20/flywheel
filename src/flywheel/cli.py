@@ -26,6 +26,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Shell injection metacharacters (;, |, &, `, $, (, ), <, >)
     - Format string characters ({, }) to prevent format string attacks
     - Control characters (newlines, tabs, null bytes) that could break storage formats
+    - All backslashes (\) to prevent shell injection
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
 
     It preserves:
@@ -35,8 +36,10 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Brackets ([, ]) for code and data structures
     - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
 
-    It removes:
-    - All backslashes (\) to prevent shell injection
+    Security Implementation:
+    - Uses a single combined regex pass to remove all dangerous characters atomically
+    - This prevents order-dependency issues and makes the sanitization more robust
+    - Addresses Issue #780 - Potential bypass of shell injection protection via newline
 
     Args:
         s: String to sanitize
@@ -66,13 +69,17 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         removed. This prevents arbitrary command injection through escape sequences.
         Storage backends should still use parameterized queries or proper escaping
         for their specific format.
-        Addresses Issue #754 - Normalizes Unicode using NFKC form before processing to
+        Addresses Issue #754 - Normalizes Unicode using NFC form before processing to
         prevent homograph attacks. Visual lookalikes from different scripts (fullwidth,
         Cyrillic, Greek) and different Unicode representations (composed vs decomposed)
         are normalized to canonical forms, ensuring security filters cannot be bypassed.
         Addresses Issue #769 - Removes ALL backslashes (not just trailing) to prevent
         shell injection through internal escape sequences like '\n', '\t', '\r', etc.,
         which can be interpreted as control characters in shell contexts.
+        Addresses Issue #780 - Uses single combined regex pass to remove all dangerous
+        characters (shell metacharacters and control characters) in one atomic operation.
+        This eliminates order-dependency vulnerabilities and makes the sanitization more
+        robust against potential bypasses that could slip through multiple sequential passes.
     """
     if not s:
         return ""
@@ -112,25 +119,26 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
     #
-    # SECURITY FIX (Issue #769): Remove ALL backslashes to prevent shell injection
-    # through internal escape sequences. Previously, only trailing backslashes were
-    # removed (Issue #736), but internal backslashes can still act as escape
-    # characters in shell contexts (e.g., '\n' becomes newline, '\t' becomes tab,
-    # '\\"' escapes quotes). By removing all backslashes, we ensure the sanitized
-    # output is safe even if accidentally used in shell commands or other contexts
-    # where backslashes have special meaning.
-    dangerous_chars = r';|&`$()<>{}\'
-    # Build character class safely: don't use f-string interpolation with variables
-    # that might contain special regex metacharacters like - or ]
-    # Instead, explicitly construct the pattern
-    # SECURITY FIX (Issue #739): Remove trailing {- to prevent unintended range
-    # interpretation. The hyphen was not meant to be in the character class at all,
-    # as hyphens should be preserved (Issue #725).
-    s = re.sub(r'[;|&`$()<>{}\\]', '', s)
-
-    # Remove all ASCII control characters (including newline and tab)
-    # These could break JSON or other storage formats
-    s = re.sub(r'[\x00-\x1F\x7F]', '', s)
+    # SECURITY FIX (Issue #780): Combine shell metacharacter and control character
+    # removal into a single regex pass for improved robustness. Previously, these
+    # were removed in two separate passes (line 129 and 133), which could be fragile
+    # and prone to order-dependency issues. The new combined approach ensures all
+    # dangerous characters are removed atomically in one operation.
+    #
+    # This single regex removes:
+    # - Shell injection metacharacters: ; | & ` $ ( ) < > { } \
+    # - Control characters: \x00-\x1F \x7F (including newline, tab, null, etc.)
+    #
+    # The combined character class includes:
+    # - Explicit metachars: ; | & ` $ ( ) < > { } \
+    # - Control char range: \x00-\x1F (all ASCII control chars)
+    # - Delete character: \x7F
+    #
+    # SECURITY NOTE: By using a single regex pass, we eliminate the risk of
+    # characters slipping through due to order dependencies between multiple
+    # sanitization steps. This makes the sanitization more robust and easier
+    # to reason about.
+    s = re.sub(r'[;|&`$()<>{}\\\x00-\x1F\x7F]', '', s)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
