@@ -3,6 +3,7 @@
 import argparse
 import logging
 import re
+import string
 import sys
 from datetime import datetime
 
@@ -101,7 +102,7 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
     - Command injection (newlines, null bytes)
     - Unicode spoofing characters (fullwidth characters, zero-width characters,
       homoglyphs, control characters, bidirectional overrides, etc.)
-    - ReDoS attacks (by limiting input length and number of tags)
+    - ReDoS attacks (by using non-regex approach instead of regex patterns)
 
     Args:
         tags_str: Comma-separated tag string from user input
@@ -118,6 +119,8 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
         spoofing characters and control characters.
         Addresses Issue #635 - Prevents ReDoS by limiting input length and
         tag count before processing.
+        Addresses Issue #704 - Uses non-regex approach (all() + str.isalnum)
+        to completely eliminate ReDoS risk from regex backtracking.
     """
     if not tags_str:
         return []
@@ -135,25 +138,21 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100):
 
     sanitized_tags = []
 
+    # Define allowed characters: ASCII alphanumeric, underscore, hyphen
+    allowed_chars = set(string.ascii_letters + string.digits + '_-')
+
     for tag in raw_tags:
         # Strip whitespace
         tag = tag.strip()
 
-        # Use whitelist approach: only keep ASCII word characters ([a-zA-Z0-9_])
-        # and hyphens. Using explicit ASCII range prevents Unicode spoofing.
-        # This removes all dangerous characters including:
-        # - Shell metacharacters
-        # - Unicode spoofing characters
-        # - Control characters
-        # - Zero-width characters
-        # - Bidirectional overrides
-        # - Fullwidth characters
-        # - Emoji and symbols
-        tag = re.sub(r'[^a-zA-Z0-9_\-]', '', tag)
+        # Use non-regex whitelist approach: only keep allowed characters
+        # This completely eliminates ReDoS risk from regex backtracking
+        # by using Python's built-in character checking methods
+        sanitized = ''.join(c for c in tag if c in allowed_chars)
 
         # Only add non-empty tags after sanitization
-        if tag:
-            sanitized_tags.append(tag)
+        if sanitized:
+            sanitized_tags.append(sanitized)
 
     return sanitized_tags
 
