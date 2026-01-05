@@ -2475,6 +2475,7 @@ class FileStorage(AbstractStorage):
                     self._acquire_file_lock(f)
                     try:
                         file_bytes = await f.read()
+                        bytes_read = len(file_bytes)  # Track bytes for performance logging (Issue #758)
                     finally:
                         self._release_file_lock(f)
 
@@ -2603,7 +2604,7 @@ class FileStorage(AbstractStorage):
 
                 # Log successful load completion
                 elapsed = time.time() - start_time
-                logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
+                logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -2659,6 +2660,7 @@ class FileStorage(AbstractStorage):
                 self._acquire_file_lock(f)
                 try:
                     file_bytes = f.read()
+                    bytes_read = len(file_bytes)  # Track bytes for performance logging (Issue #758)
                 finally:
                     self._release_file_lock(f)
 
@@ -2793,7 +2795,7 @@ class FileStorage(AbstractStorage):
 
             # Log successful load completion
             elapsed = time.time() - start_time
-            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
+            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
             backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -2844,6 +2846,7 @@ class FileStorage(AbstractStorage):
                 self._acquire_file_lock(f)
                 try:
                     file_bytes = await f.read()
+                    bytes_read = len(file_bytes)  # Track bytes for performance logging (Issue #758)
                 finally:
                     self._release_file_lock(f)
 
@@ -2978,7 +2981,7 @@ class FileStorage(AbstractStorage):
 
             # Log successful load completion
             elapsed = time.time() - start_time
-            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
+            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
             backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -3098,7 +3101,8 @@ class FileStorage(AbstractStorage):
 
             # Log successful save completion
             elapsed = time.time() - start_time
-            logger.debug(f"Save completed in {elapsed:.3f}s")
+            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
         except Exception:
             # Clean up temp file on error
             try:
@@ -3133,6 +3137,10 @@ class FileStorage(AbstractStorage):
         """
         import copy
         import tempfile
+        import time
+
+        start_time = time.time()
+        logger.debug(f"Saving {len(todos)} todos to {self.path} (synchronously)")
 
         # Phase 1: Capture data under lock (minimal critical section)
         # DO NOT update internal state yet - wait until write succeeds
@@ -3235,6 +3243,11 @@ class FileStorage(AbstractStorage):
                 self._dirty = False
                 # Update last saved time for auto-save functionality (Issue #547)
                 self.last_saved_time = time.time()
+
+            # Log successful save completion
+            elapsed = time.time() - start_time
+            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
         except Exception:
             # Clean up temp file on error (Issue #748: ensure no partial writes remain)
             try:
@@ -3262,6 +3275,10 @@ class FileStorage(AbstractStorage):
             a new empty file and atomically replacing the target.
         """
         import copy
+        import time
+
+        start_time = time.time()
+        logger.debug(f"Saving {len(todos)} todos to {self.path} (asynchronously)")
 
         # Phase 1: Capture data under lock (minimal critical section)
         # DO NOT update internal state yet - wait until write succeeds
@@ -3367,6 +3384,11 @@ class FileStorage(AbstractStorage):
                 self._dirty = False
                 # Update last saved time for auto-save functionality (Issue #547)
                 self.last_saved_time = time.time()
+
+            # Log successful save completion
+            elapsed = time.time() - start_time
+            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
         except Exception:
             # Clean up temp file on error
             try:
