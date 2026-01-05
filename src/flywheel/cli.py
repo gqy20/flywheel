@@ -54,6 +54,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         in Windows paths, Markdown, regex patterns, and other legitimate uses.
         Addresses Issue #725 - Preserves hyphens to prevent data corruption
         in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
+        Addresses Issue #729 - Prevents ReDoS by using explicit regex pattern
+        construction instead of string interpolation, ensuring hyphens and
+        closing brackets cannot create unintended ranges or break the character class.
         Addresses Issue #730 - SECURITY WARNING: The output of this function
         preserves backslashes for legitimate use cases (Windows paths, Markdown,
         regex). However, if the sanitized string is passed to a shell command
@@ -70,7 +73,6 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         s = s[:max_length]
 
     # Define blacklist of dangerous shell metacharacters to remove.
-    # Using a simple character class with explicit escaping to prevent ReDoS.
     # Characters removed: ; | & ` $ ( ) < > { }
     # Note: We preserve quotes, %, [, ] for legitimate content
     # Backslash preserved to prevent data corruption (Issue #705):
@@ -85,26 +87,17 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # - ISO dates (2024-01-15)
     # - Phone numbers (1-800-555-0123)
     # - URLs and file paths
-    # Define dangerous shell metacharacters to remove.
-    # IMPORTANT: Hyphen must be at the END of the character class to avoid
-    # being interpreted as a range operator (e.g., [a-z] means a through z).
-    # If placed in the middle like [{}-], it creates a range from } to -.
-    # Characters removed: ; | & ` $ ( ) < > { }
-    # Note: We preserve quotes, %, [, ] for legitimate content
-    # Backslash preserved to prevent data corruption (Issue #705):
-    # - Windows paths (C:\Users\...)
-    # - Markdown escape sequences
-    # - Regular expressions
-    # - LaTeX commands
-    # Curly braces removed to prevent format string attacks (Issue #690)
-    # Hyphen preserved to prevent data corruption (Issue #725):
-    # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
-    # - Hyphenated words (well-known, self-contained)
-    # - ISO dates (2024-01-15)
-    # - Phone numbers (1-800-555-0123)
-    # - URLs and file paths
+    #
+    # SECURITY NOTE (Issue #729): To prevent ReDoS, we construct the regex pattern
+    # explicitly rather than using string interpolation. This ensures that:
+    # 1. No hyphens in the middle that could create unintended ranges
+    # 2. No unescaped closing brackets that could break the character class
+    # 3. Pattern is safe from catastrophic backtracking
     dangerous_chars = r';|&`$()<>{}'
-    s = re.sub(f'[{dangerous_chars}]', '', s)
+    # Build character class safely: don't use f-string interpolation with variables
+    # that might contain special regex metacharacters like - or ]
+    # Instead, explicitly construct the pattern
+    s = re.sub(r'[;|&`$()<>{}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
     # These could break JSON or other storage formats
