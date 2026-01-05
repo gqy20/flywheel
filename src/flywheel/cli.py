@@ -33,18 +33,17 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Quotes (single ', double ") for text and code snippets
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
-    - Internal backslash (\) for Windows paths, Markdown, regex, and other legitimate uses
     - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
 
     It removes:
-    - Trailing backslashes to prevent shell injection (while preserving internal ones)
+    - All backslashes (\) to prevent shell injection
 
     Args:
         s: String to sanitize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
     Returns:
-        Sanitized string with dangerous characters removed and trailing backslashes stripped
+        Sanitized string with dangerous characters removed, including all backslashes
 
     Security:
         Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
@@ -54,22 +53,26 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         safe regex patterns.
         Addresses Issue #690 - Removes curly braces to prevent format string
         attacks when sanitized data is used in f-strings or .format().
-        Addresses Issue #705 - Preserves internal backslashes to prevent data corruption
-        in Windows paths, Markdown, regex patterns, and other legitimate uses.
         Addresses Issue #725 - Preserves hyphens to prevent data corruption
         in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
         Addresses Issue #729 - Prevents ReDoS by using explicit regex pattern
         construction instead of string interpolation, ensuring hyphens and
         closing brackets cannot create unintended ranges or break the character class.
-        Addresses Issue #736 - Removes trailing backslashes to prevent shell injection.
-        Internal backslashes are preserved for legitimate uses (Windows paths, Markdown,
-        regex), but trailing backslashes are stripped because they can escape closing
-        quotes in shell commands and enable arbitrary command injection. Storage backends
-        should still use parameterized queries or proper escaping for their specific format.
+        Addresses Issue #736 - Removes all backslashes to prevent shell injection.
+        Any backslash (internal or trailing) can act as an escape character in shell
+        contexts (e.g., '\n' becomes newline, '\t' becomes tab, '\\"' escapes quotes).
+        To ensure maximum security when sanitized data is used in shell commands or
+        other contexts where backslashes have special meaning, all backslashes are
+        removed. This prevents arbitrary command injection through escape sequences.
+        Storage backends should still use parameterized queries or proper escaping
+        for their specific format.
         Addresses Issue #754 - Normalizes Unicode using NFKC form before processing to
         prevent homograph attacks. Visual lookalikes from different scripts (fullwidth,
         Cyrillic, Greek) and different Unicode representations (composed vs decomposed)
         are normalized to canonical forms, ensuring security filters cannot be bypassed.
+        Addresses Issue #769 - Removes ALL backslashes (not just trailing) to prevent
+        shell injection through internal escape sequences like '\n', '\t', '\r', etc.,
+        which can be interpreted as control characters in shell contexts.
     """
     if not s:
         return ""
@@ -93,13 +96,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         s = s[:max_length]
 
     # Define blacklist of dangerous shell metacharacters to remove.
-    # Characters removed: ; | & ` $ ( ) < > { }
+    # Characters removed: ; | & ` $ ( ) < > { } \
     # Note: We preserve quotes, %, [, ] for legitimate content
-    # Internal backslash preserved to prevent data corruption (Issue #705):
-    # - Windows paths (C:\Users\...)
-    # - Markdown escape sequences
-    # - Regular expressions
-    # - LaTeX commands
     # Curly braces removed to prevent format string attacks (Issue #690)
     # Hyphen preserved to prevent data corruption (Issue #725):
     # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
@@ -113,14 +111,22 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # 1. No hyphens in the middle that could create unintended ranges
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
-    dangerous_chars = r';|&`$()<>{}'
+    #
+    # SECURITY FIX (Issue #769): Remove ALL backslashes to prevent shell injection
+    # through internal escape sequences. Previously, only trailing backslashes were
+    # removed (Issue #736), but internal backslashes can still act as escape
+    # characters in shell contexts (e.g., '\n' becomes newline, '\t' becomes tab,
+    # '\\"' escapes quotes). By removing all backslashes, we ensure the sanitized
+    # output is safe even if accidentally used in shell commands or other contexts
+    # where backslashes have special meaning.
+    dangerous_chars = r';|&`$()<>{}\'
     # Build character class safely: don't use f-string interpolation with variables
     # that might contain special regex metacharacters like - or ]
     # Instead, explicitly construct the pattern
     # SECURITY FIX (Issue #739): Remove trailing {- to prevent unintended range
     # interpretation. The hyphen was not meant to be in the character class at all,
     # as hyphens should be preserved (Issue #725).
-    s = re.sub(r'[;|&`$()<>{}]', '', s)
+    s = re.sub(r'[;|&`$()<>{}\\]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
     # These could break JSON or other storage formats
@@ -133,15 +139,6 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
     # Fullwidth characters (U+FF01-FF60) - convert or remove
     s = re.sub(r'[\uFF01-\uFF60]', '', s)
-
-    # SECURITY FIX (Issue #736): Remove trailing backslashes to prevent shell injection
-    # A trailing backslash can escape the closing quote in shell commands:
-    # Example: os.system(f'echo "{sanitized}"') where sanitized = "path\"
-    # becomes: echo "path\"  <- The backslash escapes the closing quote
-    # This allows arbitrary command injection. We strip trailing backslashes
-    # while preserving internal backslashes for legitimate uses (Windows paths, etc.).
-    # This makes the output safer if accidentally used in shell commands.
-    s = s.rstrip('\\')
 
     return s
 
