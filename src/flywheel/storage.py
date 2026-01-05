@@ -546,10 +546,10 @@ class FileStorage(AbstractStorage):
         instance.COMPACTION_THRESHOLD = 0.2
 
         # Gracefully handle load failures to allow object instantiation (Issue #456)
-        # Load data asynchronously in thread pool to avoid blocking event loop (Issue #646)
+        # Load data asynchronously using aiofiles to avoid blocking event loop (Issue #646, #747)
         init_success = False
         try:
-            await asyncio.to_thread(instance._load_sync)
+            await instance._load_async()
             init_success = True
         except (
             json.JSONDecodeError,  # JSON parsing errors
@@ -2230,6 +2230,70 @@ class FileStorage(AbstractStorage):
             # Ignore errors when creating backup
             pass
 
+    async def _rotate_backups_async(self) -> None:
+        """Rotate backup files asynchronously using aiofiles (Issue #747).
+
+        Backup rotation scheme:
+        - todos.json.bak (most recent backup)
+        - todos.json.bak.1 (second most recent)
+        - todos.json.bak.2 (third most recent)
+        - ...
+        - todos.json.bak.N (oldest backup within backup_count)
+
+        If backup_count is 3, we keep:
+        - .bak (most recent)
+        - .bak.1 (second most recent)
+        - .bak.2 (third most recent)
+
+        Older backups (.bak.3, .bak.4, etc.) are removed.
+
+        This async version uses aiofiles for non-blocking I/O operations,
+        ensuring the event loop is not blocked during backup rotation.
+        """
+        import aiofiles
+        import shutil
+
+        # First, delete the oldest backup if it exists
+        oldest_backup = self.path.parent / f"{self.path.name}.bak.{self.backup_count - 1}"
+        if oldest_backup.exists():
+            try:
+                oldest_backup.unlink()
+            except OSError:
+                # Ignore errors when removing old backup
+                pass
+
+        # Rotate existing backups: .bak.N-1 -> .bak.N
+        for i in range(self.backup_count - 1, 0, -1):
+            old_backup = self.path.parent / f"{self.path.name}.bak.{i - 1}" if i > 1 else self.path.parent / f"{self.path.name}.bak"
+            new_backup = self.path.parent / f"{self.path.name}.bak.{i}"
+
+            if old_backup.exists():
+                try:
+                    # Use async file copy for non-blocking I/O
+                    async with aiofiles.open(old_backup, 'rb') as src_file:
+                        data = await src_file.read()
+                    async with aiofiles.open(new_backup, 'wb') as dst_file:
+                        await dst_file.write(data)
+                    # Copy metadata (modification time, etc.)
+                    shutil.copystat(old_backup, new_backup)
+                except OSError:
+                    # Ignore errors during backup rotation
+                    pass
+
+        # Create new backup from current file
+        backup_path = self.path.parent / f"{self.path.name}.bak"
+        try:
+            # Use async file copy for non-blocking I/O
+            async with aiofiles.open(self.path, 'rb') as src_file:
+                data = await src_file.read()
+            async with aiofiles.open(backup_path, 'wb') as dst_file:
+                await dst_file.write(data)
+            # Copy metadata (modification time, etc.)
+            shutil.copystat(self.path, backup_path)
+        except OSError:
+            # Ignore errors when creating backup
+            pass
+
     def _calculate_checksum(self, todos: list) -> str:
         """Calculate SHA256 checksum of todos data (Issue #223).
 
@@ -2742,6 +2806,185 @@ class FileStorage(AbstractStorage):
             backup_path = self._create_backup(f"Failed to load todos from {self.path}")
             raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
+    async def _load_async(self) -> None:
+        """Load todos from file asynchronously using aiofiles (Issue #747).
+
+        This is an async version of _load_sync() that uses aiofiles for non-blocking I/O.
+        It provides true async file loading without blocking the event loop.
+
+        File read and state update are performed atomically to prevent
+        race conditions where the file could change between reading and
+        updating internal state.
+        """
+        import aiofiles
+        import time
+        start_time = time.time()
+        logger.debug(f"Loading todos from {self.path} (asynchronously)")
+
+        if not self.path.exists():
+            self._todos = []
+            self._next_id = 1
+            self._dirty = False  # Reset dirty flag (Issue #203)
+            return
+
+        try:
+            # Use compression setting from initialization (Issue #652)
+            is_compressed = self.compression
+
+            # Read file asynchronously using aiofiles (Issue #747)
+            # This prevents blocking the event loop during file I/O
+            async with aiofiles.open(self.path, 'rb') as f:
+                # Acquire file lock for multi-process safety (Issue #268)
+                self._acquire_file_lock(f)
+                try:
+                    file_bytes = await f.read()
+                finally:
+                    self._release_file_lock(f)
+
+            # Extract and verify integrity hash from end of file (Issue #588)
+            # Format: \n##INTEGRITY:<hash>##\n
+            file_str = file_bytes.decode('utf-8')
+            integrity_marker = '##INTEGRITY:'
+            marker_start = file_str.rfind(integrity_marker)
+
+            if marker_start != -1:
+                # Found integrity marker - extract and verify hash
+                marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                if marker_end != -1:
+                    stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+
+                    # Calculate hash of the data before the integrity marker
+                    # Find the newline before the marker
+                    data_end = file_str.rfind('\n', 0, marker_start)
+                    if data_end == -1:
+                        data_end = 0  # No newline found, use entire content before marker
+
+                    actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                    calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                    if calculated_hash != stored_hash:
+                        # Hash mismatch - data corruption detected
+                        backup_path = self._create_backup(
+                            f"Integrity hash mismatch in {self.path}: "
+                            f"expected {stored_hash}, got {calculated_hash}"
+                        )
+                        raise RuntimeError(
+                            f"Data integrity verification failed. Hash mismatch. "
+                            f"Backup saved to {backup_path}"
+                        )
+
+                    # Remove integrity marker from data for JSON parsing
+                    file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
+                    file_bytes = file_str.encode('utf-8')
+
+            # Decompress if needed
+            if is_compressed:
+                file_bytes = gzip.decompress(file_bytes)
+
+            raw_data = json.loads(file_bytes.decode('utf-8'))
+
+            # Validate schema before deserializing (Issue #7)
+            # This prevents injection attacks and malformed data from causing crashes
+            self._validate_storage_schema(raw_data)
+
+            # Handle both new format (dict with metadata) and old format (list)
+            # Schema validation already performed above (Issue #7)
+            if isinstance(raw_data, dict):
+                # New format with metadata
+                todos_data = raw_data.get("todos", [])
+
+                # Verify data integrity using checksum (Issue #223)
+                metadata = raw_data.get("metadata", {})
+                stored_checksum = metadata.get("checksum")
+
+                if stored_checksum:
+                    # Calculate checksum of loaded todos
+                    calculated_checksum = None
+                    try:
+                        # Temporarily deserialize todos for checksum calculation
+                        temp_todos = []
+                        for item in todos_data:
+                            try:
+                                temp_todos.append(Todo.from_dict(item))
+                            except (ValueError, TypeError, KeyError):
+                                pass
+                        calculated_checksum = self._calculate_checksum(temp_todos)
+
+                        if calculated_checksum != stored_checksum:
+                            # Checksum mismatch - data corruption detected
+                            backup_path = self._create_backup(
+                                f"Checksum mismatch in {self.path}: "
+                                f"expected {stored_checksum}, got {calculated_checksum}"
+                            )
+                            raise RuntimeError(
+                                f"Data integrity check failed. Checksum mismatch. "
+                                f"Backup saved to {backup_path}"
+                            )
+                    except Exception as e:
+                        if isinstance(e, RuntimeError):
+                            raise
+                        # If checksum calculation fails, log warning but continue
+                        logger.warning(f"Failed to verify checksum: {e}")
+
+                # Use direct access after validation to ensure type safety (Issue #219)
+                # _validate_storage_schema already confirmed next_id is an int if it exists
+                next_id = raw_data["next_id"] if "next_id" in raw_data else 1
+            elif isinstance(raw_data, list):
+                # Old format - backward compatibility
+                todos_data = raw_data
+                # Calculate next_id from existing todos, safely handling invalid items
+                valid_ids = []
+                for item in raw_data:
+                    if isinstance(item, dict):
+                        try:
+                            todo = Todo.from_dict(item)
+                            valid_ids.append(todo.id)
+                        except (ValueError, TypeError, KeyError):
+                            # Skip invalid items when calculating next_id
+                            pass
+                next_id = max(set(valid_ids), default=0) + 1
+
+            # Deserialize todo items inside the lock
+            todos = []
+            for i, item in enumerate(todos_data):
+                try:
+                    todo = Todo.from_dict(item)
+                    todos.append(todo)
+                except (ValueError, TypeError, KeyError) as e:
+                    # Skip invalid todo items but continue loading valid ones
+                    logger.warning(f"Skipping invalid todo at index {i}: {e}")
+
+            # Validate and repair todos (Issue #632)
+            # This checks for duplicate IDs, invalid field types, and attempts auto-repair
+            todos = self._validate_and_repair_todos(todos)
+
+            # Update internal state
+            self._todos = todos
+            self._next_id = next_id
+            # Reset dirty flag after successful load (Issue #203)
+            self._dirty = False
+
+            # Log successful load completion
+            elapsed = time.time() - start_time
+            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded)")
+        except json.JSONDecodeError as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = self._create_backup(f"Invalid JSON in {self.path}")
+            # Include detailed error context: line number, column, and position
+            # This helps users locate and fix JSON syntax errors manually (Issue #548)
+            raise RuntimeError(
+                f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
+                f"Backup saved to {backup_path}"
+            ) from e
+        except RuntimeError as e:
+            # Re-raise RuntimeError without creating backup
+            # This handles format validation errors that should not trigger backup
+            raise
+        except Exception as e:
+            # Create backup before raising exception to prevent data loss
+            backup_path = self._create_backup(f"Failed to load todos from {self.path}")
+            raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
+
     async def _save(self) -> None:
         """Save todos to file using atomic write asynchronously.
 
@@ -2822,14 +3065,16 @@ class FileStorage(AbstractStorage):
             # Close is handled by the context manager
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
+            # Use async backup rotation to avoid blocking event loop (Issue #747)
             if self.backup_count > 0 and self.path.exists():
-                self._rotate_backups()
+                await self._rotate_backups_async()
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
+            # Use aiofiles for async file operations to avoid blocking event loop (Issue #747)
             if self.path.exists():
-                with self.path.open('r') as target_file:
+                async with aiofiles.open(self.path, 'r') as target_file:
                     self._acquire_file_lock(target_file)
                     try:
                         os.replace(temp_path, self.path)
@@ -2943,8 +3188,9 @@ class FileStorage(AbstractStorage):
                 os.fsync(f.fileno())  # Ensure data is written to disk
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
+            # Use async backup rotation to avoid blocking event loop (Issue #747)
             if self.backup_count > 0 and self.path.exists():
-                self._rotate_backups()
+                await self._rotate_backups_async()
 
             # Atomically replace the original file using os.replace (Issue #227, #748)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
@@ -3073,14 +3319,16 @@ class FileStorage(AbstractStorage):
             # Close is handled by the context manager
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
+            # Use async backup rotation to avoid blocking event loop (Issue #747)
             if self.backup_count > 0 and self.path.exists():
-                self._rotate_backups()
+                await self._rotate_backups_async()
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
+            # Use aiofiles for async file operations to avoid blocking event loop (Issue #747)
             if self.path.exists():
-                with self.path.open('r') as target_file:
+                async with aiofiles.open(self.path, 'r') as target_file:
                     self._acquire_file_lock(target_file)
                     try:
                         os.replace(temp_path, self.path)
