@@ -75,15 +75,18 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         return ""
 
     # SECURITY FIX (Issue #754): Normalize Unicode before processing
-    # Use NFKC normalization to convert compatibility characters to their
-    # canonical forms. This prevents homograph attacks where visual lookalikes
-    # from different scripts (fullwidth, Cyrillic, Greek, etc.) or different
-    # Unicode representations (composed vs decomposed) can bypass filters.
-    # NFKC is preferred over NFC/NFD because it also handles compatibility
-    # characters like fullwidth letters and half-width katakana.
-    # Example: ａｂｃ (fullwidth) → abc (ASCII)
-    #          é (NFD: e + combining acute) → é (NFC: single character)
-    s = unicodedata.normalize('NFKC', s)
+    # Use NFC normalization to handle canonical equivalence without altering
+    # semantic meaning. This prevents homograph attacks where different
+    # Unicode representations (composed vs decomposed) can bypass filters,
+    # while preserving legitimate characters like superscripts, ligatures,
+    # and other compatibility characters.
+    # NFC is preferred over NFKC because it preserves semantic meaning:
+    # - Superscripts (², ³) remain superscripts (not converted to 2, 3)
+    # - Ligatures (ﬁ, ﬂ) remain ligatures (not converted to fi, fl)
+    # - Ordinals (ª, º) remain ordinals (not converted to a, o)
+    # Example: é (NFD: e + combining acute) → é (NFC: single character)
+    # Security: Addresses Issue #764 - NFKC causes data loss
+    s = unicodedata.normalize('NFC', s)
 
     # Prevent DoS by limiting input length
     if len(s) > max_length:
@@ -225,8 +228,9 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
         return []
 
     # SECURITY FIX (Issue #754): Normalize Unicode before processing
-    # Same normalization as in sanitize_string to prevent homograph attacks
-    tags_str = unicodedata.normalize('NFKC', tags_str)
+    # Same normalization as in sanitize_string (NFC) to prevent homograph
+    # attacks while preserving semantic meaning. Addresses Issue #764.
+    tags_str = unicodedata.normalize('NFC', tags_str)
 
     # Prevent DoS by limiting input length before processing
     if len(tags_str) > max_length:
