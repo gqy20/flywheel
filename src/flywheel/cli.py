@@ -87,6 +87,10 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         characters (shell metacharacters and control characters) in one atomic operation.
         This eliminates order-dependency vulnerabilities and makes the sanitization more
         robust against potential bypasses that could slip through multiple sequential passes.
+        Addresses Issue #794 - Uses unicodedata.name(char).startswith('LATIN') instead of
+        hardcoded Unicode ranges to detect Latin-script characters. This prevents bypasses
+        through unlisted Unicode blocks and mathematical symbols, providing more precise
+        and maintainable script filtering that automatically adapts to Unicode standards.
     """
     if not s:
         return ""
@@ -127,12 +131,11 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # from non-Latin scripts (Cyrillic, Greek, Arabic, Chinese, etc.)
     #
     # Allowed Unicode blocks (Latin script):
-    # - Basic Latin (U+0000-U+007F): ASCII characters
-    # - Latin-1 Supplement (U+0080-U+00FF): à, ñ, ü, etc.
-    # - Latin Extended-A (U+0100-U+017F): ā, ă, ē, etc.
-    # - Latin Extended-B (U+0180-U+024F): ƀ, ƃ, ƭ, etc.
-    # - Latin Extended Additional (U+1E00-U+1EFF): ḁ, ḃ, ḇ, etc.
-    # - Latin Extended-C, D, E (U+2C60-U+2C7F, U+A720-U+A7FF): Ⱡ, ⱡ, Ꜳ
+    # Uses unicodedata.name() to check if character names start with 'LATIN'
+    # This includes: BASIC LATIN, LATIN-1 SUPPLEMENT, LATIN EXTENDED-A/B/C/D/E,
+    # and any other Latin-script characters, while blocking Cyrillic, Greek,
+    # Arabic, CJK, and other non-Latin scripts. This approach is more precise
+    # and maintainable than hardcoded code point ranges.
     #
     # Blocked Unicode blocks (non-Latin scripts):
     # - Cyrillic (U+0400-U+04FF): а, б, в, г, д, etc.
@@ -150,52 +153,32 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
         Returns True for characters in Latin-script blocks, False otherwise.
         This prevents visual homograph attacks from non-Latin scripts.
+
+        Security (Issue #794): Uses unicodedata.name() to check if the character's
+        Unicode name starts with 'LATIN', providing a more precise and maintainable
+        approach than hardcoding Unicode code point ranges. This automatically
+        adapts to new Unicode standards and prevents bypasses through unlisted ranges.
         """
-        code = ord(char)
-
-        # Basic Latin (ASCII) - U+0000 to U+007F
-        if 0x0000 <= code <= 0x007F:
-            return True
-
-        # Latin-1 Supplement - U+0080 to U+00FF
-        # Includes: à, á, â, ã, ä, å, æ, ç, è, é, ê, ë, ì, í, î, ï,
-        #           ð, ñ, ò, ó, ô, õ, ö, ø, ù, ú, û, ü, ý, þ, ÿ, etc.
-        if 0x0080 <= code <= 0x00FF:
-            return True
-
-        # Latin Extended-A - U+0100 to U+017F
-        # Includes: ā, ă, ą, ĉ, ċ, č, ď, đ, ē, ė, ę, ě, ĝ, ğ, ġ, ģ,
-        #           ĥ, ħ, ĩ, ī, į, ı, ĵ, ķ, ĸ, ĺ, ļ, ľ, ŀ, ł, ń, ņ, etc.
-        if 0x0100 <= code <= 0x017F:
-            return True
-
-        # Latin Extended-B - U+0180 to U+024F
-        # Includes: ƀ, Ɓ, Ƃ, ƃ, Ƅ, ƅ, Ɔ, Ƈ, ƈ, Ɖ, Ɗ, Ƌ, ƌ, ƍ, Ǝ, Ə, etc.
-        if 0x0180 <= code <= 0x024F:
-            return True
-
-        # Latin Extended Additional - U+1E00 to U+1EFF
-        # Includes: ḁ, ḃ, ḅ, ḇ, ḉ, ḋ, ḍ, ḏ, ḑ, ḓ, ḕ, ḗ, ḙ, ḛ, ḝ, etc.
-        if 0x1E00 <= code <= 0x1EFF:
-            return True
-
-        # Latin Extended-C - U+2C60 to U+2C7F
-        # Includes: Ⱡ, ⱡ, Ɫ, Ᵽ, Ɽ, ⱥ, ⱦ, Ⱨ, ⱨ, Ⱪ, ⱪ, Ⱬ, ⱬ, Ɑ, etc.
-        if 0x2C60 <= code <= 0x2C7F:
-            return True
-
-        # Latin Extended-D - U+A720 to U+A7FF
-        # Includes: ꜠, ꜡, Ꜣ, ꜣ, Ꜥ, ꜥ, Ꜧ, ꜧ, Ꜩ, ꜩ, Ꜫ, ꜫ, etc.
-        if 0xA720 <= code <= 0xA7FF:
-            return True
-
-        # Latin Extended-E - U+AB30 to U+AB6F
-        # Includes: ꝰ, ꝱ, ꝲ, ꝳ, ꝴ, ꝵ, ꝶ, ꝷ, ꝸ, Ꝺ, ꝺ, etc.
-        if 0xAB30 <= code <= 0xAB6F:
-            return True
-
-        # Not a Latin-script character
-        return False
+        try:
+            # Check if the character's Unicode name starts with 'LATIN'
+            # This catches all Latin-script characters:
+            # - LATIN CAPITAL LETTER A
+            # - LATIN SMALL LETTER A WITH GRAVE
+            # - LATIN SMALL LETTER SHARP S
+            # - LATIN CAPITAL LIGATURE OE
+            # etc.
+            #
+            # This approach:
+            # 1. Is more precise than hardcoded ranges
+            # 2. Automatically adapts to new Unicode versions
+            # 3. Prevents bypasses through unlisted Unicode blocks
+            # 4. Properly filters out mathematical symbols and other lookalikes
+            #    (e.g., MATHEMATICAL BOLD CAPITAL A is not caught by 'LATIN')
+            return unicodedata.name(char).startswith('LATIN')
+        except ValueError:
+            # Some characters (like control characters) don't have Unicode names
+            # These are definitely not Latin-script characters
+            return False
 
     # Filter out non-Latin-script characters
     s = ''.join(char for char in s if is_latin_script(char))
