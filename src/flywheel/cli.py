@@ -78,6 +78,24 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # - ISO dates (2024-01-15)
     # - Phone numbers (1-800-555-0123)
     # - URLs and file paths
+    # Define dangerous shell metacharacters to remove.
+    # IMPORTANT: Hyphen must be at the END of the character class to avoid
+    # being interpreted as a range operator (e.g., [a-z] means a through z).
+    # If placed in the middle like [{}-], it creates a range from } to -.
+    # Characters removed: ; | & ` $ ( ) < > { }
+    # Note: We preserve quotes, %, [, ] for legitimate content
+    # Backslash preserved to prevent data corruption (Issue #705):
+    # - Windows paths (C:\Users\...)
+    # - Markdown escape sequences
+    # - Regular expressions
+    # - LaTeX commands
+    # Curly braces removed to prevent format string attacks (Issue #690)
+    # Hyphen preserved to prevent data corruption (Issue #725):
+    # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
+    # - Hyphenated words (well-known, self-contained)
+    # - ISO dates (2024-01-15)
+    # - Phone numbers (1-800-555-0123)
+    # - URLs and file paths
     dangerous_chars = r';|&`$()<>{}'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
