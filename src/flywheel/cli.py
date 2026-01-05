@@ -22,7 +22,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
     It removes:
     - Shell injection metacharacters (;, |, &, `, $, (, ), <, >)
-    - Format string characters (\, {, }) to prevent format string attacks
+    - Format string characters ({, }) to prevent format string attacks
     - Control characters (newlines, tabs, null bytes) that could break storage formats
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
 
@@ -31,6 +31,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Quotes (single ', double ") for text and code snippets
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
+    - Backslash (\) for Windows paths, Markdown, regex, and other legitimate uses
 
     Args:
         s: String to sanitize
@@ -45,8 +46,10 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         parameterized queries or proper escaping for their specific format.
         Addresses Issue #619 - Prevents ReDoS via input length limits and
         safe regex patterns.
-        Addresses Issue #690 - Removes backslash and curly braces to prevent
-        format string attacks when sanitized data is used in f-strings or .format().
+        Addresses Issue #690 - Removes curly braces to prevent format string
+        attacks when sanitized data is used in f-strings or .format().
+        Addresses Issue #705 - Preserves backslashes to prevent data corruption
+        in Windows paths, Markdown, regex patterns, and other legitimate uses.
     """
     if not s:
         return ""
@@ -57,11 +60,16 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
     # Define blacklist of dangerous shell metacharacters to remove.
     # Using a simple character class with explicit escaping to prevent ReDoS.
-    # Characters removed: ; | & ` $ ( ) < > \ { }
+    # Characters removed: ; | & ` $ ( ) < > { }
     # Note: We preserve quotes, %, [, ] for legitimate content
-    # Backslash and braces removed to prevent format string attacks (Issue #690)
+    # Backslash preserved to prevent data corruption (Issue #705):
+    # - Windows paths (C:\Users\...)
+    # - Markdown escape sequences
+    # - Regular expressions
+    # - LaTeX commands
+    # Curly braces removed to prevent format string attacks (Issue #690)
     # Hyphen placed at end to prevent range interpretation (Issue #694)
-    dangerous_chars = r';|&`$()<>{}\-'
+    dangerous_chars = r';|&`$()<>{}-'
     s = re.sub(f'[{dangerous_chars}]', '', s)
 
     # Remove all ASCII control characters (including newline and tab)
