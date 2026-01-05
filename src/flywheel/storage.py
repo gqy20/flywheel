@@ -310,7 +310,7 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1):
         """Initialize FileStorage.
 
         Args:
@@ -323,7 +323,23 @@ class FileStorage(AbstractStorage):
             enable_cache: Whether to enable memory cache (Issue #703).
                          When True, get and list operations use cached data,
                          reducing disk I/O and improving performance.
+            lock_timeout: File lock acquisition timeout in seconds (Issue #777).
+                         If the lock cannot be acquired within this time, a RuntimeError
+                         is raised. Default is 30.0 seconds.
+            lock_retry_interval: Time in seconds to wait between lock retry attempts (Issue #777).
+                                Default is 0.1 seconds (100ms).
+
+        Raises:
+            ValueError: If lock_timeout or lock_retry_interval is not positive.
         """
+        # Validate lock_timeout (Issue #777)
+        if lock_timeout <= 0:
+            raise ValueError(f"lock_timeout must be positive, got {lock_timeout}")
+
+        # Validate lock_retry_interval (Issue #777)
+        if lock_retry_interval <= 0:
+            raise ValueError(f"lock_retry_interval must be positive, got {lock_retry_interval}")
+
         self.compression = compression
         self.backup_count = backup_count
         # Add .gz extension if compression is enabled and path doesn't already have it
@@ -368,12 +384,12 @@ class FileStorage(AbstractStorage):
         self._cache: dict[int, Todo] = {}  # Cache dictionary for O(1) lookups by ID
         self._cache_dirty = False  # Track if cache needs invalidation
         self._cache_mtime: float | None = None  # Track file modification time for cache invalidation
-        # File lock timeout to prevent indefinite hangs (Issue #396)
-        # 30 seconds is a reasonable timeout for file operations
-        self._lock_timeout: float = 30.0
-        # Retry interval for non-blocking lock attempts (Issue #396)
-        # 100ms allows for responsive retries without excessive CPU usage
-        self._lock_retry_interval: float = 0.1
+        # File lock timeout to prevent indefinite hangs (Issue #396, #777)
+        # Use the provided timeout parameter (default 30.0 seconds)
+        self._lock_timeout: float = lock_timeout
+        # Retry interval for non-blocking lock attempts (Issue #396, #777)
+        # Use the provided retry interval parameter (default 0.1 seconds)
+        self._lock_retry_interval: float = lock_retry_interval
         # Auto-save interval for periodic saves during operations (Issue #547)
         # 60 seconds provides a good balance between data durability and performance
         self.AUTO_SAVE_INTERVAL: float = 60.0
@@ -487,7 +503,7 @@ class FileStorage(AbstractStorage):
                 self._auto_save_thread.start()
 
     @classmethod
-    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False) -> "FileStorage":
+    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1) -> "FileStorage":
         """Asynchronously create a FileStorage instance without blocking the event loop.
 
         This is an async factory method that creates a FileStorage instance and runs
@@ -502,12 +518,17 @@ class FileStorage(AbstractStorage):
             compression: Whether to use gzip compression (Issue #652).
             backup_count: Number of backup versions to keep (Issue #693).
             enable_cache: Whether to enable memory cache (Issue #703).
+            lock_timeout: File lock acquisition timeout in seconds (Issue #777).
+                         Default is 30.0 seconds.
+            lock_retry_interval: Time in seconds to wait between lock retry attempts (Issue #777).
+                                Default is 0.1 seconds.
 
         Returns:
             A fully initialized FileStorage instance with data loaded from disk.
 
         Raises:
             RuntimeError: If a critical initialization failure occurs and no backup was created.
+            ValueError: If lock_timeout or lock_retry_interval is not positive.
 
         Example:
             >>> # In async context
@@ -515,6 +536,14 @@ class FileStorage(AbstractStorage):
             >>> # Or with custom path
             >>> storage = await FileStorage.create(path="/custom/path/todos.json")
         """
+        # Validate lock_timeout (Issue #777)
+        if lock_timeout <= 0:
+            raise ValueError(f"lock_timeout must be positive, got {lock_timeout}")
+
+        # Validate lock_retry_interval (Issue #777)
+        if lock_retry_interval <= 0:
+            raise ValueError(f"lock_retry_interval must be positive, got {lock_retry_interval}")
+
         # Create instance with minimal initialization
         # We need to bypass __init__ to avoid blocking, so we use __new__ and manually initialize
         instance = cls.__new__(cls)
@@ -538,8 +567,8 @@ class FileStorage(AbstractStorage):
         instance._cache: dict[int, Todo] = {}
         instance._cache_dirty = False
         instance._cache_mtime = None
-        instance._lock_timeout = 30.0
-        instance._lock_retry_interval = 0.1
+        instance._lock_timeout = lock_timeout
+        instance._lock_retry_interval = lock_retry_interval
         instance.AUTO_SAVE_INTERVAL = 60.0
         instance.last_saved_time = time.time()
         instance.MIN_SAVE_INTERVAL = 5.0

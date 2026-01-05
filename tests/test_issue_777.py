@@ -71,11 +71,11 @@ class TestFileLockTimeoutConfiguration:
             storage_path = Path(tmpdir) / "test_todos.json"
 
             # Negative timeout should raise ValueError
-            with pytest.raises(ValueError, match="timeout must be positive"):
+            with pytest.raises(ValueError, match="lock_timeout must be positive"):
                 Storage(str(storage_path), lock_timeout=-1.0)
 
             # Zero timeout should raise ValueError
-            with pytest.raises(ValueError, match="timeout must be positive"):
+            with pytest.raises(ValueError, match="lock_timeout must be positive"):
                 Storage(str(storage_path), lock_timeout=0.0)
 
     def test_invalid_retry_interval_raises_error(self):
@@ -84,11 +84,11 @@ class TestFileLockTimeoutConfiguration:
             storage_path = Path(tmpdir) / "test_todos.json"
 
             # Negative retry interval should raise ValueError
-            with pytest.raises(ValueError, match="retry interval must be positive"):
+            with pytest.raises(ValueError, match="lock_retry_interval must be positive"):
                 Storage(str(storage_path), lock_retry_interval=-0.1)
 
             # Zero retry interval should raise ValueError
-            with pytest.raises(ValueError, match="retry interval must be positive"):
+            with pytest.raises(ValueError, match="lock_retry_interval must be positive"):
                 Storage(str(storage_path), lock_retry_interval=0.0)
 
 
