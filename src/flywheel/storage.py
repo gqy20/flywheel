@@ -828,6 +828,7 @@ class FileStorage(AbstractStorage):
                             overlapped  # Specifies offset (defaults to 0)
                         )
                         # Lock acquired successfully
+                        logger.debug(f"File lock acquired successfully for {file_handle.name}")
                         break
                     except pywintypes.error as e:
                         # Lock is held by another process
@@ -885,6 +886,7 @@ class FileStorage(AbstractStorage):
                         # This returns immediately with IOError if lock is held
                         fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                         # Lock acquired successfully
+                        logger.debug(f"File lock acquired successfully for {file_handle.name}")
                         break
                     except IOError as e:
                         # Lock is held by another process
@@ -991,6 +993,7 @@ class FileStorage(AbstractStorage):
                     lock_range_low,  # NumberOfBytesToUnlockLow (LENGTH, must match lock)
                     lock_range_high  # NumberOfBytesToUnlockHigh (LENGTH, must match lock)
                 )
+                logger.debug(f"File lock released successfully for {file_handle.name}")
             except (pywintypes.error, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
                     logger.error(f"Failed to release Windows mandatory lock: {e}")
@@ -1002,6 +1005,7 @@ class FileStorage(AbstractStorage):
             # Unix unlocking
             try:
                 fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
+                logger.debug(f"File lock released successfully for {file_handle.name}")
             except IOError as e:
                 logger.error(f"Failed to release Unix file lock: {e}")
                 raise
@@ -3048,7 +3052,12 @@ class FileStorage(AbstractStorage):
             if self._cache_enabled:
                 self._update_cache_from_todos()
                 # Use cache for O(1) lookup
-                return self._cache.get(todo_id)
+                result = self._cache.get(todo_id)
+                if result is not None:
+                    logger.debug(f"Cache HIT for todo_id={todo_id}")
+                else:
+                    logger.debug(f"Cache MISS for todo_id={todo_id}")
+                return result
 
             # Fallback to linear search when cache is disabled
             for todo in self._todos:
@@ -3386,10 +3395,12 @@ class FileStorage(AbstractStorage):
             current_mtime = os.path.getmtime(self.path)
             if current_mtime != self._cache_mtime:
                 # File was modified externally, mark cache as dirty
+                logger.debug(f"Cache invalidated due to external file modification")
                 self._cache_dirty = True
 
         # Rebuild cache if dirty or empty
         if self._cache_dirty or not self._cache:
+            logger.debug(f"Rebuilding cache with {len(self._todos)} todos")
             self._cache.clear()
             for todo in self._todos:
                 if todo.id is not None:
@@ -3398,6 +3409,7 @@ class FileStorage(AbstractStorage):
             # Update cache modification time
             if self.path.exists():
                 self._cache_mtime = os.path.getmtime(self.path)
+            logger.debug(f"Cache rebuilt successfully with {len(self._cache)} entries")
 
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
