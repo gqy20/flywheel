@@ -32,15 +32,18 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Quotes (single ', double ") for text and code snippets
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
-    - Backslash (\) for Windows paths, Markdown, regex, and other legitimate uses
+    - Internal backslash (\) for Windows paths, Markdown, regex, and other legitimate uses
     - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
+
+    It removes:
+    - Trailing backslashes to prevent shell injection (while preserving internal ones)
 
     Args:
         s: String to sanitize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
     Returns:
-        Sanitized string with dangerous characters removed
+        Sanitized string with dangerous characters removed and trailing backslashes stripped
 
     Security:
         Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
@@ -50,20 +53,18 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         safe regex patterns.
         Addresses Issue #690 - Removes curly braces to prevent format string
         attacks when sanitized data is used in f-strings or .format().
-        Addresses Issue #705 - Preserves backslashes to prevent data corruption
+        Addresses Issue #705 - Preserves internal backslashes to prevent data corruption
         in Windows paths, Markdown, regex patterns, and other legitimate uses.
         Addresses Issue #725 - Preserves hyphens to prevent data corruption
         in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
         Addresses Issue #729 - Prevents ReDoS by using explicit regex pattern
         construction instead of string interpolation, ensuring hyphens and
         closing brackets cannot create unintended ranges or break the character class.
-        Addresses Issue #730 - SECURITY WARNING: The output of this function
-        preserves backslashes for legitimate use cases (Windows paths, Markdown,
-        regex). However, if the sanitized string is passed to a shell command
-        (e.g., via os.system or subprocess.run with shell=True), a trailing
-        backslash can escape the closing quote and inject arbitrary commands.
-        NEVER use the output directly in shell commands. Storage backends MUST
-        use parameterized queries or proper escaping for their specific format.
+        Addresses Issue #736 - Removes trailing backslashes to prevent shell injection.
+        Internal backslashes are preserved for legitimate uses (Windows paths, Markdown,
+        regex), but trailing backslashes are stripped because they can escape closing
+        quotes in shell commands and enable arbitrary command injection. Storage backends
+        should still use parameterized queries or proper escaping for their specific format.
     """
     if not s:
         return ""
@@ -75,7 +76,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Define blacklist of dangerous shell metacharacters to remove.
     # Characters removed: ; | & ` $ ( ) < > { }
     # Note: We preserve quotes, %, [, ] for legitimate content
-    # Backslash preserved to prevent data corruption (Issue #705):
+    # Internal backslash preserved to prevent data corruption (Issue #705):
     # - Windows paths (C:\Users\...)
     # - Markdown escape sequences
     # - Regular expressions
@@ -110,6 +111,15 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
     # Fullwidth characters (U+FF01-FF60) - convert or remove
     s = re.sub(r'[\uFF01-\uFF60]', '', s)
+
+    # SECURITY FIX (Issue #736): Remove trailing backslashes to prevent shell injection
+    # A trailing backslash can escape the closing quote in shell commands:
+    # Example: os.system(f'echo "{sanitized}"') where sanitized = "path\"
+    # becomes: echo "path\"  <- The backslash escapes the closing quote
+    # This allows arbitrary command injection. We strip trailing backslashes
+    # while preserving internal backslashes for legitimate uses (Windows paths, etc.).
+    # This makes the output safer if accidentally used in shell commands.
+    s = s.rstrip('\\')
 
     return s
 

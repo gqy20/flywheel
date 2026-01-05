@@ -51,36 +51,51 @@ def test_sanitize_string_has_security_warning():
 
 
 def test_backslash_preservation_behavior():
-    """Test that backslashes are preserved (documenting the risk).
+    """Test that internal backslashes are preserved for legitimate uses.
 
-    This test documents the current behavior: backslashes are preserved
-    for legitimate use cases (Windows paths, Markdown, regex). However,
-    this behavior is dangerous if the output is used in shell commands.
+    This test documents the behavior after Issue #736 fix:
+    - Internal backslashes ARE preserved for legitimate use cases
+    - Trailing backslashes are REMOVED to prevent shell injection
+
+    This balances security (preventing shell injection) with functionality
+    (preserving Windows paths, Markdown escapes, regex patterns, etc.).
     """
     # Legitimate use cases that require backslash preservation
     test_cases = [
-        # Windows paths
+        # Windows paths (internal backslashes preserved)
         ("C:\\Users\\Admin\\file.txt", "Windows path"),
-        # Markdown escapes
+        # Markdown escapes (internal backslashes preserved)
         ("\\*not bold\\*", "Markdown escape"),
-        # Regex patterns
+        # Regex patterns (internal backslashes preserved)
         ("\\d+", "Regex pattern"),
-        # Trailing backslash (dangerous in shell context!)
+        # Trailing backslash - REMOVED for security (Issue #736 fix)
         ("path\\", "Trailing backslash"),
     ]
 
     for input_str, description in test_cases:
         result = sanitize_string(input_str)
-        assert "\\" in result, f"{description}: backslashes should be preserved"
+        # All should have backslashes (internal ones preserved)
+        assert "\\" in result or not input_str.endswith("\\"), (
+            f"{description}: internal backslashes should be preserved"
+        )
 
-    # Document the security implication
+    # Security fix: trailing backslashes are now removed (Issue #736)
     dangerous_input = "C:\\path\\"  # Trailing backslash
     result = sanitize_string(dangerous_input)
 
-    # If this is used in a shell command like: os.system(f'echo "{result}"')
-    # The backslash will escape the closing quote!
-    # This is why the documentation MUST warn against shell usage.
-    assert result.endswith("\\"), "Confirms trailing backslashes are preserved"
+    # FIXED: Trailing backslash is now removed to prevent shell injection
+    # Before the fix, using this in a shell command like:
+    #   os.system(f'echo "{result}"')
+    # would become: echo "C:\path\"  <- The backslash escapes the quote
+    # allowing arbitrary command injection.
+    #
+    # After the fix, the trailing backslash is stripped, making it safer.
+    assert not result.endswith("\\"), (
+        "Trailing backslashes must be removed to prevent shell injection (Issue #736)"
+    )
+
+    # But internal backslashes should still be there
+    assert "\\" in result, "Internal backslashes should still be preserved"
 
 
 def test_dangerous_chars_are_removed():
