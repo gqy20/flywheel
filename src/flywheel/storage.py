@@ -411,6 +411,21 @@ class AbstractStorage(abc.ABC):
         results = self.delete_batch(todo_ids)
         return sum(1 for r in results if r)
 
+    def bulk_update(self, todos: list[Todo]) -> int:
+        """Update multiple todos in a single bulk operation.
+
+        This is a convenience wrapper around update_batch() that returns
+        the count of updated todos instead of a list of updated Todo objects.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            The number of todos that were successfully updated.
+        """
+        updated = self.update_batch(todos)
+        return len(updated)
+
     @abc.abstractmethod
     async def async_delete_batch(self, todo_ids: list[int]) -> list[bool]:
         """Asynchronously delete multiple todos in a single batch operation.
@@ -519,6 +534,21 @@ class AbstractStorage(abc.ABC):
             True if deleted, False if not found.
         """
         pass
+
+    async def async_bulk_update(self, todos: list[Todo]) -> int:
+        """Asynchronously update multiple todos in a single bulk operation.
+
+        This is a convenience wrapper around async_update_batch() that returns
+        the count of updated todos instead of a list of updated Todo objects.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            The number of todos that were successfully updated.
+        """
+        updated = await self.async_update_batch(todos)
+        return len(updated)
 
     @abc.abstractmethod
     def health_check(self) -> bool:
