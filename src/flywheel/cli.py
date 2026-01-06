@@ -16,17 +16,22 @@ logger = logging.getLogger(__name__)
 
 
 def sanitize_string(s: str, max_length: int = 100000) -> str:
-    """Sanitize string input to prevent injection attacks.
+    """Clean string input for data storage (NOT for shell command safety).
 
-    This function takes a minimal approach to sanitization, removing only
-    characters that could cause security issues while preserving legitimate
-    content like quotes, percentage signs, and code snippets.
+    WARNING: This function is NOT suitable for preventing shell injection.
+    If you need to execute shell commands with user input, use Python's
+    subprocess module with list arguments (shell=False) or shlex.quote().
+    This function is only intended for basic data cleaning before storage.
+
+    This function removes characters that could cause issues in data storage
+    or display formats, while preserving legitimate content.
 
     It removes:
-    - Shell injection metacharacters (;, |, &, `, $, (, ), <, >)
+    - Shell metacharacters (;, |, &, `, $, (, ), <, >) that could interfere
+      with various text formats or display systems
     - Format string characters ({, }) to prevent format string attacks
     - Control characters (newlines, tabs, null bytes) that could break storage formats
-    - All backslashes (\) to prevent shell injection
+    - All backslashes (\) that could cause escape sequence issues
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
 
     It preserves:
@@ -37,23 +42,24 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
     - International characters (Cyrillic, CJK, Arabic, etc.) for legitimate multilingual content
 
-    Security Implementation:
-    - Uses a single combined regex pass to remove all dangerous characters atomically
-    - This prevents order-dependency issues and makes the sanitization more robust
-    - Addresses Issue #780 - Potential bypass of shell injection protection via newline
-    - Addresses Issue #804 - Removes overly aggressive filtering of non-Latin scripts
-
     Args:
         s: String to sanitize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
     Returns:
-        Sanitized string with dangerous characters removed, including all backslashes
+        Cleaned string with certain characters removed for data storage safety
+
+    NOTE:
+        This function preserves quotes and other special characters for legitimate
+        text content. It does NOT provide shell injection protection. For shell
+        command execution, always use subprocess with list arguments (shell=False)
+        or proper quoting libraries like shlex.quote(). Storage backends should use
+        parameterized queries or proper escaping for their specific format.
 
     Security:
         Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
-        while still preventing injection attacks. Storage backends should use
-        parameterized queries or proper escaping for their specific format.
+        for data storage. Shell safety should be handled by subprocess with list
+        arguments, not by sanitization.
         Addresses Issue #619 - Prevents ReDoS via input length limits and
         safe regex patterns.
         Addresses Issue #690 - Removes curly braces to prevent format string
@@ -61,33 +67,17 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Addresses Issue #725 - Preserves hyphens to prevent data corruption
         in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
         Addresses Issue #729 - Prevents ReDoS by using explicit regex pattern
-        construction instead of string interpolation, ensuring hyphens and
-        closing brackets cannot create unintended ranges or break the character class.
-        Addresses Issue #736 - Removes all backslashes to prevent shell injection.
-        Any backslash (internal or trailing) can act as an escape character in shell
-        contexts (e.g., '\n' becomes newline, '\t' becomes tab, '\\"' escapes quotes).
-        To ensure maximum security when sanitized data is used in shell commands or
-        other contexts where backslashes have special meaning, all backslashes are
-        removed. This prevents arbitrary command injection through escape sequences.
-        Storage backends should still use parameterized queries or proper escaping
-        for their specific format.
-        Addresses Issue #754 - Normalizes Unicode using NFC form before processing to
-        handle canonical equivalence (composed vs decomposed Unicode representations).
-        Addresses Issue #769 - Removes ALL backslashes (not just trailing) to prevent
-        shell injection through internal escape sequences like '\n', '\t', '\r', etc.,
-        which can be interpreted as control characters in shell contexts.
-        Addresses Issue #780 - Uses single combined regex pass to remove all dangerous
-        characters (shell metacharacters and control characters) in one atomic operation.
-        This eliminates order-dependency vulnerabilities and makes the sanitization more
-        robust against potential bypasses that could slip through multiple sequential passes.
-        Addresses Issue #804 - Removes overly aggressive filtering of non-Latin scripts.
-        Previous implementation blocked all non-Latin characters (Cyrillic, CJK, Arabic, etc.)
-        to prevent visual homograph attacks, but this was too restrictive for general text
-        input like todo titles and descriptions. Users should be able to write todos in
-        their native languages. Visual homograph attack prevention should be applied only
-        where necessary (e.g., filenames, shell parameters), not to all text input.
-        This change preserves international characters while still removing dangerous
-        shell metacharacters, control characters, and Unicode spoofing characters.
+        construction instead of string interpolation.
+        Addresses Issue #736 - Removes backslashes that could cause escape
+        sequence issues in various contexts.
+        Addresses Issue #754 - Normalizes Unicode using NFC form before processing.
+        Addresses Issue #769 - Removes all backslashes to prevent escape sequence issues.
+        Addresses Issue #780 - Uses separate passes for control characters and
+        metacharacters to preserve word separation.
+        Addresses Issue #804 - Preserves international characters for multilingual support.
+        Addresses Issue #824 - Clarifies that this function is NOT suitable for
+        shell injection prevention. Shell safety must be handled by using subprocess
+        with list arguments (shell=False) or shlex.quote() when executing commands.
     """
     if not s:
         return ""
@@ -110,7 +100,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # Security: Addresses Issue #754 - NFC handles canonical equivalence
     s = unicodedata.normalize('NFC', s)
 
-    # SECURITY FIX (Issue #804): Removed overly aggressive filtering of non-Latin scripts.
+    # SECURITY FIX (Issue #804): Preserve international characters for multilingual support.
     # Previous implementation restricted all input to Latin-script characters only to prevent
     # visual homograph attacks. However, this was too restrictive for general text input
     # like todo titles and descriptions, where users should be able to write in their
@@ -118,16 +108,18 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     #
     # Visual homograph attack prevention should only be applied where necessary (e.g.,
     # when generating filenames or shell parameters), not to all text input. For general
-    # text storage, we preserve international characters while still removing dangerous
-    # shell metacharacters, control characters, and Unicode spoofing characters below.
+    # text storage, we preserve international characters while still removing characters
+    # that could interfere with data formats or display systems.
 
     # Prevent DoS by limiting input length
     if len(s) > max_length:
         s = s[:max_length]
 
-    # Define blacklist of dangerous shell metacharacters to remove.
+    # Remove certain metacharacters that could interfere with data formats or display systems.
     # Characters removed: ; | & ` $ ( ) < > { } \
-    # Note: We preserve quotes, %, [, ] for legitimate content
+    # Note: We preserve quotes, %, [, ] for legitimate text content
+    # WARNING: This does NOT provide shell injection protection. For shell commands,
+    # use subprocess with list arguments (shell=False) or shlex.quote().
     # Curly braces removed to prevent format string attacks (Issue #690)
     # Hyphen preserved to prevent data corruption (Issue #725):
     # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
@@ -142,17 +134,16 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
     #
-    # SECURITY FIX (Issue #780, #815): Separate handling of shell metacharacters
+    # SECURITY FIX (Issue #780, #815): Separate handling of metacharacters
     # and control characters for improved data integrity. Previously, these were
     # removed in a single pass which could cause word concatenation issues when
     # newlines were removed (e.g., 'Hello\nWorld' → 'HelloWorld').
     #
     # SECURITY FIX (Issue #815): Replace control characters (newlines, tabs, etc.)
     # with spaces instead of removing them completely. This prevents word
-    # concatenation and preserves data integrity while still removing security
-    # risks. The new two-step approach:
+    # concatenation and preserves data integrity. The two-step approach:
     # 1. Replace control characters with spaces
-    # 2. Remove shell metacharacters completely
+    # 2. Remove certain metacharacters completely
     #
     # Step 1: Replace control characters with spaces to preserve word separation
     # This includes \x00-\x1F (all ASCII control chars) and \x7F (delete)
@@ -160,9 +151,11 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     control_chars_pattern = r'[\x00-\x1F\x7F]'
     s = re.sub(control_chars_pattern, ' ', s)
 
-    # Step 2: Remove shell injection metacharacters
+    # Step 2: Remove certain metacharacters that could interfere with data formats
     # Characters removed: ; | & ` $ ( ) < > { } \
-    # Note: We preserve quotes, %, [, ] for legitimate content
+    # Note: We preserve quotes, %, [, ] for legitimate text content
+    # WARNING: This does NOT provide shell injection protection. For shell commands,
+    # use subprocess with list arguments (shell=False) or shlex.quote().
     # Curly braces removed to prevent format string attacks (Issue #690)
     # Hyphen preserved to prevent data corruption (Issue #725):
     # - UUIDs (550e8400-e29b-41d4-a716-446655440000)

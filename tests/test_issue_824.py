@@ -1,81 +1,118 @@
-"""Test for Issue #824 - sanitize_string preserves dangerous characters
+"""Test for Issue #824 - sanitize_string should not be used for shell safety
 
-This test verifies that sanitize_string currently preserves quotes and percent signs,
-which can be dangerous in shell contexts. The fix should clarify that this function
-is NOT suitable for shell sanitization and should only be used for basic data cleaning.
+This test verifies that sanitize_string function correctly documents its purpose
+and limitations. The function is designed for data storage cleaning, NOT for
+shell injection prevention. For shell command execution, subprocess with list
+arguments (shell=False) or shlex.quote() should be used instead.
 """
 
 import pytest
 from flywheel.cli import sanitize_string
 
 
-class TestIssue824ShellInjectionVulnerability:
-    """Test suite for Issue #824 - Shell injection vulnerability in sanitize_string."""
+class TestIssue824ShellInjectionDocumentation:
+    """Test suite for Issue #824 - Clarify sanitize_string is not for shell safety."""
 
-    def test_single_quote_preserved(self):
-        """Test that single quotes are preserved (demonstrates vulnerability)."""
-        # Input with single quote that could be used for shell injection
-        malicious_input = "'; DROP TABLE todos; --"
-        result = sanitize_string(malicious_input)
-        # Current implementation preserves single quotes - this is the VULNERABILITY
-        # After fix, the function should either:
-        # 1. Remove quotes, OR
-        # 2. Document that it's NOT safe for shell contexts
-        assert "'" in result, "Current implementation preserves single quotes (vulnerable)"
+    def test_single_quote_preserved_for_legitimate_content(self):
+        """Test that single quotes are preserved for legitimate text content.
 
-    def test_double_quote_preserved(self):
-        """Test that double quotes are preserved (demonstrates vulnerability)."""
-        malicious_input = '"; rm -rf /; #'
-        result = sanitize_string(malicious_input)
-        # Current implementation preserves double quotes - this is the VULNERABILITY
-        assert '"' in result, "Current implementation preserves double quotes (vulnerable)"
+        The function preserves quotes because they are needed for legitimate
+        text content (e.g., code snippets, contractions, quoted text).
+        """
+        legitimate_input = "Don't forget to 'review' the code"
+        result = sanitize_string(legitimate_input)
+        # Quotes should be preserved for legitimate content
+        assert "'" in result, "Single quotes preserved for legitimate content"
 
-    def test_percent_sign_preserved(self):
-        """Test that percent signs are preserved (can be dangerous)."""
-        # Percent signs can be dangerous in format strings or certain shell contexts
-        malicious_input = "Complete %s and %d tasks"
-        result = sanitize_string(malicious_input)
-        # Current implementation preserves percent signs
-        assert '%' in result, "Current implementation preserves percent signs"
+    def test_double_quote_preserved_for_legitimate_content(self):
+        """Test that double quotes are preserved for legitimate text content."""
+        legitimate_input = 'She said "hello" and waved'
+        result = sanitize_string(legitimate_input)
+        # Quotes should be preserved for legitimate content
+        assert '"' in result, "Double quotes preserved for legitimate content"
 
-    def test_combined_dangerous_characters(self):
-        """Test combination of dangerous characters that could enable injection."""
-        # This combines multiple preserved characters that could be exploited
-        malicious_input = '''title'; echo "hacked"; #'''
-        result = sanitize_string(malicious_input)
-        # Verify that dangerous characters are preserved
-        assert "'" in result or '"' in result, "Dangerous quotes preserved"
+    def test_percent_sign_preserved_for_legitimate_content(self):
+        """Test that percent signs are preserved for legitimate text content."""
+        legitimate_input = "Complete 50% of the work, format: %s %d"
+        result = sanitize_string(legitimate_input)
+        # Percent signs should be preserved for legitimate content
+        assert '%' in result, "Percent signs preserved for legitimate content"
 
-    def test_command_substitution_attempt(self):
-        """Test that command substitution patterns are partially handled."""
-        # Backticks and $() should be removed (and they are)
-        malicious_input = "Hello`whoami`World$(date)"
-        result = sanitize_string(malicious_input)
-        # These ARE removed - good
-        assert '`' not in result
-        assert '$' not in result
-        # But quotes are NOT removed - bad
-        assert "'" in result or '"' in result
+    def test_shell_metacharacters_removed_for_data_format_safety(self):
+        """Test that certain metacharacters are removed to prevent data format issues.
 
-    def test_shell_metacharacters_removed(self):
-        """Test that basic shell metacharacters are removed (partial protection)."""
-        # Some characters ARE removed correctly
-        malicious_input = "cmd1; cmd2 | cmd3 & cmd4"
-        result = sanitize_string(malicious_input)
+        The function removes some metacharacters that could interfere with data
+        formats or display systems, but this does NOT provide shell injection protection.
+        """
+        input_with_metachars = "cmd1; cmd2 | cmd3 & cmd4 `whoami` $(date)"
+        result = sanitize_string(input_with_metachars)
+        # These characters are removed for data format safety
         assert ';' not in result, "Semicolons removed"
         assert '|' not in result, "Pipes removed"
         assert '&' not in result, "Ampersands removed"
+        assert '`' not in result, "Backticks removed"
+        assert '$' not in result, "Dollar signs removed"
 
-    def test_function_purpose_misleading(self):
-        """Test that demonstrates the function's purpose is misleading.
+    def test_function_documentation_clarifies_not_shell_safe(self):
+        """Test that the function's docstring clarifies it's not for shell safety.
 
-        The function claims to prevent shell injection but preserves quotes
-        which are the PRIMARY mechanism for shell injection. This test
-        documents that the function should NOT be used for shell safety.
+        The fix for Issue #824 adds clear documentation that this function is
+        NOT suitable for preventing shell injection.
         """
-        # A realistic shell injection attempt using quotes
-        malicious_input = """'$(cat /etc/passwd)'"""
+        docstring = sanitize_string.__doc__
+        # The documentation should clearly state this is NOT for shell safety
+        assert 'NOT suitable for preventing shell injection' in docstring or \
+               'NOT suitable for shell command safety' in docstring, \
+               "Function docstring should clarify it's not for shell safety"
+        assert 'subprocess' in docstring, \
+               "Function should recommend subprocess for shell commands"
+        assert 'shlex.quote' in docstring, \
+               "Function should recommend shlex.quote for shell commands"
+
+    def test_dangerous_characters_in_shell_context(self):
+        """Test that demonstrates the function is not safe for shell contexts.
+
+        This test documents that the function preserves quotes which would be
+        dangerous in shell contexts, reinforcing that the function should NOT
+        be used for shell command safety.
+        """
+        # Input that would be dangerous in shell context
+        malicious_input = """'; echo "hacked"; #'"""
         result = sanitize_string(malicious_input)
-        # The function preserves the quotes, making this UNSAFE for shell use
-        # The $() is removed, but the quotes remain
-        assert '"' in result or "'" in result, "Quotes are preserved (not shell-safe)"
+        # The function preserves quotes (for legitimate text content)
+        # This demonstrates it's NOT safe for shell use
+        assert "'" in result or '"' in result, \
+               "Quotes are preserved - function is NOT shell-safe"
+
+    def test_curly_braces_removed_for_format_string_safety(self):
+        """Test that curly braces are removed to prevent format string attacks.
+
+        While the function is not for shell safety, it does remove curly braces
+        to prevent format string attacks when sanitized data is used in f-strings
+        or .format() calls.
+        """
+        input_with_braces = "Use {variable} for formatting"
+        result = sanitize_string(input_with_braces)
+        assert '{' not in result, "Opening curly brace removed"
+        assert '}' not in result, "Closing curly brace removed"
+
+    def test_backslashes_removed_to_prevent_escape_sequences(self):
+        """Test that backslashes are removed to prevent escape sequence issues.
+
+        Backslashes are removed because they can cause escape sequence issues
+        in various contexts (not just shell).
+        """
+        input_with_backslash = "path\\to\\file\\with\\backslashes"
+        result = sanitize_string(input_with_backslash)
+        assert '\\' not in result, "Backslashes removed"
+
+    def test_control_characters_replaced_with_spaces(self):
+        """Test that control characters are replaced with spaces.
+
+        Control characters are replaced with spaces to preserve word separation
+        and data integrity (Issue #815).
+        """
+        input_with_newlines = "Hello\nWorld\r\nTest"
+        result = sanitize_string(input_with_newlines)
+        # Control chars should be replaced with spaces, not removed
+        assert 'Hello World' in result, "Newlines replaced with spaces"
