@@ -92,19 +92,24 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     if not s:
         return ""
 
-    # SECURITY FIX (Issue #754): Normalize Unicode before processing
-    # Use NFC normalization to handle canonical equivalence without altering
-    # semantic meaning. This prevents homograph attacks where different
-    # Unicode representations (composed vs decomposed) can bypass filters,
-    # while preserving legitimate characters like superscripts, ligatures,
-    # and other compatibility characters.
-    # NFC is preferred over NFKC because it preserves semantic meaning:
-    # - Superscripts (², ³) remain superscripts (not converted to 2, 3)
-    # - Ligatures (ﬁ, ﬂ) remain ligatures (not converted to fi, fl)
-    # - Ordinals (ª, º) remain ordinals (not converted to a, o)
-    # Example: é (NFD: e + combining acute) → é (NFC: single character)
-    # Security: Addresses Issue #764 - NFKC causes data loss
-    s = unicodedata.normalize('NFC', s)
+    # SECURITY FIX (Issue #754, #809): Normalize Unicode before processing
+    # Use NFKC normalization to prevent homograph attacks. While NFKC can
+    # cause data loss (e.g., converting superscripts ²→2, ligatures ﬁ→fi),
+    # it provides better security against visual spoofing attacks by:
+    # - Converting fullwidth characters to ASCII (Ａ→A, ０→0)
+    # - Normalizing compatibility characters that can be used for deception
+    # - Reducing the attack surface for homograph-based spoofing
+    #
+    # This is a security-focused trade-off: we prioritize preventing spoofing
+    # attacks over preserving semantic meaning of compatibility characters.
+    #
+    # Examples of NFKC normalization:
+    # - Superscripts: ² → 2, ³ → 3
+    # - Fullwidth: Ａ → A, ａ → a, ０ → 0
+    # - Ligatures: ﬁ → fi, ﬂ → fl
+    # - Composed: é (NFD: e + combining acute) → é (NFC/NFKC: single character)
+    # Security: Addresses Issue #809 - NFC allows homograph attacks
+    s = unicodedata.normalize('NFKC', s)
 
     # SECURITY FIX (Issue #804): Removed overly aggressive filtering of non-Latin scripts.
     # Previous implementation restricted all input to Latin-script characters only to prevent
@@ -254,10 +259,10 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
     if not tags_str:
         return []
 
-    # SECURITY FIX (Issue #754): Normalize Unicode before processing
-    # Same normalization as in sanitize_string (NFC) to prevent homograph
-    # attacks while preserving semantic meaning. Addresses Issue #764.
-    tags_str = unicodedata.normalize('NFC', tags_str)
+    # SECURITY FIX (Issue #754, #809): Normalize Unicode before processing
+    # Same normalization as in sanitize_string (NFKC) to prevent homograph
+    # attacks by normalizing compatibility characters. Addresses Issue #809.
+    tags_str = unicodedata.normalize('NFKC', tags_str)
 
     # Prevent DoS by limiting input length before processing
     if len(tags_str) > max_length:
