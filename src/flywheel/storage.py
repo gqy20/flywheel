@@ -115,14 +115,14 @@ else:  # Unix-like systems
         import fcntl
     except ImportError:
         # Issue #791: Fall back to degraded mode instead of raising ImportError.
+        # Issue #884: Update warning to reflect that fallback locking is used.
         # On Unix, fcntl is preferred for optimal file locking, but the module
-        # will use a degraded mode to maintain portability. Users are encouraged
-        # to use a proper Unix environment with fcntl support for best safety.
+        # will use a file-based fallback locking mechanism to maintain safety.
         import warnings
         warnings.warn(
-            "fcntl is not available. File locking will be disabled. "
-            "This may cause data corruption when multiple instances run concurrently. "
-            "For optimal performance and safety on Unix-like systems, ensure fcntl is available. "
+            "fcntl is not available. Using fallback file-based locking (.lock files). "
+            "This provides safety but may have reduced performance compared to fcntl. "
+            "For optimal performance on Unix-like systems, ensure fcntl is available. "
             "If you are on Cygwin, consider using native Windows or a full Unix environment.",
             UserWarning,
             stacklevel=2
