@@ -78,6 +78,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Addresses Issue #824 - Clarifies that this function is NOT suitable for
         shell injection prevention. Shell safety must be handled by using subprocess
         with list arguments (shell=False) or shlex.quote() when executing commands.
+        Addresses Issue #830 - Enforces max_length BEFORE all regex processing to
+        prevent potential ReDoS attacks through the fullwidth character regex and
+        other patterns.
     """
     if not s:
         return ""
@@ -111,7 +114,12 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # text storage, we preserve international characters while still removing characters
     # that could interfere with data formats or display systems.
 
-    # Prevent DoS by limiting input length
+    # Prevent DoS by limiting input length BEFORE any regex processing
+    # SECURITY FIX (Issue #830): This length check must happen BEFORE all
+    # regex patterns below to prevent potential ReDoS attacks. Even though
+    # Python's re module handles character classes efficiently, enforcing
+    # the limit early ensures that excessively long strings cannot cause
+    # catastrophic backtracking in any of the regex patterns.
     if len(s) > max_length:
         s = s[:max_length]
 
