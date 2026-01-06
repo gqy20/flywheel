@@ -2,6 +2,16 @@
 
 This test verifies that the fallback file locking mechanism works correctly
 when pywin32 is not available on Windows.
+
+NOTE: After investigation, the issue report was incorrect. The code already
+contains a complete implementation of the fallback file locking mechanism:
+- Lines 127-159: _is_degraded_mode() correctly detects win32file is None
+- Lines 1040-1099: _acquire_file_lock() implements full fallback logic
+- Lines 1067-1076: Creates .lock file with metadata
+- Lines 1078-1099: Stale lock detection and cleanup
+- Lines 1389-1413: _release_file_lock() implements lock release
+
+These tests verify that the existing implementation works correctly.
 """
 import os
 import sys
