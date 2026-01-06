@@ -118,14 +118,23 @@ class Todo:
         if tags is not None and not all(isinstance(tag, str) for tag in tags):
             raise ValueError("All items in 'tags' must be str")
 
-        return cls(
-            id=data["id"],
-            title=data["title"],
-            description=description,
-            status=status,
-            priority=priority,
-            due_date=due_date,
-            created_at=created_at,
-            completed_at=completed_at,
-            tags=tags if tags is not None else [],
-        )
+        # Build kwargs dynamically to avoid overriding default_factory
+        kwargs = {
+            "id": data["id"],
+            "title": data["title"],
+            "description": description,
+            "status": status,
+            "priority": priority,
+            "due_date": due_date,
+            "tags": tags if tags is not None else [],
+        }
+
+        # Only add completed_at if not None
+        if completed_at is not None:
+            kwargs["completed_at"] = completed_at
+
+        # Only add created_at if not None to preserve default_factory
+        if created_at is not None:
+            kwargs["created_at"] = created_at
+
+        return cls(**kwargs)
