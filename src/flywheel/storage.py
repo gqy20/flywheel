@@ -529,6 +529,27 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    def stats(self) -> dict:
+        """Get storage statistics and metrics.
+
+        This method returns statistics about the current state of the storage,
+        including counts of todos by status and the last modification timestamp.
+
+        Returns:
+            A dictionary with the following keys:
+            - total: Total number of todos (int)
+            - pending: Number of pending todos (int, includes TODO and IN_PROGRESS)
+            - completed: Number of completed todos (int, only DONE status)
+            - last_modified: Last modification timestamp (int, float, str, or None)
+
+        Example:
+            >>> storage = FileStorage()
+            >>> stats = storage.stats()
+            >>> print(f"Total: {stats['total']}, Completed: {stats['completed']}")
+        """
+        pass
+
     def __enter__(self):
         """Enter the context manager.
 
@@ -4863,6 +4884,49 @@ class FileStorage(AbstractStorage):
 
         # Determine overall health
         return writable and file_lock and disk_space_free > 0 and json_integrity_ok
+
+    def stats(self) -> dict:
+        """Get storage statistics and metrics.
+
+        This method returns statistics about the current state of the storage,
+        including counts of todos by status and the last modification timestamp.
+
+        Returns:
+            A dictionary with the following keys:
+            - total: Total number of todos (int)
+            - pending: Number of pending todos (int, includes TODO and IN_PROGRESS)
+            - completed: Number of completed todos (int, only DONE status)
+            - last_modified: Last modification timestamp (Unix timestamp as float, or None)
+
+        Example:
+            >>> storage = FileStorage()
+            >>> stats = storage.stats()
+            >>> print(f"Total: {stats['total']}, Completed: {stats['completed']}")
+        """
+        from flywheel.todo import Status
+
+        # Ensure data is loaded
+        self._load()
+
+        # Count todos by status
+        total = len(self._todos)
+        completed = sum(1 for todo in self._todos if todo.status == Status.DONE)
+        pending = total - completed  # Everything else is pending
+
+        # Get last modified timestamp from file
+        last_modified = None
+        if self.path.exists():
+            try:
+                last_modified = os.path.getmtime(self.path)
+            except OSError:
+                pass
+
+        return {
+            "total": total,
+            "pending": pending,
+            "completed": completed,
+            "last_modified": last_modified,
+        }
 
     def close(self) -> None:
         """Close storage and release resources.
