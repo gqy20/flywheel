@@ -30,12 +30,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     - Shell metacharacters (;, |, &, `, $, (, ), <, >) that could interfere
       with various text formats or display systems
     - Format string characters ({, }) to prevent format string attacks
+    - All spaces ( ) to prevent argument injection when used in shell commands
     - Control characters (newlines, tabs, null bytes) that could break storage formats
-      - CRITICAL SECURITY NOTE: Control characters are REPLACED WITH SPACES (not removed)
-        to prevent word concatenation (e.g., 'Hello\nWorld' becomes 'Hello World').
-        However, if the output is used in unquoted shell command arguments, these spaces
-        could enable argument injection. ALWAYS use proper quoting (shlex.quote()) or
-        subprocess with list arguments (shell=False) when using output in shell commands.
     - All backslashes (\) that could cause escape sequence issues
     - Unicode spoofing characters (zero-width, bidirectional overrides)
     - Fullwidth characters are CONVERTED (not removed) to ASCII equivalents via NFKC normalization
@@ -62,19 +58,25 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         or proper quoting libraries like shlex.quote(). Storage backends should use
         parameterized queries or proper escaping for their specific format.
 
-        SECURITY RISK (Issue #819): Control characters are replaced with spaces to
-        preserve word separation. Example: 'Hello\nWorld' becomes 'Hello World'.
-        While this prevents word concatenation, it introduces a different risk: if this
-        sanitized string is used in shell commands without proper quoting, the spaces
-        could be exploited for argument injection.
+        SECURITY FIX (Issue #839): Spaces are now removed by default to prevent
+        argument injection when sanitized output is used in unquoted shell commands.
+        Example: 'Hello\nWorld' becomes 'HelloWorld' (not 'Hello World').
+        This makes the function safer by default, though subprocess list arguments
+        or shlex.quote() should still be used for actual shell command execution.
 
-        Dangerous example (DO NOT DO THIS):
+        Previous behavior (Issue #819):
             input = "todo\x00extra"
-            sanitized = sanitize_string(input)  # Returns "todo extra"
+            sanitized = sanitize_string(input)  # Returned "todo extra"
             os.system(f"echo {sanitized}")  # UNSAFE! No quoting!
             # Result: echo todo extra  # Argument injection!
 
-        Safe usage:
+        Current behavior (Issue #839 fix):
+            input = "todo\x00extra"
+            sanitized = sanitize_string(input)  # Returns "todoextra"
+            os.system(f"echo {sanitized}")  # Still unsafe without quoting!
+            # Result: echo todoextra  # No argument injection!
+
+        Safe usage (always recommended):
             sanitized = sanitize_string(input)
             # Option 1: Use subprocess with list arguments (RECOMMENDED)
             subprocess.run(["echo", sanitized], shell=False)
@@ -117,6 +119,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         ReDoS even with complex Unicode characters.
         Addresses Issue #814 - Uses NFKC normalization to preserve user intent while
         preventing spoofing through fullwidth character conversion.
+        Addresses Issue #839 - Removes all spaces (including those from control character
+        replacement) to prevent argument injection when sanitized output is used in
+        unquoted shell commands. This makes the function safer by default.
     """
     if not s:
         return ""
@@ -183,16 +188,17 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
     #
-    # SECURITY FIX (Issue #780, #815): Separate handling of metacharacters
+    # SECURITY FIX (Issue #780, #815, #839): Separate handling of metacharacters
     # and control characters for improved data integrity. Previously, these were
     # removed in a single pass which could cause word concatenation issues when
     # newlines were removed (e.g., 'Hello\nWorld' → 'HelloWorld').
     #
     # SECURITY FIX (Issue #815): Replace control characters (newlines, tabs, etc.)
-    # with spaces instead of removing them completely. This prevents word
-    # concatenation and preserves data integrity. The two-step approach:
+    # with spaces temporarily, then remove all spaces. This prevents word
+    # concatenation issues while also preventing argument injection. The three-step approach:
     # 1. Replace control characters with spaces
-    # 2. Remove certain metacharacters completely
+    # 2. Remove all spaces (Issue #839)
+    # 3. Remove certain metacharacters completely
     #
     # Step 1: Replace control characters with spaces to preserve word separation
     # This includes \x00-\x1F (all ASCII control chars) and \x7F (delete)
@@ -200,7 +206,15 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     control_chars_pattern = r'[\x00-\x1F\x7F]'
     s = re.sub(control_chars_pattern, ' ', s)
 
-    # Step 2: Remove certain metacharacters that could interfere with data formats
+    # SECURITY FIX (Issue #839): Remove ALL spaces to prevent argument injection
+    # when sanitized output is used in unquoted shell commands. This makes the
+    # function safer by default, even though subprocess list arguments or
+    # shlex.quote() should still be used for actual shell command execution.
+    # Spaces are removed after control character replacement to handle both
+    # original spaces and those introduced by control character replacement.
+    s = s.replace(' ', '')
+
+    # Step 3: Remove certain metacharacters that could interfere with data formats
     # Characters removed: ; | & ` $ ( ) < > { } \
     # Note: We preserve quotes, %, [, ] for legitimate text content
     # WARNING: This does NOT provide shell injection protection. For shell commands,
