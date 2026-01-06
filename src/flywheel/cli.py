@@ -108,6 +108,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Addresses Issue #830 - Enforces max_length BEFORE all regex processing to
         prevent potential ReDoS attacks through the fullwidth character regex and
         other patterns.
+        Addresses Issue #805 - Uses unicodedata.normalize() (not unicodedata.name)
+        for efficient Unicode processing. The early max_length enforcement prevents
+        ReDoS even with complex Unicode characters.
     """
     if not s:
         return ""
