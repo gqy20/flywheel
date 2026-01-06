@@ -372,6 +372,45 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    def __enter__(self):
+        """Enter the context manager.
+
+        This method enables storage implementations to be used as context managers,
+        ensuring locks are properly acquired and resources are managed during
+        batch operations.
+
+        Returns:
+            The storage instance itself.
+
+        Example:
+            >>> with storage:
+            ...     storage.add(Todo(title="Task"))
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context manager.
+
+        This method releases resources, handles cleanup, and manages any exceptions
+        that occurred within the context. Resources are always cleaned up even if
+        an exception occurs.
+
+        Args:
+            exc_type: The type of exception raised, if any.
+            exc_val: The exception instance raised, if any.
+            exc_tb: The traceback object, if any.
+
+        Returns:
+            bool: False to indicate exceptions should propagate.
+
+        Example:
+            >>> with storage:
+            ...     storage.add(Todo(title="Task"))
+        """
+        # Default implementation - can be overridden by subclasses
+        # to perform specific cleanup (e.g., releasing locks, closing files)
+        return False
+
 
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
