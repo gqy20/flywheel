@@ -83,6 +83,11 @@ class TestSanitizeStringDangerousChars:
         """Test that percentage is preserved."""
         assert sanitize_string("50% complete") == "50% complete"
 
+    def test_preserve_spaces(self):
+        """Test that spaces are preserved (Issue #849)."""
+        assert sanitize_string("hello world") == "hello world"
+        assert sanitize_string("test value") == "test value"
+
     def test_preserve_brackets(self):
         """Test that brackets are preserved."""
         assert sanitize_string("array[0]") == "array[0]"
