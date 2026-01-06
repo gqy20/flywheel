@@ -128,7 +128,7 @@ def _is_degraded_mode() -> bool:
 
     Returns True if running on:
     - Windows without pywin32 (uses msvcrt.locking fallback)
-    - Unix-like systems without fcntl (file locking disabled)
+    - Unix-like systems without fcntl (uses lock file fallback)
 
     Fix for Issue #696: Allow degraded mode for portability instead of
     raising ImportError. This allows the code to run on Windows without
@@ -139,6 +139,10 @@ def _is_degraded_mode() -> bool:
 
     Fix for Issue #821: Windows degraded mode uses msvcrt.locking as fallback
     instead of completely disabling file locking, preventing data corruption.
+
+    Fix for Issue #829: Unix degraded mode uses lock file fallback instead of
+    completely disabling file locking, preventing data corruption in concurrent
+    access scenarios.
 
     Returns:
         bool: True if in degraded mode (Windows without pywin32,
@@ -999,12 +1003,82 @@ class FileStorage(AbstractStorage):
         else:  # Unix-like systems
             # Portability fix for Issue #791: Check if running in degraded mode
             if _is_degraded_mode():
-                # fcntl is not available - log warning and skip file locking
-                logger.warning(
-                    "File locking is disabled in degraded mode (fcntl not available). "
-                    "Concurrent access may cause data corruption."
+                # Issue #829: fcntl is not available - use file-based lock fallback
+                # instead of completely disabling file locking
+                logger.info(
+                    "Using fallback file locking (lock file) in degraded mode. "
+                    "For optimal performance, ensure fcntl is available."
                 )
-                return  # Skip file locking in degraded mode
+
+                try:
+                    # Implement file-based lock using atomic mkdir operation
+                    # This is a common pattern for file locking on Unix without fcntl
+                    lock_dir = Path(str(file_handle.name) + ".lock")
+                    lock_pid_file = lock_dir / "pid"
+
+                    # Timeout mechanism for lock acquisition
+                    start_time = time.time()
+
+                    while True:
+                        elapsed = time.time() - start_time
+                        if elapsed >= self._lock_timeout:
+                            raise RuntimeError(
+                                f"File lock acquisition timed out after {elapsed:.1f}s "
+                                f"(timeout: {self._lock_timeout}s) using lock file fallback. "
+                                f"File: {file_handle.name}"
+                            )
+
+                        try:
+                            # Try to create lock directory (atomic operation)
+                            lock_dir.mkdir(exist_ok=False)
+
+                            # Successfully created lock directory - we have the lock
+                            # Write our PID to the lock file for debugging
+                            lock_pid_file.write_text(str(os.getpid()))
+
+                            # Store lock directory path for later release
+                            self._lock_range = str(lock_dir)
+
+                            logger.debug(f"Lock file fallback acquired for {file_handle.name}")
+                            return  # Lock acquired successfully
+
+                        except FileExistsError:
+                            # Lock directory already exists - check if it's stale
+                            try:
+                                # Read PID from lock file
+                                pid_str = lock_pid_file.read_text().strip()
+                                pid = int(pid_str)
+
+                                # Check if process with this PID is still running
+                                try:
+                                    # Send signal 0 to check if process exists
+                                    os.kill(pid, 0)
+                                    # Process is still running - lock is active
+                                except OSError:
+                                    # Process is not running - stale lock
+                                    logger.warning(
+                                        f"Removing stale lock file from PID {pid}"
+                                    )
+                                    # Remove the stale lock directory
+                                    lock_pid_file.unlink(missing_ok=True)
+                                    lock_dir.rmdir()
+                                    # Continue to retry acquiring the lock
+                            except (ValueError, FileNotFoundError, OSError) as e:
+                                # Lock file is corrupted or unreadable
+                                # Wait and retry to avoid race conditions
+                                pass
+
+                            # Wait before retrying
+                            time.sleep(self._lock_retry_interval)
+
+                except (RuntimeError, OSError) as e:
+                    if isinstance(e, RuntimeError):
+                        # Re-raise timeout errors as-is
+                        logger.error(f"Failed to acquire fallback file lock: {e}")
+                        raise
+                    else:
+                        logger.error(f"Failed to acquire fallback file lock: {e}")
+                        raise
 
             # Unix locking: fcntl.flock (Issue #411)
             # Provides strong synchronization guarantees
@@ -1169,8 +1243,26 @@ class FileStorage(AbstractStorage):
         else:  # Unix-like systems
             # Portability fix for Issue #791: Check if running in degraded mode
             if _is_degraded_mode():
-                # fcntl is not available - nothing to release
-                return  # Skip file unlocking in degraded mode
+                # Issue #829: Release file-based lock fallback
+                if hasattr(self, '_lock_range') and isinstance(self._lock_range, str):
+                    try:
+                        lock_dir = Path(self._lock_range)
+                        lock_pid_file = lock_dir / "pid"
+
+                        # Remove the PID file
+                        lock_pid_file.unlink(missing_ok=True)
+
+                        # Remove the lock directory
+                        lock_dir.rmdir()
+
+                        logger.debug(f"Lock file fallback released for {file_handle.name}")
+                        return
+                    except Exception as e:
+                        logger.error(f"Failed to release lock file fallback: {e}")
+                        raise
+                else:
+                    # No lock was acquired
+                    return
 
             # Unix unlocking
             try:
