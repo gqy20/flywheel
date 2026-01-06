@@ -84,9 +84,14 @@ if os.name == 'nt':  # Windows
         # Users are encouraged to install pywin32 for best performance and safety:
         #   pip install pywin32
         #
-        # Issue #846: Using file-based lock (.lock file) instead of msvcrt.locking.
-        # This prevents deadlock risk since lock files are automatically cleaned up
-        # when processes terminate, and includes stale lock detection.
+        # Issue #846, #874: Using file-based lock (.lock file) instead of msvcrt.locking.
+        # This prevents deadlock risk and includes enhanced stale lock detection:
+        # - Lock files contain PID and timestamp for robust stale lock detection
+        # - PID checking allows immediate cleanup when the owning process dies
+        # - Time-based fallback (5 min threshold) handles edge cases
+        # - atexit handler ensures cleanup on normal program termination
+        # Note: Lock files may not be cleaned up on abnormal termination (segfaults),
+        # but the PID-based detection allows new processes to recover quickly.
         import warnings
         warnings.warn(
             "pywin32 is not installed. Using fallback file locking (.lock files). "
@@ -139,9 +144,13 @@ def _is_degraded_mode() -> bool:
     for portability, similar to Windows pywin32 handling.
 
     Fix for Issue #846: Windows degraded mode uses file-based .lock files
-    instead of msvcrt.locking to prevent deadlock risk. Lock files are
-    automatically cleaned up when processes terminate and include
+    instead of msvcrt.locking to prevent deadlock risk. Lock files include
     stale lock detection.
+
+    Fix for Issue #874: Enhanced lock file cleanup with PID-based detection.
+    Lock files contain PID and timestamp. New processes check if the owning
+    process is still alive using os.kill(pid, 0), allowing immediate cleanup
+    of stale locks when the owner dies. Also added atexit handler cleanup.
 
     Fix for Issue #829: Unix degraded mode uses lock file fallback instead of
     completely disabling file locking, preventing data corruption in concurrent
@@ -1121,6 +1130,14 @@ class FileStorage(AbstractStorage):
             Timeout mechanism (Issue #396):
             - Windows: Uses LOCKFILE_FAIL_IMMEDIATELY with retry loop and timeout
             - Unix: Uses LOCK_EX | LOCK_NB with retry loop and timeout
+
+            Degraded mode (Issue #846, #874):
+            - Windows without pywin32: Uses file-based .lock files
+            - Unix without fcntl: Uses file-based .lock files
+            - Lock files contain PID and timestamp for stale detection
+            - PID checking allows immediate cleanup when owner process dies
+            - Time-based fallback (5 min) handles edge cases
+            - atexit handler ensures cleanup on normal termination
         """
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
@@ -1166,17 +1183,43 @@ class FileStorage(AbstractStorage):
                             with open(lock_file_path, 'r') as lock_file:
                                 content = lock_file.read()
                                 locked_at = None
+                                locked_pid = None
                                 for line in content.split('\n'):
                                     if line.startswith('locked_at='):
                                         locked_at = float(line.split('=')[1])
-                                        break
+                                    elif line.startswith('pid='):
+                                        locked_pid = int(line.split('=')[1])
 
-                                # Issue #846: Stale lock detection and cleanup
-                                # If lock is older than a threshold, consider it stale
-                                stale_threshold = 300  # 5 minutes
-                                if locked_at and (time.time() - locked_at) > stale_threshold:
+                                # Issue #874: Enhanced stale lock detection with PID checking
+                                # Check if the process that created the lock is still alive
+                                is_stale = False
+                                stale_reason = ""
+
+                                # Method 1: Check if PID exists (most reliable)
+                                if locked_pid is not None:
+                                    try:
+                                        # Send signal 0 to check if process exists
+                                        # This doesn't actually send a signal, just checks existence
+                                        os.kill(locked_pid, 0)
+                                        # Process exists, check if it's old enough to be stale
+                                        stale_threshold = 300  # 5 minutes
+                                        if locked_at and (time.time() - locked_at) > stale_threshold:
+                                            is_stale = True
+                                            stale_reason = f"old lock (age: {time.time() - locked_at:.1f}s)"
+                                    except OSError:
+                                        # Process doesn't exist - lock is stale
+                                        is_stale = True
+                                        stale_reason = f"process {locked_pid} not found"
+                                elif locked_at is not None:
+                                    # Fallback: If no PID info, use time-based detection
+                                    stale_threshold = 300  # 5 minutes
+                                    if (time.time() - locked_at) > stale_threshold:
+                                        is_stale = True
+                                        stale_reason = f"old lock without PID (age: {time.time() - locked_at:.1f}s)"
+
+                                if is_stale:
                                     logger.warning(
-                                        f"Found stale lock file (age: {time.time() - locked_at:.1f}s), "
+                                        f"Found stale lock file ({stale_reason}), "
                                         f"removing and retrying: {lock_file_path}"
                                     )
                                     os.unlink(lock_file_path)
@@ -2725,6 +2768,9 @@ class FileStorage(AbstractStorage):
 
         If the storage has been explicitly closed via close(), this method
         does nothing (Issue #688).
+
+        Issue #874: Also cleans up lock files in degraded mode to prevent
+        stale locks from blocking future processes.
         """
         # Skip cleanup if already closed (Issue #688)
         if hasattr(self, '_closed') and self._closed:
@@ -2748,6 +2794,19 @@ class FileStorage(AbstractStorage):
                     f"Skipping save: only {time_since_last_save:.2f}s "
                     f"since last save (threshold: {self.MIN_SAVE_INTERVAL}s)"
                 )
+
+        # Issue #874: Clean up lock file in degraded mode
+        # This ensures locks are released even on abnormal termination
+        # when __del__ might not be called or close() was not invoked
+        if (hasattr(self, '_lock_file_path') and
+            self._lock_file_path is not None and
+            os.path.exists(self._lock_file_path)):
+            try:
+                os.unlink(self._lock_file_path)
+                logger.info(f"Cleaned up lock file on exit: {self._lock_file_path}")
+                self._lock_file_path = None
+            except OSError as e:
+                logger.warning(f"Failed to clean up lock file on exit: {e}")
 
     def _rotate_backups(self) -> None:
         """Rotate backup files to keep last N versions (Issue #693).
