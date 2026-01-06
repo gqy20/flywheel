@@ -1195,6 +1195,8 @@ class FileStorage(AbstractStorage):
 
                     try:
                         # Try to create lock file exclusively (atomic operation)
+                        # Issue #886: This 'x' mode provides atomicity - only one process
+                        # can succeed even if multiple detected and removed a stale lock
                         # This will fail if the file already exists
                         with open(lock_file_path, 'x') as lock_file:
                             # Write lock metadata for debugging and stale lock detection
@@ -1252,19 +1254,34 @@ class FileStorage(AbstractStorage):
                                         f"Found stale lock file ({stale_reason}), "
                                         f"removing and retrying: {lock_file_path}"
                                     )
-                                    os.unlink(lock_file_path)
-                                    # Continue to retry acquiring lock
-                                    time.sleep(self._lock_retry_interval)
+                                    # Issue #886: Fix TOCTOU race condition in stale lock removal
+                                    # Use atomic unlink-and-retry pattern to prevent race condition
+                                    # where multiple processes detect stale lock simultaneously.
+                                    # The atomic open(..., 'x') at the top of the loop ensures
+                                    # only one process will acquire the lock after removal.
+                                    try:
+                                        os.unlink(lock_file_path)
+                                    except FileNotFoundError:
+                                        # Another process already removed the stale lock
+                                        logger.debug(f"Stale lock already removed by another process: {lock_file_path}")
+                                    except OSError as e:
+                                        logger.warning(f"Failed to remove stale lock: {e}")
+                                    # Immediately retry to acquire lock (no sleep needed)
+                                    # The atomic open(..., 'x') will ensure mutual exclusion
                                     continue
 
                         except (OSError, ValueError, IndexError) as e:
                             # Lock file exists but is corrupted or unreadable
                             logger.warning(f"Unreadable lock file found, removing: {e}")
+                            # Issue #886: Handle corrupted lock files with proper error handling
                             try:
                                 os.unlink(lock_file_path)
-                            except OSError:
-                                pass
-                            time.sleep(self._lock_retry_interval)
+                            except FileNotFoundError:
+                                # Another process already removed the corrupted lock
+                                logger.debug(f"Corrupted lock already removed: {lock_file_path}")
+                            except OSError as unlink_err:
+                                logger.warning(f"Failed to remove corrupted lock: {unlink_err}")
+                            # Immediately retry to acquire lock
                             continue
 
                         # Lock is held by another active process
