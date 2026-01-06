@@ -358,6 +358,38 @@ class AbstractStorage(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def delete_batch(self, todo_ids: list[int]) -> list[bool]:
+        """Delete multiple todos in a single batch operation.
+
+        This is more efficient than calling delete() multiple times as it
+        reduces disk I/O operations.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_delete_batch(self, todo_ids: list[int]) -> list[bool]:
+        """Asynchronously delete multiple todos in a single batch operation.
+
+        This is the async version of delete_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        pass
+
+    @abc.abstractmethod
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
 
@@ -3996,6 +4028,69 @@ class FileStorage(AbstractStorage):
 
             return updated_todos
 
+    def delete_batch(self, todo_ids: list[int]) -> list[bool]:
+        """Delete multiple todos in a single batch operation.
+
+        This is more efficient than calling delete() multiple times as it
+        reduces disk I/O operations by only triggering auto-save once
+        after all todos are deleted.
+
+        Transactional behavior (Issue #763): This operation is atomic.
+        If the save fails, no todos are deleted.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        if not todo_ids:
+            return []
+
+        with self._lock:
+            # Track which IDs were found and deleted
+            results = []
+            ids_to_delete = set()
+            indices_to_delete = []
+
+            # Find indices of todos to delete
+            for i, todo in enumerate(self._todos):
+                if todo.id in todo_ids:
+                    ids_to_delete.add(todo.id)
+                    indices_to_delete.append(i)
+
+            # Create result list in the same order as input
+            for todo_id in todo_ids:
+                results.append(todo_id in ids_to_delete)
+
+            # Only save if we actually found something to delete
+            if indices_to_delete:
+                # Create new list without deleted todos
+                # Sort indices in descending order to delete from end to start
+                indices_to_delete.sort(reverse=True)
+                new_todos = self._todos.copy()
+                for idx in indices_to_delete:
+                    del new_todos[idx]
+
+                # Mark as dirty and save once for all deletions
+                self._dirty = True
+                # Mark cache as dirty when data changes (Issue #703)
+                if self._cache_enabled:
+                    self._cache_dirty = True
+                self._save_with_todos_sync(new_todos)
+
+                # Update cache immediately after successful write (write-through cache, Issue #718)
+                if self._cache_enabled:
+                    for todo_id in ids_to_delete:
+                        self._cache.pop(todo_id, None)
+                    self._cache_dirty = False
+
+                # Check if auto-save should be triggered (Issue #547)
+                self._check_auto_save()
+
+            return results
+
     # Async public methods (Issue #702)
     async def async_add(self, todo: Todo) -> Todo:
         """Asynchronously add a new todo with atomic ID generation.
@@ -4263,6 +4358,68 @@ class FileStorage(AbstractStorage):
                 self._check_auto_save()
 
             return updated_todos
+
+    async def async_delete_batch(self, todo_ids: list[int]) -> list[bool]:
+        """Asynchronously delete multiple todos in a single batch operation.
+
+        This is the async version of delete_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Transactional behavior (Issue #763): This operation is atomic.
+        If the save fails, no todos are deleted.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        if not todo_ids:
+            return []
+
+        async with self._async_lock:
+            # Track which IDs were found and deleted
+            results = []
+            ids_to_delete = set()
+            indices_to_delete = []
+
+            # Find indices of todos to delete
+            for i, todo in enumerate(self._todos):
+                if todo.id in todo_ids:
+                    ids_to_delete.add(todo.id)
+                    indices_to_delete.append(i)
+
+            # Create result list in the same order as input
+            for todo_id in todo_ids:
+                results.append(todo_id in ids_to_delete)
+
+            # Only save if we actually found something to delete
+            if indices_to_delete:
+                # Create new list without deleted todos
+                # Sort indices in descending order to delete from end to start
+                indices_to_delete.sort(reverse=True)
+                new_todos = self._todos.copy()
+                for idx in indices_to_delete:
+                    del new_todos[idx]
+
+                # Mark as dirty and save once for all deletions
+                self._dirty = True
+                # Mark cache as dirty when data changes (Issue #703)
+                if self._cache_enabled:
+                    self._cache_dirty = True
+                await self._save_with_todos(new_todos)
+
+                # Update cache immediately after successful write (write-through cache, Issue #718)
+                if self._cache_enabled:
+                    for todo_id in ids_to_delete:
+                        self._cache.pop(todo_id, None)
+                    self._cache_dirty = False
+
+                # Check if auto-save should be triggered (Issue #547)
+                self._check_auto_save()
+
+            return results
 
     def _update_cache_from_todos(self) -> None:
         """Update cache from _todos list (Issue #718).
