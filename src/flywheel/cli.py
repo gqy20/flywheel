@@ -31,6 +31,11 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
       with various text formats or display systems
     - Format string characters ({, }) to prevent format string attacks
     - Control characters (newlines, tabs, null bytes) that could break storage formats
+      - CRITICAL SECURITY NOTE: Control characters are REPLACED WITH SPACES (not removed)
+        to prevent word concatenation (e.g., 'Hello\nWorld' becomes 'Hello World').
+        However, if the output is used in unquoted shell command arguments, these spaces
+        could enable argument injection. ALWAYS use proper quoting (shlex.quote()) or
+        subprocess with list arguments (shell=False) when using output in shell commands.
     - All backslashes (\) that could cause escape sequence issues
     - Unicode spoofing characters (zero-width, bidirectional overrides, fullwidth)
 
@@ -56,6 +61,25 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         or proper quoting libraries like shlex.quote(). Storage backends should use
         parameterized queries or proper escaping for their specific format.
 
+        SECURITY RISK (Issue #819): Control characters are replaced with spaces to
+        preserve word separation. Example: 'Hello\nWorld' becomes 'Hello World'.
+        While this prevents word concatenation, it introduces a different risk: if this
+        sanitized string is used in shell commands without proper quoting, the spaces
+        could be exploited for argument injection.
+
+        Dangerous example (DO NOT DO THIS):
+            input = "todo\x00extra"
+            sanitized = sanitize_string(input)  # Returns "todo extra"
+            os.system(f"echo {sanitized}")  # UNSAFE! No quoting!
+            # Result: echo todo extra  # Argument injection!
+
+        Safe usage:
+            sanitized = sanitize_string(input)
+            # Option 1: Use subprocess with list arguments (RECOMMENDED)
+            subprocess.run(["echo", sanitized], shell=False)
+            # Option 2: Use shlex.quote() for proper quoting
+            os.system(f"echo {shlex.quote(sanitized)}")
+
     Security:
         Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
         for data storage. Shell safety should be handled by subprocess with list
@@ -75,6 +99,9 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
         Addresses Issue #780 - Uses separate passes for control characters and
         metacharacters to preserve word separation.
         Addresses Issue #804 - Preserves international characters for multilingual support.
+        Addresses Issue #819 - Documents security risk of control characters being
+        replaced with spaces. Emphasizes that output MUST be properly quoted or used
+        with subprocess list arguments (shell=False) when passed to shell commands.
         Addresses Issue #824 - Clarifies that this function is NOT suitable for
         shell injection prevention. Shell safety must be handled by using subprocess
         with list arguments (shell=False) or shlex.quote() when executing commands.
