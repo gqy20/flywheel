@@ -133,8 +133,7 @@ class Todo:
         if completed_at is not None:
             kwargs["completed_at"] = completed_at
 
-        # Only add created_at if not None to preserve default_factory
-        if created_at is not None:
-            kwargs["created_at"] = created_at
+        # Always add created_at to preserve the original value (including None)
+        kwargs["created_at"] = created_at
 
         return cls(**kwargs)
