@@ -471,6 +471,8 @@ class FileStorage(AbstractStorage):
 
         Raises:
             ValueError: If lock_timeout or lock_retry_interval is not positive.
+            RuntimeError: If FLYWHEEL_STRICT_MODE is enabled and optimal file locking
+                         is not available (fcntl on Unix, pywin32 on Windows) (Issue #854).
         """
         # Validate lock_timeout (Issue #777)
         if lock_timeout <= 0:
@@ -479,6 +481,28 @@ class FileStorage(AbstractStorage):
         # Validate lock_retry_interval (Issue #777)
         if lock_retry_interval <= 0:
             raise ValueError(f"lock_retry_interval must be positive, got {lock_retry_interval}")
+
+        # Security fix for Issue #854: Strict mode prevents degraded operation
+        # When FLYWHEEL_STRICT_MODE=1 is set, raise an error if optimal
+        # file locking is not available (fcntl on Unix, pywin32 on Windows).
+        # This prevents data corruption risks in concurrent scenarios.
+        strict_mode = os.environ.get('FLYWHEEL_STRICT_MODE', '0').strip() in ('1', 'true', 'yes', 'on')
+        if strict_mode and _is_degraded_mode():
+            if os.name == 'nt':
+                raise RuntimeError(
+                    "FLYWHEEL_STRICT_MODE is enabled but pywin32 is not available. "
+                    "For optimal file locking on Windows, install pywin32: pip install pywin32. "
+                    "Without pywin32, the system uses degraded mode which may cause data "
+                    "corruption when multiple instances run concurrently."
+                )
+            else:
+                raise RuntimeError(
+                    "FLYWHEEL_STRICT_MODE is enabled but fcntl is not available. "
+                    "For optimal file locking on Unix-like systems, ensure fcntl is available. "
+                    "Without fcntl, the system uses degraded mode which may cause data "
+                    "corruption when multiple instances run concurrently. "
+                    "If you are on Cygwin, consider using native Windows or a full Unix environment."
+                )
 
         self.compression = compression
         self.backup_count = backup_count
