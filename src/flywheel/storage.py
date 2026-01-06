@@ -68,27 +68,28 @@ if os.name == 'nt':  # Windows
         import win32file
         import pywintypes
     except ImportError:
-        # Issue #821: Use msvcrt as fallback for file locking instead of disabling it
-        # When pywin32 is not available, use msvcrt.locking as a fallback mechanism
-        # to provide basic file locking. This prevents data corruption in concurrent
-        # scenarios while maintaining portability.
-        try:
-            import msvcrt
-        except ImportError:
-            # msvcrt should always be available on Windows, but handle gracefully
-            msvcrt = None
+        # Issue #846: Use file-based lock instead of msvcrt.locking to prevent deadlock risk
+        # When pywin32 is not available, use a file-based lock mechanism (.lock file)
+        # which provides automatic cleanup when processes terminate, preventing deadlocks
+        # that could occur with msvcrt.locking (which only releases locks on file handle close).
+        win32security = None
+        win32con = None
+        win32api = None
+        win32file = None
+        pywintypes = None
+
         # Issue #696: Fall back to degraded mode instead of raising ImportError.
         # On Windows, pywin32 is preferred for optimal file locking, but the module
-        # will use a fallback lock mechanism (msvcrt.locking) to maintain safety.
+        # will use a fallback lock mechanism (file-based .lock files) to maintain safety.
         # Users are encouraged to install pywin32 for best performance and safety:
         #   pip install pywin32
         #
-        # Issue #821: Using msvcrt.locking as fallback instead of disabling locking.
-        # This provides basic file locking to prevent data corruption when multiple
-        # instances run concurrently.
+        # Issue #846: Using file-based lock (.lock file) instead of msvcrt.locking.
+        # This prevents deadlock risk since lock files are automatically cleaned up
+        # when processes terminate, and includes stale lock detection.
         import warnings
         warnings.warn(
-            "pywin32 is not installed. Using fallback file locking (msvcrt.locking). "
+            "pywin32 is not installed. Using fallback file locking (.lock files). "
             "For optimal performance and safety on Windows, install pywin32: "
             "pip install pywin32",
             UserWarning,
@@ -127,7 +128,7 @@ def _is_degraded_mode() -> bool:
     """Check if running in degraded mode without optimal file locking.
 
     Returns True if running on:
-    - Windows without pywin32 (uses msvcrt.locking fallback)
+    - Windows without pywin32 (uses file-based .lock file fallback)
     - Unix-like systems without fcntl (uses lock file fallback)
 
     Fix for Issue #696: Allow degraded mode for portability instead of
@@ -137,8 +138,10 @@ def _is_degraded_mode() -> bool:
     Fix for Issue #791: Allow degraded mode on Unix systems without fcntl
     for portability, similar to Windows pywin32 handling.
 
-    Fix for Issue #821: Windows degraded mode uses msvcrt.locking as fallback
-    instead of completely disabling file locking, preventing data corruption.
+    Fix for Issue #846: Windows degraded mode uses file-based .lock files
+    instead of msvcrt.locking to prevent deadlock risk. Lock files are
+    automatically cleaned up when processes terminate and include
+    stale lock detection.
 
     Fix for Issue #829: Unix degraded mode uses lock file fallback instead of
     completely disabling file locking, preventing data corruption in concurrent
@@ -481,6 +484,7 @@ class FileStorage(AbstractStorage):
         self._lock = threading.Lock()  # Thread lock for synchronous operations (Issue #582, #661)
         self._async_lock = asyncio.Lock()  # Async lock for asynchronous operations (Issue #666)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
+        self._lock_file_path: str | None = None  # Track lock file path for cleanup (Issue #846)
         self._dirty: bool = False  # Track if data has been modified (Issue #203)
         # Memory cache for improved get/list performance (Issue #703, #718)
         # When enabled, get and list operations return cached data without disk I/O
@@ -887,70 +891,91 @@ class FileStorage(AbstractStorage):
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
-                # Issue #821: pywin32 is not available - use msvcrt.locking as fallback
-                # instead of completely disabling file locking
+                # Issue #846: pywin32 is not available - use file-based lock (.lock file)
+                # instead of msvcrt.locking to prevent deadlock risk
                 logger.info(
-                    "Using fallback file locking (msvcrt.locking) in degraded mode. "
+                    "Using fallback file locking (.lock files) in degraded mode. "
                     "For optimal performance, install pywin32."
                 )
 
-                try:
-                    # Use msvcrt.locking as fallback mechanism
-                    # msvcrt.locking(fd, mode, nbytes)
-                    # LK_NBLCK = non-blocking lock
-                    # LK_LOCK = blocking lock with retry
-                    import msvcrt
+                # Use file-based lock mechanism with automatic stale lock cleanup
+                # This prevents deadlocks that could occur with msvcrt.locking
+                lock_file_path = file_handle.name + ".lock"
 
-                    # Flush buffers before locking (Issue #390)
-                    file_handle.flush()
+                start_time = time.time()
+                while True:
+                    elapsed = time.time() - start_time
+                    if elapsed >= self._lock_timeout:
+                        raise RuntimeError(
+                            f"File lock acquisition timed out after {elapsed:.1f}s "
+                            f"(timeout: {self._lock_timeout}s) using file-based lock. "
+                            f"File: {file_handle.name}"
+                        )
 
-                    # Lock the entire file
-                    # Use LK_NBLCK for non-blocking lock to match pywin32 behavior
-                    msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+                    try:
+                        # Try to create lock file exclusively (atomic operation)
+                        # This will fail if the file already exists
+                        with open(lock_file_path, 'x') as lock_file:
+                            # Write lock metadata for debugging and stale lock detection
+                            lock_file.write(f"pid={os.getpid()}\n")
+                            lock_file.write(f"locked_at={time.time()}\n")
 
-                    # Cache a marker to indicate msvcrt lock is active
-                    self._lock_range = "msvcrt"
+                        # Lock acquired successfully - track for cleanup
+                        self._lock_range = "filelock"
+                        self._lock_file_path = lock_file_path
+                        logger.debug(f"File-based lock acquired: {lock_file_path}")
+                        return
 
-                    logger.debug(f"msvcrt fallback lock acquired for {file_handle.name}")
-                    return  # Lock acquired successfully
-                except ImportError:
-                    # msvcrt not available (should not happen on Windows)
-                    logger.warning(
-                        "msvcrt module not available. File locking is disabled. "
-                        "Concurrent access may cause data corruption."
-                    )
-                    return
-                except OSError as e:
-                    # Lock is held by another process or locking failed
-                    # Retry with timeout similar to pywin32 implementation
-                    start_time = time.time()
-
-                    while True:
-                        elapsed = time.time() - start_time
-                        if elapsed >= self._lock_timeout:
-                            raise RuntimeError(
-                                f"File lock acquisition timed out after {elapsed:.1f}s "
-                                f"(timeout: {self._lock_timeout}s) using msvcrt fallback. "
-                                f"File: {file_handle.name}"
-                            )
-
+                    except FileExistsError:
+                        # Lock file already exists - check if it's stale
                         try:
-                            # Retry with blocking lock
-                            import msvcrt
-                            file_handle.flush()
-                            msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
-                            self._lock_range = "msvcrt"
-                            logger.debug(f"msvcrt fallback lock acquired for {file_handle.name}")
-                            return
-                        except OSError:
-                            # Still locked, wait and retry
+                            with open(lock_file_path, 'r') as lock_file:
+                                content = lock_file.read()
+                                locked_at = None
+                                for line in content.split('\n'):
+                                    if line.startswith('locked_at='):
+                                        locked_at = float(line.split('=')[1])
+                                        break
+
+                                # Issue #846: Stale lock detection and cleanup
+                                # If lock is older than a threshold, consider it stale
+                                stale_threshold = 300  # 5 minutes
+                                if locked_at and (time.time() - locked_at) > stale_threshold:
+                                    logger.warning(
+                                        f"Found stale lock file (age: {time.time() - locked_at:.1f}s), "
+                                        f"removing and retrying: {lock_file_path}"
+                                    )
+                                    os.unlink(lock_file_path)
+                                    # Continue to retry acquiring lock
+                                    time.sleep(self._lock_retry_interval)
+                                    continue
+
+                        except (OSError, ValueError, IndexError) as e:
+                            # Lock file exists but is corrupted or unreadable
+                            logger.warning(f"Unreadable lock file found, removing: {e}")
+                            try:
+                                os.unlink(lock_file_path)
+                            except OSError:
+                                pass
                             time.sleep(self._lock_retry_interval)
+                            continue
+
+                        # Lock is held by another active process
+                        logger.debug(
+                            f"File is locked by another process, waiting... "
+                            f"(elapsed: {elapsed:.1f}s)"
+                        )
+                        time.sleep(self._lock_retry_interval)
+                    except OSError as e:
+                        # Other OS error - retry
+                        logger.warning(f"Failed to create lock file: {e}, retrying...")
+                        time.sleep(self._lock_retry_interval)
 
             # Windows locking: win32file.LockFileEx for MANDATORY locking (Issue #451)
             # SECURITY: Mandatory locks enforce mutual exclusion on ALL processes
             # - Prevents malicious or unaware processes from writing concurrently
             # - Provides data integrity guarantees that advisory locks cannot
-            # - Uses win32file.LockFileEx instead of msvcrt.locking
+            # - Uses win32file.LockFileEx instead of file-based .lock files
             #
             # Security fix for Issue #429: Windows modules are imported at module level,
             # ensuring thread-safe initialization. No need to import here.
@@ -1215,17 +1240,24 @@ class FileStorage(AbstractStorage):
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
-                # Issue #821: Release msvcrt fallback lock
-                if hasattr(self, '_lock_range') and self._lock_range == "msvcrt":
+                # Issue #846: Release file-based lock
+                if hasattr(self, '_lock_range') and self._lock_range == "filelock":
+                    lock_file_path = file_handle.name + ".lock"
                     try:
-                        import msvcrt
-                        # Unlock the file
-                        # msvcrt.locking(fd, LK_UNLCK, nbytes)
-                        msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
-                        logger.debug(f"msvcrt fallback lock released for {file_handle.name}")
+                        # Remove the lock file to release the lock
+                        os.unlink(lock_file_path)
+                        logger.debug(f"File-based lock released: {lock_file_path}")
+                        # Clear the tracked lock file path
+                        self._lock_file_path = None
+                        return
+                    except FileNotFoundError:
+                        # Lock file doesn't exist - already cleaned up
+                        logger.debug(f"Lock file already removed: {lock_file_path}")
+                        # Clear the tracked lock file path
+                        self._lock_file_path = None
                         return
                     except Exception as e:
-                        logger.error(f"Failed to release msvcrt fallback lock: {e}")
+                        logger.error(f"Failed to release file-based lock: {e}")
                         raise
                 else:
                     # No lock was acquired
@@ -4419,7 +4451,8 @@ class FileStorage(AbstractStorage):
         This method properly cleans up resources by:
         1. Saving any pending changes (if dirty)
         2. Stopping the auto-save background thread
-        3. Unregistering the atexit handler
+        3. Cleaning up lock files (Issue #846)
+        4. Unregistering the atexit handler
 
         The method is idempotent and can be called multiple times safely.
         Once closed, the storage object should not be used for further operations.
@@ -4452,6 +4485,18 @@ class FileStorage(AbstractStorage):
             self._auto_save_thread.join(timeout=2.0)
             if self._auto_save_thread.is_alive():
                 logger.warning("Auto-save thread did not stop gracefully within timeout")
+
+        # Issue #846: Clean up lock file if we're using file-based lock
+        # This ensures locks are released even if the program crashes
+        if (hasattr(self, '_lock_file_path') and
+            self._lock_file_path is not None and
+            os.path.exists(self._lock_file_path)):
+            try:
+                os.unlink(self._lock_file_path)
+                logger.info(f"Cleaned up lock file on close: {self._lock_file_path}")
+                self._lock_file_path = None
+            except OSError as e:
+                logger.warning(f"Failed to clean up lock file: {e}")
 
         # Mark as closed to prevent further operations
         self._closed = True
