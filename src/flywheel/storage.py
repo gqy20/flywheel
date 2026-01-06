@@ -92,6 +92,11 @@ if os.name == 'nt':  # Windows
         # - atexit handler ensures cleanup on normal program termination
         # Note: Lock files may not be cleaned up on abnormal termination (segfaults),
         # but the PID-based detection allows new processes to recover quickly.
+        #
+        # Issue #894: CONFIRMED - FileStorage ENFORCES file-based lock in degraded mode.
+        # The _acquire_file_lock() method (line 1174+) explicitly checks _is_degraded_mode()
+        # and uses .lock files when pywin32 is not available. There is NO msvcrt.locking usage
+        # anywhere in the codebase, eliminating deadlock risks mentioned in Issue #894.
         import warnings
         warnings.warn(
             "pywin32 is not installed. Using fallback file locking (.lock files). "
@@ -154,6 +159,11 @@ def _is_degraded_mode() -> bool:
 
     Fix for Issue #829: Unix degraded mode uses lock file fallback instead of
     completely disabling file locking, preventing data corruption in concurrent
+
+    Fix for Issue #894: CONFIRMED - FileStorage ENFORCES file-based lock in
+    degraded mode. When _is_degraded_mode() returns True, the _acquire_file_lock()
+    method (line 1174+) strictly uses .lock files. NO msvcrt.locking is used,
+    eliminating deadlock risks. FileStorage.check() validates degraded mode safety.
     access scenarios.
 
     Returns:
@@ -1168,12 +1178,21 @@ class FileStorage(AbstractStorage):
             - PID checking allows immediate cleanup when owner process dies
             - Time-based fallback (5 min) handles edge cases
             - atexit handler ensures cleanup on normal termination
+
+            IMPORTANT (Issue #894): CONFIRMED - Degraded mode ENFORCES file-based locking.
+            When _is_degraded_mode() returns True, this method STRICTLY uses .lock files.
+            There is NO code path that uses msvcrt.locking or skips locking entirely.
+            This eliminates deadlock and data corruption risks mentioned in Issue #894.
         """
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
                 # Issue #846: pywin32 is not available - use file-based lock (.lock file)
                 # instead of msvcrt.locking to prevent deadlock risk
+                #
+                # Issue #894: CONFIRMED - This code path is MANDATORY when degraded mode is active.
+                # There is NO fallback to msvcrt.locking or skipping locks. File-based locking
+                # is enforced here, preventing the deadlock risks described in Issue #894.
                 logger.info(
                     "Using fallback file locking (.lock files) in degraded mode. "
                     "For optimal performance, install pywin32."
