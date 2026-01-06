@@ -85,6 +85,39 @@ todo delete 2
 | `evaluate.yml` | 标签变化 | 重新评估优先级 |
 | `fix.yml` | 每 2 小时 | 自动修复问题 |
 
+## 安全性和环境变量
+
+### FLYWHEEL_STRICT_MODE
+
+为了防止在文件锁不可用时发生数据损坏，AI Flywheel 支持严格模式：
+
+```bash
+# 启用严格模式（推荐用于生产环境）
+export FLYWHEEL_STRICT_MODE=1
+
+# 或使用其他真值
+export FLYWHEEL_STRICT_MODE=true
+export FLYWHEEL_STRICT_MODE=yes
+export FLYWHEEL_STRICT_MODE=on
+```
+
+**为什么需要严格模式？**
+
+- **Unix 系统**：如果 `fcntl` 模块不可用（例如 Cygwin），系统会在降级模式下运行，使用文件锁作为后备方案。这可能在高并发场景下导致数据竞争。
+- **Windows 系统**：如果 `pywin32` 不可用，系统会使用文件锁作为后备方案。
+
+**严格模式的行为：**
+
+- 启用后，如果最优文件锁不可用（Unix 上是 `fcntl`，Windows 上是 `pywin32`），程序将立即抛出 `RuntimeError` 并退出
+- 这可以防止在不知情的情况下运行在降级模式，避免数据损坏风险
+
+**何时使用：**
+
+- ✅ 生产环境推荐启用
+- ✅ 多实例部署场景必须启用
+- ❌ 开发环境可选（允许降级模式以便在受限环境中测试）
+- ❌ 单用户桌面应用可选（并发风险较低）
+
 ## 项目结构
 
 ```
