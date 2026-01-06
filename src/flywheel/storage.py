@@ -178,6 +178,191 @@ def _is_degraded_mode() -> bool:
         return fcntl is None
 
 
+# Fix for Issue #897: Implement generic retry mechanism for transient failures
+# File I/O and network operations can fail transiently (e.g., 'Permission denied',
+# 'Lock timeout'). This retry mechanism makes the application more resilient against
+# temporary glitches without crashing.
+import functools
+import inspect
+
+
+def retry_transient_errors(
+    max_attempts: int = 3,
+    initial_backoff: float = 0.1,
+    exponential_base: float = 2.0,
+):
+    """Decorator that retries a function on transient I/O errors.
+
+    This decorator catches specific transient exceptions (like IOError with
+    EAGAIN, EACCES) and retries with exponential backoff before failing.
+    Works with both synchronous and asynchronous functions.
+
+    Transient errors that trigger retry:
+    - errno.EAGAIN: Resource temporarily unavailable
+    - errno.EACCES: Permission denied (may be transient on some systems)
+    - IOError with these error codes
+
+    Permanent errors that do NOT trigger retry (fail immediately):
+    - errno.ENOSPC: No space left on device
+    - errno.ENOENT: No such file or directory
+    - Other permanent I/O errors
+
+    Args:
+        max_attempts: Maximum number of attempts (default: 3)
+        initial_backoff: Initial backoff time in seconds (default: 0.1)
+        exponential_base: Base for exponential backoff (default: 2.0)
+
+    Returns:
+        The decorated function with retry logic
+
+    Example:
+        @retry_transient_errors(max_attempts=3)
+        def save_data():
+            # Save operations that may fail transiently
+            pass
+
+        @retry_transient_errors(max_attempts=3)
+        async def save_data_async():
+            # Async save operations that may fail transiently
+            pass
+
+    Fix for Issue #897: Generic retry mechanism for transient failures.
+    """
+    def decorator(func):
+        is_coroutine = inspect.iscoroutinefunction(func)
+
+        if is_coroutine:
+            # Async version
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                attempt = 0
+                backoff = initial_backoff
+
+                while attempt < max_attempts:
+                    try:
+                        return await func(*args, **kwargs)
+                    except IOError as e:
+                        attempt += 1
+
+                        # Check if this is a transient error
+                        # Only retry on specific transient error codes
+                        transient_errors = (
+                            errno.EAGAIN,  # Resource temporarily unavailable
+                            errno.EACCES,  # Permission denied (may be transient)
+                            errno.EBUSY,   # Device or resource busy
+                            errno.EWOULDBLOCK,  # Operation would block
+                        )
+
+                        # Check if error has an errno attribute
+                        error_code = getattr(e, 'errno', None)
+
+                        # If it's a permanent error, fail immediately
+                        if error_code in (
+                            errno.ENOSPC,  # No space left on device
+                            errno.ENOENT,  # No such file or directory
+                            errno.ENOTDIR,  # Not a directory
+                        ):
+                            # Permanent error - don't retry
+                            logger.debug(
+                                f"Permanent I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If it's not a recognized transient error, don't retry
+                        if error_code not in transient_errors:
+                            logger.debug(
+                                f"Non-transient I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If we've exhausted all attempts, raise the last error
+                        if attempt >= max_attempts:
+                            logger.warning(
+                                f"Max retry attempts ({max_attempts}) exhausted for "
+                                f"{func.__name__}: {e}"
+                            )
+                            raise
+
+                        # Retry with exponential backoff
+                        logger.debug(
+                            f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
+                            f"{e}. Retrying in {backoff:.2f}s..."
+                        )
+                        await asyncio.sleep(backoff)
+                        backoff *= exponential_base
+
+                # Should not reach here, but just in case
+                raise RuntimeError("Unexpected state in retry logic")
+
+            return async_wrapper
+        else:
+            # Sync version
+            @functools.wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                attempt = 0
+                backoff = initial_backoff
+
+                while attempt < max_attempts:
+                    try:
+                        return func(*args, **kwargs)
+                    except IOError as e:
+                        attempt += 1
+
+                        # Check if this is a transient error
+                        # Only retry on specific transient error codes
+                        transient_errors = (
+                            errno.EAGAIN,  # Resource temporarily unavailable
+                            errno.EACCES,  # Permission denied (may be transient)
+                            errno.EBUSY,   # Device or resource busy
+                            errno.EWOULDBLOCK,  # Operation would block
+                        )
+
+                        # Check if error has an errno attribute
+                        error_code = getattr(e, 'errno', None)
+
+                        # If it's a permanent error, fail immediately
+                        if error_code in (
+                            errno.ENOSPC,  # No space left on device
+                            errno.ENOENT,  # No such file or directory
+                            errno.ENOTDIR,  # Not a directory
+                        ):
+                            # Permanent error - don't retry
+                            logger.debug(
+                                f"Permanent I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If it's not a recognized transient error, don't retry
+                        if error_code not in transient_errors:
+                            logger.debug(
+                                f"Non-transient I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If we've exhausted all attempts, raise the last error
+                        if attempt >= max_attempts:
+                            logger.warning(
+                                f"Max retry attempts ({max_attempts}) exhausted for "
+                                f"{func.__name__}: {e}"
+                            )
+                            raise
+
+                        # Retry with exponential backoff
+                        logger.debug(
+                            f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
+                            f"{e}. Retrying in {backoff:.2f}s..."
+                        )
+                        time.sleep(backoff)
+                        backoff *= exponential_base
+
+                # Should not reach here, but just in case
+                raise RuntimeError("Unexpected state in retry logic")
+
+            return sync_wrapper
+
+    return decorator
+
+
 class AbstractStorage(abc.ABC):
     """Abstract base class for todo storage backends.
 
@@ -3810,6 +3995,7 @@ class FileStorage(AbstractStorage):
                 pass
             raise
 
+    @retry_transient_errors(max_attempts=3, initial_backoff=0.1)
     def _save_with_todos_sync(self, todos: list[Todo]) -> None:
         """Save specified todos to file using atomic write synchronously.
 
@@ -3959,6 +4145,7 @@ class FileStorage(AbstractStorage):
                 pass
             raise
 
+    @retry_transient_errors(max_attempts=3, initial_backoff=0.1)
     async def _save_with_todos(self, todos: list[Todo]) -> None:
         """Save specified todos to file using atomic write asynchronously.
 
