@@ -589,6 +589,41 @@ class AbstractStorage(abc.ABC):
         # to perform specific cleanup (e.g., releasing locks, closing files)
         return False
 
+    def __len__(self) -> int:
+        """Return the number of todos in storage.
+
+        This allows the storage backend to be used with the built-in len() function,
+        making it behave like a standard Python collection.
+
+        Returns:
+            The total number of todos in storage.
+
+        Example:
+            >>> storage = FileStorage()
+            >>> storage.add(Todo(title="Task"))
+            >>> len(storage)
+            1
+        """
+        return len(self.list())
+
+    def __iter__(self):
+        """Iterate over all todos in storage.
+
+        This allows the storage backend to be used in for loops and other
+        iteration contexts, making it behave like a standard Python collection.
+
+        Yields:
+            Todo objects from the storage.
+
+        Example:
+            >>> storage = FileStorage()
+            >>> storage.add(Todo(title="Task 1"))
+            >>> storage.add(Todo(title="Task 2"))
+            >>> for todo in storage:
+            ...     print(todo.title)
+        """
+        return iter(self.list())
+
 
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
