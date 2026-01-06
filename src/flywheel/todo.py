@@ -31,7 +31,7 @@ class Todo:
     status: Status = Status.TODO
     priority: Priority = Priority.MEDIUM
     due_date: str | None = None
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str | None = field(default_factory=lambda: datetime.now().isoformat())
     completed_at: str | None = None
     tags: list[str] = field(default_factory=list)
 
