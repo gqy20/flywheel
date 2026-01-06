@@ -389,6 +389,99 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    # Bulk operation aliases (Issue #858)
+    @abc.abstractmethod
+    def add_many(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos (alias for add_batch).
+
+        This is a convenience alias for add_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    def update_many(self, todos: list[Todo]) -> list[Todo]:
+        """Update multiple todos (alias for update_batch).
+
+        This is a convenience alias for update_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        pass
+
+    @abc.abstractmethod
+    def delete_many(self, todo_ids: list[int]) -> list[bool]:
+        """Delete multiple todos (alias for delete_batch).
+
+        This is a convenience alias for delete_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_add_many(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously add multiple todos (alias for async_add_batch).
+
+        This is a convenience alias for async_add_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_update_many(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously update multiple todos (alias for async_update_batch).
+
+        This is a convenience alias for async_update_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_delete_many(self, todo_ids: list[int]) -> list[bool]:
+        """Asynchronously delete multiple todos (alias for async_delete_batch).
+
+        This is a convenience alias for async_delete_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        pass
+
     @abc.abstractmethod
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
@@ -4444,6 +4537,93 @@ class FileStorage(AbstractStorage):
                 self._check_auto_save()
 
             return results
+
+    # Bulk operation aliases (Issue #858)
+    def add_many(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos (alias for add_batch).
+
+        This is a convenience alias for add_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        return self.add_batch(todos)
+
+    def update_many(self, todos: list[Todo]) -> list[Todo]:
+        """Update multiple todos (alias for update_batch).
+
+        This is a convenience alias for update_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        return self.update_batch(todos)
+
+    def delete_many(self, todo_ids: list[int]) -> list[bool]:
+        """Delete multiple todos (alias for delete_batch).
+
+        This is a convenience alias for delete_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        return self.delete_batch(todo_ids)
+
+    async def async_add_many(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously add multiple todos (alias for async_add_batch).
+
+        This is a convenience alias for async_add_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        return await self.async_add_batch(todos)
+
+    async def async_update_many(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously update multiple todos (alias for async_update_batch).
+
+        This is a convenience alias for async_update_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        return await self.async_update_batch(todos)
+
+    async def async_delete_many(self, todo_ids: list[int]) -> list[bool]:
+        """Asynchronously delete multiple todos (alias for async_delete_batch).
+
+        This is a convenience alias for async_delete_batch() for users who prefer
+        the 'many' naming convention over 'batch'.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            List of boolean values indicating whether each todo was deleted.
+            True if deleted, False if not found.
+        """
+        return await self.async_delete_batch(todo_ids)
 
     def _update_cache_from_todos(self) -> None:
         """Update cache from _todos list (Issue #718).
