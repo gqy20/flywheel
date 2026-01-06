@@ -373,6 +373,35 @@ class AbstractStorage(abc.ABC):
         """
         pass
 
+    def bulk_add(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos in a single bulk operation.
+
+        This is an alias for add_batch() for consistency with bulk naming.
+        See add_batch() for full documentation.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        return self.add_batch(todos)
+
+    def bulk_delete(self, todo_ids: list[int]) -> int:
+        """Delete multiple todos in a single bulk operation.
+
+        This is a convenience wrapper around delete_batch() that returns
+        the count of deleted todos instead of a list of boolean results.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            The number of todos that were successfully deleted.
+        """
+        results = self.delete_batch(todo_ids)
+        return sum(1 for r in results if r)
+
     @abc.abstractmethod
     async def async_delete_batch(self, todo_ids: list[int]) -> list[bool]:
         """Asynchronously delete multiple todos in a single batch operation.
@@ -4207,6 +4236,35 @@ class FileStorage(AbstractStorage):
                 self._check_auto_save()
 
             return results
+
+    def bulk_add(self, todos: list[Todo]) -> list[Todo]:
+        """Add multiple todos in a single bulk operation.
+
+        This is an alias for add_batch() for consistency with bulk naming.
+        See add_batch() for full documentation.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        return self.add_batch(todos)
+
+    def bulk_delete(self, todo_ids: list[int]) -> int:
+        """Delete multiple todos in a single bulk operation.
+
+        This is a convenience wrapper around delete_batch() that returns
+        the count of deleted todos instead of a list of boolean results.
+
+        Args:
+            todo_ids: List of todo IDs to delete.
+
+        Returns:
+            The number of todos that were successfully deleted.
+        """
+        results = self.delete_batch(todo_ids)
+        return sum(1 for r in results if r)
 
     # Async public methods (Issue #702)
     async def async_add(self, todo: Todo) -> Todo:
