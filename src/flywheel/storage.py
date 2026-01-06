@@ -313,6 +313,36 @@ class AbstractStorage(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def async_add_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously add multiple todos in a single batch operation.
+
+        This is the async version of add_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def async_update_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously update multiple todos in a single batch operation.
+
+        This is the async version of update_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        pass
+
+    @abc.abstractmethod
     def health_check(self) -> bool:
         """Check if storage backend is healthy and functional.
 
@@ -3880,6 +3910,123 @@ class FileStorage(AbstractStorage):
 
                     return True
             return False
+
+    async def async_add_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously add multiple todos in a single batch operation.
+
+        This is the async version of add_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Transactional behavior (Issue #763): This operation is atomic.
+        If the save fails, no todos are added and next_id is not modified.
+        Either all todos are committed, or none are.
+
+        Args:
+            todos: List of Todo objects to add.
+
+        Returns:
+            List of added Todo objects with generated IDs populated.
+        """
+        if not todos:
+            return []
+
+        async with self._async_lock:
+            # Capture current state for validation
+            max_id = self._next_id
+            existing_ids = {t.id for t in self._todos}
+
+            # First pass: validate no duplicate IDs and track max ID
+            for todo in todos:
+                todo_id = todo.id
+
+                # Check for duplicate ID
+                if todo_id is not None:
+                    if todo_id in existing_ids:
+                        raise ValueError(
+                            f"Todo with ID {todo_id} already exists. Use update() instead."
+                        )
+                    # Track max ID for _next_id update (Issue #763)
+                    if todo_id >= max_id:
+                        max_id = todo_id + 1
+
+            # Second pass: generate IDs for todos without them
+            # IMPORTANT: Don't modify self._next_id yet (Issue #763)
+            # Only calculate what IDs should be used. _save_with_todos
+            # will update self._next_id after successful save.
+            new_todos_list = []
+            next_id_candidate = self._next_id
+            for todo in todos:
+                if todo.id is None:
+                    # Calculate ID but don't increment self._next_id yet
+                    todo_id = next_id_candidate
+                    next_id_candidate += 1
+                    new_todo = Todo(id=todo_id, title=todo.title, status=todo.status)
+                    new_todos_list.append(new_todo)
+                else:
+                    new_todos_list.append(todo)
+
+            # Combine existing and new todos
+            combined_todos = self._todos + new_todos_list
+
+            # Mark as dirty and save once for all todos
+            self._dirty = True
+            # Mark cache as dirty when data changes (Issue #703)
+            if self._cache_enabled:
+                self._cache_dirty = True
+
+            # Transactional save (Issue #763): _save_with_todos will:
+            # 1. Write to temp file
+            # 2. Atomic replace
+            # 3. Update self._todos and self._next_id ONLY on success
+            # If save fails, self._next_id remains unchanged
+            await self._save_with_todos(combined_todos)
+
+            # Check auto-save once after all additions
+            self._check_auto_save()
+
+            return new_todos_list
+
+    async def async_update_batch(self, todos: list[Todo]) -> list[Todo]:
+        """Asynchronously update multiple todos in a single batch operation.
+
+        This is the async version of update_batch. It provides the same benefits
+        of reduced disk I/O operations but in a non-blocking manner.
+
+        Args:
+            todos: List of Todo objects with updated fields.
+
+        Returns:
+            List of successfully updated Todo objects.
+        """
+        if not todos:
+            return []
+
+        async with self._async_lock:
+            updated_todos = []
+            new_todos = self._todos.copy()
+            todo_indices = {}  # Map todo_id to index in new_todos
+
+            # Build index of existing todos
+            for i, todo in enumerate(new_todos):
+                todo_indices[todo.id] = i
+
+            # Update todos that exist
+            for todo in todos:
+                if todo.id in todo_indices:
+                    idx = todo_indices[todo.id]
+                    new_todos[idx] = todo
+                    updated_todos.append(todo)
+
+            # Only save if we actually updated something
+            if updated_todos:
+                self._dirty = True
+                # Mark cache as dirty when data changes (Issue #703)
+                if self._cache_enabled:
+                    self._cache_dirty = True
+                await self._save_with_todos(new_todos)
+                self._check_auto_save()
+
+            return updated_todos
 
     def _update_cache_from_todos(self) -> None:
         """Update cache from _todos list (Issue #718).
