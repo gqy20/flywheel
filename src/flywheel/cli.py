@@ -142,26 +142,42 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
     #
-    # SECURITY FIX (Issue #780): Combine shell metacharacter and control character
-    # removal into a single regex pass for improved robustness. Previously, these
-    # were removed in two separate passes (line 129 and 133), which could be fragile
-    # and prone to order-dependency issues. The new combined approach ensures all
-    # dangerous characters are removed atomically in one operation.
+    # SECURITY FIX (Issue #780, #815): Separate handling of shell metacharacters
+    # and control characters for improved data integrity. Previously, these were
+    # removed in a single pass which could cause word concatenation issues when
+    # newlines were removed (e.g., 'Hello\nWorld' → 'HelloWorld').
     #
-    # This single regex removes:
-    # - Shell injection metacharacters: ; | & ` $ ( ) < > { } \
-    # - Control characters: \x00-\x1F \x7F (including newline, tab, null, etc.)
+    # SECURITY FIX (Issue #815): Replace control characters (newlines, tabs, etc.)
+    # with spaces instead of removing them completely. This prevents word
+    # concatenation and preserves data integrity while still removing security
+    # risks. The new two-step approach:
+    # 1. Replace control characters with spaces
+    # 2. Remove shell metacharacters completely
     #
-    # The combined character class includes:
-    # - Explicit metachars: ; | & ` $ ( ) < > { } \
-    # - Control char range: \x00-\x1F (all ASCII control chars)
-    # - Delete character: \x7F
+    # Step 1: Replace control characters with spaces to preserve word separation
+    # This includes \x00-\x1F (all ASCII control chars) and \x7F (delete)
+    # Newlines (\x0A), carriage returns (\x0D), tabs (\x09), etc. become spaces
+    control_chars_pattern = r'[\x00-\x1F\x7F]'
+    s = re.sub(control_chars_pattern, ' ', s)
+
+    # Step 2: Remove shell injection metacharacters
+    # Characters removed: ; | & ` $ ( ) < > { } \
+    # Note: We preserve quotes, %, [, ] for legitimate content
+    # Curly braces removed to prevent format string attacks (Issue #690)
+    # Hyphen preserved to prevent data corruption (Issue #725):
+    # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
+    # - Hyphenated words (well-known, self-contained)
+    # - ISO dates (2024-01-15)
+    # - Phone numbers (1-800-555-0123)
+    # - URLs and file paths
     #
-    # SECURITY NOTE: By using a single regex pass, we eliminate the risk of
-    # characters slipping through due to order dependencies between multiple
-    # sanitization steps. This makes the sanitization more robust and easier
-    # to reason about.
-    s = re.sub(r'[;|&`$()<>{}\\\x00-\x1F\x7F]', '', s)
+    # SECURITY NOTE (Issue #729): To prevent ReDoS, we construct the regex pattern
+    # explicitly rather than using string interpolation. This ensures that:
+    # 1. No hyphens in the middle that could create unintended ranges
+    # 2. No unescaped closing brackets that could break the character class
+    # 3. Pattern is safe from catastrophic backtracking
+    shell_metachars_pattern = r'[;|&`$()<>{}\\]'
+    s = re.sub(shell_metachars_pattern, '', s)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
