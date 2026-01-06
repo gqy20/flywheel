@@ -68,19 +68,27 @@ if os.name == 'nt':  # Windows
         import win32file
         import pywintypes
     except ImportError:
+        # Issue #821: Use msvcrt as fallback for file locking instead of disabling it
+        # When pywin32 is not available, use msvcrt.locking as a fallback mechanism
+        # to provide basic file locking. This prevents data corruption in concurrent
+        # scenarios while maintaining portability.
+        try:
+            import msvcrt
+        except ImportError:
+            # msvcrt should always be available on Windows, but handle gracefully
+            msvcrt = None
         # Issue #696: Fall back to degraded mode instead of raising ImportError.
         # On Windows, pywin32 is preferred for optimal file locking, but the module
-        # will run in degraded mode with file locking DISABLED to maintain portability.
+        # will use a fallback lock mechanism (msvcrt.locking) to maintain safety.
         # Users are encouraged to install pywin32 for best performance and safety:
         #   pip install pywin32
         #
-        # Issue #801: Clarified that locking is disabled, not using a fallback.
-        # Without pywin32, file locking is completely disabled, which may cause
-        # data corruption when multiple instances run concurrently.
+        # Issue #821: Using msvcrt.locking as fallback instead of disabling locking.
+        # This provides basic file locking to prevent data corruption when multiple
+        # instances run concurrently.
         import warnings
         warnings.warn(
-            "pywin32 is not installed. File locking will be DISABLED. "
-            "This may cause data corruption when multiple instances run concurrently. "
+            "pywin32 is not installed. Using fallback file locking (msvcrt.locking). "
             "For optimal performance and safety on Windows, install pywin32: "
             "pip install pywin32",
             UserWarning,
@@ -116,21 +124,21 @@ else:  # Unix-like systems
 
 
 def _is_degraded_mode() -> bool:
-    """Check if running in degraded mode without proper file locking.
+    """Check if running in degraded mode without optimal file locking.
 
     Returns True if running on:
-    - Windows without pywin32 (file locking DISABLED)
+    - Windows without pywin32 (uses msvcrt.locking fallback)
     - Unix-like systems without fcntl (file locking disabled)
 
     Fix for Issue #696: Allow degraded mode for portability instead of
     raising ImportError. This allows the code to run on Windows without
-    pywin32 or on Unix without fcntl, but with file locking disabled.
+    pywin32 or on Unix without fcntl, but with fallback locking.
 
     Fix for Issue #791: Allow degraded mode on Unix systems without fcntl
     for portability, similar to Windows pywin32 handling.
 
-    Fix for Issue #801: Clarified that file locking is DISABLED on Windows
-    without pywin32, not using a fallback implementation.
+    Fix for Issue #821: Windows degraded mode uses msvcrt.locking as fallback
+    instead of completely disabling file locking, preventing data corruption.
 
     Returns:
         bool: True if in degraded mode (Windows without pywin32,
@@ -836,12 +844,64 @@ class FileStorage(AbstractStorage):
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
-                # pywin32 is not available - log warning and skip file locking
-                logger.warning(
-                    "File locking is disabled in degraded mode (pywin32 not installed). "
-                    "Concurrent access may cause data corruption."
+                # Issue #821: pywin32 is not available - use msvcrt.locking as fallback
+                # instead of completely disabling file locking
+                logger.info(
+                    "Using fallback file locking (msvcrt.locking) in degraded mode. "
+                    "For optimal performance, install pywin32."
                 )
-                return  # Skip file locking in degraded mode
+
+                try:
+                    # Use msvcrt.locking as fallback mechanism
+                    # msvcrt.locking(fd, mode, nbytes)
+                    # LK_NBLCK = non-blocking lock
+                    # LK_LOCK = blocking lock with retry
+                    import msvcrt
+
+                    # Flush buffers before locking (Issue #390)
+                    file_handle.flush()
+
+                    # Lock the entire file
+                    # Use LK_NBLCK for non-blocking lock to match pywin32 behavior
+                    msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+
+                    # Cache a marker to indicate msvcrt lock is active
+                    self._lock_range = "msvcrt"
+
+                    logger.debug(f"msvcrt fallback lock acquired for {file_handle.name}")
+                    return  # Lock acquired successfully
+                except ImportError:
+                    # msvcrt not available (should not happen on Windows)
+                    logger.warning(
+                        "msvcrt module not available. File locking is disabled. "
+                        "Concurrent access may cause data corruption."
+                    )
+                    return
+                except OSError as e:
+                    # Lock is held by another process or locking failed
+                    # Retry with timeout similar to pywin32 implementation
+                    start_time = time.time()
+
+                    while True:
+                        elapsed = time.time() - start_time
+                        if elapsed >= self._lock_timeout:
+                            raise RuntimeError(
+                                f"File lock acquisition timed out after {elapsed:.1f}s "
+                                f"(timeout: {self._lock_timeout}s) using msvcrt fallback. "
+                                f"File: {file_handle.name}"
+                            )
+
+                        try:
+                            # Retry with blocking lock
+                            import msvcrt
+                            file_handle.flush()
+                            msvcrt.locking(file_handle.fileno(), msvcrt.LK_NBLCK, 1)
+                            self._lock_range = "msvcrt"
+                            logger.debug(f"msvcrt fallback lock acquired for {file_handle.name}")
+                            return
+                        except OSError:
+                            # Still locked, wait and retry
+                            time.sleep(self._lock_retry_interval)
 
             # Windows locking: win32file.LockFileEx for MANDATORY locking (Issue #451)
             # SECURITY: Mandatory locks enforce mutual exclusion on ALL processes
@@ -1042,8 +1102,21 @@ class FileStorage(AbstractStorage):
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
-                # pywin32 is not available - nothing to release
-                return  # Skip file unlocking in degraded mode
+                # Issue #821: Release msvcrt fallback lock
+                if hasattr(self, '_lock_range') and self._lock_range == "msvcrt":
+                    try:
+                        import msvcrt
+                        # Unlock the file
+                        # msvcrt.locking(fd, LK_UNLCK, nbytes)
+                        msvcrt.locking(file_handle.fileno(), msvcrt.LK_UNLCK, 1)
+                        logger.debug(f"msvcrt fallback lock released for {file_handle.name}")
+                        return
+                    except Exception as e:
+                        logger.error(f"Failed to release msvcrt fallback lock: {e}")
+                        raise
+                else:
+                    # No lock was acquired
+                    return
 
             # Windows unlocking: win32file.UnlockFile (Issue #451)
             # Mandatory lock release for strong synchronization
