@@ -134,11 +134,11 @@ class TestUnixDegradedModeLocking(unittest.TestCase):
             )
 
     @unittest.skipIf(os.name != 'nt', "Test only applies to Windows")
-    def test_windows_degraded_mode_has_msvcrt_fallback(self):
-        """Test that Windows degraded mode uses msvcrt locking fallback.
+    def test_windows_degraded_mode_has_file_lock_fallback(self):
+        """Test that Windows degraded mode uses file-based locking fallback.
 
-        This is a sanity check to ensure Windows degraded mode already has
-        proper fallback locking (msvcrt.locking).
+        Issue #846, #869: Verify that Windows degraded mode uses file-based
+        locking (.lock files) instead of msvcrt.locking to prevent deadlock risk.
         """
         # Mock pywin32 to be unavailable
         with patch('flywheel.storage.win32file', None):
