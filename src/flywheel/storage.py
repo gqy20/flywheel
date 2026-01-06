@@ -3663,6 +3663,13 @@ class FileStorage(AbstractStorage):
         then performs I/O. This minimizes lock contention and prevents blocking
         other operations during file I/O (Issue #582).
 
+        Atomic write implementation (Issue #732):
+        Prevents data loss if the application crashes or power fails during write:
+        - Writes to temp file (todos.json.{random}.tmp)
+        - Calls flush() and fsync() to ensure data is written to disk
+        - Uses os.replace() for atomic replacement (POSIX and Windows)
+        - This ensures the old file remains intact until the new one is fully ready
+
         Note on file truncation (Issue #370):
         This implementation uses tempfile.mkstemp() + os.replace() which
         naturally prevents data corruption from size reduction:
@@ -3788,8 +3795,12 @@ class FileStorage(AbstractStorage):
             which naturally prevents data corruption from size reduction by creating
             a new empty file and atomically replacing the target.
 
-            Transaction support (Issue #748): Uses "write to temp file + atomic replace"
+            Atomic write operations (Issue #732, #748): Uses "write to temp file + atomic replace"
             pattern to prevent data corruption from crashes or power failures during writes.
+            - Writes to todos.json.tmp (with random suffix)
+            - Calls flush() and fsync() to ensure data is written to disk
+            - Uses os.replace() for atomic replacement (POSIX and Windows)
+            - This ensures the old file remains intact until the new one is fully ready
         """
         import copy
         import tempfile
