@@ -1378,6 +1378,15 @@ class FileStorage(AbstractStorage):
                 # Issue #894: CONFIRMED - This code path is MANDATORY when degraded mode is active.
                 # There is NO fallback to msvcrt.locking or skipping locks. File-based locking
                 # is enforced here, preventing the deadlock risks described in Issue #894.
+                #
+                # Issue #899: SAFETY CHECK - Ensure win32file is None in degraded mode.
+                # This defensive check prevents accidental use of win32file when it should be None,
+                # eliminating any potential for deadlock or data corruption in degraded mode.
+                assert win32file is None, (
+                    "CRITICAL: In degraded mode, win32file must be None. "
+                    "This ensures file-based locking is used instead of win32file.LockFileEx."
+                )
+
                 logger.info(
                     "Using fallback file locking (.lock files) in degraded mode. "
                     "For optimal performance, install pywin32."
