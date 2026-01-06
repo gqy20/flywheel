@@ -15,111 +15,59 @@ from flywheel.todo import Priority, Status, Todo
 logger = logging.getLogger(__name__)
 
 
-def sanitize_string(s: str, max_length: int = 100000) -> str:
-    """Clean string input for data storage (NOT for shell command safety).
+def remove_control_chars(s: str, max_length: int = 100000) -> str:
+    """Normalize string for data storage by removing problematic characters.
 
-    WARNING: This function is NOT suitable for preventing shell injection.
-    If you need to execute shell commands with user input, use Python's
-    subprocess module with list arguments (shell=False) or shlex.quote().
-    This function is only intended for basic data cleaning before storage.
+    SECURITY WARNING: This function does NOT provide security protection.
+    It is ONLY for data normalization - removing characters that could cause
+    issues with storage formats or display systems. It does NOT prevent:
+    - Shell injection (use subprocess with list arguments or shlex.quote())
+    - SQL injection (use parameterized queries)
+    - XSS attacks (use proper output encoding)
+    - Any other security vulnerabilities
 
-    This function removes characters that could cause issues in data storage
-    or display formats, while preserving legitimate content.
+    The previous name "sanitize_string" was misleading as it suggested security
+    protection that this function does not provide. This function normalizes
+    data for storage by removing characters that could break formats.
 
-    It removes:
-    - Shell metacharacters (;, |, &, `, $, (, ), <, >) that could interfere
-      with various text formats or display systems
-    - Format string characters ({, }) to prevent format string attacks
-    - Control characters (newlines, tabs, null bytes) that could break storage formats
-    - All backslashes (\) that could cause escape sequence issues
+    What it removes (for data integrity, NOT security):
+    - Control characters (null bytes, newlines, tabs) that break storage formats
+    - Shell metacharacters (;, |, &, `, $, (, ), <, >) that interfere with formats
+    - Format string characters ({, }) that could cause format string bugs
+    - Backslashes (\) that could cause escape sequence issues
     - Unicode spoofing characters (zero-width, bidirectional overrides)
-    - Fullwidth characters are CONVERTED (not removed) to ASCII equivalents via NFKC normalization
+    - Fullwidth characters are CONVERTED to ASCII via NFKC normalization
 
-    It preserves:
+    What it preserves (for legitimate content):
     - All alphanumeric characters and common punctuation
-    - Quotes (single ', double ") for text and code snippets
+    - Quotes (', ") for text and code snippets
     - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
-    - Hyphen (-) for UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths
-    - International characters (Cyrillic, CJK, Arabic, etc.) for legitimate multilingual content
+    - Hyphen (-) for UUIDs, dates, phone numbers, URLs
+    - International characters (Cyrillic, CJK, Arabic, etc.)
+    - Spaces for readable text
 
     Args:
-        s: String to sanitize
+        s: String to normalize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
     Returns:
-        Cleaned string with certain characters removed for data storage safety
+        Normalized string with problematic characters removed for data storage
 
-    NOTE:
-        This function preserves quotes and other special characters for legitimate
-        text content. It does NOT provide shell injection protection. For shell
-        command execution, always use subprocess with list arguments (shell=False)
-        or proper quoting libraries like shlex.quote(). Storage backends should use
-        parameterized queries or proper escaping for their specific format.
+    Example:
+        >>> remove_control_chars("Hello World")
+        'Hello World'
+        >>> remove_control_chars("todo\x00extra")
+        'todoextra'
+        >>> remove_control_chars("test;command")
+        'testcommand'
 
-        SECURITY FIX (Issue #849): Spaces are now preserved to maintain data
-        integrity for display text (titles, descriptions). This function is intended
-        for sanitizing user-facing text, NOT for generating IDs or labels. For shell
-        command execution, always use subprocess with list arguments (shell=False)
-        or shlex.quote() to ensure proper argument separation.
+    NOTE: For shell commands, use subprocess with list arguments or shlex.quote().
+    For SQL, use parameterized queries. This function does NOT prevent injection attacks.
 
-        Current behavior (Issue #849 fix):
-            input = "Hello World"
-            sanitized = sanitize_string(input)  # Returns "Hello World"
-            # Spaces preserved for readability
-
-            input = "todo\x00extra"
-            sanitized = sanitize_string(input)  # Returns "todoextra"
-            # Control chars removed, no space added
-
-        Safe usage (always recommended):
-            sanitized = sanitize_string(input)
-            # Option 1: Use subprocess with list arguments (RECOMMENDED)
-            subprocess.run(["echo", sanitized], shell=False)
-            # Option 2: Use shlex.quote() for proper quoting
-            os.system(f"echo {shlex.quote(sanitized)}")
-
-    Security:
-        Addresses Issue #669 - Preserves legitimate content (quotes, percentages)
-        for data storage. Shell safety should be handled by subprocess with list
-        arguments, not by sanitization.
-        Addresses Issue #619 - Prevents ReDoS via input length limits and
-        safe regex patterns.
-        Addresses Issue #690 - Removes curly braces to prevent format string
-        attacks when sanitized data is used in f-strings or .format().
-        Addresses Issue #725 - Preserves hyphens to prevent data corruption
-        in UUIDs, hyphenated words, ISO dates, phone numbers, URLs, and file paths.
-        Addresses Issue #729 - Prevents ReDoS by using explicit regex pattern
-        construction instead of string interpolation.
-        Addresses Issue #736 - Removes backslashes that could cause escape
-        sequence issues in various contexts.
-        Addresses Issue #754 - Normalizes Unicode using NFKC form before processing
-        to convert fullwidth characters to ASCII equivalents.
-        Addresses Issue #769 - Removes all backslashes to prevent escape sequence issues.
-        Addresses Issue #779 - Converts fullwidth characters to ASCII instead of deleting
-        them, preserving user data while preventing spoofing attacks.
-        Addresses Issue #780 - Uses separate passes for control characters and
-        metacharacters to preserve word separation.
-        Addresses Issue #804 - Preserves international characters for multilingual support.
-        Addresses Issue #819 - Documents security risk of control characters.
-        Emphasizes that output MUST be properly quoted or used with subprocess list
-        arguments (shell=False) when passed to shell commands.
-        Addresses Issue #824 - Clarifies that this function is NOT suitable for
-        shell injection prevention. Shell safety must be handled by using subprocess
-        with list arguments (shell=False) or shlex.quote() when executing commands.
-        Addresses Issue #830 - Enforces max_length BEFORE all regex processing to
-        prevent potential ReDoS attacks through the fullwidth character regex and
-        other patterns.
-        Addresses Issue #805 - Uses unicodedata.normalize() (not unicodedata.name)
-        for efficient Unicode processing. The early max_length enforcement prevents
-        ReDoS even with complex Unicode characters.
-        Addresses Issue #814 - Uses NFKC normalization to preserve user intent while
-        preventing spoofing through fullwidth character conversion.
-        Addresses Issue #849 - Preserves spaces to maintain data integrity for
-        display text. This function is intended for sanitizing user-facing text
-        (titles, descriptions), NOT for generating IDs or labels. Removes control
-        characters directly without replacing with spaces to prevent unintended
-        word concatenation.
+    Related issues:
+        #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
+        #819, #824, #830, #849, #850 (rename from sanitize_string)
     """
     if not s:
         return ""
@@ -235,6 +183,30 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     # This preserves user data while preventing spoofing (Issue #779)
 
     return s
+
+
+# DEPRECATED: Alias for backward compatibility (Issue #850)
+# Use remove_control_chars instead - the name "sanitize_string" is misleading
+# as it suggests security protection that this function does not provide.
+def sanitize_string(s: str, max_length: int = 100000) -> str:
+    """Deprecated alias for remove_control_chars.
+
+    DEPRECATED: Use remove_control_chars instead. The name "sanitize_string"
+    is misleading as it suggests security protection that this function does
+    not provide. This function is for data normalization only.
+
+    Args:
+        s: String to normalize
+        max_length: Maximum input length to prevent DoS attacks (default: 100000)
+
+    Returns:
+        Normalized string with problematic characters removed
+
+    Note:
+        This function will be removed in a future version. Migrate to
+        remove_control_chars() which has a clearer name about its purpose.
+    """
+    return remove_control_chars(s, max_length)
 
 
 def validate_date(date_str: str) -> str:
@@ -385,8 +357,8 @@ class CLI:
         """Add a new todo."""
         todo = Todo(
             id=None,  # Let storage.generate ID atomically
-            title=sanitize_string(args.title),
-            description=sanitize_string(args.description or ""),
+            title=remove_control_chars(args.title),
+            description=remove_control_chars(args.description or ""),
             priority=Priority(args.priority) if args.priority else Priority.MEDIUM,
             due_date=validate_date(args.due_date) if args.due_date else None,
             tags=sanitize_tags(args.tags) if args.tags else [],
@@ -442,9 +414,9 @@ class CLI:
             sys.exit(1)
 
         if args.title:
-            todo.title = sanitize_string(args.title)
+            todo.title = remove_control_chars(args.title)
         if args.description is not None:
-            todo.description = sanitize_string(args.description)
+            todo.description = remove_control_chars(args.description)
         if args.status:
             todo.status = Status(args.status)
         if args.priority:
