@@ -93,7 +93,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     s = re.sub(control_chars_pattern, '', s)
 
     # Remove shell metacharacters (especially important for shell context)
-    shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
+    # SECURITY FIX (Issue #976): In general context, preserve backslashes for
+    # Windows paths and escape sequences. Only remove them in security contexts.
+    if use_nfkc:
+        shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
+    else:
+        # General context: preserve backslashes, remove other metacharacters
+        shell_metachars_pattern = r'[;|&`$()<>{}%]'
     s = re.sub(shell_metachars_pattern, '', s)
 
     # Remove Unicode spoofing characters
