@@ -126,8 +126,10 @@ class Todo:
             "status": status,
             "priority": priority,
             "due_date": due_date,
-            "tags": tags if tags is not None else [],
         }
+        # Only add tags if not None to let default_factory work
+        if tags is not None:
+            kwargs["tags"] = tags
 
         # Only add completed_at if not None
         if completed_at is not None:
