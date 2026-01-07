@@ -70,10 +70,16 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         'Progress: 50%'  # Percent sign preserved in general context
         >>> sanitize_for_security_context("Progress: 50%", context="shell")
         'Progress: 50'  # Percent sign removed in shell context
+        >>> sanitize_for_security_context("Cost: $100 (discount)", context="general")
+        'Cost: $100 (discount)'  # Shell metachars preserved in general context (Issue #1024)
+        >>> sanitize_for_security_context("Cost: $100 (discount)", context="shell")
+        'Cost: 100 discount'  # Shell metachars removed in shell context
 
     Related issues:
         #969 (fullwidth homograph attacks), #944 (NFC preservation),
-        #974 (percent sign preservation in general context)
+        #974 (percent sign preservation in general context),
+        #979 (preserve shell metachars in general context),
+        #1024 (fix shell metachar removal in general mode)
     """
     if not s:
         return ""
@@ -123,12 +129,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # Python format() strings. Only remove them in security contexts.
     # SECURITY FIX (Issue #974): In general context, preserve percent signs for
     # format strings. Only remove them in security contexts.
+    # SECURITY FIX (Issue #1024): In general context, preserve shell metacharacters
+    # (; | & ` $ ( ) < >) as they are legitimate characters in user text, as
+    # documented in Issue #979. Only remove them in security contexts.
     if use_nfkc:
         s = SHELL_METACHARS_SECURE_PATTERN.sub('', s)
-    else:
-        # General context: preserve backslashes, curly braces, and percent signs
-        # Remove only shell metacharacters that could cause injection
-        s = SHELL_METACHARS_PATTERN.sub('', s)
+    # else: General context - preserve ALL shell metacharacters, backslashes,
+    # curly braces, and percent signs (Issue #1024, #979)
 
     # Remove Unicode spoofing characters
     s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
