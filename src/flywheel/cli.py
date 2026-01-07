@@ -122,7 +122,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     - Control characters (null bytes, newlines, tabs) that break storage formats
     - Shell metacharacters (;, |, &, `, $, (, ), <, >) that interfere with formats
     - Format string characters ({, }, %) that could cause format string bugs
-    - Backslashes (\) that could cause escape sequence issues
+    - Backslashes (\) to prevent them from interfering with storage formats or
+      causing ambiguity in data representation (e.g., in JSON, CSV, or shell contexts)
     - Unicode spoofing characters (zero-width, bidirectional overrides)
     - Fullwidth characters are CONVERTED to ASCII via NFKC normalization
 
@@ -155,7 +156,9 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     Related issues:
         #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
         #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal),
-        #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames)
+        #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames),
+        #810 (clarified backslash removal documentation - backslashes are removed for data
+        #      normalization, not to prevent escape sequence interpretation)
     """
     if not s:
         return ""
