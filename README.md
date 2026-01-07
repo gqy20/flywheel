@@ -118,6 +118,35 @@ export FLYWHEEL_STRICT_MODE=on
 - ❌ 开发环境可选（允许降级模式以便在受限环境中测试）
 - ❌ 单用户桌面应用可选（并发风险较低）
 
+### 存储延迟指标 (Telemetry)
+
+AI Flywheel 支持通过 StatsD 发送存储延迟指标，用于监控 I/O 性能和识别潜在瓶颈：
+
+```bash
+# 配置 StatsD 服务器
+export FW_STATSD_HOST=localhost
+export FW_STATSD_PORT=8125  # 可选，默认 8125
+```
+
+**指标说明：**
+
+- `flywheel.storage.load.latency` - 文件加载操作延迟（毫秒）
+- `flywheel.storage.save.latency` - 文件保存操作延迟（毫秒）
+- `flywheel.storage.acquire_file_lock.latency` - 文件锁获取延迟（毫秒）
+
+**使用场景：**
+
+- 🔍 **性能监控** - 跟踪 I/O 操作响应时间
+- 🐛 **问题诊断** - 识别慢速存储或锁竞争
+- 📊 **容量规划** - 了解负载模式，优化资源配置
+- 🎯 **优化验证** - 量化性能改进效果
+
+**注意事项：**
+
+- 如果未配置 `FW_STATSD_HOST`，指标功能自动禁用，不影响正常运行
+- 需要安装 `statsd` Python 包：`pip install statsd`
+- 指标发送失败不会影响主要功能的执行
+
 ## 项目结构
 
 ```
