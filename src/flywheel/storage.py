@@ -1124,7 +1124,7 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1, dry_run: bool = False):
         """Initialize FileStorage.
 
         Args:
@@ -1143,6 +1143,10 @@ class FileStorage(AbstractStorage):
                          this time, a RuntimeError is raised.
             lock_retry_interval: Time in seconds to wait between lock retry attempts (Issue #777).
                                 Default is 0.1 seconds (100ms).
+            dry_run: Whether to enable dry run mode (Issue #987).
+                     When True, skips actual file writes and lock acquisitions,
+                     but logs what would have happened. Useful for verifying storage
+                     integrity or checking for stale locks without modifying files.
 
         Raises:
             ValueError: If lock_timeout or lock_retry_interval is not positive.
@@ -1197,39 +1201,42 @@ class FileStorage(AbstractStorage):
 
         self.compression = compression
         self.backup_count = backup_count
+        self.dry_run = dry_run  # Issue #987: Dry run mode for safe diagnostics
         # Add .gz extension if compression is enabled and path doesn't already have it
         path_obj = Path(path).expanduser()
         if compression and not str(path_obj).endswith('.gz'):
             path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
         self.path = path_obj
 
-        # Security fix for Issue #429: Module-level imports ensure thread safety.
-        # Windows modules (win32security, win32con, win32api, win32file, pywintypes)
-        # are now imported at module level, preventing race conditions in multi-threaded
-        # environments. The ImportError is raised immediately if pywin32 is missing,
-        # so no need to check again here.
+        # Issue #987: In dry run mode, skip directory creation and lock cleanup
+        if not dry_run:
+            # Security fix for Issue #429: Module-level imports ensure thread safety.
+            # Windows modules (win32security, win32con, win32api, win32file, pywintypes)
+            # are now imported at module level, preventing race conditions in multi-threaded
+            # environments. The ImportError is raised immediately if pywin32 is missing,
+            # so no need to check again here.
 
-        # Security fix for Issue #486: Create and secure parent directories atomically.
-        # This eliminates the race condition window between the previous separate calls
-        # to _create_and_secure_directories and _secure_all_parent_directories.
-        #
-        # The _secure_all_parent_directories method now handles both creation and securing
-        # in a single atomic operation, ensuring there's no window where directories
-        # can be created with insecure permissions.
-        #
-        # This approach:
-        # 1. Creates directories that don't exist with secure permissions from the start
-        # 2. Secures all parent directories (even those created by other processes)
-        # 3. Handles race conditions where multiple processes create directories concurrently
-        # 4. Uses retry logic with exponential backoff to handle TOCTOU issues
-        #
-        # On Unix: Creates directories with mode=0o700 using restricted umask (Issue #474, #479)
-        # On Windows: Creates directories with atomic ACLs using win32file.CreateDirectory (Issue #400)
-        self._secure_all_parent_directories(self.path.parent)
+            # Security fix for Issue #486: Create and secure parent directories atomically.
+            # This eliminates the race condition window between the previous separate calls
+            # to _create_and_secure_directories and _secure_all_parent_directories.
+            #
+            # The _secure_all_parent_directories method now handles both creation and securing
+            # in a single atomic operation, ensuring there's no window where directories
+            # can be created with insecure permissions.
+            #
+            # This approach:
+            # 1. Creates directories that don't exist with secure permissions from the start
+            # 2. Secures all parent directories (even those created by other processes)
+            # 3. Handles race conditions where multiple processes create directories concurrently
+            # 4. Uses retry logic with exponential backoff to handle TOCTOU issues
+            #
+            # On Unix: Creates directories with mode=0o700 using restricted umask (Issue #474, #479)
+            # On Windows: Creates directories with atomic ACLs using win32file.CreateDirectory (Issue #400)
+            self._secure_all_parent_directories(self.path.parent)
 
-        # Cleanup stale lock files on startup (Issue #938)
-        # This ensures a clean state for long-running services or after crashes
-        self._cleanup_stale_locks(self.path.parent)
+            # Cleanup stale lock files on startup (Issue #938)
+            # This ensures a clean state for long-running services or after crashes
+            self._cleanup_stale_locks(self.path.parent)
 
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
@@ -1364,7 +1371,7 @@ class FileStorage(AbstractStorage):
                 self._auto_save_thread.start()
 
     @classmethod
-    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1) -> "FileStorage":
+    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1, dry_run: bool = False) -> "FileStorage":
         """Asynchronously create a FileStorage instance without blocking the event loop.
 
         This is an async factory method that creates a FileStorage instance and runs
@@ -1383,6 +1390,8 @@ class FileStorage(AbstractStorage):
                          Default is 30.0 seconds.
             lock_retry_interval: Time in seconds to wait between lock retry attempts (Issue #777).
                                 Default is 0.1 seconds.
+            dry_run: Whether to enable dry run mode (Issue #987).
+                     When True, skips actual file writes and lock acquisitions.
 
         Returns:
             A fully initialized FileStorage instance with data loaded from disk.
@@ -1410,14 +1419,17 @@ class FileStorage(AbstractStorage):
         instance = cls.__new__(cls)
         instance.compression = compression
         instance.backup_count = backup_count
+        instance.dry_run = dry_run  # Issue #987: Dry run mode
         # Add .gz extension if compression is enabled and path doesn't already have it
         path_obj = Path(path).expanduser()
         if compression and not str(path_obj).endswith('.gz'):
             path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
         instance.path = path_obj
 
-        # Initialize all instance attributes (same as __init__)
-        instance._secure_all_parent_directories(instance.path.parent)
+        # Issue #987: Skip directory initialization in dry run mode
+        if not dry_run:
+            # Initialize all instance attributes (same as __init__)
+            instance._secure_all_parent_directories(instance.path.parent)
         instance._todos = []
         instance._next_id = 1
         instance._lock = threading.Lock()
@@ -1652,7 +1664,23 @@ class FileStorage(AbstractStorage):
             When _is_degraded_mode() returns True, this method STRICTLY uses .lock files.
             There is NO code path that uses msvcrt.locking or skips locking entirely.
             This eliminates deadlock and data corruption risks mentioned in Issue #894.
+
+            Dry run mode (Issue #987):
+            - When dry_run is True, skips actual lock acquisition
+            - Logs what would have happened without modifying any files
+            - Useful for diagnostics and checking for stale locks safely
         """
+        # Issue #987: Skip lock acquisition in dry run mode
+        if self.dry_run:
+            logger.info(
+                f"Dry run mode: Would acquire file lock for {file_handle.name}",
+                extra={
+                    'structured': True,
+                    'event': 'dry_run_lock_skipped',
+                    'file_path': file_handle.name
+                }
+            )
+            return
         if os.name == 'nt':  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
@@ -4630,10 +4658,28 @@ class FileStorage(AbstractStorage):
         - mkstemp creates a new empty file (no old data remnants possible)
         - os.replace atomically replaces the target file
         This is superior to manual truncation as it's atomic and safer.
+
+        Dry run mode (Issue #987):
+        When dry_run is True, skips actual file writes but logs what would have happened.
         """
         import tempfile
         import copy
         import time
+
+        # Issue #987: Skip file writes in dry run mode
+        if self.dry_run:
+            logger.info(
+                f"Dry run mode: Would save {len(self._todos)} todos to {self.path}",
+                extra={
+                    'structured': True,
+                    'event': 'dry_run_save_skipped',
+                    'file_path': str(self.path),
+                    'todo_count': len(self._todos)
+                }
+            )
+            # Mark as saved to prevent dirty flag from persisting
+            self._dirty = False
+            return
 
         start_time = time.time()
         logger.debug(f"Saving {len(self._todos)} todos to {self.path}")
