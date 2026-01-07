@@ -161,6 +161,45 @@ def _get_slow_operation_threshold() -> int:
         return 1000
 
 
+def _record_metrics(operation_name: str, elapsed_ms: float, context: str) -> None:
+    """Record metrics and logs for a storage operation.
+
+    This helper function sends timing metrics to statsd (if available),
+    logs debug information, and checks for slow operations.
+
+    Args:
+        operation_name: The name of the operation (e.g., 'load', 'save').
+        elapsed_ms: The elapsed time in milliseconds.
+        context: The context string (e.g., '[/tmp/todos.json]' or '[id:123]').
+
+    Refactored as part of Issue #1022 to reduce code duplication between
+    sync and async wrappers.
+    """
+    # Emit metric to statsd if available
+    client = get_statsd_client()
+    if client is not None:
+        metric_name = f"{operation_name}.latency"
+        client.timing(metric_name, elapsed_ms)
+
+        # Also emit histogram if supported
+        if hasattr(client, 'histogram'):
+            client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
+
+    # Log timing for debugging
+    # Extract context (path/id) for better debugging (Issue #1007)
+    logger.debug(
+        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
+    )
+
+    # Check if operation exceeded slow threshold (Issue #1023)
+    threshold = _get_slow_operation_threshold()
+    if threshold >= 0 and elapsed_ms > threshold:
+        logger.warning(
+            f"{operation_name}{context} exceeded slow threshold: "
+            f"{elapsed_ms:.3f}ms > {threshold}ms"
+        )
+
+
 def measure_latency(operation_name: str):
     """Decorator to measure and log execution time for I/O operations.
 
@@ -219,29 +258,8 @@ def measure_latency(operation_name: str):
                     # Calculate elapsed time in milliseconds
                     elapsed_ms = (time.time() - start_time) * 1000
 
-                    # Emit metric to statsd if available
-                    client = get_statsd_client()
-                    if client is not None:
-                        metric_name = f"{operation_name}.latency"
-                        client.timing(metric_name, elapsed_ms)
-
-                        # Also emit histogram if supported
-                        if hasattr(client, 'histogram'):
-                            client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
-
-                    # Log timing for debugging
-                    # Extract context (path/id) for better debugging (Issue #1007)
-                    logger.debug(
-                        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
-                    )
-
-                    # Check if operation exceeded slow threshold (Issue #1023)
-                    threshold = _get_slow_operation_threshold()
-                    if threshold >= 0 and elapsed_ms > threshold:
-                        logger.warning(
-                            f"{operation_name}{context} exceeded slow threshold: "
-                            f"{elapsed_ms:.3f}ms > {threshold}ms"
-                        )
+                    # Record metrics and logs (Issue #1022)
+                    _record_metrics(operation_name, elapsed_ms, context)
 
                     return result
                 except Exception as e:
@@ -275,29 +293,8 @@ def measure_latency(operation_name: str):
                     # Calculate elapsed time in milliseconds
                     elapsed_ms = (time.time() - start_time) * 1000
 
-                    # Emit metric to statsd if available
-                    client = get_statsd_client()
-                    if client is not None:
-                        metric_name = f"{operation_name}.latency"
-                        client.timing(metric_name, elapsed_ms)
-
-                        # Also emit histogram if supported
-                        if hasattr(client, 'histogram'):
-                            client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
-
-                    # Log timing for debugging
-                    # Extract context (path/id) for better debugging (Issue #1007)
-                    logger.debug(
-                        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
-                    )
-
-                    # Check if operation exceeded slow threshold (Issue #1023)
-                    threshold = _get_slow_operation_threshold()
-                    if threshold >= 0 and elapsed_ms > threshold:
-                        logger.warning(
-                            f"{operation_name}{context} exceeded slow threshold: "
-                            f"{elapsed_ms:.3f}ms > {threshold}ms"
-                        )
+                    # Record metrics and logs (Issue #1022)
+                    _record_metrics(operation_name, elapsed_ms, context)
 
                     return result
                 except Exception as e:
