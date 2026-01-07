@@ -1682,7 +1682,14 @@ class FileStorage(AbstractStorage):
 
                 logger.info(
                     "Using fallback file locking (.lock files) in degraded mode. "
-                    "For optimal performance, install pywin32."
+                    "For optimal performance, install pywin32.",
+                    extra={
+                        'structured': True,
+                        'event': 'lock_mode_info',
+                        'mode': 'degraded',
+                        'lock_type': 'file_based',
+                        'reason': 'pywin32_not_available'
+                    }
                 )
 
                 # Use file-based lock mechanism with automatic stale lock cleanup
@@ -1768,7 +1775,16 @@ class FileStorage(AbstractStorage):
                                 if is_stale:
                                     logger.warning(
                                         f"Found stale lock file ({stale_reason}), "
-                                        f"removing and retrying: {lock_file_path}"
+                                        f"removing and retrying: {lock_file_path}",
+                                        extra={
+                                            'structured': True,
+                                            'event': 'stale_lock_detected',
+                                            'lock_type': 'file_based',
+                                            'file_path': lock_file_path,
+                                            'reason': stale_reason,
+                                            'stale_pid': locked_pid,
+                                            'stale_age_seconds': time.time() - locked_at if locked_at else None
+                                        }
                                     )
                                     # Issue #886: Fix TOCTOU race condition in stale lock removal
                                     # Use atomic unlink-and-retry pattern to prevent race condition
@@ -1948,7 +1964,14 @@ class FileStorage(AbstractStorage):
                 # instead of completely disabling file locking
                 logger.info(
                     "Using fallback file locking (lock file) in degraded mode. "
-                    "For optimal performance, ensure fcntl is available."
+                    "For optimal performance, ensure fcntl is available.",
+                    extra={
+                        'structured': True,
+                        'event': 'lock_mode_info',
+                        'mode': 'degraded',
+                        'lock_type': 'file_based_fallback',
+                        'reason': 'fcntl_not_available'
+                    }
                 )
 
                 try:
@@ -1980,7 +2003,18 @@ class FileStorage(AbstractStorage):
                             # Store lock directory path for later release
                             self._lock_range = str(lock_dir)
 
-                            logger.debug(f"Lock file fallback acquired for {file_handle.name}")
+                            logger.debug(
+                                f"Lock file fallback acquired for {file_handle.name}",
+                                extra={
+                                    'structured': True,
+                                    'event': 'lock_acquired',
+                                    'lock_type': 'file_based',
+                                    'file_path': file_handle.name,
+                                    'lock_dir': str(lock_dir),
+                                    'mode': 'degraded',
+                                    'acquisition_time_seconds': elapsed
+                                }
+                            )
                             return  # Lock acquired successfully
 
                         except FileExistsError:
@@ -1998,7 +2032,15 @@ class FileStorage(AbstractStorage):
                                 except OSError:
                                     # Process is not running - stale lock
                                     logger.warning(
-                                        f"Removing stale lock file from PID {pid}"
+                                        f"Removing stale lock file from PID {pid}",
+                                        extra={
+                                            'structured': True,
+                                            'event': 'stale_lock_detected',
+                                            'lock_type': 'file_based',
+                                            'file_path': str(lock_dir),
+                                            'stale_pid': pid,
+                                            'reason': f'process_{pid}_not_found'
+                                        }
                                     )
                                     # Remove the stale lock directory
                                     lock_pid_file.unlink(missing_ok=True)
@@ -2150,7 +2192,16 @@ class FileStorage(AbstractStorage):
                     try:
                         # Remove the lock file to release the lock
                         os.unlink(lock_file_path)
-                        logger.debug(f"File-based lock released: {lock_file_path}")
+                        logger.debug(
+                            f"File-based lock released: {lock_file_path}",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_released',
+                                'lock_type': 'file_based',
+                                'file_path': lock_file_path,
+                                'mode': 'degraded'
+                            }
+                        )
                         # Clear the tracked lock file path
                         self._lock_file_path = None
                         return
@@ -2207,7 +2258,17 @@ class FileStorage(AbstractStorage):
                     lock_range_low,  # NumberOfBytesToUnlockLow (LENGTH, must match lock)
                     lock_range_high  # NumberOfBytesToUnlockHigh (LENGTH, must match lock)
                 )
-                logger.debug(f"File lock released successfully for {file_handle.name}")
+                logger.debug(
+                    f"File lock released successfully for {file_handle.name}",
+                    extra={
+                        'structured': True,
+                        'event': 'lock_released',
+                        'lock_type': 'windows_win32',
+                        'file_path': file_handle.name,
+                        'lock_range_low': lock_range_low,
+                        'lock_range_high': lock_range_high
+                    }
+                )
             except (pywintypes.error, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
                     logger.error(f"Failed to release Windows mandatory lock: {e}")
@@ -2230,7 +2291,17 @@ class FileStorage(AbstractStorage):
                         # Remove the lock directory
                         lock_dir.rmdir()
 
-                        logger.debug(f"Lock file fallback released for {file_handle.name}")
+                        logger.debug(
+                            f"Lock file fallback released for {file_handle.name}",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_released',
+                                'lock_type': 'file_based',
+                                'file_path': file_handle.name,
+                                'lock_dir': str(lock_dir),
+                                'mode': 'degraded'
+                            }
+                        )
                         return
                     except Exception as e:
                         logger.error(f"Failed to release lock file fallback: {e}")
@@ -2242,7 +2313,15 @@ class FileStorage(AbstractStorage):
             # Unix unlocking
             try:
                 fcntl.flock(file_handle.fileno(), fcntl.LOCK_UN)
-                logger.debug(f"File lock released successfully for {file_handle.name}")
+                logger.debug(
+                    f"File lock released successfully for {file_handle.name}",
+                    extra={
+                        'structured': True,
+                        'event': 'lock_released',
+                        'lock_type': 'unix_fcntl',
+                        'file_path': file_handle.name
+                    }
+                )
             except IOError as e:
                 logger.error(f"Failed to release Unix file lock: {e}")
                 raise
@@ -3035,7 +3114,15 @@ class FileStorage(AbstractStorage):
                     if is_stale:
                         logger.warning(
                             f"Found stale lock file ({stale_reason}), "
-                            f"removing: {lock_file}"
+                            f"removing: {lock_file}",
+                            extra={
+                                'structured': True,
+                                'event': 'stale_lock_cleanup',
+                                'lock_type': 'file_based',
+                                'file_path': str(lock_file),
+                                'reason': stale_reason,
+                                'stale_pid': locked_pid
+                            }
                         )
                         try:
                             os.unlink(lock_file)
