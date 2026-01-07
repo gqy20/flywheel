@@ -1124,7 +1124,7 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1):
         """Initialize FileStorage.
 
         Args:
@@ -1137,9 +1137,10 @@ class FileStorage(AbstractStorage):
             enable_cache: Whether to enable memory cache (Issue #703).
                          When True, get and list operations use cached data,
                          reducing disk I/O and improving performance.
-            lock_timeout: File lock acquisition timeout in seconds (Issue #777).
-                         If the lock cannot be acquired within this time, a RuntimeError
-                         is raised. Default is 30.0 seconds.
+            lock_timeout: File lock acquisition timeout in seconds (Issue #777, #952).
+                         If None, reads from FW_LOCK_TIMEOUT_SECONDS environment variable
+                         (default 30.0 seconds). If the lock cannot be acquired within
+                         this time, a RuntimeError is raised.
             lock_retry_interval: Time in seconds to wait between lock retry attempts (Issue #777).
                                 Default is 0.1 seconds (100ms).
 
@@ -1148,6 +1149,22 @@ class FileStorage(AbstractStorage):
             RuntimeError: If FLYWHEEL_STRICT_MODE is enabled and optimal file locking
                          is not available (fcntl on Unix, pywin32 on Windows) (Issue #854).
         """
+        # Determine lock timeout value (Issue #952)
+        # Priority: explicit parameter > environment variable > default
+        default_timeout = 30.0
+        if lock_timeout is None:
+            # Read from environment variable if not explicitly provided
+            env_timeout = os.environ.get('FW_LOCK_TIMEOUT_SECONDS')
+            if env_timeout is not None:
+                try:
+                    lock_timeout = float(env_timeout)
+                except ValueError:
+                    raise ValueError(
+                        f"FW_LOCK_TIMEOUT_SECONDS must be a valid number, got '{env_timeout}'"
+                    )
+            else:
+                lock_timeout = default_timeout
+
         # Validate lock_timeout (Issue #777)
         if lock_timeout <= 0:
             raise ValueError(f"lock_timeout must be positive, got {lock_timeout}")
