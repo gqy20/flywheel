@@ -71,28 +71,33 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     if not s:
         return ""
 
-    # SECURITY FIX (Issue #754, #779, #814): Normalize Unicode before processing
-    # Use NFKC (Compatibility Composition) normalization to handle canonical equivalence
-    # and convert fullwidth/spoofing characters to their ASCII equivalents.
+    # SECURITY FIX (Issue #754, #779, #814, #944): Normalize Unicode before processing
+    # Use NFC (Canonical Composition) normalization to handle canonical equivalence
+    # while preserving user-intended special characters.
     #
-    # NFKC converts compatibility characters to their canonical forms:
-    # - Fullwidth: Ａ → A, ０ → 0, ！ → !
-    # - Superscripts: ² → 2, ³ → 3
-    # - Ligatures: ﬁ → fi, ﬂ → fl
+    # NFC handles canonical equivalence (composed vs decomposed forms):
+    # - é (U+00E9) vs e + combining acute (U+0065 U+0301) → both become é (U+00E9)
+    # - Ensures consistent representation of the same character
     #
-    # While this causes some data loss for superscripts/ligatures, it is the
-    # appropriate choice for security because:
-    # 1. It preserves user INTENT (converting fullwidth to readable ASCII)
-    # 2. It prevents visual spoofing attacks through fullwidth characters
-    # 3. It's better to convert data than delete it (previous approach)
+    # Unlike NFKC, NFC PRESERVES compatibility characters:
+    # - Superscripts: ² remains ² (not converted to 2)
+    # - Ligatures: ﬁ remains ﬁ (not converted to fi)
+    # - Trademark: ™ remains ™ (not converted to tm)
+    # - Fractions: ½ remains ½ (not converted to 1/2)
     #
-    # The previous approach used NFC + deletion, which lost data entirely.
-    # NFKC + conversion preserves the semantic meaning while improving security.
+    # This is the appropriate choice for a general Todo application because:
+    # 1. Users may intentionally use special characters for notation, branding, etc.
+    # 2. It prevents data loss and semantic changes (Issue #944)
+    # 3. It still handles canonical equivalence for security (Issue #754)
+    # 4. Visual spoofing through fullwidth characters is handled separately below
     #
-    # Security: Addresses Issue #779 - Converts fullwidth to ASCII instead of deleting
+    # For generating filenames or shell parameters, additional processing should
+    # be applied at those specific boundaries, not to all text storage.
+    #
     # Security: Addresses Issue #754 - Handles canonical equivalence
-    # Security: Addresses Issue #814 - Preserves user intent while improving security
-    s = unicodedata.normalize('NFKC', s)
+    # Security: Addresses Issue #944 - Preserves user intent without data loss
+    # Security: Addresses Issue #814 - Balances security with data preservation
+    s = unicodedata.normalize('NFC', s)
 
     # SECURITY FIX (Issue #804): Preserve international characters for multilingual support.
     # Previous implementation restricted all input to Latin-script characters only to prevent
@@ -183,9 +188,9 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     s = re.sub(r'[\u200B-\u200D\u2060\uFEFF]', '', s)
     # Bidirectional text override
     s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
-    # Note: Fullwidth characters are now handled by NFKC normalization above,
-    # which converts them to ASCII equivalents (e.g., Ａ → A, ！ → !)
-    # This preserves user data while preventing spoofing (Issue #779)
+    # Note: Fullwidth characters are preserved with NFC normalization (Issue #944)
+    # They are only removed if needed for specific contexts (filenames, shell args)
+    # For general text storage, we preserve them as legitimate user input
 
     return s
 
