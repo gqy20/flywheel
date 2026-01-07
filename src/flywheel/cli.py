@@ -14,6 +14,17 @@ from flywheel.todo import Priority, Status, Todo
 
 logger = logging.getLogger(__name__)
 
+# SECURITY FIX (Issue #996): Precompile regex patterns at module load time to
+# prevent ReDoS (Regular Expression Denial of Service) attacks. Precompiling
+# improves performance by avoiding repeated parsing and compilation of the
+# same patterns on every function call.
+ZERO_WIDTH_CHARS_PATTERN = re.compile(r'[\u200B-\u200D\u2060\uFEFF]')
+BIDI_OVERRIDE_PATTERN = re.compile(r'[\u202A-\u202E\u2066-\u2069]')
+CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x1F\x7F]')
+SHELL_METACHARS_PATTERN = re.compile(r'[;|&`$()<>]')
+SHELL_METACHARS_SECURE_PATTERN = re.compile(r'[;|&`$()<>{}\\%]')
+FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
+
 
 def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 100000) -> str:
     """Normalize string for security-sensitive contexts using stricter normalization.
@@ -94,8 +105,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         s = s[:max_length]
 
     # Remove control characters
-    control_chars_pattern = r'[\x00-\x1F\x7F]'
-    s = re.sub(control_chars_pattern, '', s)
+    s = CONTROL_CHARS_PATTERN.sub('', s)
 
     # Remove shell metacharacters (especially important for shell context)
     # SECURITY FIX (Issue #976): In general context, preserve backslashes for
@@ -105,16 +115,15 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # SECURITY FIX (Issue #974): In general context, preserve percent signs for
     # format strings. Only remove them in security contexts.
     if use_nfkc:
-        shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
+        s = SHELL_METACHARS_SECURE_PATTERN.sub('', s)
     else:
         # General context: preserve backslashes, curly braces, and percent signs
         # Remove only shell metacharacters that could cause injection
-        shell_metachars_pattern = r'[;|&`$()<>]'
-    s = re.sub(shell_metachars_pattern, '', s)
+        s = SHELL_METACHARS_PATTERN.sub('', s)
 
     # Remove Unicode spoofing characters
-    s = re.sub(r'[\u200B-\u200D\u2060\uFEFF]', '', s)
-    s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
+    s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
+    s = BIDI_OVERRIDE_PATTERN.sub('', s)
 
     return s
 
@@ -276,8 +285,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # Step 1: Remove control characters completely to prevent format breaking
     # This includes \x00-\x1F (all ASCII control chars) and \x7F (delete)
     # Newlines (\x0A), carriage returns (\x0D), tabs (\x09), etc. are removed
-    control_chars_pattern = r'[\x00-\x1F\x7F]'
-    s = re.sub(control_chars_pattern, '', s)
+    # SECURITY FIX (Issue #996): Use precompiled pattern for better performance
+    s = CONTROL_CHARS_PATTERN.sub('', s)
 
     # Step 2: Remove format string characters that could cause injection
     # Characters removed: { } % \
@@ -309,14 +318,15 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # security-sensitive contexts where shell metachars must be removed, use
     # sanitize_for_security_context() with appropriate context ("shell", "url",
     # "filename").
-    format_string_pattern = r'[{}\\%]'
-    s = re.sub(format_string_pattern, '', s)
+    # SECURITY FIX (Issue #996): Use precompiled pattern for better performance
+    s = FORMAT_STRING_PATTERN.sub('', s)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
-    s = re.sub(r'[\u200B-\u200D\u2060\uFEFF]', '', s)
+    # SECURITY FIX (Issue #996): Use precompiled pattern for better performance
+    s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
     # Bidirectional text override
-    s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
+    s = BIDI_OVERRIDE_PATTERN.sub('', s)
     # Note: Fullwidth characters are preserved with NFC normalization (Issue #944)
     # They are only removed if needed for specific contexts (filenames, shell args)
     # For general text storage, we preserve them as legitimate user input
