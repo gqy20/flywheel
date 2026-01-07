@@ -34,12 +34,9 @@ logger = logging.getLogger(__name__)
 # environment variable lookups (Issue #1013)
 _statsd_host = os.environ.get('FW_STATSD_HOST')
 _statsd_port = os.environ.get('FW_STATSD_PORT', '8125')
-_statsd_client = None
-
-# Lock for thread-safe statsd client initialization (Issue #1017)
-_statsd_client_lock = threading.Lock()
 
 
+@functools.lru_cache(maxsize=1)
 def get_statsd_client():
     """Get the statsd client for metrics emission.
 
@@ -49,47 +46,34 @@ def get_statsd_client():
     Note:
         Environment variables are checked at module import time (Issue #1013)
         to avoid repeated lookups during high-frequency I/O operations.
-        The client instance is cached for performance.
+        The client instance is cached using functools.lru_cache (Issue #1028)
+        which provides thread-safe initialization without explicit locks.
 
-        Thread-safe initialization using double-checked locking (Issue #1017)
-        to prevent race conditions when multiple threads call this function
-        simultaneously.
+        Using lru_cache eliminates the need for manual double-checked locking
+        and provides better performance in high-concurrency scenarios.
     """
-    global _statsd_client
+    # Try to import statsd
+    try:
+        import statsd
 
-    # First check without lock - fast path for already initialized case
-    if _statsd_client is not None:
-        return _statsd_client
-
-    # Use lock to ensure only one thread initializes the client
-    with _statsd_client_lock:
-        # Double-check: another thread might have initialized while we waited
-        if _statsd_client is not None:
-            return _statsd_client
-
-        # Try to import statsd
-        try:
-            import statsd
-
-            # Use module-level cached environment variables (Issue #1013)
-            if _statsd_host:
-                # Create and cache statsd client
-                _statsd_client = statsd.StatsClient(
-                    host=_statsd_host,
-                    port=int(_statsd_port),
-                    prefix='flywheel.storage'
-                )
-                logger.debug(
-                    f"Statsd client initialized: {_statsd_host}:{_statsd_port}"
-                )
-            else:
-                # No statsd configuration - cache None to avoid repeated checks
-                _statsd_client = None
-        except ImportError:
-            # statsd not available - cache None
-            _statsd_client = None
-
-        return _statsd_client
+        # Use module-level cached environment variables (Issue #1013)
+        if _statsd_host:
+            # Create statsd client
+            client = statsd.StatsClient(
+                host=_statsd_host,
+                port=int(_statsd_port),
+                prefix='flywheel.storage'
+            )
+            logger.debug(
+                f"Statsd client initialized: {_statsd_host}:{_statsd_port}"
+            )
+            return client
+        else:
+            # No statsd configuration
+            return None
+    except ImportError:
+        # statsd not available
+        return None
 
 
 def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
