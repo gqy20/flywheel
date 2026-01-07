@@ -233,10 +233,15 @@ def _get_stale_lock_timeout() -> int:
 STALE_LOCK_TIMEOUT = _get_stale_lock_timeout()
 
 
+# Reference to module-level logger for use in retry decorator (Issue #937)
+_module_logger = logger
+
+
 def retry_transient_errors(
     max_attempts: int = 3,
     initial_backoff: float = 0.1,
     exponential_base: float = 2.0,
+    logger: logging.Logger | None = None,
 ):
     """Decorator that retries a function on transient I/O errors.
 
@@ -258,6 +263,8 @@ def retry_transient_errors(
         max_attempts: Maximum number of attempts (default: 3)
         initial_backoff: Initial backoff time in seconds (default: 0.1)
         exponential_base: Base for exponential backoff (default: 2.0)
+        logger: Optional logger instance for logging retry attempts.
+                If not provided, uses the default module logger (Issue #937).
 
     Returns:
         The decorated function with retry logic
@@ -268,14 +275,22 @@ def retry_transient_errors(
             # Save operations that may fail transiently
             pass
 
+        @retry_transient_errors(max_attempts=3, logger=custom_logger)
+        def save_data_with_custom_logger():
+            # Save operations with custom logger
+            pass
+
         @retry_transient_errors(max_attempts=3)
         async def save_data_async():
             # Async save operations that may fail transiently
             pass
 
     Fix for Issue #897: Generic retry mechanism for transient failures.
+    Fix for Issue #937: Add context to retry mechanism with custom logger.
     """
     def decorator(func):
+        # Use custom logger if provided, otherwise use module-level logger
+        _logger = logger if logger is not None else _module_logger
         is_coroutine = inspect.iscoroutinefunction(func)
 
         if is_coroutine:
@@ -310,28 +325,28 @@ def retry_transient_errors(
                             errno.ENOTDIR,  # Not a directory
                         ):
                             # Permanent error - don't retry
-                            logger.debug(
+                            _logger.debug(
                                 f"Permanent I/O error in {func.__name__}: {e}"
                             )
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            logger.debug(
+                            _logger.debug(
                                 f"Non-transient I/O error in {func.__name__}: {e}"
                             )
                             raise
 
                         # If we've exhausted all attempts, raise the last error
                         if attempt >= max_attempts:
-                            logger.warning(
+                            _logger.warning(
                                 f"Max retry attempts ({max_attempts}) exhausted for "
                                 f"{func.__name__}: {e}"
                             )
                             raise
 
                         # Retry with exponential backoff with structured logging (Issue #922)
-                        logger.debug(
+                        _logger.debug(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
                             f"{e}. Retrying in {backoff:.2f}s...",
                             extra={
@@ -385,28 +400,28 @@ def retry_transient_errors(
                             errno.ENOTDIR,  # Not a directory
                         ):
                             # Permanent error - don't retry
-                            logger.debug(
+                            _logger.debug(
                                 f"Permanent I/O error in {func.__name__}: {e}"
                             )
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            logger.debug(
+                            _logger.debug(
                                 f"Non-transient I/O error in {func.__name__}: {e}"
                             )
                             raise
 
                         # If we've exhausted all attempts, raise the last error
                         if attempt >= max_attempts:
-                            logger.warning(
+                            _logger.warning(
                                 f"Max retry attempts ({max_attempts}) exhausted for "
                                 f"{func.__name__}: {e}"
                             )
                             raise
 
                         # Retry with exponential backoff with structured logging (Issue #922)
-                        logger.debug(
+                        _logger.debug(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
                             f"{e}. Retrying in {backoff:.2f}s...",
                             extra={
