@@ -1387,6 +1387,32 @@ class FileStorage(AbstractStorage):
                     "This ensures file-based locking is used instead of win32file.LockFileEx."
                 )
 
+                # Issue #919: SAFETY CHECK - Ensure ALL win32 modules are None in degraded mode.
+                # This defensive check prevents accidental use of any win32 module when it should be None,
+                # eliminating any potential for deadlock or data corruption in degraded mode.
+                # These checks ensure that degraded mode cannot accidentally use pywin32 APIs,
+                # which would be unsafe and could cause deadlocks or crashes.
+                assert win32security is None, (
+                    "CRITICAL: In degraded mode, win32security must be None. "
+                    "This ensures file-based locking is used and prevents accidental use "
+                    "of Windows security APIs that could cause deadlocks."
+                )
+                assert win32con is None, (
+                    "CRITICAL: In degraded mode, win32con must be None. "
+                    "This ensures file-based locking is used and prevents accidental use "
+                    "of Windows constants that could cause deadlocks."
+                )
+                assert win32api is None, (
+                    "CRITICAL: In degraded mode, win32api must be None. "
+                    "This ensures file-based locking is used and prevents accidental use "
+                    "of Windows APIs that could cause deadlocks."
+                )
+                assert pywintypes is None, (
+                    "CRITICAL: In degraded mode, pywintypes must be None. "
+                    "This ensures file-based locking is used and prevents accidental use "
+                    "of pywin32 types that could cause deadlocks."
+                )
+
                 logger.info(
                     "Using fallback file locking (.lock files) in degraded mode. "
                     "For optimal performance, install pywin32."
