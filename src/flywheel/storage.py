@@ -143,6 +143,24 @@ def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
     return ""
 
 
+def _get_slow_operation_threshold() -> int:
+    """Get the slow operation threshold from environment variable.
+
+    Returns:
+        The threshold in milliseconds. Default is 1000ms.
+        Returns -1 if warnings are disabled (negative threshold).
+        Returns 1000 if the environment variable is invalid.
+    """
+    import os
+    threshold_str = os.environ.get('FW_STORAGE_SLOW_LOG_THRESHOLD', '1000')
+    try:
+        threshold = int(threshold_str)
+        return threshold
+    except (ValueError, TypeError):
+        # If invalid, use default
+        return 1000
+
+
 def measure_latency(operation_name: str):
     """Decorator to measure and log execution time for I/O operations.
 
@@ -155,6 +173,12 @@ def measure_latency(operation_name: str):
         and includes them in log messages for easier debugging. For example:
         - "save on /tmp/todos.json completed in 5.234ms"
         - "load on 12345 completed in 2.456ms"
+
+    Slow Operation Warning (Issue #1023):
+        The decorator checks if operation execution time exceeds a configurable threshold
+        and logs a warning if it does. The threshold can be configured via the
+        FW_STORAGE_SLOW_LOG_THRESHOLD environment variable (in milliseconds).
+        Default threshold is 1000ms (1 second). Set to -1 to disable warnings.
 
     Args:
         operation_name: The name of the operation being measured (e.g., 'load', 'save').
@@ -179,6 +203,7 @@ def measure_latency(operation_name: str):
         - If statsd is not available, the operation proceeds normally
         - Supports both sync and async functions
         - Includes context (path/id) in log messages when available
+        - Slow operations (exceeding threshold) trigger warning logs
     """
     def decorator(func: Callable) -> Callable:
         is_coroutine = inspect.iscoroutinefunction(func)
@@ -209,6 +234,15 @@ def measure_latency(operation_name: str):
                     logger.debug(
                         f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
+
+                    # Check if operation exceeded slow threshold (Issue #1023)
+                    threshold = _get_slow_operation_threshold()
+                    if threshold >= 0 and elapsed_ms > threshold:
+                        logger.warning(
+                            f"{operation_name}{context} exceeded slow threshold: "
+                            f"{elapsed_ms:.3f}ms > {threshold}ms"
+                        )
+
                     return result
                 except Exception as e:
                     # Add context to exception for better debugging (Issue #1012)
@@ -256,6 +290,15 @@ def measure_latency(operation_name: str):
                     logger.debug(
                         f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
+
+                    # Check if operation exceeded slow threshold (Issue #1023)
+                    threshold = _get_slow_operation_threshold()
+                    if threshold >= 0 and elapsed_ms > threshold:
+                        logger.warning(
+                            f"{operation_name}{context} exceeded slow threshold: "
+                            f"{elapsed_ms:.3f}ms > {threshold}ms"
+                        )
+
                     return result
                 except Exception as e:
                     # Add context to exception for better debugging (Issue #1012)
