@@ -113,6 +113,9 @@ def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
         for i, arg_value in enumerate(args):
             if i < len(param_names):
                 param_name = param_names[i]
+                # Skip 'self' and 'cls' parameters (Issue #1018)
+                if param_name in ('self', 'cls'):
+                    continue
                 if param_name == 'path':
                     # Convert Path object to string if needed
                     if isinstance(arg_value, Path):
