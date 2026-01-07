@@ -15,6 +15,94 @@ from flywheel.todo import Priority, Status, Todo
 logger = logging.getLogger(__name__)
 
 
+def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 100000) -> str:
+    """Normalize string for security-sensitive contexts using stricter normalization.
+
+    This function uses NFKC (Compatibility Decomposition) normalization for
+    security-sensitive contexts like URLs, filenames, and shell parameters.
+    NFKC converts fullwidth characters and other compatibility characters to
+    their ASCII equivalents, preventing homograph attacks.
+
+    SECURITY WARNING: This function is specifically for security-sensitive contexts.
+    For general text storage (todo titles, descriptions), use remove_control_chars()
+    instead, which uses NFC normalization to preserve user intent.
+
+    What NFKC converts (preventing homograph attacks):
+    - Fullwidth characters: ｅ → e, Ｔ → T, ． → .
+    - Fullwidth punctuation: ！ → !, ？ → ?
+    - Compatibility characters: ﬁ → fi, ² → 2
+
+    Args:
+        s: String to normalize
+        context: Usage context - "url", "filename", "shell", or "general"
+                 Security contexts ("url", "filename", "shell") use NFKC
+                 General context uses NFC (preserves special characters)
+        max_length: Maximum input length to prevent DoS attacks (default: 100000)
+
+    Returns:
+        Normalized string safe for the specified context
+
+    Security:
+        Addresses Issue #969 - Fullwidth character homograph attacks in
+        security-sensitive contexts. NFKC normalization converts fullwidth
+        characters to ASCII equivalents, preventing confusion in URLs and
+        filenames while maintaining security.
+
+    Example:
+        >>> sanitize_for_security_context("ｅｘａｍｐｌｅ．ｃｏｍ", context="url")
+        'example.com'
+        >>> sanitize_for_security_context("ｄｏｃｕｍｅｎｔ．ｔｘｔ", context="filename")
+        'document.txt'
+        >>> sanitize_for_security_context("²³™", context="general")
+        '²³™'  # Preserved with NFC (general context)
+
+    Related issues:
+        #969 (fullwidth homograph attacks), #944 (NFC preservation)
+    """
+    if not s:
+        return ""
+
+    # SECURITY FIX (Issue #969): Use NFKC for security-sensitive contexts
+    # NFKC normalization converts fullwidth characters to ASCII equivalents:
+    # - Fullwidth Latin letters: ａｂｃ → abc
+    # - Fullwidth punctuation: ．．． → ...
+    # - Other compatibility characters: ﬁ → fi, ² → 2
+    #
+    # This prevents homograph attacks in URLs, filenames, and shell parameters
+    # where fullwidth characters could be used to deceive users or bypass filters.
+    #
+    # For general text context, use NFC to preserve user intent (Issue #944)
+    security_contexts = {"url", "filename", "shell"}
+    use_nfkc = context in security_contexts
+
+    if use_nfkc:
+        # Use NFKC for security-sensitive contexts
+        # Converts fullwidth and compatibility characters to ASCII equivalents
+        s = unicodedata.normalize('NFKC', s)
+    else:
+        # Use NFC for general text to preserve special characters
+        s = unicodedata.normalize('NFC', s)
+
+    # Apply the same safety processing as remove_control_chars
+    # Prevent DoS by limiting input length
+    if len(s) > max_length:
+        s = s[:max_length]
+
+    # Remove control characters
+    control_chars_pattern = r'[\x00-\x1F\x7F]'
+    s = re.sub(control_chars_pattern, '', s)
+
+    # Remove shell metacharacters (especially important for shell context)
+    shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
+    s = re.sub(shell_metachars_pattern, '', s)
+
+    # Remove Unicode spoofing characters
+    s = re.sub(r'[\u200B-\u200D\u2060\uFEFF]', '', s)
+    s = re.sub(r'[\u202A-\u202E\u2066-\u2069]', '', s)
+
+    return s
+
+
 def remove_control_chars(s: str, max_length: int = 100000) -> str:
     """Normalize string for data storage by removing problematic characters.
 
@@ -66,7 +154,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 
     Related issues:
         #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
-        #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal)
+        #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal),
+        #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames)
     """
     if not s:
         return ""
