@@ -1016,6 +1016,11 @@ class FileStorage(AbstractStorage):
         # On Unix: Creates directories with mode=0o700 using restricted umask (Issue #474, #479)
         # On Windows: Creates directories with atomic ACLs using win32file.CreateDirectory (Issue #400)
         self._secure_all_parent_directories(self.path.parent)
+
+        # Cleanup stale lock files on startup (Issue #938)
+        # This ensures a clean state for long-running services or after crashes
+        self._cleanup_stale_locks(self.path.parent)
+
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
         self._lock = threading.Lock()  # Thread lock for synchronous operations (Issue #582, #661)
@@ -2731,6 +2736,106 @@ class FileStorage(AbstractStorage):
             # Lock file might have been removed by another process
             # This is not a critical error
             pass
+
+    def _cleanup_stale_locks(self, directory: Path) -> None:
+        """Clean up stale lock files in the specified directory (Issue #938).
+
+        Scans for .lock files in the directory, reads the PID from each lock file,
+        checks if the process is still alive using os.kill(pid, 0), and removes
+        the file if the process is dead. This ensures a clean state for long-running
+        services or after crashes.
+
+        Args:
+            directory: The directory to scan for stale lock files.
+
+        Note:
+            This is a security fix for Issue #938. While Issue #874 mentions PID-based
+            stale lock detection, it relies on a new process checking an old one.
+            Implementing a 'cleanup on startup' routine ensures a clean state for
+            long-running services or after crashes.
+
+            The method handles:
+            - Lock files with dead PIDs (removed)
+            - Lock files with active PIDs (preserved)
+            - Corrupted lock files (removed)
+            - Files that don't exist (ignored)
+        """
+        try:
+            # Scan for .lock files in the directory
+            for lock_file in directory.glob("*.lock"):
+                try:
+                    # Read lock file content
+                    with open(lock_file, 'r') as f:
+                        content = f.read()
+
+                    # Extract PID and timestamp
+                    locked_pid = None
+                    locked_at = None
+                    for line in content.split('\n'):
+                        if line.startswith('pid='):
+                            try:
+                                locked_pid = int(line.split('=')[1])
+                            except (ValueError, IndexError):
+                                pass
+                        elif line.startswith('locked_at='):
+                            try:
+                                locked_at = float(line.split('=')[1])
+                            except (ValueError, IndexError):
+                                pass
+
+                    # Check if the lock is stale
+                    is_stale = False
+                    stale_reason = ""
+
+                    # Method 1: Check if PID exists (most reliable)
+                    if locked_pid is not None:
+                        try:
+                            # Send signal 0 to check if process exists
+                            # This doesn't actually send a signal, just checks existence
+                            os.kill(locked_pid, 0)
+                            # Process exists, lock is not stale
+                            stale_reason = ""
+                        except OSError:
+                            # Process doesn't exist - lock is stale
+                            is_stale = True
+                            stale_reason = f"process {locked_pid} not found"
+                    else:
+                        # No PID info - consider it stale (corrupted or old format)
+                        is_stale = True
+                        stale_reason = "no PID information"
+
+                    # Remove stale lock files
+                    if is_stale:
+                        logger.warning(
+                            f"Found stale lock file ({stale_reason}), "
+                            f"removing: {lock_file}"
+                        )
+                        try:
+                            os.unlink(lock_file)
+                            logger.debug(f"Stale lock file removed: {lock_file}")
+                        except FileNotFoundError:
+                            # Another process already removed the stale lock
+                            logger.debug(f"Stale lock already removed by another process: {lock_file}")
+                        except OSError as e:
+                            logger.warning(f"Failed to remove stale lock: {e}")
+
+                except (OSError, ValueError, IndexError) as e:
+                    # Lock file is corrupted or unreadable - remove it
+                    logger.warning(
+                        f"Corrupted or unreadable lock file found, removing: {lock_file} - {e}"
+                    )
+                    try:
+                        os.unlink(lock_file)
+                        logger.debug(f"Corrupted lock file removed: {lock_file}")
+                    except FileNotFoundError:
+                        # Another process already removed the corrupted lock
+                        logger.debug(f"Corrupted lock already removed: {lock_file}")
+                    except OSError as unlink_err:
+                        logger.warning(f"Failed to remove corrupted lock: {unlink_err}")
+
+        except OSError as e:
+            # Failed to scan directory - not critical, log and continue
+            logger.warning(f"Failed to scan directory for stale locks: {e}")
 
     def _secure_all_parent_directories(self, directory: Path) -> None:
         """Secure all parent directories with restrictive permissions.
