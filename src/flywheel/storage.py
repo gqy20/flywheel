@@ -4,15 +4,17 @@ import abc
 import asyncio
 import atexit
 import errno
+import functools
 import gzip
 import hashlib
+import inspect
 import json
 import logging
 import os
 import threading
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 import aiofiles
 
@@ -22,6 +24,148 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
+
+
+# Storage latency metrics support (Issue #1003)
+# Provides telemetry for critical I/O operations to help identify
+# slow I/O operations or lock contention.
+
+_statsd_client = None
+
+
+def get_statsd_client():
+    """Get the statsd client for metrics emission.
+
+    Returns:
+        The statsd client if available, None otherwise.
+
+    Note:
+        This function checks for statsd availability and returns
+        a client if configured. The client is cached for performance.
+    """
+    global _statsd_client
+
+    # Return cached client if already initialized
+    if _statsd_client is not None:
+        return _statsd_client
+
+    # Try to import statsd
+    try:
+        import statsd
+
+        # Check if statsd server is configured via environment variable
+        statsd_host = os.environ.get('FW_STATSD_HOST')
+        statsd_port = os.environ.get('FW_STATSD_PORT', '8125')
+
+        if statsd_host:
+            # Create and cache statsd client
+            _statsd_client = statsd.StatsClient(
+                host=statsd_host,
+                port=int(statsd_port),
+                prefix='flywheel.storage'
+            )
+            logger.debug(
+                f"Statsd client initialized: {statsd_host}:{statsd_port}"
+            )
+        else:
+            # No statsd configuration - cache None to avoid repeated checks
+            _statsd_client = None
+    except ImportError:
+        # statsd not available - cache None
+        _statsd_client = None
+
+    return _statsd_client
+
+
+def measure_latency(operation_name: str):
+    """Decorator to measure and log execution time for I/O operations.
+
+    This decorator measures the execution time of the decorated function
+    and emits metrics to statsd if available. It works with both synchronous
+    and asynchronous functions.
+
+    Args:
+        operation_name: The name of the operation being measured (e.g., 'load', 'save').
+
+    Returns:
+        The decorated function with latency measurement.
+
+    Example:
+        @measure_latency("load")
+        def _load(self):
+            # Load operation
+            pass
+
+        @measure_latency("save")
+        async def _save(self):
+            # Save operation
+            pass
+
+    Note:
+        - Metrics are emitted to statsd if configured via FW_STATSD_HOST
+        - Timing is measured in milliseconds
+        - If statsd is not available, the operation proceeds normally
+        - Supports both sync and async functions
+    """
+    def decorator(func: Callable) -> Callable:
+        is_coroutine = inspect.iscoroutinefunction(func)
+
+        if is_coroutine:
+            # Async version
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                start_time = time.time()
+                try:
+                    return await func(*args, **kwargs)
+                finally:
+                    # Calculate elapsed time in milliseconds
+                    elapsed_ms = (time.time() - start_time) * 1000
+
+                    # Emit metric to statsd if available
+                    client = get_statsd_client()
+                    if client is not None:
+                        metric_name = f"{operation_name}.latency"
+                        client.timing(metric_name, elapsed_ms)
+
+                        # Also emit histogram if supported
+                        if hasattr(client, 'histogram'):
+                            client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
+
+                    # Log timing for debugging
+                    logger.debug(
+                        f"{operation_name} completed in {elapsed_ms:.3f}ms"
+                    )
+
+            return async_wrapper
+        else:
+            # Sync version
+            @functools.wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                start_time = time.time()
+                try:
+                    return func(*args, **kwargs)
+                finally:
+                    # Calculate elapsed time in milliseconds
+                    elapsed_ms = (time.time() - start_time) * 1000
+
+                    # Emit metric to statsd if available
+                    client = get_statsd_client()
+                    if client is not None:
+                        metric_name = f"{operation_name}.latency"
+                        client.timing(metric_name, elapsed_ms)
+
+                        # Also emit histogram if supported
+                        if hasattr(client, 'histogram'):
+                            client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
+
+                    # Log timing for debugging
+                    logger.debug(
+                        f"{operation_name} completed in {elapsed_ms:.3f}ms"
+                    )
+
+            return sync_wrapper
+
+    return decorator
 
 # Platform-specific file locking (Issue #268, #411, #451)
 # IMPORTANT: Windows file locking implementation
@@ -1612,6 +1756,7 @@ class FileStorage(AbstractStorage):
             # Return a placeholder value (will be ignored)
             return 0
 
+    @measure_latency("acquire_file_lock")
     def _acquire_file_lock(self, file_handle) -> None:
         """Acquire an exclusive file lock for multi-process safety (Issue #268, #451).
 
@@ -4072,6 +4217,7 @@ class FileStorage(AbstractStorage):
 
         return repaired_todos
 
+    @measure_latency("load")
     async def _load(self) -> None:
         """Load todos from file asynchronously.
 
@@ -4638,6 +4784,7 @@ class FileStorage(AbstractStorage):
             backup_path = self._create_backup(f"Failed to load todos from {self.path}")
             raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
+    @measure_latency("save")
     async def _save(self) -> None:
         """Save todos to file using atomic write asynchronously.
 
