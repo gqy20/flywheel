@@ -78,6 +78,18 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     if not s:
         return ""
 
+    # SECURITY FIX (Issue #999): Enforce max_length at the very beginning of the
+    # function, BEFORE any processing including Unicode normalization. This is the
+    # most secure approach to prevent ReDoS (Regular Expression Denial of Service)
+    # attacks. By checking the length first, we ensure that no matter what other
+    # processing happens (normalization, regex substitution, etc.), we never work
+    # with strings longer than max_length. This prevents potential performance
+    # degradation or denial of service from maliciously long inputs, even if they
+    # contain patterns that could cause catastrophic backtracking in regex patterns
+    # like SHELL_METACHARS_SECURE_PATTERN which contains {} and % characters.
+    if len(s) > max_length:
+        s = s[:max_length]
+
     # SECURITY FIX (Issue #969): Use NFKC for security-sensitive contexts
     # NFKC normalization converts fullwidth characters to ASCII equivalents:
     # - Fullwidth Latin letters: ａｂｃ → abc
@@ -99,12 +111,9 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         # Use NFC for general text to preserve special characters
         s = unicodedata.normalize('NFC', s)
 
-    # Apply the same safety processing as remove_control_chars
-    # Prevent DoS by limiting input length
-    if len(s) > max_length:
-        s = s[:max_length]
-
     # Remove control characters
+    # SECURITY FIX (Issue #999): Length check is now at function start (line 90)
+    # to ensure it happens before ANY processing, preventing ReDoS attacks.
     s = CONTROL_CHARS_PATTERN.sub('', s)
 
     # Remove shell metacharacters (especially important for shell context)
