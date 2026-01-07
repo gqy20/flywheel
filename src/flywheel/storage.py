@@ -330,10 +330,21 @@ def retry_transient_errors(
                             )
                             raise
 
-                        # Retry with exponential backoff
+                        # Retry with exponential backoff with structured logging (Issue #922)
                         logger.debug(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
-                            f"{e}. Retrying in {backoff:.2f}s..."
+                            f"{e}. Retrying in {backoff:.2f}s...",
+                            extra={
+                                'structured': True,
+                                'event': 'retry_attempt',
+                                'function': func.__name__,
+                                'attempt': attempt,
+                                'max_attempts': max_attempts,
+                                'backoff_seconds': backoff,
+                                'error_code': error_code,
+                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN'),
+                                'error_message': str(e)
+                            }
                         )
                         await asyncio.sleep(backoff)
                         backoff *= exponential_base
@@ -394,10 +405,21 @@ def retry_transient_errors(
                             )
                             raise
 
-                        # Retry with exponential backoff
+                        # Retry with exponential backoff with structured logging (Issue #922)
                         logger.debug(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
-                            f"{e}. Retrying in {backoff:.2f}s..."
+                            f"{e}. Retrying in {backoff:.2f}s...",
+                            extra={
+                                'structured': True,
+                                'event': 'retry_attempt',
+                                'function': func.__name__,
+                                'attempt': attempt,
+                                'max_attempts': max_attempts,
+                                'backoff_seconds': backoff,
+                                'error_code': error_code,
+                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN'),
+                                'error_message': str(e)
+                            }
                         )
                         time.sleep(backoff)
                         backoff *= exponential_base
@@ -1489,10 +1511,20 @@ class FileStorage(AbstractStorage):
                             lock_file.write(f"pid={os.getpid()}\n")
                             lock_file.write(f"locked_at={time.time()}\n")
 
-                        # Lock acquired successfully - track for cleanup
+                        # Lock acquired successfully - track for cleanup and log with structured data (Issue #922)
                         self._lock_range = "filelock"
                         self._lock_file_path = lock_file_path
-                        logger.debug(f"File-based lock acquired: {lock_file_path}")
+                        logger.debug(
+                            f"File-based lock acquired: {lock_file_path}",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_acquired',
+                                'lock_type': 'file_based',
+                                'lock_file_path': lock_file_path,
+                                'acquisition_time_seconds': elapsed,
+                                'pid': os.getpid()
+                            }
+                        )
                         return
 
                     except FileExistsError:
@@ -1570,10 +1602,19 @@ class FileStorage(AbstractStorage):
                             # Immediately retry to acquire lock
                             continue
 
-                        # Lock is held by another active process
+                        # Lock is held by another active process - log with structured data (Issue #922)
                         logger.debug(
                             f"File is locked by another process, waiting... "
-                            f"(elapsed: {elapsed:.1f}s)"
+                            f"(elapsed: {elapsed:.1f}s)",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_retry',
+                                'lock_type': 'file_based',
+                                'file_path': file_handle.name,
+                                'elapsed_seconds': elapsed,
+                                'retry_interval': self._lock_retry_interval,
+                                'lock_timeout': self._lock_timeout
+                            }
                         )
                         time.sleep(self._lock_retry_interval)
                     except OSError as e:
@@ -1648,8 +1689,20 @@ class FileStorage(AbstractStorage):
                             lock_range_high,  # NumberOfBytesToLockHigh (LENGTH, not offset)
                             overlapped  # Specifies offset (defaults to 0)
                         )
-                        # Lock acquired successfully
-                        logger.debug(f"File lock acquired successfully for {file_handle.name}")
+                        # Lock acquired successfully - log with structured data (Issue #922)
+                        elapsed = time.time() - start_time
+                        logger.debug(
+                            f"File lock acquired successfully for {file_handle.name}",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_acquired',
+                                'lock_type': 'windows_win32',
+                                'file_path': file_handle.name,
+                                'acquisition_time_seconds': elapsed,
+                                'lock_range_low': lock_range_low,
+                                'lock_range_high': lock_range_high
+                            }
+                        )
                         break
                     except pywintypes.error as e:
                         # Lock is held by another process
@@ -1658,6 +1711,22 @@ class FileStorage(AbstractStorage):
                         if e.winerror in (33, 167):
                             # Save error for potential reporting
                             last_error = e
+                            # Log retry attempt with structured data (Issue #922)
+                            elapsed = time.time() - start_time
+                            logger.debug(
+                                f"Windows lock held by another process, retrying... "
+                                f"(elapsed: {elapsed:.1f}s, error: {e.winerror})",
+                                extra={
+                                    'structured': True,
+                                    'event': 'lock_retry',
+                                    'lock_type': 'windows_win32',
+                                    'file_path': file_handle.name,
+                                    'elapsed_seconds': elapsed,
+                                    'retry_interval': self._lock_retry_interval,
+                                    'winerror_code': e.winerror,
+                                    'lock_timeout': self._lock_timeout
+                                }
+                            )
                             # Wait before retrying
                             time.sleep(self._lock_retry_interval)
                             # Continue retry loop
@@ -1785,13 +1854,40 @@ class FileStorage(AbstractStorage):
                         # Try non-blocking lock (LOCK_EX | LOCK_NB)
                         # This returns immediately with IOError if lock is held
                         fcntl.flock(file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        # Lock acquired successfully
-                        logger.debug(f"File lock acquired successfully for {file_handle.name}")
+                        # Lock acquired successfully - log with structured data (Issue #922)
+                        elapsed = time.time() - start_time
+                        logger.debug(
+                            f"File lock acquired successfully for {file_handle.name}",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_acquired',
+                                'lock_type': 'unix_fcntl',
+                                'file_path': file_handle.name,
+                                'acquisition_time_seconds': elapsed
+                            }
+                        )
                         break
                     except IOError as e:
-                        # Lock is held by another process
+                        # Lock is held by another process - log retry with structured data (Issue #922)
                         # Save error for potential reporting
                         last_error = e
+                        elapsed = time.time() - start_time
+                        error_code = getattr(e, 'errno', None)
+                        logger.debug(
+                            f"Unix lock held by another process, retrying... "
+                            f"(elapsed: {elapsed:.1f}s, errno: {error_code})",
+                            extra={
+                                'structured': True,
+                                'event': 'lock_retry',
+                                'lock_type': 'unix_fcntl',
+                                'file_path': file_handle.name,
+                                'elapsed_seconds': elapsed,
+                                'retry_interval': self._lock_retry_interval,
+                                'error_code': error_code,
+                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN') if error_code else None,
+                                'lock_timeout': self._lock_timeout
+                            }
+                        )
                         # Wait before retrying
                         time.sleep(self._lock_retry_interval)
                         # Continue retry loop
