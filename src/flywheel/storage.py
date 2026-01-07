@@ -88,7 +88,7 @@ if os.name == 'nt':  # Windows
         # This prevents deadlock risk and includes enhanced stale lock detection:
         # - Lock files contain PID and timestamp for robust stale lock detection
         # - PID checking allows immediate cleanup when the owning process dies
-        # - Time-based fallback (5 min threshold) handles edge cases
+        # - Time-based fallback (configurable via FW_LOCK_STALE_SECONDS, default 5 min) handles edge cases
         # - atexit handler ensures cleanup on normal program termination
         # Note: Lock files may not be cleaned up on abnormal termination (segfaults),
         # but the PID-based detection allows new processes to recover quickly.
@@ -184,6 +184,53 @@ def _is_degraded_mode() -> bool:
 # temporary glitches without crashing.
 import functools
 import inspect
+
+
+# Issue #923: Configurable stale lock timeout via environment variable
+# The default stale lock timeout is 300 seconds (5 minutes)
+# Users can customize this via FW_LOCK_STALE_SECONDS environment variable
+# This is useful for long CI/CD jobs or batch processes that may need
+# to hold locks longer than the default threshold
+_STALE_LOCK_TIMEOUT_DEFAULT = 300  # 5 minutes in seconds
+
+
+def _get_stale_lock_timeout() -> int:
+    """Get the stale lock timeout from environment variable or default.
+
+    Reads the FW_LOCK_STALE_SECONDS environment variable and validates it.
+    If the variable is not set, invalid, or <= 0, returns the default timeout.
+
+    Returns:
+        The stale lock timeout in seconds (default: 300).
+
+    Example:
+        # Set custom timeout of 10 minutes
+        export FW_LOCK_STALE_SECONDS=600
+    """
+    env_value = os.environ.get('FW_LOCK_STALE_SECONDS', '')
+    if not env_value:
+        return _STALE_LOCK_TIMEOUT_DEFAULT
+
+    try:
+        timeout = int(env_value)
+        if timeout <= 0:
+            logger.warning(
+                f"Invalid FW_LOCK_STALE_SECONDS value: {env_value} "
+                f"(must be positive, using default: {_STALE_LOCK_TIMEOUT_DEFAULT})"
+            )
+            return _STALE_LOCK_TIMEOUT_DEFAULT
+        return timeout
+    except ValueError:
+        logger.warning(
+            f"Invalid FW_LOCK_STALE_SECONDS value: {env_value} "
+            f"(not a valid integer, using default: {_STALE_LOCK_TIMEOUT_DEFAULT})"
+        )
+        return _STALE_LOCK_TIMEOUT_DEFAULT
+
+
+# Module-level constant for easy access in tests
+# This is computed once at module load time
+STALE_LOCK_TIMEOUT = _get_stale_lock_timeout()
 
 
 def retry_transient_errors(
@@ -1361,7 +1408,7 @@ class FileStorage(AbstractStorage):
             - Unix without fcntl: Uses file-based .lock files
             - Lock files contain PID and timestamp for stale detection
             - PID checking allows immediate cleanup when owner process dies
-            - Time-based fallback (5 min) handles edge cases
+            - Time-based fallback (configurable via FW_LOCK_STALE_SECONDS, default 5 min) handles edge cases
             - atexit handler ensures cleanup on normal termination
 
             IMPORTANT (Issue #894): CONFIRMED - Degraded mode ENFORCES file-based locking.
@@ -1473,7 +1520,7 @@ class FileStorage(AbstractStorage):
                                         # This doesn't actually send a signal, just checks existence
                                         os.kill(locked_pid, 0)
                                         # Process exists, check if it's old enough to be stale
-                                        stale_threshold = 300  # 5 minutes
+                                        stale_threshold = STALE_LOCK_TIMEOUT
                                         if locked_at and (time.time() - locked_at) > stale_threshold:
                                             is_stale = True
                                             stale_reason = f"old lock (age: {time.time() - locked_at:.1f}s)"
@@ -1483,7 +1530,7 @@ class FileStorage(AbstractStorage):
                                         stale_reason = f"process {locked_pid} not found"
                                 elif locked_at is not None:
                                     # Fallback: If no PID info, use time-based detection
-                                    stale_threshold = 300  # 5 minutes
+                                    stale_threshold = STALE_LOCK_TIMEOUT
                                     if (time.time() - locked_at) > stale_threshold:
                                         is_stale = True
                                         stale_reason = f"old lock without PID (age: {time.time() - locked_at:.1f}s)"
