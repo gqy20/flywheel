@@ -176,3 +176,63 @@ def test_storage_file_not_truncated():
         f"storage.py appears to be truncated: only {line_count} lines. "
         f"Expected at least 800 lines (Issue #289)."
     )
+
+
+def test_decorator_exception_handling_complete():
+    """Verify that the decorator exception handling logic is complete (Issue #1025)."""
+    import inspect
+
+    # Get the source code of the _with_retry decorator
+    storage_source = inspect.getsource(Storage._with_retry)
+
+    # Verify that both async and sync wrappers have complete exception handling
+    # Check for the presence of key exception handling components
+
+    # 1. Verify async wrapper exists and has exception handling
+    assert 'async def async_wrapper' in storage_source, (
+        "Missing async_wrapper in decorator (Issue #1025)"
+    )
+
+    # 2. Verify sync wrapper exists and has exception handling
+    assert 'def sync_wrapper' in storage_source, (
+        "Missing sync_wrapper in decorator (Issue #1025)"
+    )
+
+    # 3. Verify both wrappers have complete exception handling blocks
+    # Check for the try-except structure
+    assert storage_source.count('try:') >= 2, (
+        "Decorator should have try blocks for both async and sync wrappers (Issue #1025)"
+    )
+
+    assert storage_source.count('except Exception as e:') >= 2, (
+        "Decorator should have exception handlers for both async and sync wrappers (Issue #1025)"
+    )
+
+    # 4. Verify the context handling logic is present in both wrappers
+    assert storage_source.count('if context and not str(e).count(context) > 0:') >= 2, (
+        "Missing context handling logic in decorator (Issue #1025)"
+    )
+
+    # 5. Verify add_note is used for Python 3.11+
+    assert storage_source.count("if hasattr(e, 'add_note'):") >= 2, (
+        "Missing add_note check for Python 3.11+ (Issue #1025)"
+    )
+
+    # 6. Verify fallback for older Python versions
+    assert storage_source.count("if e.args:") >= 2, (
+        "Missing fallback for older Python versions (Issue #1025)"
+    )
+
+    # 7. Verify the comment about appending context is complete
+    assert '# Append context to the first argument' in storage_source, (
+        "Missing or incomplete comment about context handling (Issue #1025)"
+    )
+
+    # 8. Verify both wrappers return the wrapper function
+    assert 'return async_wrapper' in storage_source, (
+        "Missing return statement for async_wrapper (Issue #1025)"
+    )
+
+    assert 'return sync_wrapper' in storage_source, (
+        "Missing return statement for sync_wrapper (Issue #1025)"
+    )
