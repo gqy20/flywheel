@@ -212,9 +212,21 @@ def measure_latency(operation_name: str):
                     return result
                 except Exception as e:
                     # Add context to exception for better debugging (Issue #1012)
+                    # Use add_note for Python 3.11+ to preserve exception chain (Issue #1016)
                     if context and not str(e).count(context) > 0:
-                        # Add context to exception message if not already present
-                        raise type(e)(f"{e}{context}") from e
+                        # Add context using add_note if available (Python 3.11+)
+                        # This preserves the original exception and stack trace
+                        if hasattr(e, 'add_note'):
+                            e.add_note(f"Context: {context}")
+                        else:
+                            # For older Python versions, modify args directly
+                            # This is less ideal but preserves the exception instance
+                            if e.args:
+                                # Append context to the first argument
+                                e.args = (f"{e}{context}",)
+                            else:
+                                # If no args, set it with context
+                                e.args = (f"Error{context}",)
                     raise
 
             return async_wrapper
@@ -247,9 +259,21 @@ def measure_latency(operation_name: str):
                     return result
                 except Exception as e:
                     # Add context to exception for better debugging (Issue #1012)
+                    # Use add_note for Python 3.11+ to preserve exception chain (Issue #1016)
                     if context and not str(e).count(context) > 0:
-                        # Add context to exception message if not already present
-                        raise type(e)(f"{e}{context}") from e
+                        # Add context using add_note if available (Python 3.11+)
+                        # This preserves the original exception and stack trace
+                        if hasattr(e, 'add_note'):
+                            e.add_note(f"Context: {context}")
+                        else:
+                            # For older Python versions, modify args directly
+                            # This is less ideal but preserves the exception instance
+                            if e.args:
+                                # Append context to the first argument
+                                e.args = (f"{e}{context}",)
+                            else:
+                                # If no args, set it with context
+                                e.args = (f"Error{context}",)
                     raise
 
             return sync_wrapper
