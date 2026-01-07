@@ -2069,6 +2069,40 @@ class FileStorage(AbstractStorage):
                 logger.error(f"Failed to release Unix file lock: {e}")
                 raise
 
+    def _file_lock(self, file_handle):
+        """Context manager for automatic file lock acquisition and release (Issue #943).
+
+        This context manager eliminates error-prone manual try/finally blocks by
+        automatically acquiring the lock on entry and releasing it on exit, even
+        when exceptions occur.
+
+        Args:
+            file_handle: The file handle to lock.
+
+        Yields:
+            The file_handle for use within the context.
+
+        Raises:
+            IOError: If the lock cannot be acquired or released.
+            RuntimeError: If lock acquisition times out.
+
+        Example:
+            >>> with open(self.path, 'r+b') as f:
+            ...     with self._file_lock(f):
+            ...         # File operations here are protected by lock
+            ...         data = f.read()
+
+        Note:
+            This context manager ensures locks are always released, even when
+            exceptions occur, preventing deadlocks that can happen with manual
+            lock handling.
+        """
+        self._acquire_file_lock(file_handle)
+        try:
+            yield file_handle
+        finally:
+            self._release_file_lock(file_handle)
+
     def _secure_directory(self, directory: Path) -> None:
         """Set restrictive permissions on the storage directory.
 
