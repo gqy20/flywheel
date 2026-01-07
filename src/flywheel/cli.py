@@ -33,7 +33,7 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     What it removes (for data integrity, NOT security):
     - Control characters (null bytes, newlines, tabs) that break storage formats
     - Shell metacharacters (;, |, &, `, $, (, ), <, >) that interfere with formats
-    - Format string characters ({, }) that could cause format string bugs
+    - Format string characters ({, }, %) that could cause format string bugs
     - Backslashes (\) that could cause escape sequence issues
     - Unicode spoofing characters (zero-width, bidirectional overrides)
     - Fullwidth characters are CONVERTED to ASCII via NFKC normalization
@@ -41,7 +41,6 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     What it preserves (for legitimate content):
     - All alphanumeric characters and common punctuation
     - Quotes (', ") for text and code snippets
-    - Percentage (%) for legitimate use cases
     - Brackets ([, ]) for code and data structures
     - Hyphen (-) for UUIDs, dates, phone numbers, URLs
     - International characters (Cyrillic, CJK, Arabic, etc.)
@@ -67,7 +66,7 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 
     Related issues:
         #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
-        #819, #824, #830, #849, #850 (rename from sanitize_string)
+        #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal)
     """
     if not s:
         return ""
@@ -153,11 +152,12 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     s = re.sub(control_chars_pattern, '', s)
 
     # Step 2: Remove certain metacharacters that could interfere with data formats
-    # Characters removed: ; | & ` $ ( ) < > { } \
-    # Note: We preserve quotes, %, [, ] for legitimate text content
+    # Characters removed: ; | & ` $ ( ) < > { } % \
+    # Note: We preserve quotes, [, ] for legitimate text content
     # WARNING: This does NOT provide shell injection protection. For shell commands,
     # use subprocess with list arguments (shell=False) or shlex.quote().
     # Curly braces removed to prevent format string attacks (Issue #690)
+    # Percent sign removed to prevent format string injection (Issue #929)
     # Hyphen preserved to prevent data corruption (Issue #725):
     # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
     # - Hyphenated words (well-known, self-contained)
@@ -170,7 +170,12 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # 1. No hyphens in the middle that could create unintended ranges
     # 2. No unescaped closing brackets that could break the character class
     # 3. Pattern is safe from catastrophic backtracking
-    shell_metachars_pattern = r'[;|&`$()<>{}\\]'
+    #
+    # SECURITY FIX (Issue #929): Added percent sign (%) to prevent format string
+    # injection when normalized strings are used in legacy % formatting (e.g.,
+    # logger.info(msg)). This prevents information disclosure or crashes from
+    # format string specifiers like %s, %d, etc.
+    shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
     s = re.sub(shell_metachars_pattern, '', s)
 
     # Remove Unicode spoofing characters:
