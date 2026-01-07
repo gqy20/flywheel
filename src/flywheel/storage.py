@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 # Provides telemetry for critical I/O operations to help identify
 # slow I/O operations or lock contention.
 
+# Cache statsd configuration at module level to avoid repeated
+# environment variable lookups (Issue #1013)
+_statsd_host = os.environ.get('FW_STATSD_HOST')
+_statsd_port = os.environ.get('FW_STATSD_PORT', '8125')
 _statsd_client = None
 
 
@@ -40,8 +44,9 @@ def get_statsd_client():
         The statsd client if available, None otherwise.
 
     Note:
-        This function checks for statsd availability and returns
-        a client if configured. The client is cached for performance.
+        Environment variables are checked at module import time (Issue #1013)
+        to avoid repeated lookups during high-frequency I/O operations.
+        The client instance is cached for performance.
     """
     global _statsd_client
 
@@ -53,19 +58,16 @@ def get_statsd_client():
     try:
         import statsd
 
-        # Check if statsd server is configured via environment variable
-        statsd_host = os.environ.get('FW_STATSD_HOST')
-        statsd_port = os.environ.get('FW_STATSD_PORT', '8125')
-
-        if statsd_host:
+        # Use module-level cached environment variables (Issue #1013)
+        if _statsd_host:
             # Create and cache statsd client
             _statsd_client = statsd.StatsClient(
-                host=statsd_host,
-                port=int(statsd_port),
+                host=_statsd_host,
+                port=int(_statsd_port),
                 prefix='flywheel.storage'
             )
             logger.debug(
-                f"Statsd client initialized: {statsd_host}:{statsd_port}"
+                f"Statsd client initialized: {_statsd_host}:{_statsd_port}"
             )
         else:
             # No statsd configuration - cache None to avoid repeated checks
