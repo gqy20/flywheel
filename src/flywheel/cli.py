@@ -55,9 +55,14 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         'document.txt'
         >>> sanitize_for_security_context("²³™", context="general")
         '²³™'  # Preserved with NFC (general context)
+        >>> sanitize_for_security_context("Progress: 50%", context="general")
+        'Progress: 50%'  # Percent sign preserved in general context
+        >>> sanitize_for_security_context("Progress: 50%", context="shell")
+        'Progress: 50'  # Percent sign removed in shell context
 
     Related issues:
-        #969 (fullwidth homograph attacks), #944 (NFC preservation)
+        #969 (fullwidth homograph attacks), #944 (NFC preservation),
+        #974 (percent sign preservation in general context)
     """
     if not s:
         return ""
@@ -97,11 +102,14 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # Windows paths and escape sequences. Only remove them in security contexts.
     # SECURITY FIX (Issue #975): In general context, preserve curly braces for
     # Python format() strings. Only remove them in security contexts.
+    # SECURITY FIX (Issue #974): In general context, preserve percent signs for
+    # format strings. Only remove them in security contexts.
     if use_nfkc:
         shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
     else:
-        # General context: preserve backslashes and curly braces, remove other metacharacters
-        shell_metachars_pattern = r'[;|&`$()<>%]'
+        # General context: preserve backslashes, curly braces, and percent signs
+        # Remove only shell metacharacters that could cause injection
+        shell_metachars_pattern = r'[;|&`$()<>]'
     s = re.sub(shell_metachars_pattern, '', s)
 
     # Remove Unicode spoofing characters
