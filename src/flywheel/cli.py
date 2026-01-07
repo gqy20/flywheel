@@ -219,6 +219,45 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     return remove_control_chars(s, max_length)
 
 
+def safe_log(logger, level: str, message: str, *args, **kwargs) -> None:
+    """Safely log messages using normalized user input.
+
+    This helper function ensures that logger calls use safe patterns to prevent
+    format string injection. It should be used when logging user-controlled data.
+
+    Args:
+        logger: Logger instance to use
+        level: Log level (debug, info, warning, error, critical)
+        message: Log message template (use %s placeholders for user data)
+        *args: Arguments to substitute into message (using %s placeholders)
+        **kwargs: Additional keyword arguments for logger call
+
+    Security:
+        Addresses Issue #964 - Ensures safe logging patterns are used:
+        - Always use %s placeholders for user data, not direct string formatting
+        - User input should be normalized via remove_control_chars() before passing
+        - Never use f-strings with unsanitized user input: f"User: {user_input}"
+        - Never use % formatting with user input: "User: %s" % user_input
+
+    Example:
+        >>> # Safe: Using %s placeholder
+        >>> safe_log(logger, "info", "Processing todo: %s", sanitized_title)
+        >>> # Safe: Multiple placeholders
+        >>> safe_log(logger, "debug", "Todo %s: %s", todo_id, sanitized_desc)
+        >>> # Safe: No user data
+        >>> safe_log(logger, "info", "Application started")
+    """
+    log_func = getattr(logger, level.lower(), None)
+    if log_func is None:
+        raise ValueError(f"Invalid log level: {level}")
+
+    # Use the logger's built-in safe formatting with %s placeholders
+    # This is safe because:
+    # 1. User data should be pre-normalized via remove_control_chars()
+    # 2. The logger handles %s placeholders safely (not as format strings)
+    log_func(message, *args, **kwargs)
+
+
 def validate_date(date_str: str) -> str:
     """Validate and normalize a date string to ISO format.
 

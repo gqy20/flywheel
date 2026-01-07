@@ -3,6 +3,7 @@
 This test verifies that:
 1. The remove_control_chars function removes percent signs to prevent format string injection
 2. Logger calls use safe patterns (%s placeholders or f-strings) when handling user input
+3. The safe_log helper function provides a safe way to log user input
 
 Security Issue: If user input containing format string specifiers like %s, %d, etc.
 is passed directly to logger calls using the old % formatting style (logger.info(msg)),
@@ -14,7 +15,7 @@ Fix: Remove % from user input and ensure logger calls use safe patterns.
 import logging
 import pytest
 from io import StringIO
-from flywheel.cli import remove_control_chars
+from flywheel.cli import remove_control_chars, safe_log
 
 
 class TestFormatStringInjectionPrevention:
@@ -118,3 +119,64 @@ class TestFormatStringInjectionPrevention:
             assert "Todo s s s s" in output
         except Exception as e:
             pytest.fail(f"Logger call failed with sanitized input: {e}")
+
+    def test_safe_log_function(self):
+        """Test the safe_log helper function.
+
+        This test verifies that the safe_log function provides a safe way
+        to log user input without format string injection risks.
+        """
+        logger = logging.getLogger('test_safe_log')
+        logger.setLevel(logging.INFO)
+        logger.handlers.clear()
+
+        string_stream = StringIO()
+        handler = logging.StreamHandler(string_stream)
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
+
+        # Sanitize user input
+        user_input = "Todo %s %d"
+        sanitized_input = remove_control_chars(user_input)
+
+        # Use safe_log to log the sanitized input
+        safe_log(logger, "info", "Processing: %s", sanitized_input)
+
+        # Verify the output
+        output = string_stream.getvalue()
+        assert "Processing:" in output
+        assert "Todo sd" in output  # % signs removed, leaving "sd"
+
+    def test_safe_log_with_multiple_args(self):
+        """Test safe_log with multiple arguments."""
+        logger = logging.getLogger('test_safe_log_multi')
+        logger.setLevel(logging.INFO)
+        logger.handlers.clear()
+
+        string_stream = StringIO()
+        handler = logging.StreamHandler(string_stream)
+        handler.setLevel(logging.INFO)
+        logger.addHandler(handler)
+
+        # Sanitize user inputs
+        title = "Todo %s"
+        desc = "Description %d"
+        sanitized_title = remove_control_chars(title)
+        sanitized_desc = remove_control_chars(desc)
+
+        # Use safe_log with multiple arguments
+        safe_log(logger, "info", "Todo: %s, Desc: %s", sanitized_title, sanitized_desc)
+
+        # Verify the output
+        output = string_stream.getvalue()
+        assert "Todo:" in output
+        assert "Desc:" in output
+        assert "Todo s" in output
+        assert "Description d" in output
+
+    def test_safe_log_invalid_level(self):
+        """Test that safe_log raises ValueError for invalid log level."""
+        logger = logging.getLogger('test_safe_log_invalid')
+
+        with pytest.raises(ValueError, match="Invalid log level"):
+            safe_log(logger, "invalid", "Test message")
