@@ -447,6 +447,184 @@ def retry_transient_errors(
     return decorator
 
 
+def retry_io(
+    max_retries: int = 3,
+    backoff_factor: float = 0.5,
+):
+    """Decorator that retries I/O operations on transient errors with exponential backoff.
+
+    This decorator is specifically designed for I/O operations and retries on
+    common transient filesystem errors (EIO, ENOSPC, EAGAIN, EBUSY) with exponential
+    backoff. Unlike retry_transient_errors, this treats ENOSPC as a transient error
+    since network filesystems may temporarily report no space.
+
+    Transient errors that trigger retry:
+    - errno.EIO: I/O error (common on network mounts)
+    - errno.ENOSPC: No space left on device (may be transient on network mounts)
+    - errno.EAGAIN: Resource temporarily unavailable
+    - errno.EBUSY: Device or resource busy
+
+    Permanent errors that do NOT trigger retry (fail immediately):
+    - errno.ENOENT: No such file or directory
+    - errno.ENOTDIR: Not a directory
+    - Other permanent I/O errors
+
+    Args:
+        max_retries: Maximum number of retry attempts (default: 3)
+        backoff_factor: Base backoff time in seconds for exponential backoff (default: 0.5)
+                        Backoff sequence: backoff_factor, backoff_factor*2, backoff_factor*4, ...
+
+    Returns:
+        The decorated function with retry logic
+
+    Example:
+        @retry_io(max_retries=3, backoff_factor=0.5)
+        def save_data():
+            # Save operations that may fail transiently
+            pass
+
+        @retry_io(max_retries=5, backoff_factor=1.0)
+        async def save_data_async():
+            # Async save operations with more retries
+            pass
+
+    Fix for Issue #948: Configurable retry mechanism for transient I/O errors.
+    """
+    def decorator(func):
+        is_coroutine = inspect.iscoroutinefunction(func)
+
+        if is_coroutine:
+            # Async version
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                attempt = 0
+                backoff = backoff_factor
+
+                while attempt < max_retries:
+                    try:
+                        return await func(*args, **kwargs)
+                    except OSError as e:
+                        attempt += 1
+
+                        # Check if error has an errno attribute
+                        error_code = getattr(e, 'errno', None)
+
+                        # Transient errors that should trigger retry
+                        transient_errors = (
+                            errno.EIO,      # I/O error (common on network mounts)
+                            errno.ENOSPC,   # No space left (may be transient)
+                            errno.EAGAIN,   # Resource temporarily unavailable
+                            errno.EBUSY,    # Device or resource busy
+                        )
+
+                        # Permanent errors that should fail immediately
+                        permanent_errors = (
+                            errno.ENOENT,   # No such file or directory
+                            errno.ENOTDIR,  # Not a directory
+                        )
+
+                        # If it's a permanent error, fail immediately
+                        if error_code in permanent_errors:
+                            _module_logger.debug(
+                                f"Permanent I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If it's not a recognized transient error, don't retry
+                        if error_code not in transient_errors:
+                            _module_logger.debug(
+                                f"Non-transient I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If we've exhausted all attempts, raise the last error
+                        if attempt >= max_retries:
+                            _module_logger.warning(
+                                f"Max retry attempts ({max_retries}) exhausted for "
+                                f"{func.__name__}: {e}"
+                            )
+                            raise
+
+                        # Retry with exponential backoff
+                        _module_logger.debug(
+                            f"Transient I/O error in {func.__name__} (attempt {attempt}/{max_retries}): "
+                            f"{e}. Retrying in {backoff:.2f}s..."
+                        )
+                        await asyncio.sleep(backoff)
+                        backoff *= 2  # Exponential backoff
+
+                # Should not reach here, but just in case
+                raise RuntimeError("Unexpected state in retry logic")
+
+            return async_wrapper
+        else:
+            # Sync version
+            @functools.wraps(func)
+            def sync_wrapper(*args, **kwargs):
+                attempt = 0
+                backoff = backoff_factor
+
+                while attempt < max_retries:
+                    try:
+                        return func(*args, **kwargs)
+                    except OSError as e:
+                        attempt += 1
+
+                        # Check if error has an errno attribute
+                        error_code = getattr(e, 'errno', None)
+
+                        # Transient errors that should trigger retry
+                        transient_errors = (
+                            errno.EIO,      # I/O error (common on network mounts)
+                            errno.ENOSPC,   # No space left (may be transient)
+                            errno.EAGAIN,   # Resource temporarily unavailable
+                            errno.EBUSY,    # Device or resource busy
+                        )
+
+                        # Permanent errors that should fail immediately
+                        permanent_errors = (
+                            errno.ENOENT,   # No such file or directory
+                            errno.ENOTDIR,  # Not a directory
+                        )
+
+                        # If it's a permanent error, fail immediately
+                        if error_code in permanent_errors:
+                            _module_logger.debug(
+                                f"Permanent I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If it's not a recognized transient error, don't retry
+                        if error_code not in transient_errors:
+                            _module_logger.debug(
+                                f"Non-transient I/O error in {func.__name__}: {e}"
+                            )
+                            raise
+
+                        # If we've exhausted all attempts, raise the last error
+                        if attempt >= max_retries:
+                            _module_logger.warning(
+                                f"Max retry attempts ({max_retries}) exhausted for "
+                                f"{func.__name__}: {e}"
+                            )
+                            raise
+
+                        # Retry with exponential backoff
+                        _module_logger.debug(
+                            f"Transient I/O error in {func.__name__} (attempt {attempt}/{max_retries}): "
+                            f"{e}. Retrying in {backoff:.2f}s..."
+                        )
+                        time.sleep(backoff)
+                        backoff *= 2  # Exponential backoff
+
+                # Should not reach here, but just in case
+                raise RuntimeError("Unexpected state in retry logic")
+
+            return sync_wrapper
+
+    return decorator
+
+
 class AbstractStorage(abc.ABC):
     """Abstract base class for todo storage backends.
 
