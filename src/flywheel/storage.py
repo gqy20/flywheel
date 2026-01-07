@@ -4217,6 +4217,7 @@ class FileStorage(AbstractStorage):
 
         return repaired_todos
 
+    @retry_transient_errors(max_attempts=3, initial_backoff=0.1)
     @measure_latency("load")
     async def _load(self) -> None:
         """Load todos from file asynchronously.
@@ -4784,6 +4785,7 @@ class FileStorage(AbstractStorage):
             backup_path = self._create_backup(f"Failed to load todos from {self.path}")
             raise RuntimeError(f"Failed to load todos. Backup saved to {backup_path}") from e
 
+    @retry_transient_errors(max_attempts=3, initial_backoff=0.1)
     @measure_latency("save")
     async def _save(self) -> None:
         """Save todos to file using atomic write asynchronously.
