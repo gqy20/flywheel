@@ -95,11 +95,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # Remove shell metacharacters (especially important for shell context)
     # SECURITY FIX (Issue #976): In general context, preserve backslashes for
     # Windows paths and escape sequences. Only remove them in security contexts.
+    # SECURITY FIX (Issue #975): In general context, preserve curly braces for
+    # Python format() strings. Only remove them in security contexts.
     if use_nfkc:
         shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
     else:
-        # General context: preserve backslashes, remove other metacharacters
-        shell_metachars_pattern = r'[;|&`$()<>{}%]'
+        # General context: preserve backslashes and curly braces, remove other metacharacters
+        shell_metachars_pattern = r'[;|&`$()<>%]'
     s = re.sub(shell_metachars_pattern, '', s)
 
     # Remove Unicode spoofing characters
