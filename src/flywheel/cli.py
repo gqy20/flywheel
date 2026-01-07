@@ -136,12 +136,24 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 
     What it removes (for data integrity, NOT security):
     - Control characters (null bytes, newlines, tabs) that break storage formats
-    - Shell metacharacters (;, |, &, `, $, (, ), <, >) that interfere with formats
     - Format string characters ({, }, %) that could cause format string bugs
     - Backslashes (\) to prevent them from interfering with storage formats or
       causing ambiguity in data representation (e.g., in JSON, CSV, or shell contexts)
     - Unicode spoofing characters (zero-width, bidirectional overrides)
     - Fullwidth characters are CONVERTED to ASCII via NFKC normalization
+
+    What it NO LONGER removes (Issue #979):
+    - Shell metacharacters (;, |, &, `, $, (, ), <, >) are PRESERVED in general
+      context as they are legitimate characters in user text. Examples:
+      - Semicolons: "Note: this is important; remember it"
+      - Pipes: "Use | for separating options"
+      - Ampersands: "Johnson & Johnson"
+      - Dollar signs: "Cost: $100"
+      - Parentheses: "See chapter (5) for details"
+      - Angle brackets: "Enter your <name> here"
+      - Backticks: "Use `print('hello')` for output"
+      For security-sensitive contexts where these must be removed, use
+      sanitize_for_security_context() with appropriate context parameter.
 
     What it preserves (for legitimate content):
     - All alphanumeric characters and common punctuation
@@ -163,8 +175,10 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
         'Hello World'
         >>> remove_control_chars("todo\x00extra")
         'todoextra'
-        >>> remove_control_chars("test;command")
-        'testcommand'
+        >>> remove_control_chars("Cost: $100 (discount)")
+        'Cost: $100 (discount)'  # Shell metachars preserved (Issue #979)
+        >>> remove_control_chars("Use {format} strings")
+        'Use format strings'  # Format string chars removed for safety
 
     NOTE: For shell commands, use subprocess with list arguments or shlex.quote().
     For SQL, use parameterized queries. This function does NOT prevent injection attacks.
@@ -174,7 +188,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
         #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal),
         #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames),
         #810 (clarified backslash removal documentation - backslashes are removed for data
-        #      normalization, not to prevent escape sequence interpretation)
+        #      normalization, not to prevent escape sequence interpretation),
+        #979 (preserve shell metachars in general context - only remove in security contexts)
     """
     if not s:
         return ""
@@ -264,19 +279,17 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     control_chars_pattern = r'[\x00-\x1F\x7F]'
     s = re.sub(control_chars_pattern, '', s)
 
-    # Step 2: Remove certain metacharacters that could interfere with data formats
-    # Characters removed: ; | & ` $ ( ) < > { } % \
-    # Note: We preserve quotes, [, ] for legitimate text content
+    # Step 2: Remove format string characters that could cause injection
+    # Characters removed: { } % \
+    # Note: We preserve quotes, [, ], shell metachars for legitimate text content
     # WARNING: This does NOT provide shell injection protection. For shell commands,
     # use subprocess with list arguments (shell=False) or shlex.quote().
+    # For security-sensitive contexts (shell, url, filename), use
+    # sanitize_for_security_context() instead.
+    #
     # Curly braces removed to prevent format string attacks (Issue #690)
     # Percent sign removed to prevent format string injection (Issue #929)
-    # Hyphen preserved to prevent data corruption (Issue #725):
-    # - UUIDs (550e8400-e29b-41d4-a716-446655440000)
-    # - Hyphenated words (well-known, self-contained)
-    # - ISO dates (2024-01-15)
-    # - Phone numbers (1-800-555-0123)
-    # - URLs and file paths
+    # Backslash removed to prevent storage format ambiguity (Issue #810)
     #
     # SECURITY NOTE (Issue #729): To prevent ReDoS, we construct the regex pattern
     # explicitly rather than using string interpolation. This ensures that:
@@ -288,8 +301,16 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # injection when normalized strings are used in legacy % formatting (e.g.,
     # logger.info(msg)). This prevents information disclosure or crashes from
     # format string specifiers like %s, %d, etc.
-    shell_metachars_pattern = r'[;|&`$()<>{}\\%]'
-    s = re.sub(shell_metachars_pattern, '', s)
+    #
+    # SECURITY FIX (Issue #979): In general context (this function), preserve
+    # shell metacharacters (; | & ` $ ( ) < >) as they are legitimate characters
+    # in user text (e.g., "Cost: $100", "See (chapter 5)", "Use | to separate").
+    # This function is for data normalization, not security protection. For
+    # security-sensitive contexts where shell metachars must be removed, use
+    # sanitize_for_security_context() with appropriate context ("shell", "url",
+    # "filename").
+    format_string_pattern = r'[{}\\%]'
+    s = re.sub(format_string_pattern, '', s)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
