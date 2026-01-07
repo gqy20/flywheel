@@ -172,9 +172,9 @@ def measure_latency(operation_name: str):
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 start_time = time.time()
+                context = _extract_context(args, kwargs, func)
                 try:
-                    return await func(*args, **kwargs)
-                finally:
+                    result = await func(*args, **kwargs)
                     # Calculate elapsed time in milliseconds
                     elapsed_ms = (time.time() - start_time) * 1000
 
@@ -190,10 +190,16 @@ def measure_latency(operation_name: str):
 
                     # Log timing for debugging
                     # Extract context (path/id) for better debugging (Issue #1007)
-                    context = _extract_context(args, kwargs, func)
                     logger.debug(
                         f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
+                    return result
+                except Exception as e:
+                    # Add context to exception for better debugging (Issue #1012)
+                    if context and not str(e).count(context) > 0:
+                        # Add context to exception message if not already present
+                        raise type(e)(f"{e}{context}") from e
+                    raise
 
             return async_wrapper
         else:
@@ -201,9 +207,9 @@ def measure_latency(operation_name: str):
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 start_time = time.time()
+                context = _extract_context(args, kwargs, func)
                 try:
-                    return func(*args, **kwargs)
-                finally:
+                    result = func(*args, **kwargs)
                     # Calculate elapsed time in milliseconds
                     elapsed_ms = (time.time() - start_time) * 1000
 
@@ -219,10 +225,16 @@ def measure_latency(operation_name: str):
 
                     # Log timing for debugging
                     # Extract context (path/id) for better debugging (Issue #1007)
-                    context = _extract_context(args, kwargs, func)
                     logger.debug(
                         f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
+                    return result
+                except Exception as e:
+                    # Add context to exception for better debugging (Issue #1012)
+                    if context and not str(e).count(context) > 0:
+                        # Add context to exception message if not already present
+                        raise type(e)(f"{e}{context}") from e
+                    raise
 
             return sync_wrapper
 
