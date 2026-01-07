@@ -77,12 +77,66 @@ def get_statsd_client():
     return _statsd_client
 
 
+def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
+    """Extract context information from function arguments.
+
+    Inspects function arguments for 'path' or 'id' parameters to provide
+    context-aware logging (Issue #1007).
+
+    Args:
+        args: Positional arguments passed to the decorated function.
+        kwargs: Keyword arguments passed to the decorated function.
+        func: The decorated function (used to inspect parameter names).
+
+    Returns:
+        A string context if found (e.g., "on /tmp/file.json" or "on 12345"),
+        or empty string if no context is available.
+    """
+    # Check kwargs first (keyword arguments take precedence)
+    if 'path' in kwargs:
+        path_value = kwargs['path']
+        # Convert Path object to string if needed
+        if isinstance(path_value, Path):
+            path_value = str(path_value)
+        return f" on {path_value}"
+    elif 'id' in kwargs:
+        return f" on {kwargs['id']}"
+
+    # Check positional arguments by inspecting function signature
+    try:
+        sig = inspect.signature(func)
+        param_names = list(sig.parameters.keys())
+
+        # Map positional args to parameter names
+        for i, arg_value in enumerate(args):
+            if i < len(param_names):
+                param_name = param_names[i]
+                if param_name == 'path':
+                    # Convert Path object to string if needed
+                    if isinstance(arg_value, Path):
+                        arg_value = str(arg_value)
+                    return f" on {arg_value}"
+                elif param_name == 'id':
+                    return f" on {arg_value}"
+    except (ValueError, TypeError):
+        # If signature inspection fails, just return empty context
+        pass
+
+    return ""
+
+
 def measure_latency(operation_name: str):
     """Decorator to measure and log execution time for I/O operations.
 
     This decorator measures the execution time of the decorated function
     and emits metrics to statsd if available. It works with both synchronous
     and asynchronous functions.
+
+    Context-Aware Logging (Issue #1007):
+        The decorator inspects function arguments for 'path' or 'id' parameters
+        and includes them in log messages for easier debugging. For example:
+        - "save on /tmp/todos.json completed in 5.234ms"
+        - "load on 12345 completed in 2.456ms"
 
     Args:
         operation_name: The name of the operation being measured (e.g., 'load', 'save').
@@ -106,6 +160,7 @@ def measure_latency(operation_name: str):
         - Timing is measured in milliseconds
         - If statsd is not available, the operation proceeds normally
         - Supports both sync and async functions
+        - Includes context (path/id) in log messages when available
     """
     def decorator(func: Callable) -> Callable:
         is_coroutine = inspect.iscoroutinefunction(func)
@@ -132,8 +187,10 @@ def measure_latency(operation_name: str):
                             client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
 
                     # Log timing for debugging
+                    # Extract context (path/id) for better debugging (Issue #1007)
+                    context = _extract_context(args, kwargs, func)
                     logger.debug(
-                        f"{operation_name} completed in {elapsed_ms:.3f}ms"
+                        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
 
             return async_wrapper
@@ -159,8 +216,10 @@ def measure_latency(operation_name: str):
                             client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
 
                     # Log timing for debugging
+                    # Extract context (path/id) for better debugging (Issue #1007)
+                    context = _extract_context(args, kwargs, func)
                     logger.debug(
-                        f"{operation_name} completed in {elapsed_ms:.3f}ms"
+                        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
                     )
 
             return sync_wrapper
