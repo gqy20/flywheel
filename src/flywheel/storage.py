@@ -238,12 +238,48 @@ class IOMetrics:
         asyncio.run(_record_with_lock())
 
     def total_operation_count(self) -> int:
-        """Get total number of operations recorded."""
-        return len(self.operations)
+        """Get total number of operations recorded.
+
+        Fix for Issue #1101: This sync version creates a new event loop
+        to access the async version, ensuring lock safety.
+        """
+        # For sync contexts, use asyncio.run to access the async version
+        async def _get_count():
+            async with self._lock:
+                return len(self.operations)
+
+        return asyncio.run(_get_count())
+
+    async def total_operation_count_async(self) -> int:
+        """Get total number of operations recorded (async version).
+
+        Fix for Issue #1101: Async version that properly uses locks
+        to ensure thread-safe access to self.operations.
+        """
+        async with self._lock:
+            return len(self.operations)
 
     def total_duration(self) -> float:
-        """Get total duration of all operations in seconds."""
-        return sum(op['duration'] for op in self.operations)
+        """Get total duration of all operations in seconds.
+
+        Fix for Issue #1101: This sync version creates a new event loop
+        to access the async version, ensuring lock safety.
+        """
+        # For sync contexts, use asyncio.run to access the async version
+        async def _get_duration():
+            async with self._lock:
+                return sum(op['duration'] for op in self.operations)
+
+        return asyncio.run(_get_duration())
+
+    async def total_duration_async(self) -> float:
+        """Get total duration of all operations in seconds (async version).
+
+        Fix for Issue #1101: Async version that properly uses locks
+        to ensure thread-safe access to self.operations.
+        """
+        async with self._lock:
+            return sum(op['duration'] for op in self.operations)
 
     def log_summary(self):
         """Log a summary of metrics if FW_STORAGE_METRICS_LOG is enabled.
