@@ -45,6 +45,96 @@ class StorageTimeoutError(TimeoutError):
     pass
 
 
+class IOMetrics:
+    """Metrics tracker for I/O operations (Issue #1053).
+
+    This class tracks performance metrics for I/O operations including:
+    - Operation duration
+    - Retry count
+    - Error types
+    - Success/failure rates
+
+    Metrics can be logged via the FW_STORAGE_METRICS_LOG environment variable.
+    """
+
+    def __init__(self):
+        """Initialize an empty metrics tracker."""
+        self.operations = []
+
+    def record_operation(self, operation_type: str, duration: float,
+                        retries: int, success: bool, error_type: str = None):
+        """Record a single I/O operation.
+
+        Args:
+            operation_type: Type of operation (read/write/flush/etc.)
+            duration: Operation duration in seconds
+            retries: Number of retry attempts
+            success: Whether the operation succeeded
+            error_type: Type of error if operation failed (e.g., 'ENOENT')
+        """
+        self.operations.append({
+            'operation_type': operation_type,
+            'duration': duration,
+            'retries': retries,
+            'success': success,
+            'error_type': error_type
+        })
+
+    def total_operation_count(self) -> int:
+        """Get total number of operations recorded."""
+        return len(self.operations)
+
+    def total_duration(self) -> float:
+        """Get total duration of all operations in seconds."""
+        return sum(op['duration'] for op in self.operations)
+
+    def log_summary(self):
+        """Log a summary of metrics if FW_STORAGE_METRICS_LOG is enabled.
+
+        This method checks the FW_STORAGE_METRICS_LOG environment variable
+        and logs the metrics summary if it's set to '1'.
+        """
+        if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
+            return
+
+        if not self.operations:
+            logger.info("I/O Metrics: No operations recorded")
+            return
+
+        total_ops = len(self.operations)
+        total_dur = self.total_duration()
+        total_retries = sum(op['retries'] for op in self.operations)
+        successful_ops = sum(1 for op in self.operations if op['success'])
+        failed_ops = total_ops - successful_ops
+
+        # Group by operation type
+        by_type = {}
+        for op in self.operations:
+            op_type = op['operation_type']
+            if op_type not in by_type:
+                by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
+            by_type[op_type]['count'] += 1
+            by_type[op_type]['duration'] += op['duration']
+            by_type[op_type]['retries'] += op['retries']
+
+        logger.info(
+            f"I/O Metrics Summary: "
+            f"{total_ops} operations, "
+            f"{successful_ops} successful, "
+            f"{failed_ops} failed, "
+            f"{total_retries} retries, "
+            f"total duration: {total_dur:.3f}s"
+        )
+
+        for op_type, stats in sorted(by_type.items()):
+            avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+            logger.info(
+                f"  {op_type}: {stats['count']} ops, "
+                f"avg duration: {avg_duration:.3f}s, "
+                f"total retries: {stats['retries']}"
+            )
+
+
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
 if not HAS_AIOFILES:
     async def _retry_io_operation(
@@ -55,6 +145,7 @@ if not HAS_AIOFILES:
         timeout: float | None = 30.0,
         path: str | None = None,
         operation_type: str | None = None,
+        metrics: IOMetrics = None,
         **kwargs
     ):
         """Retry I/O operations on transient errors with exponential backoff.
@@ -71,6 +162,7 @@ if not HAS_AIOFILES:
                      Set to None to disable timeout. Fix for Issue #1043.
             path: File path for structured logging context (Issue #1042).
             operation_type: Operation type (read/write/flush/etc.) for logging context (Issue #1042).
+            metrics: IOMetrics instance to track performance metrics (Issue #1053).
             **kwargs: Keyword arguments to pass to the operation
 
         Returns:
@@ -95,6 +187,7 @@ if not HAS_AIOFILES:
         Fix for Issue #1043: Configurable timeout for I/O operations.
         Fix for Issue #1042: Structured logging context with path and operation type.
         Fix for Issue #1048: Bypass mode for testing/debugging (FW_STORAGE_BYPASS_RETRY env var).
+        Fix for Issue #1053: I/O operation metrics tracking via IOMetrics class.
         """
         # Create logger adapter with structured context (Issue #1042)
         # LoggerAdapter automatically adds extra dict to all log records
@@ -127,9 +220,40 @@ if not HAS_AIOFILES:
                 "Retry logic and timeout are disabled. Use only for debugging/testing."
             )
             # Execute operation directly without retry or timeout
-            return await asyncio.to_thread(operation, *args, **kwargs)
+            start_time = time.time()
+            try:
+                result = await asyncio.to_thread(operation, *args, **kwargs)
+                # Record metrics if provided
+                if metrics:
+                    duration = time.time() - start_time
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=0,
+                        success=True
+                    )
+                return result
+            except Exception as e:
+                # Record failed metrics
+                if metrics:
+                    duration = time.time() - start_time
+                    error_type = None
+                    if isinstance(e, IOError) and hasattr(e, 'errno'):
+                        error_type = errno.errorcode.get(e.errno, str(e.errno))
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=0,
+                        success=False,
+                        error_type=error_type
+                    )
+                raise
 
+        # Track start time and retry count for metrics (Issue #1053)
+        start_time = time.time()
+        actual_retries = 0
         last_error = None
+
         for attempt in range(max_attempts):
             try:
                 # Run the operation in a thread pool to avoid blocking
@@ -139,12 +263,40 @@ if not HAS_AIOFILES:
                         asyncio.to_thread(operation, *args, **kwargs),
                         timeout=timeout
                     )
+                    # Record successful metrics
+                    if metrics:
+                        duration = time.time() - start_time
+                        metrics.record_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=True
+                        )
                     return result
                 else:
                     result = await asyncio.to_thread(operation, *args, **kwargs)
+                    # Record successful metrics
+                    if metrics:
+                        duration = time.time() - start_time
+                        metrics.record_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=True
+                        )
                     return result
             except asyncio.TimeoutError:
                 # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
+                # Record timeout metrics
+                if metrics:
+                    duration = time.time() - start_time
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=actual_retries,
+                        success=False,
+                        error_type='TIMEOUT'
+                    )
                 raise StorageTimeoutError(
                     f"I/O operation timed out after {timeout}s"
                 )
@@ -158,12 +310,23 @@ if not HAS_AIOFILES:
                 )
 
                 if e.errno not in transient_errors:
-                    # Permanent error, don't retry
+                    # Permanent error, record metrics and raise without retry
+                    if metrics:
+                        duration = time.time() - start_time
+                        error_type = errno.errorcode.get(e.errno, str(e.errno))
+                        metrics.record_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=False,
+                            error_type=error_type
+                        )
                     raise
 
                 if attempt < max_attempts - 1:
                     # Calculate exponential backoff
                     backoff = initial_backoff * (2 ** attempt)
+                    actual_retries += 1
                     retry_logger.debug(
                         f"Transient I/O error (errno={e.errno}), "
                         f"retrying in {backoff:.1f}s "
@@ -171,7 +334,17 @@ if not HAS_AIOFILES:
                     )
                     await asyncio.sleep(backoff)
                 else:
-                    # Last attempt failed, raise the error
+                    # Last attempt failed, record metrics and raise the error
+                    if metrics:
+                        duration = time.time() - start_time
+                        error_type = errno.errorcode.get(e.errno, str(e.errno))
+                        metrics.record_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=False,
+                            error_type=error_type
+                        )
                     retry_logger.warning(
                         f"I/O operation failed after {max_attempts} attempts: {e}"
                     )
@@ -179,6 +352,19 @@ if not HAS_AIOFILES:
 
         # This should never be reached, but just in case
         if last_error:
+            # Record failed metrics as a fallback
+            if metrics:
+                duration = time.time() - start_time
+                error_type = None
+                if isinstance(last_error, IOError) and hasattr(last_error, 'errno'):
+                    error_type = errno.errorcode.get(last_error.errno, str(last_error.errno))
+                metrics.record_operation(
+                    operation_type or 'unknown',
+                    duration,
+                    retries=actual_retries,
+                    success=False,
+                    error_type=error_type
+                )
             raise last_error
 
     class _AsyncFileContextManager:
