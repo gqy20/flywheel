@@ -3,6 +3,7 @@
 import argparse
 import logging
 import re
+import shlex
 import string
 import sys
 import unicodedata
@@ -75,12 +76,10 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         '²³™'  # Preserved with NFC (general context)
         >>> sanitize_for_security_context("Progress: 50%", context="general")
         'Progress: 50%'  # Percent sign preserved in general context
-        >>> sanitize_for_security_context("Progress: 50%", context="shell")
-        'Progress: 50'  # Percent sign removed in shell context
+        >>> sanitize_for_security_context("file with spaces", context="shell")
+        "'file with spaces'"  # Properly quoted for shell usage (Issue #1114)
         >>> sanitize_for_security_context("Cost: $100 (discount)", context="general")
         'Cost: $100 (discount)'  # Shell metachars preserved in general context (Issue #1024)
-        >>> sanitize_for_security_context("Cost: $100 (discount)", context="shell")
-        'Cost: 100 discount'  # Shell metachars removed in shell context
 
     Related issues:
         #969 (fullwidth homograph attacks), #944 (NFC preservation),
@@ -91,7 +90,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1049 (normalization before truncation to prevent orphaned combining marks),
         #1054 (removed - encode-decode cycle replaced with direct slicing),
         #1089 (document security implications of format string chars in general context),
-        #1104 (truncate by characters not bytes to prevent multi-byte bypass)
+        #1104 (truncate by characters not bytes to prevent multi-byte bypass),
+        #1114 (use shlex.quote() for shell context instead of removing chars)
     """
     if not s:
         return ""
@@ -145,22 +145,21 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # any regex processing to prevent ReDoS attacks.
     s = CONTROL_CHARS_PATTERN.sub('', s)
 
-    # Remove shell metacharacters (especially important for shell context)
-    # SECURITY FIX (Issue #976): In general context, preserve backslashes for
-    # Windows paths and escape sequences. Only remove them in security contexts.
-    # SECURITY FIX (Issue #975): In general context, preserve curly braces for
-    # Python format() strings. Only remove them in security contexts.
-    # SECURITY FIX (Issue #974): In general context, preserve percent signs for
-    # format strings. Only remove them in security contexts.
-    # SECURITY FIX (Issue #1024): In general context, preserve shell metacharacters
-    # (; | & ` $ ( ) < >) as they are legitimate characters in user text, as
-    # documented in Issue #979. Only remove them in security contexts.
-    # SECURITY FIX (Issue #1044): Use whitelist approach instead of regex blacklist
-    # to completely eliminate ReDoS risk. This is safer than regex patterns which
-    # could potentially have catastrophic backtracking vulnerabilities. The whitelist
-    # approach uses Python's built-in string operations which are O(n) and have
-    # no backtracking risk.
-    if use_nfkc:
+    # SECURITY FIX (Issue #1114): For shell context, use shlex.quote() to properly
+    # escape the entire string instead of removing characters. Removing metacharacters
+    # creates a FALSE sense of security - it doesn't protect against all injection
+    # vectors (newlines, variable expansion, etc.) and mutates user data unnecessarily.
+    # shlex.quote() is the ONLY correct way to make a string safe for shell usage.
+    #
+    # For url and filename contexts, we still remove shell metacharacters as before
+    # since those contexts don't require shell quoting.
+    if context == "shell":
+        # Use shlex.quote() to properly escape the string for safe shell usage
+        # This adds quotes and escapes special characters as needed
+        # SECURITY: This must be done AFTER all other normalization (NFKC, control char removal, etc.)
+        # so that the quoting is applied to the final normalized string
+        return shlex.quote(s)
+    elif use_nfkc:  # url or filename context
         # Define characters to remove using a set for O(1) lookup
         # These are shell metacharacters that could cause injection attacks
         shell_dangerous_chars = {';', '|', '&', '`', '$', '(', ')', '<', '>', '{', '}', '\\', '%'}
