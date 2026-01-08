@@ -144,9 +144,11 @@ class IOMetrics:
         sync and async context managers.
         Fix for Issue #1109: Use threading.Lock for sync methods to work in async contexts.
         Fix for Issue #1116: Use _AsyncCompatibleLock for async-safe record_operation.
+        Fix for Issue #1124: Use pure asyncio.Lock to prevent event loop blocking
+        in async contexts. IOMetrics now uses async-only locking mechanism.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = _AsyncCompatibleLock()
+        self._lock = asyncio.Lock()
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):
@@ -201,6 +203,8 @@ class IOMetrics:
         in async contexts to avoid potential deadlocks.
         Fix for Issue #1121: Added async context detection to provide clear error
         message when called from async context.
+        Fix for Issue #1124: Uses asyncio.Lock in sync contexts via asyncio.run()
+        to ensure pure async locking mechanism without threading.Lock.
         """
         # Fix for Issue #1121: Detect if we're in an async context and provide
         # a clear error message directing users to use record_operation_async
@@ -224,9 +228,14 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        with self._lock:
-            # deque with maxlen automatically discards oldest when full (O(1))
-            self.operations.append(operation)
+        # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
+        # This ensures we use pure async locking without threading.Lock
+        async def _record_with_lock():
+            async with self._lock:
+                # deque with maxlen automatically discards oldest when full (O(1))
+                self.operations.append(operation)
+
+        asyncio.run(_record_with_lock())
 
     def total_operation_count(self) -> int:
         """Get total number of operations recorded."""
@@ -250,48 +259,54 @@ class IOMetrics:
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
+        Fix for Issue #1124: Uses asyncio.Lock via asyncio.run() to ensure pure
+        async locking mechanism without threading.Lock.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        with self._lock:
-            if not self.operations:
-                logger.info("I/O Metrics: No operations recorded")
-                return
+        # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
+        async def _log_with_lock():
+            async with self._lock:
+                if not self.operations:
+                    logger.info("I/O Metrics: No operations recorded")
+                    return
 
-            total_ops = len(self.operations)
-            total_dur = sum(op['duration'] for op in self.operations)
-            total_retries = sum(op['retries'] for op in self.operations)
-            successful_ops = sum(1 for op in self.operations if op['success'])
-            failed_ops = total_ops - successful_ops
+                total_ops = len(self.operations)
+                total_dur = sum(op['duration'] for op in self.operations)
+                total_retries = sum(op['retries'] for op in self.operations)
+                successful_ops = sum(1 for op in self.operations if op['success'])
+                failed_ops = total_ops - successful_ops
 
-            # Group by operation type
-            by_type = {}
-            for op in self.operations:
-                op_type = op['operation_type']
-                if op_type not in by_type:
-                    by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
-                by_type[op_type]['count'] += 1
-                by_type[op_type]['duration'] += op['duration']
-                by_type[op_type]['retries'] += op['retries']
+                # Group by operation type
+                by_type = {}
+                for op in self.operations:
+                    op_type = op['operation_type']
+                    if op_type not in by_type:
+                        by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
+                    by_type[op_type]['count'] += 1
+                    by_type[op_type]['duration'] += op['duration']
+                    by_type[op_type]['retries'] += op['retries']
 
-            # Log the summary while holding the lock to prevent race conditions
-            logger.info(
-                f"I/O Metrics Summary: "
-                f"{total_ops} operations, "
-                f"{successful_ops} successful, "
-                f"{failed_ops} failed, "
-                f"{total_retries} retries, "
-                f"total duration: {total_dur:.3f}s"
-            )
-
-            for op_type, stats in sorted(by_type.items()):
-                avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+                # Log the summary while holding the lock to prevent race conditions
                 logger.info(
-                    f"  {op_type}: {stats['count']} ops, "
-                    f"avg duration: {avg_duration:.3f}s, "
-                    f"total retries: {stats['retries']}"
+                    f"I/O Metrics Summary: "
+                    f"{total_ops} operations, "
+                    f"{successful_ops} successful, "
+                    f"{failed_ops} failed, "
+                    f"{total_retries} retries, "
+                    f"total duration: {total_dur:.3f}s"
                 )
+
+                for op_type, stats in sorted(by_type.items()):
+                    avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+                    logger.info(
+                        f"  {op_type}: {stats['count']} ops, "
+                        f"avg duration: {avg_duration:.3f}s, "
+                        f"total retries: {stats['retries']}"
+                    )
+
+        asyncio.run(_log_with_lock())
 
     def track_operation(self, operation_type: str, retries: int = 0):
         """Async context manager for tracking I/O operations (Issue #1063).
@@ -339,6 +354,8 @@ class IOMetrics:
         Fix for Issue #1097: Uses custom lock wrapper that supports both
         sync and async context managers.
         Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
+        Fix for Issue #1124: Uses asyncio.Lock via asyncio.run() to ensure pure
+        async locking mechanism without threading.Lock.
 
         Returns:
             A dictionary containing:
@@ -355,21 +372,24 @@ class IOMetrics:
             >>> data = metrics.export_to_dict()
             >>> json.dumps(data)  # Can be serialized to JSON
         """
-        with self._lock:
-            operations_list = list(self.operations)
-            successful_ops = sum(1 for op in operations_list if op['success'])
-            failed_ops = len(operations_list) - successful_ops
-            total_retries = sum(op['retries'] for op in operations_list)
-            total_dur = self.total_duration()
+        # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
+        async def _export_with_lock():
+            async with self._lock:
+                operations_list = list(self.operations)
+                successful_ops = sum(1 for op in operations_list if op['success'])
+                failed_ops = len(operations_list) - successful_ops
+                total_retries = sum(op['retries'] for op in operations_list)
+                total_dur = self.total_duration()
+            return {
+                'operations': operations_list,
+                'total_operation_count': len(operations_list),
+                'total_duration': total_dur,
+                'successful_operations': successful_ops,
+                'failed_operations': failed_ops,
+                'total_retries': total_retries
+            }
 
-        return {
-            'operations': operations_list,
-            'total_operation_count': len(operations_list),
-            'total_duration': total_dur,
-            'successful_operations': successful_ops,
-            'failed_operations': failed_ops,
-            'total_retries': total_retries
-        }
+        return asyncio.run(_export_with_lock())
 
     async def save_to_file(self, path: str | Path):
         """Save metrics to a JSON file (Issue #1068).
@@ -436,9 +456,15 @@ class IOMetrics:
             to prevent race conditions during concurrent access.
             Fix for Issue #1080: Uses asyncio.Lock for async context safety.
             Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
+            Fix for Issue #1124: Uses asyncio.Lock via asyncio.run() to ensure pure
+            async locking mechanism without threading.Lock.
         """
-        with self._lock:
-            self.operations.clear()
+        # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
+        async def _clear_with_lock():
+            async with self._lock:
+                self.operations.clear()
+
+        asyncio.run(_clear_with_lock())
 
 
 class _IOMetricsContextManager:
