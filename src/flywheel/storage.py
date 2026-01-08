@@ -16,7 +16,14 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
-import aiofiles
+# Import aiofiles with fallback for graceful degradation (Issue #1032)
+# If aiofiles is not available, we'll use asyncio.to_thread with built-in open
+try:
+    import aiofiles
+    HAS_AIOFILES = True
+except ImportError:
+    HAS_AIOFILES = False
+    aiofiles = None  # type: ignore
 
 from flywheel.todo import Todo
 
@@ -24,6 +31,64 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
+
+
+# Fallback async file operations for when aiofiles is not available (Issue #1032)
+if not HAS_AIOFILES:
+    class _AsyncFileContextManager:
+        """Async context manager for file operations without aiofiles."""
+
+        def __init__(self, path: str, mode: str):
+            self.path = path
+            self.mode = mode
+            self._file = None
+
+        async def __aenter__(self):
+            # Use asyncio.to_thread to run blocking I/O in a thread pool
+            self._file = await asyncio.to_thread(open, self.path, self.mode)
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            if self._file:
+                await asyncio.to_thread(self._file.close)
+
+        async def read(self) -> bytes:
+            """Read file content asynchronously."""
+            if self._file is None:
+                raise ValueError("File not opened")
+            return await asyncio.to_thread(self._file.read)
+
+        async def write(self, data: bytes) -> int:
+            """Write data to file asynchronously."""
+            if self._file is None:
+                raise ValueError("File not opened")
+            return await asyncio.to_thread(self._file.write, data)
+
+        async def flush(self):
+            """Flush file buffers asynchronously."""
+            if self._file is None:
+                raise ValueError("File not opened")
+            await asyncio.to_thread(self._file.flush)
+
+        def fileno(self) -> int:
+            """Get file descriptor number."""
+            if self._file is None:
+                raise ValueError("File not opened")
+            return self._file.fileno()
+
+    class _AiofilesFallback:
+        """Fallback module for aiofiles using asyncio.to_thread."""
+
+        @staticmethod
+        def open(path: str, mode: str = 'r') -> '_AsyncFileContextManager':
+            """Open a file asynchronously."""
+            return _AsyncFileContextManager(path, mode)
+
+    # Replace aiofiles with our fallback implementation
+    aiofiles = _AiofilesFallback()  # type: ignore
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 # Storage latency metrics support (Issue #1003)
@@ -4170,7 +4235,6 @@ class FileStorage(AbstractStorage):
         This async version uses aiofiles for non-blocking I/O operations,
         ensuring the event loop is not blocked during backup rotation.
         """
-        import aiofiles
         import shutil
 
         # First, delete the oldest backup if it exists
@@ -4746,7 +4810,6 @@ class FileStorage(AbstractStorage):
         race conditions where the file could change between reading and
         updating internal state.
         """
-        import aiofiles
         import time
         start_time = time.time()
         logger.debug(f"Loading todos from {self.path} (asynchronously)")
