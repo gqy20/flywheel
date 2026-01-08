@@ -196,12 +196,15 @@ class IOMetrics:
         """
         return _IOMetricsContextManager(self, operation_type, retries)
 
-    def export_to_dict(self) -> dict:
+    async def export_to_dict(self) -> dict:
         """Export metrics to a dictionary for serialization (Issue #1068).
 
         This method converts the metrics data into a dictionary format that
         can be easily serialized to JSON or other formats for persistence
         or external monitoring tools.
+
+        Fix for Issue #1087: Now an async method that uses async with
+        self._lock to avoid RuntimeError when using asyncio.Lock.
 
         Returns:
             A dictionary containing:
@@ -214,11 +217,11 @@ class IOMetrics:
 
         Example:
             >>> metrics = IOMetrics()
-            >>> metrics.record_operation('read', 0.5, 0, True)
-            >>> data = metrics.export_to_dict()
+            >>> await metrics.record_operation('read', 0.5, 0, True)
+            >>> data = await metrics.export_to_dict()
             >>> json.dumps(data)  # Can be serialized to JSON
         """
-        with self._lock:
+        async with self._lock:
             operations_list = list(self.operations)
 
         successful_ops = sum(1 for op in operations_list if op['success'])
@@ -259,7 +262,7 @@ class IOMetrics:
         if not isinstance(path, (str, Path)):
             raise TypeError(f"path must be str or Path, not {type(path).__name__}")
 
-        data = self.export_to_dict()
+        data = await self.export_to_dict()
 
         # Use asyncio.to_thread to run blocking I/O in a separate thread
         # This prevents blocking the event loop during file write operations

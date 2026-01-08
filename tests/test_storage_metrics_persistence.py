@@ -13,10 +13,11 @@ from flywheel.storage import IOMetrics
 class TestIOMetricsExport:
     """Test suite for IOMetrics export functionality."""
 
-    def test_export_to_dict_returns_empty_dict_for_new_metrics(self):
+    @pytest.mark.asyncio
+    async def test_export_to_dict_returns_empty_dict_for_new_metrics(self):
         """Test that export_to_dict returns empty dict for new IOMetrics instance."""
         metrics = IOMetrics()
-        result = metrics.export_to_dict()
+        result = await metrics.export_to_dict()
 
         assert isinstance(result, dict)
         assert result['operations'] == []
@@ -30,7 +31,7 @@ class TestIOMetricsExport:
         await metrics.record_operation('read', 0.5, 0, True)
         await metrics.record_operation('write', 1.2, 2, True)
 
-        result = metrics.export_to_dict()
+        result = await metrics.export_to_dict()
 
         assert len(result['operations']) == 2
         assert result['operations'][0]['operation_type'] == 'read'
@@ -46,7 +47,7 @@ class TestIOMetricsExport:
         await metrics.record_operation('write', 1.2, 2, True)
         await metrics.record_operation('read', 0.3, 0, False, 'ENOENT')
 
-        result = metrics.export_to_dict()
+        result = await metrics.export_to_dict()
 
         assert result['total_operation_count'] == 3
         assert result['total_duration'] == 2.0
@@ -64,7 +65,7 @@ class TestIOMetricsExport:
             temp_path = f.name
 
         try:
-            metrics.save_to_file(temp_path)
+            await metrics.save_to_file(temp_path)
 
             assert os.path.exists(temp_path)
 
@@ -95,7 +96,7 @@ class TestIOMetricsExport:
 
         # Save new metrics
         await metrics.record_operation('write', 1.0, 0, True)
-        metrics.save_to_file(temp_path)
+        await metrics.save_to_file(temp_path)
 
         # Verify new data
         with open(temp_path, 'r') as f:
@@ -126,7 +127,7 @@ class TestIOMetricsEnvironmentVariable:
             # Note: This would require actual atexit registration in implementation
 
             # For now, we'll test the save_to_file method directly
-            metrics.save_to_file(temp_path)
+            await metrics.save_to_file(temp_path)
 
             assert os.path.exists(temp_path)
 
