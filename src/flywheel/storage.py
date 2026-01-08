@@ -205,18 +205,27 @@ class IOMetrics:
         message when called from async context.
         Fix for Issue #1124: Uses asyncio.Lock in sync contexts via asyncio.run()
         to ensure pure async locking mechanism without threading.Lock.
+        Fix for Issue #1130: Fixed exception handling to properly detect running
+        event loop without catching the wrong RuntimeError.
         """
         # Fix for Issue #1121: Detect if we're in an async context and provide
         # a clear error message directing users to use record_operation_async
+        # Fix for Issue #1130: Properly detect running loop without catching
+        # the wrong RuntimeError exception
         try:
-            asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
             # If we get here, there's a running event loop
             raise RuntimeError(
                 "Cannot call synchronous record_operation() from an async context. "
                 "Use await record_operation_async() instead. "
                 "This prevents potential deadlocks when an event loop is running."
             )
-        except RuntimeError:
+        except RuntimeError as e:
+            # If the error message mentions "no running event loop", that's
+            # the expected case - we can proceed with sync version
+            # Any other RuntimeError (including our custom one) should be re-raised
+            if "no running event loop" not in str(e):
+                raise
             # No running event loop, safe to proceed with sync version
             pass
 
