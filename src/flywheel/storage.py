@@ -35,6 +35,83 @@ logger = logging.getLogger(__name__)
 
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
 if not HAS_AIOFILES:
+    async def _retry_io_operation(
+        operation: Callable,
+        *args,
+        max_attempts: int = 3,
+        initial_backoff: float = 0.1,
+        **kwargs
+    ):
+        """Retry I/O operations on transient errors with exponential backoff.
+
+        This helper function retries I/O operations that may fail due to transient
+        errors like network filesystem glitches (errno.EIO, errno.EAGAIN).
+
+        Args:
+            operation: The I/O operation to retry (callable)
+            *args: Positional arguments to pass to the operation
+            max_attempts: Maximum number of retry attempts (default: 3)
+            initial_backoff: Initial backoff time in seconds (default: 0.1)
+            **kwargs: Keyword arguments to pass to the operation
+
+        Returns:
+            The result of the operation
+
+        Raises:
+            IOError: If all retry attempts fail
+
+        Transient errors that trigger retry:
+        - errno.EIO: I/O error (common on network mounts)
+        - errno.EAGAIN: Resource temporarily unavailable
+        - errno.EBUSY: Device or resource busy
+
+        Permanent errors that don't trigger retry:
+        - errno.ENOENT: No such file or directory
+        - errno.EACCES: Permission denied
+        - errno.EISDIR: Is a directory
+        And other non-transient errors
+
+        Fix for Issue #1038: Automatic retry logic for transient I/O errors.
+        """
+        last_error = None
+        for attempt in range(max_attempts):
+            try:
+                # Run the operation in a thread pool to avoid blocking
+                result = await asyncio.to_thread(operation, *args, **kwargs)
+                return result
+            except IOError as e:
+                last_error = e
+                # Check if this is a transient error that should be retried
+                transient_errors = (
+                    errno.EIO,      # I/O error (common on network mounts)
+                    errno.EAGAIN,   # Resource temporarily unavailable
+                    errno.EBUSY,    # Device or resource busy
+                )
+
+                if e.errno not in transient_errors:
+                    # Permanent error, don't retry
+                    raise
+
+                if attempt < max_attempts - 1:
+                    # Calculate exponential backoff
+                    backoff = initial_backoff * (2 ** attempt)
+                    logger.debug(
+                        f"Transient I/O error (errno={e.errno}), "
+                        f"retrying in {backoff:.1f}s "
+                        f"(attempt {attempt + 1}/{max_attempts})"
+                    )
+                    await asyncio.sleep(backoff)
+                else:
+                    # Last attempt failed, raise the error
+                    logger.warning(
+                        f"I/O operation failed after {max_attempts} attempts: {e}"
+                    )
+                    raise
+
+        # This should never be reached, but just in case
+        if last_error:
+            raise last_error
+
     class _AsyncFileContextManager:
         """Async context manager for file operations without aiofiles."""
 
@@ -47,36 +124,46 @@ if not HAS_AIOFILES:
 
         async def __aenter__(self):
             # Use asyncio.to_thread to run blocking I/O in a thread pool
-            self._file = await asyncio.to_thread(open, self.path, self.mode)
+            # with retry logic for transient errors (Issue #1038)
+            self._file = await _retry_io_operation(open, self.path, self.mode)
             return self
 
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             if self._file:
+                # Close operation typically doesn't need retry,
+                # but we use to_thread for non-blocking behavior
                 await asyncio.to_thread(self._file.close)
 
         async def read(self) -> str | bytes:
-            """Read file content asynchronously.
+            """Read file content asynchronously with retry logic.
 
             Returns str in text mode, bytes in binary mode (Issue #1036).
+
+            Retries on transient I/O errors (Issue #1038).
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await asyncio.to_thread(self._file.read)
+            return await _retry_io_operation(self._file.read)
 
         async def write(self, data: str | bytes) -> int:
-            """Write data to file asynchronously.
+            """Write data to file asynchronously with retry logic.
 
             Accepts str in text mode, bytes in binary mode (Issue #1036).
+
+            Retries on transient I/O errors (Issue #1038).
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await asyncio.to_thread(self._file.write, data)
+            return await _retry_io_operation(self._file.write, data)
 
         async def flush(self):
-            """Flush file buffers asynchronously."""
+            """Flush file buffers asynchronously with retry logic.
+
+            Retries on transient I/O errors (Issue #1038).
+            """
             if self._file is None:
                 raise ValueError("File not opened")
-            await asyncio.to_thread(self._file.flush)
+            return await _retry_io_operation(self._file.flush)
 
         def fileno(self) -> int:
             """Get file descriptor number."""
