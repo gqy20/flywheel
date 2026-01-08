@@ -142,9 +142,10 @@ class IOMetrics:
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         Fix for Issue #1097: Use custom lock wrapper that supports both
         sync and async context managers.
+        Fix for Issue #1109: Use threading.Lock for sync methods to work in async contexts.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = _AsyncCompatibleLock()
+        self._lock = threading.Lock()
 
     def record_operation(self, operation_type: str, duration: float,
                          retries: int, success: bool, error_type: str = None):
@@ -165,6 +166,7 @@ class IOMetrics:
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         Fix for Issue #1106: Changed to sync method since it's a simple dict append.
+        Fix for Issue #1109: Uses threading.Lock to work correctly in async contexts.
         """
         operation = {
             'operation_type': operation_type,
