@@ -13,6 +13,7 @@ import logging
 import os
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -64,8 +65,12 @@ class IOMetrics:
     MAX_OPERATIONS = 1000
 
     def __init__(self):
-        """Initialize an empty metrics tracker with circular buffer."""
-        self.operations = []
+        """Initialize an empty metrics tracker with circular buffer.
+
+        Fix for Issue #1065: Use deque with maxlen for O(1) circular buffer
+        performance instead of list with O(N) pop(0).
+        """
+        self.operations = deque(maxlen=self.MAX_OPERATIONS)
         self._lock = threading.Lock()
 
     def record_operation(self, operation_type: str, duration: float,
@@ -81,6 +86,7 @@ class IOMetrics:
 
         Fix for Issue #1061: Implements circular buffer by removing oldest
         operation when buffer is full.
+        Fix for Issue #1065: Uses deque with maxlen for O(1) performance.
         Fix for Issue #1066: Thread-safe operations using lock.
         """
         operation = {
@@ -92,11 +98,8 @@ class IOMetrics:
         }
 
         with self._lock:
+            # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
-
-            # Implement circular buffer: remove oldest operation if buffer is full
-            if len(self.operations) > self.MAX_OPERATIONS:
-                self.operations.pop(0)
 
     def total_operation_count(self) -> int:
         """Get total number of operations recorded."""
