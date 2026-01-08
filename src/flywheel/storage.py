@@ -189,6 +189,71 @@ class IOMetrics:
         """
         return _IOMetricsContextManager(self, operation_type, retries)
 
+    def export_to_dict(self) -> dict:
+        """Export metrics to a dictionary for serialization (Issue #1068).
+
+        This method converts the metrics data into a dictionary format that
+        can be easily serialized to JSON or other formats for persistence
+        or external monitoring tools.
+
+        Returns:
+            A dictionary containing:
+            - operations: List of all recorded operations
+            - total_operation_count: Total number of operations
+            - total_duration: Total duration of all operations in seconds
+            - successful_operations: Number of successful operations
+            - failed_operations: Number of failed operations
+            - total_retries: Total number of retry attempts
+
+        Example:
+            >>> metrics = IOMetrics()
+            >>> metrics.record_operation('read', 0.5, 0, True)
+            >>> data = metrics.export_to_dict()
+            >>> json.dumps(data)  # Can be serialized to JSON
+        """
+        with self._lock:
+            operations_list = list(self.operations)
+
+        successful_ops = sum(1 for op in operations_list if op['success'])
+        failed_ops = len(operations_list) - successful_ops
+        total_retries = sum(op['retries'] for op in operations_list)
+
+        return {
+            'operations': operations_list,
+            'total_operation_count': len(operations_list),
+            'total_duration': self.total_duration(),
+            'successful_operations': successful_ops,
+            'failed_operations': failed_ops,
+            'total_retries': total_retries
+        }
+
+    def save_to_file(self, path: str | Path):
+        """Save metrics to a JSON file (Issue #1068).
+
+        This method serializes the metrics data and saves it to a file
+        in JSON format. The file can be used for persistence or integration
+        with external monitoring tools like Prometheus/Grafana.
+
+        Args:
+            path: Path to the file where metrics will be saved
+
+        Raises:
+            IOError: If the file cannot be written
+            TypeError: If path is not a string or Path object
+
+        Example:
+            >>> metrics = IOMetrics()
+            >>> metrics.record_operation('read', 0.5, 0, True)
+            >>> metrics.save_to_file('/tmp/metrics.json')
+        """
+        if not isinstance(path, (str, Path)):
+            raise TypeError(f"path must be str or Path, not {type(path).__name__}")
+
+        data = self.export_to_dict()
+
+        with open(path, 'w') as f:
+            json.dump(data, f, indent=2)
+
 
 class _IOMetricsContextManager:
     """Async context manager for tracking I/O operations (Issue #1063)."""
@@ -7278,3 +7343,44 @@ class FileStorage(AbstractStorage):
 # Backward compatibility alias (issue #568)
 # Storage is now an alias to FileStorage to maintain backward compatibility
 Storage = FileStorage
+
+# Global IOMetrics instance for module-level tracking (Issue #1068)
+_global_io_metrics: IOMetrics | None = None
+
+
+def _get_global_metrics() -> IOMetrics:
+    """Get or create the global IOMetrics instance (Issue #1068).
+
+    This function provides a singleton IOMetrics instance that can be used
+    throughout the module for tracking I/O operations. It also registers
+    an atexit handler to automatically dump metrics to a file if the
+    FW_STORAGE_METRICS_FILE environment variable is set.
+
+    Returns:
+        The global IOMetrics instance
+
+    Example:
+        >>> metrics = _get_global_metrics()
+        >>> metrics.record_operation('read', 0.5, 0, True)
+        >>> # On exit, metrics will be automatically saved if FW_STORAGE_METRICS_FILE is set
+    """
+    global _global_io_metrics
+
+    if _global_io_metrics is None:
+        _global_io_metrics = IOMetrics()
+
+        # Register atexit handler to dump metrics if FW_STORAGE_METRICS_FILE is set
+        metrics_file = os.environ.get('FW_STORAGE_METRICS_FILE')
+        if metrics_file:
+            def _dump_metrics_on_exit():
+                """Dump metrics to file on program exit (Issue #1068)."""
+                if _global_io_metrics:
+                    try:
+                        _global_io_metrics.save_to_file(metrics_file)
+                        logger.info(f"I/O metrics saved to {metrics_file}")
+                    except Exception as e:
+                        logger.error(f"Failed to save I/O metrics to {metrics_file}: {e}")
+
+            atexit.register(_dump_metrics_on_exit)
+
+    return _global_io_metrics
