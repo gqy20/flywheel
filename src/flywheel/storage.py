@@ -222,7 +222,14 @@ if not HAS_AIOFILES:
             # Execute operation directly without retry or timeout
             start_time = time.time()
             try:
-                result = await asyncio.to_thread(operation, *args, **kwargs)
+                # Issue #1056: Handle both sync and async operations correctly
+                # Check if operation is a coroutine function
+                if inspect.iscoroutinefunction(operation):
+                    # Async function: await directly
+                    result = await operation(*args, **kwargs)
+                else:
+                    # Sync function: run in thread pool to avoid blocking
+                    result = await asyncio.to_thread(operation, *args, **kwargs)
                 # Record metrics if provided
                 if metrics:
                     duration = time.time() - start_time
@@ -258,11 +265,20 @@ if not HAS_AIOFILES:
             try:
                 # Run the operation in a thread pool to avoid blocking
                 # Wrap with timeout if specified (Issue #1043)
+                # Issue #1056: Handle both sync and async operations correctly
                 if timeout is not None:
-                    result = await asyncio.wait_for(
-                        asyncio.to_thread(operation, *args, **kwargs),
-                        timeout=timeout
-                    )
+                    if inspect.iscoroutinefunction(operation):
+                        # Async function: await with timeout
+                        result = await asyncio.wait_for(
+                            operation(*args, **kwargs),
+                            timeout=timeout
+                        )
+                    else:
+                        # Sync function: run in thread pool with timeout
+                        result = await asyncio.wait_for(
+                            asyncio.to_thread(operation, *args, **kwargs),
+                            timeout=timeout
+                        )
                     # Record successful metrics
                     if metrics:
                         duration = time.time() - start_time
@@ -274,7 +290,13 @@ if not HAS_AIOFILES:
                         )
                     return result
                 else:
-                    result = await asyncio.to_thread(operation, *args, **kwargs)
+                    # Issue #1056: Handle both sync and async operations correctly
+                    if inspect.iscoroutinefunction(operation):
+                        # Async function: await directly
+                        result = await operation(*args, **kwargs)
+                    else:
+                        # Sync function: run in thread pool to avoid blocking
+                        result = await asyncio.to_thread(operation, *args, **kwargs)
                     # Record successful metrics
                     if metrics:
                         duration = time.time() - start_time
