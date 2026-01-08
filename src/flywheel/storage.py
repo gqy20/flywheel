@@ -33,6 +33,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class StorageTimeoutError(TimeoutError):
+    """Exception raised when I/O operation times out.
+
+    This exception is raised when an I/O operation takes longer than the
+    configured timeout to complete. It is distinct from regular IOError to
+    allow for different handling strategies.
+
+    Fix for Issue #1043: Configurable timeout for I/O retries.
+    """
+    pass
+
+
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
 if not HAS_AIOFILES:
     async def _retry_io_operation(
@@ -40,6 +52,7 @@ if not HAS_AIOFILES:
         *args,
         max_attempts: int = 3,
         initial_backoff: float = 0.1,
+        timeout: float | None = 30.0,
         **kwargs
     ):
         """Retry I/O operations on transient errors with exponential backoff.
@@ -52,6 +65,8 @@ if not HAS_AIOFILES:
             *args: Positional arguments to pass to the operation
             max_attempts: Maximum number of retry attempts (default: 3)
             initial_backoff: Initial backoff time in seconds (default: 0.1)
+            timeout: Maximum time in seconds for each operation attempt (default: 30.0).
+                     Set to None to disable timeout. Fix for Issue #1043.
             **kwargs: Keyword arguments to pass to the operation
 
         Returns:
@@ -59,6 +74,7 @@ if not HAS_AIOFILES:
 
         Raises:
             IOError: If all retry attempts fail
+            StorageTimeoutError: If an operation times out (Issue #1043)
 
         Transient errors that trigger retry:
         - errno.EIO: I/O error (common on network mounts)
@@ -72,13 +88,31 @@ if not HAS_AIOFILES:
         And other non-transient errors
 
         Fix for Issue #1038: Automatic retry logic for transient I/O errors.
+        Fix for Issue #1043: Configurable timeout for I/O operations.
         """
         last_error = None
         for attempt in range(max_attempts):
             try:
                 # Run the operation in a thread pool to avoid blocking
-                result = await asyncio.to_thread(operation, *args, **kwargs)
-                return result
+                # Wrap with timeout if specified (Issue #1043)
+                if timeout is not None:
+                    try:
+                        result = await asyncio.wait_for(
+                            asyncio.to_thread(operation, *args, **kwargs),
+                            timeout=timeout
+                        )
+                        return result
+                    except asyncio.TimeoutError:
+                        # Re-raise as StorageTimeoutError for distinction (Issue #1043)
+                        raise
+                else:
+                    result = await asyncio.to_thread(operation, *args, **kwargs)
+                    return result
+            except asyncio.TimeoutError:
+                # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043)
+                raise StorageTimeoutError(
+                    f"I/O operation timed out after {timeout}s"
+                )
             except IOError as e:
                 last_error = e
                 # Check if this is a transient error that should be retried
