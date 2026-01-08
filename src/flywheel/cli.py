@@ -43,8 +43,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     CRITICAL: Strings sanitized with 'general' context preserve format string characters
     ({, }, %, \) and should NEVER be used directly in format strings (f-strings, .format(),
     or % formatting). Doing so would make your code vulnerable to format string injection
-    attacks. Always use 'shell', 'url', or 'filename' context for strings that will be
-    used in dynamic formatting or shell operations.
+    attacks. Always use 'format', 'shell', 'url', or 'filename' context for strings that
+    will be used in dynamic formatting or shell operations.
 
     What NFKC converts (preventing homograph attacks):
     - Fullwidth characters: ｅ → e, Ｔ → T, ． → .
@@ -53,8 +53,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
 
     Args:
         s: String to normalize
-        context: Usage context - "url", "filename", "shell", or "general"
-                 Security contexts ("url", "filename", "shell") use NFKC
+        context: Usage context - "url", "filename", "shell", "format", or "general"
+                 Security contexts ("url", "filename", "shell", "format") use NFKC
                  General context uses NFC (preserves special characters)
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
 
@@ -80,6 +80,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         "'file with spaces'"  # Properly quoted for shell usage (Issue #1114)
         >>> sanitize_for_security_context("Cost: $100 (discount)", context="general")
         'Cost: $100 (discount)'  # Shell metachars preserved in general context (Issue #1024)
+        >>> sanitize_for_security_context("Use {var} for 100%", context="format")
+        'Use {{var}} for 100%%'  # Format chars escaped for safe f-string usage (Issue #1119)
 
     Related issues:
         #969 (fullwidth homograph attacks), #944 (NFC preservation),
@@ -91,7 +93,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1054 (removed - encode-decode cycle replaced with direct slicing),
         #1089 (document security implications of format string chars in general context),
         #1104 (truncate by characters not bytes to prevent multi-byte bypass),
-        #1114 (use shlex.quote() for shell context instead of removing chars)
+        #1114 (use shlex.quote() for shell context instead of removing chars),
+        #1119 (add 'format' context that escapes format string chars for safe usage)
     """
     if not s:
         return ""
@@ -113,7 +116,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # orphaned combining marks and ensures safer truncation behavior.
     # Normalization is fast and safe even for long strings, so doing it before
     # the length check doesn't introduce DoS risk.
-    security_contexts = {"url", "filename", "shell"}
+    security_contexts = {"url", "filename", "shell", "format"}
     use_nfkc = context in security_contexts
 
     if use_nfkc:
@@ -153,12 +156,31 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     #
     # For url and filename contexts, we still remove shell metacharacters as before
     # since those contexts don't require shell quoting.
+    #
+    # SECURITY FIX (Issue #1119): For format context, escape format string characters
+    # (braces, percent signs, backslashes) to make the string safe for use in
+    # f-strings, .format(), and % formatting. This prevents format string injection
+    # attacks while preserving the visual content of the string.
     if context == "shell":
         # Use shlex.quote() to properly escape the string for safe shell usage
         # This adds quotes and escapes special characters as needed
         # SECURITY: This must be done AFTER all other normalization (NFKC, control char removal, etc.)
         # so that the quoting is applied to the final normalized string
         return shlex.quote(s)
+    elif context == "format":
+        # SECURITY FIX (Issue #1119): Escape format string characters to prevent
+        # format string injection attacks. This makes the string safe for use in:
+        # - f-strings: f"User: {sanitized}" - the doubled braces become literal
+        # - .format(): "Data: {}".format(sanitized) - the doubled braces are literal
+        # - % formatting: "Progress: %s" % sanitized - the doubled % becomes literal %
+        #
+        # Escape sequence: { → {{, } → }}, % → %%, \ → \\
+        # This must be done AFTER all other normalization (NFKC, control char removal, etc.)
+        s = s.replace('\\', '\\\\')  # Must be first to avoid double-escaping
+        s = s.replace('{', '{{')
+        s = s.replace('}', '}}')
+        s = s.replace('%', '%%')
+        return s
     elif use_nfkc:  # url or filename context
         # Define characters to remove using a set for O(1) lookup
         # These are shell metacharacters that could cause injection attacks
