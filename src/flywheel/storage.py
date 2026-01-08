@@ -235,260 +235,264 @@ class _IOMetricsContextManager:
         return False
 
 
-# Fallback async file operations for when aiofiles is not available (Issue #1032)
-if not HAS_AIOFILES:
-    async def _retry_io_operation(
-        operation: Callable,
-        *args,
-        max_attempts: int = 3,
-        initial_backoff: float = 0.1,
-        timeout: float | None = 30.0,
-        path: str | None = None,
-        operation_type: str | None = None,
-        metrics: IOMetrics = None,
-        **kwargs
-    ):
-        """Retry I/O operations on transient errors with exponential backoff.
+# Retry I/O operations on transient errors with exponential backoff (Issue #1038, #1043, #1042, #1048, #1053)
+# This function is always available regardless of whether aiofiles is installed (Issue #1064)
+async def _retry_io_operation(
+    operation: Callable,
+    *args,
+    max_attempts: int = 3,
+    initial_backoff: float = 0.1,
+    timeout: float | None = 30.0,
+    path: str | None = None,
+    operation_type: str | None = None,
+    metrics: IOMetrics = None,
+    **kwargs
+):
+    """Retry I/O operations on transient errors with exponential backoff.
 
-        This helper function retries I/O operations that may fail due to transient
-        errors like network filesystem glitches (errno.EIO, errno.EAGAIN).
+    This helper function retries I/O operations that may fail due to transient
+    errors like network filesystem glitches (errno.EIO, errno.EAGAIN).
 
-        Args:
-            operation: The I/O operation to retry (callable)
-            *args: Positional arguments to pass to the operation
-            max_attempts: Maximum number of retry attempts (default: 3)
-            initial_backoff: Initial backoff time in seconds (default: 0.1)
-            timeout: Maximum time in seconds for each operation attempt (default: 30.0).
-                     Set to None to disable timeout. Fix for Issue #1043.
-            path: File path for structured logging context (Issue #1042).
-            operation_type: Operation type (read/write/flush/etc.) for logging context (Issue #1042).
-            metrics: IOMetrics instance to track performance metrics (Issue #1053).
-            **kwargs: Keyword arguments to pass to the operation
+    Args:
+        operation: The I/O operation to retry (callable)
+        *args: Positional arguments to pass to the operation
+        max_attempts: Maximum number of retry attempts (default: 3)
+        initial_backoff: Initial backoff time in seconds (default: 0.1)
+        timeout: Maximum time in seconds for each operation attempt (default: 30.0).
+                 Set to None to disable timeout. Fix for Issue #1043.
+        path: File path for structured logging context (Issue #1042).
+        operation_type: Operation type (read/write/flush/etc.) for logging context (Issue #1042).
+        metrics: IOMetrics instance to track performance metrics (Issue #1053).
+        **kwargs: Keyword arguments to pass to the operation
 
-        Returns:
-            The result of the operation
+    Returns:
+        The result of the operation
 
-        Raises:
-            IOError: If all retry attempts fail
-            StorageTimeoutError: If an operation times out (Issue #1043)
+    Raises:
+        IOError: If all retry attempts fail
+        StorageTimeoutError: If an operation times out (Issue #1043)
 
-        Transient errors that trigger retry:
-        - errno.EIO: I/O error (common on network mounts)
-        - errno.EAGAIN: Resource temporarily unavailable
-        - errno.EBUSY: Device or resource busy
+    Transient errors that trigger retry:
+    - errno.EIO: I/O error (common on network mounts)
+    - errno.EAGAIN: Resource temporarily unavailable
+    - errno.EBUSY: Device or resource busy
 
-        Permanent errors that don't trigger retry:
-        - errno.ENOENT: No such file or directory
-        - errno.EACCES: Permission denied
-        - errno.EISDIR: Is a directory
-        And other non-transient errors
+    Permanent errors that don't trigger retry:
+    - errno.ENOENT: No such file or directory
+    - errno.EACCES: Permission denied
+    - errno.EISDIR: Is a directory
+    And other non-transient errors
 
-        Fix for Issue #1038: Automatic retry logic for transient I/O errors.
-        Fix for Issue #1043: Configurable timeout for I/O operations.
-        Fix for Issue #1042: Structured logging context with path and operation type.
-        Fix for Issue #1048: Bypass mode for testing/debugging (FW_STORAGE_BYPASS_RETRY env var).
-        Fix for Issue #1053: I/O operation metrics tracking via IOMetrics class.
-        """
-        # Create logger adapter with structured context (Issue #1042)
-        # LoggerAdapter automatically adds extra dict to all log records
-        extra_context = {}
-        if path is not None:
-            extra_context['path'] = str(path)
-        if operation_type is not None:
-            extra_context['operation'] = operation_type
+    Fix for Issue #1038: Automatic retry logic for transient I/O errors.
+    Fix for Issue #1043: Configurable timeout for I/O operations.
+    Fix for Issue #1042: Structured logging context with path and operation type.
+    Fix for Issue #1048: Bypass mode for testing/debugging (FW_STORAGE_BYPASS_RETRY env var).
+    Fix for Issue #1053: I/O operation metrics tracking via IOMetrics class.
+    Fix for Issue #1064: Function is always available, not just when aiofiles is missing.
+    """
+    # Create logger adapter with structured context (Issue #1042)
+    # LoggerAdapter automatically adds extra dict to all log records
+    extra_context = {}
+    if path is not None:
+        extra_context['path'] = str(path)
+    if operation_type is not None:
+        extra_context['operation'] = operation_type
 
-        # Create a logger adapter to add context to all log messages
-        if extra_context:
-            class ContextualLoggerAdapter(logging.LoggerAdapter):
-                """Logger adapter that adds extra context as record attributes."""
-                def process(self, msg, kwargs):
-                    # Add extra context to kwargs, which adds them to the LogRecord
-                    if 'extra' not in kwargs:
-                        kwargs['extra'] = {}
-                    kwargs['extra'].update(self.extra)
-                    return msg, kwargs
+    # Create a logger adapter to add context to all log messages
+    if extra_context:
+        class ContextualLoggerAdapter(logging.LoggerAdapter):
+            """Logger adapter that adds extra context as record attributes."""
+            def process(self, msg, kwargs):
+                # Add extra context to kwargs, which adds them to the LogRecord
+                if 'extra' not in kwargs:
+                    kwargs['extra'] = {}
+                kwargs['extra'].update(self.extra)
+                return msg, kwargs
 
-            retry_logger = ContextualLoggerAdapter(logger, extra_context)
-        else:
-            retry_logger = logger
+        retry_logger = ContextualLoggerAdapter(logger, extra_context)
+    else:
+        retry_logger = logger
 
-        # Check for bypass mode (Issue #1048)
-        # When enabled, skip retry logic and timeout for debugging/testing
-        if os.environ.get('FW_STORAGE_BYPASS_RETRY') == '1':
-            retry_logger.warning(
-                "I/O bypass mode enabled via FW_STORAGE_BYPASS_RETRY=1. "
-                "Retry logic and timeout are disabled. Use only for debugging/testing."
-            )
-            # Execute operation directly without retry or timeout
-            start_time = time.time()
-            try:
-                # Issue #1056: Handle both sync and async operations correctly
-                # Check if operation is a coroutine function
-                if inspect.iscoroutinefunction(operation):
-                    # Async function: await directly
-                    result = await operation(*args, **kwargs)
-                else:
-                    # Sync function: run in thread pool to avoid blocking
-                    result = await asyncio.to_thread(operation, *args, **kwargs)
-                # Record metrics if provided
-                if metrics:
-                    duration = time.time() - start_time
-                    metrics.record_operation(
-                        operation_type or 'unknown',
-                        duration,
-                        retries=0,
-                        success=True
-                    )
-                return result
-            except Exception as e:
-                # Record failed metrics
-                if metrics:
-                    duration = time.time() - start_time
-                    error_type = None
-                    if isinstance(e, IOError) and hasattr(e, 'errno'):
-                        error_type = errno.errorcode.get(e.errno, str(e.errno))
-                    metrics.record_operation(
-                        operation_type or 'unknown',
-                        duration,
-                        retries=0,
-                        success=False,
-                        error_type=error_type
-                    )
-                raise
-
-        # Track start time and retry count for metrics (Issue #1053)
+    # Check for bypass mode (Issue #1048)
+    # When enabled, skip retry logic and timeout for debugging/testing
+    if os.environ.get('FW_STORAGE_BYPASS_RETRY') == '1':
+        retry_logger.warning(
+            "I/O bypass mode enabled via FW_STORAGE_BYPASS_RETRY=1. "
+            "Retry logic and timeout are disabled. Use only for debugging/testing."
+        )
+        # Execute operation directly without retry or timeout
         start_time = time.time()
-        actual_retries = 0
-        last_error = None
+        try:
+            # Issue #1056: Handle both sync and async operations correctly
+            # Check if operation is a coroutine function
+            if inspect.iscoroutinefunction(operation):
+                # Async function: await directly
+                result = await operation(*args, **kwargs)
+            else:
+                # Sync function: run in thread pool to avoid blocking
+                result = await asyncio.to_thread(operation, *args, **kwargs)
+            # Record metrics if provided
+            if metrics:
+                duration = time.time() - start_time
+                metrics.record_operation(
+                    operation_type or 'unknown',
+                    duration,
+                    retries=0,
+                    success=True
+                )
+            return result
+        except Exception as e:
+            # Record failed metrics
+            if metrics:
+                duration = time.time() - start_time
+                error_type = None
+                if isinstance(e, IOError) and hasattr(e, 'errno'):
+                    error_type = errno.errorcode.get(e.errno, str(e.errno))
+                metrics.record_operation(
+                    operation_type or 'unknown',
+                    duration,
+                    retries=0,
+                    success=False,
+                    error_type=error_type
+                )
+            raise
 
-        for attempt in range(max_attempts):
-            try:
-                # Run the operation in a thread pool to avoid blocking
-                # Wrap with timeout if specified (Issue #1043)
-                # Issue #1056: Handle both sync and async operations correctly
-                if timeout is not None:
-                    if inspect.iscoroutinefunction(operation):
-                        # Async function: await with timeout
-                        result = await asyncio.wait_for(
-                            operation(*args, **kwargs),
-                            timeout=timeout
-                        )
-                    else:
-                        # Sync function: run in thread pool with timeout
-                        result = await asyncio.wait_for(
-                            asyncio.to_thread(operation, *args, **kwargs),
-                            timeout=timeout
-                        )
-                    # Record successful metrics
-                    if metrics:
-                        duration = time.time() - start_time
-                        metrics.record_operation(
-                            operation_type or 'unknown',
-                            duration,
-                            retries=actual_retries,
-                            success=True
-                        )
-                    return result
+    # Track start time and retry count for metrics (Issue #1053)
+    start_time = time.time()
+    actual_retries = 0
+    last_error = None
+
+    for attempt in range(max_attempts):
+        try:
+            # Run the operation in a thread pool to avoid blocking
+            # Wrap with timeout if specified (Issue #1043)
+            # Issue #1056: Handle both sync and async operations correctly
+            if timeout is not None:
+                if inspect.iscoroutinefunction(operation):
+                    # Async function: await with timeout
+                    result = await asyncio.wait_for(
+                        operation(*args, **kwargs),
+                        timeout=timeout
+                    )
                 else:
-                    # Issue #1056: Handle both sync and async operations correctly
-                    if inspect.iscoroutinefunction(operation):
-                        # Async function: await directly
-                        result = await operation(*args, **kwargs)
-                    else:
-                        # Sync function: run in thread pool to avoid blocking
-                        result = await asyncio.to_thread(operation, *args, **kwargs)
-                    # Record successful metrics
-                    if metrics:
-                        duration = time.time() - start_time
-                        metrics.record_operation(
-                            operation_type or 'unknown',
-                            duration,
-                            retries=actual_retries,
-                            success=True
-                        )
-                    return result
-            except asyncio.TimeoutError:
-                # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
-                # Record timeout metrics
+                    # Sync function: run in thread pool with timeout
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(operation, *args, **kwargs),
+                        timeout=timeout
+                    )
+                # Record successful metrics
                 if metrics:
                     duration = time.time() - start_time
                     metrics.record_operation(
                         operation_type or 'unknown',
                         duration,
                         retries=actual_retries,
-                        success=False,
-                        error_type='TIMEOUT'
+                        success=True
                     )
-                raise StorageTimeoutError(
-                    f"I/O operation timed out after {timeout}s"
-                )
-            except IOError as e:
-                last_error = e
-                # Check if this is a transient error that should be retried
-                transient_errors = (
-                    errno.EIO,      # I/O error (common on network mounts)
-                    errno.EAGAIN,   # Resource temporarily unavailable
-                    errno.EBUSY,    # Device or resource busy
-                )
-
-                if e.errno not in transient_errors:
-                    # Permanent error, record metrics and raise without retry
-                    if metrics:
-                        duration = time.time() - start_time
-                        error_type = errno.errorcode.get(e.errno, str(e.errno))
-                        metrics.record_operation(
-                            operation_type or 'unknown',
-                            duration,
-                            retries=actual_retries,
-                            success=False,
-                            error_type=error_type
-                        )
-                    raise
-
-                if attempt < max_attempts - 1:
-                    # Calculate exponential backoff
-                    backoff = initial_backoff * (2 ** attempt)
-                    actual_retries += 1
-                    retry_logger.debug(
-                        f"Transient I/O error (errno={e.errno}), "
-                        f"retrying in {backoff:.1f}s "
-                        f"(attempt {attempt + 1}/{max_attempts})"
-                    )
-                    await asyncio.sleep(backoff)
+                return result
+            else:
+                # Issue #1056: Handle both sync and async operations correctly
+                if inspect.iscoroutinefunction(operation):
+                    # Async function: await directly
+                    result = await operation(*args, **kwargs)
                 else:
-                    # Last attempt failed, record metrics and raise the error
-                    if metrics:
-                        duration = time.time() - start_time
-                        error_type = errno.errorcode.get(e.errno, str(e.errno))
-                        metrics.record_operation(
-                            operation_type or 'unknown',
-                            duration,
-                            retries=actual_retries,
-                            success=False,
-                            error_type=error_type
-                        )
-                    retry_logger.warning(
-                        f"I/O operation failed after {max_attempts} attempts: {e}"
+                    # Sync function: run in thread pool to avoid blocking
+                    result = await asyncio.to_thread(operation, *args, **kwargs)
+                # Record successful metrics
+                if metrics:
+                    duration = time.time() - start_time
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=actual_retries,
+                        success=True
                     )
-                    raise
-
-        # This should never be reached, but just in case
-        if last_error:
-            # Record failed metrics as a fallback
+                return result
+        except asyncio.TimeoutError:
+            # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
+            # Record timeout metrics
             if metrics:
                 duration = time.time() - start_time
-                error_type = None
-                if isinstance(last_error, IOError) and hasattr(last_error, 'errno'):
-                    error_type = errno.errorcode.get(last_error.errno, str(last_error.errno))
                 metrics.record_operation(
                     operation_type or 'unknown',
                     duration,
                     retries=actual_retries,
                     success=False,
-                    error_type=error_type
+                    error_type='TIMEOUT'
                 )
-            raise last_error
+            raise StorageTimeoutError(
+                f"I/O operation timed out after {timeout}s"
+            )
+        except IOError as e:
+            last_error = e
+            # Check if this is a transient error that should be retried
+            transient_errors = (
+                errno.EIO,      # I/O error (common on network mounts)
+                errno.EAGAIN,   # Resource temporarily unavailable
+                errno.EBUSY,    # Device or resource busy
+            )
 
+            if e.errno not in transient_errors:
+                # Permanent error, record metrics and raise without retry
+                if metrics:
+                    duration = time.time() - start_time
+                    error_type = errno.errorcode.get(e.errno, str(e.errno))
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=actual_retries,
+                        success=False,
+                        error_type=error_type
+                    )
+                raise
+
+            if attempt < max_attempts - 1:
+                # Calculate exponential backoff
+                backoff = initial_backoff * (2 ** attempt)
+                actual_retries += 1
+                retry_logger.debug(
+                    f"Transient I/O error (errno={e.errno}), "
+                    f"retrying in {backoff:.1f}s "
+                    f"(attempt {attempt + 1}/{max_attempts})"
+                )
+                await asyncio.sleep(backoff)
+            else:
+                # Last attempt failed, record metrics and raise the error
+                if metrics:
+                    duration = time.time() - start_time
+                    error_type = errno.errorcode.get(e.errno, str(e.errno))
+                    metrics.record_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=actual_retries,
+                        success=False,
+                        error_type=error_type
+                    )
+                retry_logger.warning(
+                    f"I/O operation failed after {max_attempts} attempts: {e}"
+                )
+                raise
+
+    # This should never be reached, but just in case
+    if last_error:
+        # Record failed metrics as a fallback
+        if metrics:
+            duration = time.time() - start_time
+            error_type = None
+            if isinstance(last_error, IOError) and hasattr(last_error, 'errno'):
+                error_type = errno.errorcode.get(last_error.errno, str(last_error.errno))
+            metrics.record_operation(
+                operation_type or 'unknown',
+                duration,
+                retries=actual_retries,
+                success=False,
+                error_type=error_type
+            )
+        raise last_error
+
+
+# Fallback async file operations for when aiofiles is not available (Issue #1032)
+if not HAS_AIOFILES:
     class _AsyncFileContextManager:
         """Async context manager for file operations without aiofiles."""
 
