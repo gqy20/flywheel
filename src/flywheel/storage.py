@@ -234,12 +234,15 @@ class IOMetrics:
             'total_retries': total_retries
         }
 
-    def save_to_file(self, path: str | Path):
+    async def save_to_file(self, path: str | Path):
         """Save metrics to a JSON file (Issue #1068).
 
         This method serializes the metrics data and saves it to a file
         in JSON format. The file can be used for persistence or integration
         with external monitoring tools like Prometheus/Grafana.
+
+        Fix for Issue #1075: Now an async method that uses asyncio.to_thread
+        to avoid blocking the event loop during file I/O.
 
         Args:
             path: Path to the file where metrics will be saved
@@ -250,14 +253,28 @@ class IOMetrics:
 
         Example:
             >>> metrics = IOMetrics()
-            >>> metrics.record_operation('read', 0.5, 0, True)
-            >>> metrics.save_to_file('/tmp/metrics.json')
+            >>> await metrics.record_operation('read', 0.5, 0, True)
+            >>> await metrics.save_to_file('/tmp/metrics.json')
         """
         if not isinstance(path, (str, Path)):
             raise TypeError(f"path must be str or Path, not {type(path).__name__}")
 
         data = self.export_to_dict()
 
+        # Use asyncio.to_thread to run blocking I/O in a separate thread
+        # This prevents blocking the event loop during file write operations
+        await asyncio.to_thread(self._write_to_file_sync, path, data)
+
+    def _write_to_file_sync(self, path: str | Path, data: dict):
+        """Synchronous helper method to write data to file.
+
+        This method is intended to be run in a separate thread via
+        asyncio.to_thread to avoid blocking the event loop.
+
+        Args:
+            path: Path to the file where metrics will be saved
+            data: Dictionary data to write as JSON
+        """
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)
 
