@@ -42,6 +42,8 @@ if not HAS_AIOFILES:
             self.path = path
             self.mode = mode
             self._file = None
+            # Determine if this is binary mode (Issue #1036)
+            self._is_binary = 'b' in mode
 
         async def __aenter__(self):
             # Use asyncio.to_thread to run blocking I/O in a thread pool
@@ -52,14 +54,20 @@ if not HAS_AIOFILES:
             if self._file:
                 await asyncio.to_thread(self._file.close)
 
-        async def read(self) -> bytes:
-            """Read file content asynchronously."""
+        async def read(self) -> str | bytes:
+            """Read file content asynchronously.
+
+            Returns str in text mode, bytes in binary mode (Issue #1036).
+            """
             if self._file is None:
                 raise ValueError("File not opened")
             return await asyncio.to_thread(self._file.read)
 
-        async def write(self, data: bytes) -> int:
-            """Write data to file asynchronously."""
+        async def write(self, data: str | bytes) -> int:
+            """Write data to file asynchronously.
+
+            Accepts str in text mode, bytes in binary mode (Issue #1036).
+            """
             if self._file is None:
                 raise ValueError("File not opened")
             return await asyncio.to_thread(self._file.write, data)
@@ -80,8 +88,11 @@ if not HAS_AIOFILES:
         """Fallback module for aiofiles using asyncio.to_thread."""
 
         @staticmethod
-        def open(path: str, mode: str = 'r') -> '_AsyncFileContextManager':
-            """Open a file asynchronously."""
+        def open(path: str, mode: str = 'rb') -> '_AsyncFileContextManager':
+            """Open a file asynchronously.
+
+            Defaults to binary mode 'rb' to match aiofiles behavior (Issue #1036).
+            """
             return _AsyncFileContextManager(path, mode)
 
     # Replace aiofiles with our fallback implementation
