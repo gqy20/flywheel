@@ -62,7 +62,7 @@ class TestIOMetricsAsyncContextManager:
             success = False
             error_type = type(e).__name__
         duration = asyncio.get_event_loop().time() - start_time
-        metrics.record_operation("manual", duration, 0, success, error_type)
+        await metrics.record_operation("manual", duration, 0, success, error_type)
 
         # New way (with context manager)
         async with metrics.track_operation("automatic"):

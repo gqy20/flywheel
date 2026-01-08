@@ -26,13 +26,14 @@ class TestDequePerformance(unittest.TestCase):
         self.assertEqual(metrics.operations.maxlen, IOMetrics.MAX_OPERATIONS,
                         f"deque maxlen should be {IOMetrics.MAX_OPERATIONS}")
 
-    def test_circular_buffer_auto_discard(self):
+    @pytest.mark.asyncio
+    async def test_circular_buffer_auto_discard(self):
         """Test that deque automatically discards oldest when full."""
         metrics = IOMetrics()
 
         # Fill the buffer beyond MAX_OPERATIONS
         for i in range(IOMetrics.MAX_OPERATIONS + 100):
-            metrics.record_operation('test_op', 0.001, 0, True)
+            await metrics.record_operation('test_op', 0.001, 0, True)
 
         # Verify size is at most MAX_OPERATIONS
         self.assertLessEqual(len(metrics.operations), IOMetrics.MAX_OPERATIONS,
@@ -42,7 +43,8 @@ class TestDequePerformance(unittest.TestCase):
         self.assertEqual(len(metrics.operations), IOMetrics.MAX_OPERATIONS,
                         "Deque should be at max capacity")
 
-    def test_performance_benefit(self):
+    @pytest.mark.asyncio
+    async def test_performance_benefit(self):
         """Test that using deque provides O(1) performance for large N."""
         metrics = IOMetrics()
 
@@ -51,7 +53,7 @@ class TestDequePerformance(unittest.TestCase):
         start_time = time.time()
 
         for i in range(iterations):
-            metrics.record_operation('test_op', 0.001, 0, True)
+            await metrics.record_operation('test_op', 0.001, 0, True)
 
         elapsed = time.time() - start_time
 
@@ -60,25 +62,23 @@ class TestDequePerformance(unittest.TestCase):
         self.assertLess(elapsed, 1.0,
                        f"Recording {iterations} operations should take < 1s with deque, took {elapsed:.3f}s")
 
-    def test_thread_safety_maintained(self):
+    @pytest.mark.asyncio
+    async def test_thread_safety_maintained(self):
         """Test that thread safety is maintained with deque."""
-        import threading
+        import asyncio
 
         metrics = IOMetrics()
         errors = []
 
-        def record_ops():
+        async def record_ops():
             try:
                 for i in range(100):
-                    metrics.record_operation('test_op', 0.001, 0, True)
+                    await metrics.record_operation('test_op', 0.001, 0, True)
             except Exception as e:
                 errors.append(e)
 
-        threads = [threading.Thread(target=record_ops) for _ in range(10)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        tasks = [asyncio.create_task(record_ops()) for _ in range(10)]
+        await asyncio.gather(*tasks)
 
         self.assertEqual(len(errors), 0, "No errors should occur in concurrent access")
         self.assertEqual(metrics.total_operation_count(), 1000,

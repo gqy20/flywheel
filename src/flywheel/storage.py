@@ -69,12 +69,13 @@ class IOMetrics:
 
         Fix for Issue #1065: Use deque with maxlen for O(1) circular buffer
         performance instead of list with O(N) pop(0).
+        Fix for Issue #1080: Use asyncio.Lock for async context safety.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    def record_operation(self, operation_type: str, duration: float,
-                        retries: int, success: bool, error_type: str = None):
+    async def record_operation(self, operation_type: str, duration: float,
+                               retries: int, success: bool, error_type: str = None):
         """Record a single I/O operation.
 
         Args:
@@ -88,6 +89,7 @@ class IOMetrics:
         operation when buffer is full.
         Fix for Issue #1065: Uses deque with maxlen for O(1) performance.
         Fix for Issue #1066: Thread-safe operations using lock.
+        Fix for Issue #1080: Uses asyncio.Lock for async context safety.
         """
         operation = {
             'operation_type': operation_type,
@@ -97,7 +99,7 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        with self._lock:
+        async with self._lock:
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
@@ -109,7 +111,7 @@ class IOMetrics:
         """Get total duration of all operations in seconds."""
         return sum(op['duration'] for op in self.operations)
 
-    def log_summary(self):
+    async def log_summary(self):
         """Log a summary of metrics if FW_STORAGE_METRICS_LOG is enabled.
 
         This method checks the FW_STORAGE_METRICS_LOG environment variable
@@ -117,11 +119,12 @@ class IOMetrics:
 
         Fix for Issue #1076: Uses lock to ensure thread-safe access to
         self.operations during metrics calculation, preventing race conditions.
+        Fix for Issue #1080: Uses asyncio.Lock for async context safety.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        with self._lock:
+        async with self._lock:
             if not self.operations:
                 logger.info("I/O Metrics: No operations recorded")
                 return
@@ -258,7 +261,7 @@ class IOMetrics:
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)
 
-    def reset(self):
+    async def reset(self):
         """Clear all recorded metrics (Issue #1078).
 
         This method clears the operations deque, allowing for fresh metrics
@@ -267,18 +270,19 @@ class IOMetrics:
 
         Example:
             >>> metrics = IOMetrics()
-            >>> metrics.record_operation('read', 0.5, 0, True)
+            >>> await metrics.record_operation('read', 0.5, 0, True)
             >>> metrics.total_operation_count()
             1
-            >>> metrics.reset()
+            >>> await metrics.reset()
             >>> metrics.total_operation_count()
             0
 
         Thread Safety:
             This method is thread-safe and uses the same lock as other methods
             to prevent race conditions during concurrent access.
+            Fix for Issue #1080: Uses asyncio.Lock for async context safety.
         """
-        with self._lock:
+        async with self._lock:
             self.operations.clear()
 
 
@@ -314,8 +318,8 @@ class _IOMetricsContextManager:
             self.success = False
             self.error_type = exc_type.__name__
 
-        # Record the operation
-        self.metrics.record_operation(
+        # Record the operation (async call for issue #1080)
+        await self.metrics.record_operation(
             self.operation_type,
             duration,
             self.retries,
@@ -438,7 +442,7 @@ async def _retry_io_operation(
             # Record metrics if provided
             if metrics:
                 duration = time.time() - start_time
-                metrics.record_operation(
+                await metrics.record_operation(
                     operation_type or 'unknown',
                     duration,
                     retries=0,
@@ -452,7 +456,7 @@ async def _retry_io_operation(
                 error_type = None
                 if isinstance(e, IOError) and hasattr(e, 'errno'):
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
-                metrics.record_operation(
+                await metrics.record_operation(
                     operation_type or 'unknown',
                     duration,
                     retries=0,
@@ -487,7 +491,7 @@ async def _retry_io_operation(
                 # Record successful metrics
                 if metrics:
                     duration = time.time() - start_time
-                    metrics.record_operation(
+                    await metrics.record_operation(
                         operation_type or 'unknown',
                         duration,
                         retries=actual_retries,
@@ -505,7 +509,7 @@ async def _retry_io_operation(
                 # Record successful metrics
                 if metrics:
                     duration = time.time() - start_time
-                    metrics.record_operation(
+                    await metrics.record_operation(
                         operation_type or 'unknown',
                         duration,
                         retries=actual_retries,
@@ -517,7 +521,7 @@ async def _retry_io_operation(
             # Record timeout metrics
             if metrics:
                 duration = time.time() - start_time
-                metrics.record_operation(
+                await metrics.record_operation(
                     operation_type or 'unknown',
                     duration,
                     retries=actual_retries,
@@ -541,7 +545,7 @@ async def _retry_io_operation(
                 if metrics:
                     duration = time.time() - start_time
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
-                    metrics.record_operation(
+                    await metrics.record_operation(
                         operation_type or 'unknown',
                         duration,
                         retries=actual_retries,
@@ -580,7 +584,7 @@ async def _retry_io_operation(
                 if metrics:
                     duration = time.time() - start_time
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
-                    metrics.record_operation(
+                    await metrics.record_operation(
                         operation_type or 'unknown',
                         duration,
                         retries=actual_retries,
@@ -600,7 +604,7 @@ async def _retry_io_operation(
             error_type = None
             if isinstance(last_error, IOError) and hasattr(last_error, 'errno'):
                 error_type = errno.errorcode.get(last_error.errno, str(last_error.errno))
-            metrics.record_operation(
+            await metrics.record_operation(
                 operation_type or 'unknown',
                 duration,
                 retries=actual_retries,

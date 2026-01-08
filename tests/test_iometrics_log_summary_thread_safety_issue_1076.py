@@ -16,14 +16,16 @@ import pytest
 class TestIOMetricsLogSummaryThreadSafetyIssue1076:
     """Test suite for IOMetrics.log_summary thread safety (Issue #1076)."""
 
-    def test_log_summary_thread_safety_with_concurrent_modifications(self):
+    @pytest.mark.asyncio
+    async def test_log_summary_thread_safety_with_concurrent_modifications(self):
         """Test that log_summary handles concurrent modifications safely.
 
-        This test creates a high-contention scenario where one thread
+        This test creates a high-contention scenario where one task
         continuously modifies operations while another calls log_summary.
         The test passes if no exceptions are raised, demonstrating that
         log_summary properly handles concurrent access.
         """
+        import asyncio
         from flywheel.storage import IOMetrics
 
         # Enable metrics logging
@@ -33,23 +35,23 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # Record some initial operations
         for i in range(10):
-            metrics.record_operation(
+            await metrics.record_operation(
                 "read",
                 duration=0.1,
                 retries=0,
                 success=True
             )
 
-        # Flag to control the thread
+        # Flag to control the task
         running = True
         errors = []
 
-        def modify_operations():
-            """Continuously modify operations in a background thread."""
+        async def modify_operations():
+            """Continuously modify operations in a background task."""
             nonlocal running, errors
             while running:
                 try:
-                    metrics.record_operation(
+                    await metrics.record_operation(
                         "write",
                         duration=0.2,
                         retries=0,
@@ -57,25 +59,27 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
                     )
                 except Exception as e:
                     errors.append(f"Modification error: {e}")
-                time.sleep(0.0001)  # Very small delay for high contention
+                await asyncio.sleep(0.0001)  # Very small delay for high contention
 
-        # Start background thread that modifies operations
-        modifier_thread = threading.Thread(target=modify_operations, daemon=True)
-        modifier_thread.start()
+        # Start background task that modifies operations
+        modifier_task = asyncio.create_task(modify_operations())
 
         try:
             # Call log_summary multiple times while operations are being modified
             # This should not raise any exceptions
             for i in range(200):
                 try:
-                    metrics.log_summary()
+                    await metrics.log_summary()
                 except Exception as e:
                     errors.append(f"log_summary call {i} error: {e}")
-                time.sleep(0.0001)
+                await asyncio.sleep(0.0001)
         finally:
-            # Stop the background thread
+            # Stop the background task
             running = False
-            modifier_thread.join(timeout=2)
+            try:
+                await asyncio.wait_for(modifier_task, timeout=2)
+            except asyncio.TimeoutError:
+                pass
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']
@@ -83,7 +87,8 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
         # Assert no errors occurred
         assert len(errors) == 0, f"Errors occurred during concurrent access: {errors}"
 
-    def test_log_summary_creates_consistent_snapshot(self):
+    @pytest.mark.asyncio
+    async def test_log_summary_creates_consistent_snapshot(self):
         """Test that log_summary creates a consistent snapshot of operations.
 
         This test verifies that log_summary uses a consistent view of
@@ -99,13 +104,13 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # Add operations of different types
         for i in range(20):
-            metrics.record_operation(
+            await metrics.record_operation(
                 "read",
                 duration=0.1,
                 retries=0,
                 success=True
             )
-            metrics.record_operation(
+            await metrics.record_operation(
                 "write",
                 duration=0.2,
                 retries=0,
@@ -114,12 +119,13 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # log_summary should complete successfully
         # and provide consistent metrics
-        metrics.log_summary()
+        await metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']
 
-    def test_log_summary_operations_protected_during_iteration(self):
+    @pytest.mark.asyncio
+    async def test_log_summary_operations_protected_during_iteration(self):
         """Test that operations are protected during iteration in log_summary.
 
         This test ensures that the iteration over operations in log_summary
@@ -128,6 +134,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
         """
         from flywheel.storage import IOMetrics
         from unittest.mock import patch
+        import asyncio
 
         # Enable metrics logging
         os.environ['FW_STORAGE_METRICS_LOG'] = '1'
@@ -136,7 +143,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # Add some operations
         for i in range(10):
-            metrics.record_operation(
+            await metrics.record_operation(
                 "read",
                 duration=0.1,
                 retries=0,
@@ -159,7 +166,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # Call log_summary - it should handle the extended critical section safely
         with patch('time.sleep', side_effect=slow_sleep):
-            metrics.log_summary()
+            await metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']

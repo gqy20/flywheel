@@ -228,39 +228,43 @@ class TestIOMetricsIssue1053:
         except ImportError:
             pytest.fail("IOMetrics class not implemented")
 
-    def test_metrics_tracks_operation_duration(self):
+    @pytest.mark.asyncio
+    async def test_metrics_tracks_operation_duration(self):
         """Test that metrics track operation duration."""
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+        await metrics.record_operation("read", duration=0.1, retries=0, success=True)
 
         # Verify metrics captured duration
         assert hasattr(metrics, 'operations')
         assert len(metrics.operations) == 1
         assert metrics.operations[0]['duration'] == 0.1
 
-    def test_metrics_tracks_retry_count(self):
+    @pytest.mark.asyncio
+    async def test_metrics_tracks_retry_count(self):
         """Test that metrics track number of retries."""
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("write", duration=0.5, retries=2, success=True)
+        await metrics.record_operation("write", duration=0.5, retries=2, success=True)
 
         # Verify metrics captured retry count
         assert metrics.operations[0]['retries'] == 2
 
-    def test_metrics_tracks_error_types(self):
+    @pytest.mark.asyncio
+    async def test_metrics_tracks_error_types(self):
         """Test that metrics track error types."""
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("read", duration=0.1, retries=0, success=False, error_type="ENOENT")
+        await metrics.record_operation("read", duration=0.1, retries=0, success=False, error_type="ENOENT")
 
         # Verify metrics captured error type
         assert metrics.operations[0]['error_type'] == "ENOENT"
 
-    def test_metrics_logging_via_env_var(self, caplog):
+    @pytest.mark.asyncio
+    async def test_metrics_logging_via_env_var(self, caplog):
         """Test that metrics can be logged via environment variable."""
         import os
         import logging
@@ -271,11 +275,11 @@ class TestIOMetricsIssue1053:
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+        await metrics.record_operation("read", duration=0.1, retries=0, success=True)
 
         # Log metrics
         with caplog.at_level(logging.INFO):
-            metrics.log_summary()
+            await metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']
@@ -284,7 +288,8 @@ class TestIOMetricsIssue1053:
         assert any('Metrics' in record.message or 'duration' in record.message.lower()
                    for record in caplog.records)
 
-    def test_metrics_without_env_var_no_logging(self, caplog):
+    @pytest.mark.asyncio
+    async def test_metrics_without_env_var_no_logging(self, caplog):
         """Test that metrics are not logged when env var is not set."""
         import os
         import logging
@@ -296,25 +301,26 @@ class TestIOMetricsIssue1053:
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+        await metrics.record_operation("read", duration=0.1, retries=0, success=True)
 
         # Try to log metrics
         with caplog.at_level(logging.INFO):
-            metrics.log_summary()
+            await metrics.log_summary()
 
         # Metrics data should still be available
         assert len(metrics.operations) == 1
         # But not explicitly logged (unless env var is set)
         # This test verifies the object holds data regardless
 
-    def test_metrics_aggregates_multiple_operations(self):
+    @pytest.mark.asyncio
+    async def test_metrics_aggregates_multiple_operations(self):
         """Test that metrics can aggregate data from multiple operations."""
         from flywheel.storage import IOMetrics
 
         metrics = IOMetrics()
-        metrics.record_operation("read", duration=0.1, retries=0, success=True)
-        metrics.record_operation("write", duration=0.2, retries=1, success=True)
-        metrics.record_operation("read", duration=0.15, retries=0, success=True)
+        await metrics.record_operation("read", duration=0.1, retries=0, success=True)
+        await metrics.record_operation("write", duration=0.2, retries=1, success=True)
+        await metrics.record_operation("read", duration=0.15, retries=0, success=True)
 
         # Verify aggregated metrics
         assert len(metrics.operations) == 3

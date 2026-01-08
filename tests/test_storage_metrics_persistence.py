@@ -23,11 +23,12 @@ class TestIOMetricsExport:
         assert result['total_operation_count'] == 0
         assert result['total_duration'] == 0.0
 
-    def test_export_to_dict_includes_recorded_operations(self):
+    @pytest.mark.asyncio
+    async def test_export_to_dict_includes_recorded_operations(self):
         """Test that export_to_dict includes all recorded operations."""
         metrics = IOMetrics()
-        metrics.record_operation('read', 0.5, 0, True)
-        metrics.record_operation('write', 1.2, 2, True)
+        await metrics.record_operation('read', 0.5, 0, True)
+        await metrics.record_operation('write', 1.2, 2, True)
 
         result = metrics.export_to_dict()
 
@@ -37,12 +38,13 @@ class TestIOMetricsExport:
         assert result['operations'][1]['operation_type'] == 'write'
         assert result['operations'][1]['duration'] == 1.2
 
-    def test_export_to_dict_includes_summary_stats(self):
+    @pytest.mark.asyncio
+    async def test_export_to_dict_includes_summary_stats(self):
         """Test that export_to_dict includes calculated summary statistics."""
         metrics = IOMetrics()
-        metrics.record_operation('read', 0.5, 0, True)
-        metrics.record_operation('write', 1.2, 2, True)
-        metrics.record_operation('read', 0.3, 0, False, 'ENOENT')
+        await metrics.record_operation('read', 0.5, 0, True)
+        await metrics.record_operation('write', 1.2, 2, True)
+        await metrics.record_operation('read', 0.3, 0, False, 'ENOENT')
 
         result = metrics.export_to_dict()
 
@@ -52,10 +54,11 @@ class TestIOMetricsExport:
         assert result['failed_operations'] == 1
         assert result['total_retries'] == 2
 
-    def test_save_to_file_creates_json_file(self):
+    @pytest.mark.asyncio
+    async def test_save_to_file_creates_json_file(self):
         """Test that save_to_file creates a valid JSON file."""
         metrics = IOMetrics()
-        metrics.record_operation('read', 0.5, 0, True)
+        await metrics.record_operation('read', 0.5, 0, True)
 
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
             temp_path = f.name
@@ -75,7 +78,8 @@ class TestIOMetricsExport:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    def test_save_to_file_overwrites_existing_file(self):
+    @pytest.mark.asyncio
+    async def test_save_to_file_overwrites_existing_file(self):
         """Test that save_to_file overwrites existing file."""
         metrics = IOMetrics()
 
@@ -90,7 +94,7 @@ class TestIOMetricsExport:
         assert data == {'old': 'data'}
 
         # Save new metrics
-        metrics.record_operation('write', 1.0, 0, True)
+        await metrics.record_operation('write', 1.0, 0, True)
         metrics.save_to_file(temp_path)
 
         # Verify new data
@@ -105,7 +109,8 @@ class TestIOMetricsExport:
 class TestIOMetricsEnvironmentVariable:
     """Test suite for FW_STORAGE_METRICS_FILE environment variable."""
 
-    def test_metrics_dumped_to_file_on_exit_when_env_set(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_metrics_dumped_to_file_on_exit_when_env_set(self, monkeypatch):
         """Test that metrics are dumped to file when FW_STORAGE_METRICS_FILE is set."""
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as f:
             temp_path = f.name
@@ -114,8 +119,8 @@ class TestIOMetricsEnvironmentVariable:
             monkeypatch.setenv('FW_STORAGE_METRICS_FILE', temp_path)
 
             metrics = IOMetrics()
-            metrics.record_operation('read', 0.5, 0, True)
-            metrics.record_operation('write', 1.2, 2, True)
+            await metrics.record_operation('read', 0.5, 0, True)
+            await metrics.record_operation('write', 1.2, 2, True)
 
             # Simulate process exit (atexit handler)
             # Note: This would require actual atexit registration in implementation
@@ -135,12 +140,13 @@ class TestIOMetricsEnvironmentVariable:
                 os.unlink(temp_path)
             monkeypatch.delenv('FW_STORAGE_METRICS_FILE', raising=False)
 
-    def test_metrics_not_dumped_when_env_not_set(self, monkeypatch):
+    @pytest.mark.asyncio
+    async def test_metrics_not_dumped_when_env_not_set(self, monkeypatch):
         """Test that metrics are not dumped when FW_STORAGE_METRICS_FILE is not set."""
         monkeypatch.delenv('FW_STORAGE_METRICS_FILE', raising=False)
 
         metrics = IOMetrics()
-        metrics.record_operation('read', 0.5, 0, True)
+        await metrics.record_operation('read', 0.5, 0, True)
 
         # Should not crash or create any files
         # No automatic dump should occur
