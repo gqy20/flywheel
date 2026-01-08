@@ -55,10 +55,16 @@ class IOMetrics:
     - Success/failure rates
 
     Metrics can be logged via the FW_STORAGE_METRICS_LOG environment variable.
+
+    Fix for Issue #1061: Operations list uses a circular buffer to prevent
+    unbounded memory growth in long-running processes.
     """
 
+    # Maximum number of operations to keep in memory (circular buffer size)
+    MAX_OPERATIONS = 1000
+
     def __init__(self):
-        """Initialize an empty metrics tracker."""
+        """Initialize an empty metrics tracker with circular buffer."""
         self.operations = []
 
     def record_operation(self, operation_type: str, duration: float,
@@ -71,14 +77,23 @@ class IOMetrics:
             retries: Number of retry attempts
             success: Whether the operation succeeded
             error_type: Type of error if operation failed (e.g., 'ENOENT')
+
+        Fix for Issue #1061: Implements circular buffer by removing oldest
+        operation when buffer is full.
         """
-        self.operations.append({
+        operation = {
             'operation_type': operation_type,
             'duration': duration,
             'retries': retries,
             'success': success,
             'error_type': error_type
-        })
+        }
+
+        self.operations.append(operation)
+
+        # Implement circular buffer: remove oldest operation if buffer is full
+        if len(self.operations) > self.MAX_OPERATIONS:
+            self.operations.pop(0)
 
     def total_operation_count(self) -> int:
         """Get total number of operations recorded."""
