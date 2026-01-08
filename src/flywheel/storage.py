@@ -246,6 +246,7 @@ async def _retry_io_operation(
     path: str | None = None,
     operation_type: str | None = None,
     metrics: IOMetrics = None,
+    log_level: str | None = None,
     **kwargs
 ):
     """Retry I/O operations on transient errors with exponential backoff.
@@ -263,6 +264,8 @@ async def _retry_io_operation(
         path: File path for structured logging context (Issue #1042).
         operation_type: Operation type (read/write/flush/etc.) for logging context (Issue #1042).
         metrics: IOMetrics instance to track performance metrics (Issue #1053).
+        log_level: Log level for retry operations ('DEBUG', 'INFO', 'WARNING', 'ERROR').
+                   If None, checks FW_LOG_LEVEL environment variable (Issue #1072).
         **kwargs: Keyword arguments to pass to the operation
 
     Returns:
@@ -289,6 +292,7 @@ async def _retry_io_operation(
     Fix for Issue #1048: Bypass mode for testing/debugging (FW_STORAGE_BYPASS_RETRY env var).
     Fix for Issue #1053: I/O operation metrics tracking via IOMetrics class.
     Fix for Issue #1064: Function is always available, not just when aiofiles is missing.
+    Fix for Issue #1072: Configurable log levels for I/O retries (FW_LOG_LEVEL env var).
     """
     # Create logger adapter with structured context (Issue #1042)
     # LoggerAdapter automatically adds extra dict to all log records
@@ -312,6 +316,14 @@ async def _retry_io_operation(
         retry_logger = ContextualLoggerAdapter(logger, extra_context)
     else:
         retry_logger = logger
+
+    # Determine log level for retry operations (Issue #1072)
+    # Check parameter first, then environment variable, default to WARNING
+    if log_level is None:
+        log_level = os.environ.get('FW_LOG_LEVEL', 'WARNING').upper()
+
+    # Import traceback here for stack trace logging in DEBUG mode
+    import traceback
 
     # Check for bypass mode (Issue #1048)
     # When enabled, skip retry logic and timeout for debugging/testing
@@ -450,11 +462,26 @@ async def _retry_io_operation(
                 # Calculate exponential backoff
                 backoff = initial_backoff * (2 ** attempt)
                 actual_retries += 1
-                retry_logger.debug(
-                    f"Transient I/O error (errno={e.errno}), "
-                    f"retrying in {backoff:.1f}s "
-                    f"(attempt {attempt + 1}/{max_attempts})"
-                )
+
+                # Log retry with details based on configured log level (Issue #1072)
+                if log_level == 'DEBUG':
+                    # In DEBUG mode, include stack trace and detailed backoff information
+                    stack_trace = ''.join(traceback.format_stack())
+                    retry_logger.debug(
+                        f"Transient I/O error (errno={e.errno}), "
+                        f"retrying in {backoff:.1f}s "
+                        f"(attempt {attempt + 1}/{max_attempts})\n"
+                        f"Stack trace:\n{stack_trace}"
+                    )
+                elif log_level == 'INFO':
+                    # In INFO mode, log retry with moderate detail
+                    retry_logger.info(
+                        f"Transient I/O error (errno={e.errno}), "
+                        f"retrying in {backoff:.1f}s "
+                        f"(attempt {attempt + 1}/{max_attempts})"
+                    )
+                # For WARNING or ERROR level, don't log individual retry attempts
+
                 await asyncio.sleep(backoff)
             else:
                 # Last attempt failed, record metrics and raise the error
