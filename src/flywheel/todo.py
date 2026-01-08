@@ -1,8 +1,57 @@
 """Todo item model."""
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+
+
+def _sanitize_string(value: str) -> str:
+    """Sanitize string input to remove potentially dangerous content.
+
+    Removes HTML tags, JavaScript event handlers, and other potentially
+    dangerous patterns that could lead to XSS or injection attacks.
+
+    Args:
+        value: The string to sanitize
+
+    Returns:
+        The sanitized string
+    """
+    if not isinstance(value, str):
+        return value
+
+    # Remove HTML tags
+    value = re.sub(r'<[^>]+>', '', value)
+
+    # Remove common JavaScript event handlers
+    event_handlers = [
+        r'on\w+',  # Matches onclick, onerror, onload, etc.
+        r'javascript:',
+        r'vbscript:',
+        r'data:',  # Can be used for data URI attacks
+    ]
+    for pattern in event_handlers:
+        value = re.sub(pattern, '', value, flags=re.IGNORECASE)
+
+    # Remove SQL injection patterns (basic)
+    # Note: This is NOT a substitute for proper parameterized queries
+    sql_patterns = [
+        r"';.*--",
+        r"' OR '1'='1",
+        r"' OR 1=1",
+        r'";.*--',
+        r'" OR "1"="1',
+        r'" OR 1=1',
+        r"\bor\b.*1=1",
+    ]
+    for pattern in sql_patterns:
+        value = re.sub(pattern, '', value, flags=re.IGNORECASE)
+
+    # Clean up extra whitespace
+    value = ' '.join(value.split())
+
+    return value
 
 
 class Priority(str, Enum):
@@ -68,10 +117,16 @@ class Todo:
         if not isinstance(data["title"], str):
             raise ValueError(f"Field 'title' must be str, got {type(data['title']).__name__}")
 
+        # Sanitize title
+        title = _sanitize_string(data["title"])
+
         # Validate optional field types
         description = data.get("description", "")
         if not isinstance(description, str):
             raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
+
+        # Sanitize description
+        description = _sanitize_string(description)
 
         # Validate enum values strictly
         status_value = data.get("status", "todo")
@@ -118,10 +173,14 @@ class Todo:
         if tags is not None and not all(isinstance(tag, str) for tag in tags):
             raise ValueError("All items in 'tags' must be str")
 
+        # Sanitize tags
+        if tags is not None:
+            tags = [_sanitize_string(tag) for tag in tags]
+
         # Build kwargs dynamically to avoid overriding default_factory
         kwargs = {
             "id": data["id"],
-            "title": data["title"],
+            "title": title,
             "description": description,
             "status": status,
             "priority": priority,
