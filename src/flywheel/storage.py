@@ -258,6 +258,29 @@ class IOMetrics:
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)
 
+    def reset(self):
+        """Clear all recorded metrics (Issue #1078).
+
+        This method clears the operations deque, allowing for fresh metrics
+        tracking between test runs or batch operations without restarting
+        the application. Uses the existing _lock for thread safety.
+
+        Example:
+            >>> metrics = IOMetrics()
+            >>> metrics.record_operation('read', 0.5, 0, True)
+            >>> metrics.total_operation_count()
+            1
+            >>> metrics.reset()
+            >>> metrics.total_operation_count()
+            0
+
+        Thread Safety:
+            This method is thread-safe and uses the same lock as other methods
+            to prevent race conditions during concurrent access.
+        """
+        with self._lock:
+            self.operations.clear()
+
 
 class _IOMetricsContextManager:
     """Async context manager for tracking I/O operations (Issue #1063)."""
