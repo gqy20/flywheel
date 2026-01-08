@@ -94,6 +94,7 @@ if not HAS_AIOFILES:
         Fix for Issue #1038: Automatic retry logic for transient I/O errors.
         Fix for Issue #1043: Configurable timeout for I/O operations.
         Fix for Issue #1042: Structured logging context with path and operation type.
+        Fix for Issue #1048: Bypass mode for testing/debugging (FW_STORAGE_BYPASS_RETRY env var).
         """
         # Create logger adapter with structured context (Issue #1042)
         # LoggerAdapter automatically adds extra dict to all log records
@@ -117,6 +118,16 @@ if not HAS_AIOFILES:
             retry_logger = ContextualLoggerAdapter(logger, extra_context)
         else:
             retry_logger = logger
+
+        # Check for bypass mode (Issue #1048)
+        # When enabled, skip retry logic and timeout for debugging/testing
+        if os.environ.get('FW_STORAGE_BYPASS_RETRY') == '1':
+            retry_logger.warning(
+                "I/O bypass mode enabled via FW_STORAGE_BYPASS_RETRY=1. "
+                "Retry logic and timeout are disabled. Use only for debugging/testing."
+            )
+            # Execute operation directly without retry or timeout
+            return await asyncio.to_thread(operation, *args, **kwargs)
 
         last_error = None
         for attempt in range(max_attempts):
