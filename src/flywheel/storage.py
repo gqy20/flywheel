@@ -63,9 +63,26 @@ class _AsyncCompatibleLock:
     def __enter__(self):
         """Support synchronous context manager protocol.
 
-        Note: This will block if called from an async context.
+        Note: This will raise an error if called from an async context.
         For async contexts, use 'async with' instead.
+
+        Fix for Issue #1107: Detects running event loops to prevent deadlocks.
         """
+        # Check if there's already a running event loop in the current thread
+        try:
+            current_loop = asyncio.get_running_loop()
+            # If we get here, there's a running event loop
+            raise RuntimeError(
+                "Cannot use synchronous context manager ('with') for "
+                "_AsyncCompatibleLock within an async context. "
+                "Use 'async with' instead. This prevents potential deadlocks "
+                "when an event loop is already running (e.g., in Jupyter Notebooks "
+                "or async web frameworks)."
+            )
+        except RuntimeError:
+            # No running event loop, we can proceed with sync acquisition
+            pass
+
         # Run the lock acquisition in a new event loop
         # This is not ideal but provides backward compatibility
         loop = asyncio.new_event_loop()
