@@ -124,20 +124,16 @@ if not HAS_AIOFILES:
                 # Run the operation in a thread pool to avoid blocking
                 # Wrap with timeout if specified (Issue #1043)
                 if timeout is not None:
-                    try:
-                        result = await asyncio.wait_for(
-                            asyncio.to_thread(operation, *args, **kwargs),
-                            timeout=timeout
-                        )
-                        return result
-                    except asyncio.TimeoutError:
-                        # Re-raise as StorageTimeoutError for distinction (Issue #1043)
-                        raise
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(operation, *args, **kwargs),
+                        timeout=timeout
+                    )
+                    return result
                 else:
                     result = await asyncio.to_thread(operation, *args, **kwargs)
                     return result
             except asyncio.TimeoutError:
-                # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043)
+                # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
                 raise StorageTimeoutError(
                     f"I/O operation timed out after {timeout}s"
                 )
