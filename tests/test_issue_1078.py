@@ -25,7 +25,7 @@ class TestIssue1078:
         assert len(metrics.operations) == 3
 
         # Reset the metrics
-        await metrics.reset()
+        metrics.reset()
 
         # Verify operations are cleared
         assert metrics.total_operation_count() == 0
@@ -43,7 +43,7 @@ class TestIssue1078:
         assert metrics.total_operation_count() == 100
 
         # Reset
-        await metrics.reset()
+        metrics.reset()
 
         # Verify cleared
         assert metrics.total_operation_count() == 0
@@ -58,9 +58,9 @@ class TestIssue1078:
         await metrics.record_operation("read", 0.1, 0, True)
 
         # Reset multiple times
-        await metrics.reset()
-        await metrics.reset()
-        await metrics.reset()
+        metrics.reset()
+        metrics.reset()
+        metrics.reset()
 
         # Should still be empty
         assert metrics.total_operation_count() == 0
@@ -71,7 +71,7 @@ class TestIssue1078:
         metrics = IOMetrics()
 
         # Reset without any operations
-        await metrics.reset()
+        metrics.reset()
 
         # Should still be empty
         assert metrics.total_operation_count() == 0
@@ -97,7 +97,7 @@ class TestIssue1078:
             """Reset metrics in a task."""
             try:
                 for i in range(10):
-                    await metrics.reset()
+                    metrics.reset()
                     await asyncio.sleep(0.001)  # Small delay to increase contention
             except Exception as e:
                 errors.append(e)
@@ -134,7 +134,7 @@ class TestIssue1078:
         assert initial_duration > 0
 
         # Reset
-        await metrics.reset()
+        metrics.reset()
 
         # Record new operations
         await metrics.record_operation("read", 0.05, 0, True)

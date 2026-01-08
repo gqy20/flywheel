@@ -106,7 +106,7 @@ class TestIOMetricsRaceConditionIssue1086:
             nonlocal successful_runs
             for i in range(50):
                 try:
-                    await metrics.log_summary()
+                    metrics.log_summary()
                     successful_runs += 1
                 except Exception as e:
                     errors.append(f"log_summary error: {e}")

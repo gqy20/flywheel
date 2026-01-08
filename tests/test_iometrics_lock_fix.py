@@ -23,7 +23,7 @@ async def test_export_to_dict_async_lock_usage():
     await metrics.record_operation('flush', 0.2, 0, False, error_type='EIO')
 
     # This should not raise RuntimeError about using sync context manager on asyncio.Lock
-    result = await metrics.export_to_dict()
+    result = metrics.export_to_dict()
 
     # Verify the export worked correctly
     assert result['total_operation_count'] == 3
@@ -48,8 +48,12 @@ async def test_export_to_dict_concurrent_access():
     for i in range(10):
         await metrics.record_operation('read', 0.1, 0, True)
 
+    # Create async wrapper functions for concurrent export
+    async def export_once():
+        return metrics.export_to_dict()
+
     # Create tasks for concurrent export
-    tasks = [metrics.export_to_dict() for _ in range(5)]
+    tasks = [export_once() for _ in range(5)]
 
     # All should complete without error
     results = await asyncio.gather(*tasks)
@@ -69,7 +73,7 @@ async def test_export_to_dict_empty_metrics():
     """
     metrics = IOMetrics()
 
-    result = await metrics.export_to_dict()
+    result = metrics.export_to_dict()
 
     assert result['total_operation_count'] == 0
     assert result['successful_operations'] == 0

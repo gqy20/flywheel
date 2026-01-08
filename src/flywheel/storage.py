@@ -188,7 +188,7 @@ class IOMetrics:
         """Get total duration of all operations in seconds."""
         return sum(op['duration'] for op in self.operations)
 
-    async def log_summary(self):
+    def log_summary(self):
         """Log a summary of metrics if FW_STORAGE_METRICS_LOG is enabled.
 
         This method checks the FW_STORAGE_METRICS_LOG environment variable
@@ -201,11 +201,12 @@ class IOMetrics:
         preventing race conditions when operations are modified between calculation and logging.
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
+        Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        async with self._lock:
+        with self._lock:
             if not self.operations:
                 logger.info("I/O Metrics: No operations recorded")
                 return
@@ -278,7 +279,7 @@ class IOMetrics:
         """
         return _IOMetricsContextManager(self, operation_type, retries)
 
-    async def export_to_dict(self) -> dict:
+    def export_to_dict(self) -> dict:
         """Export metrics to a dictionary for serialization (Issue #1068).
 
         This method converts the metrics data into a dictionary format that
@@ -289,6 +290,7 @@ class IOMetrics:
         self._lock to avoid RuntimeError when using asyncio.Lock.
         Fix for Issue #1097: Uses custom lock wrapper that supports both
         sync and async context managers.
+        Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
 
         Returns:
             A dictionary containing:
@@ -302,10 +304,10 @@ class IOMetrics:
         Example:
             >>> metrics = IOMetrics()
             >>> metrics.record_operation('read', 0.5, 0, True)
-            >>> data = await metrics.export_to_dict()
+            >>> data = metrics.export_to_dict()
             >>> json.dumps(data)  # Can be serialized to JSON
         """
-        async with self._lock:
+        with self._lock:
             operations_list = list(self.operations)
             successful_ops = sum(1 for op in operations_list if op['success'])
             failed_ops = len(operations_list) - successful_ops
@@ -346,7 +348,7 @@ class IOMetrics:
         if not isinstance(path, (str, Path)):
             raise TypeError(f"path must be str or Path, not {type(path).__name__}")
 
-        data = await self.export_to_dict()
+        data = self.export_to_dict()
 
         # Use asyncio.to_thread to run blocking I/O in a separate thread
         # This prevents blocking the event loop during file write operations
@@ -365,7 +367,7 @@ class IOMetrics:
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)
 
-    async def reset(self):
+    def reset(self):
         """Clear all recorded metrics (Issue #1078).
 
         This method clears the operations deque, allowing for fresh metrics
@@ -377,7 +379,7 @@ class IOMetrics:
             >>> metrics.record_operation('read', 0.5, 0, True)
             >>> metrics.total_operation_count()
             1
-            >>> await metrics.reset()
+            >>> metrics.reset()
             >>> metrics.total_operation_count()
             0
 
@@ -385,8 +387,9 @@ class IOMetrics:
             This method is thread-safe and uses the same lock as other methods
             to prevent race conditions during concurrent access.
             Fix for Issue #1080: Uses asyncio.Lock for async context safety.
+            Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
         """
-        async with self._lock:
+        with self._lock:
             self.operations.clear()
 
 

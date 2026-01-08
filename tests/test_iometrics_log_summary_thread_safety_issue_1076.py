@@ -69,7 +69,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
             # This should not raise any exceptions
             for i in range(200):
                 try:
-                    await metrics.log_summary()
+                    metrics.log_summary()
                 except Exception as e:
                     errors.append(f"log_summary call {i} error: {e}")
                 await asyncio.sleep(0.0001)
@@ -119,7 +119,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # log_summary should complete successfully
         # and provide consistent metrics
-        await metrics.log_summary()
+        metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']
@@ -166,7 +166,7 @@ class TestIOMetricsLogSummaryThreadSafetyIssue1076:
 
         # Call log_summary - it should handle the extended critical section safely
         with patch('time.sleep', side_effect=slow_sleep):
-            await metrics.log_summary()
+            metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']

@@ -159,7 +159,7 @@ class TestIOMetricsExportRaceConditionIssue1096:
             nonlocal successful_exports
             for i in range(50):
                 try:
-                    data = await metrics.export_to_dict()
+                    data = metrics.export_to_dict()
 
                     # Verify data consistency
                     total_ops = data['successful_operations'] + data['failed_operations']

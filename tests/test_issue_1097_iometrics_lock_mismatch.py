@@ -24,7 +24,7 @@ def test_iometrics_async_lock_compatibility():
         await metrics.record_operation('write', 0.2, 1, False, 'ENOENT')
 
         # Test export_to_dict which uses async with
-        result = await metrics.export_to_dict()
+        result = metrics.export_to_dict()
 
         # Verify the export worked correctly
         assert result['total_operation_count'] == 2
@@ -77,8 +77,11 @@ def test_iometrics_concurrent_access():
         ]
 
         # Also try to export concurrently
+        async def export_once():
+            return metrics.export_to_dict()
+
         export_tasks = [
-            metrics.export_to_dict()
+            export_once()
             for _ in range(5)
         ]
 
@@ -86,7 +89,7 @@ def test_iometrics_concurrent_access():
         await asyncio.gather(*tasks, *export_tasks)
 
         # Get final result
-        result = await metrics.export_to_dict()
+        result = metrics.export_to_dict()
         return result
 
     result = asyncio.run(concurrent_operations())

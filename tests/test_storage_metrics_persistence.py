@@ -17,7 +17,7 @@ class TestIOMetricsExport:
     async def test_export_to_dict_returns_empty_dict_for_new_metrics(self):
         """Test that export_to_dict returns empty dict for new IOMetrics instance."""
         metrics = IOMetrics()
-        result = await metrics.export_to_dict()
+        result = metrics.export_to_dict()
 
         assert isinstance(result, dict)
         assert result['operations'] == []
@@ -31,7 +31,7 @@ class TestIOMetricsExport:
         await metrics.record_operation('read', 0.5, 0, True)
         await metrics.record_operation('write', 1.2, 2, True)
 
-        result = await metrics.export_to_dict()
+        result = metrics.export_to_dict()
 
         assert len(result['operations']) == 2
         assert result['operations'][0]['operation_type'] == 'read'
@@ -47,7 +47,7 @@ class TestIOMetricsExport:
         await metrics.record_operation('write', 1.2, 2, True)
         await metrics.record_operation('read', 0.3, 0, False, 'ENOENT')
 
-        result = await metrics.export_to_dict()
+        result = metrics.export_to_dict()
 
         assert result['total_operation_count'] == 3
         assert result['total_duration'] == 2.0

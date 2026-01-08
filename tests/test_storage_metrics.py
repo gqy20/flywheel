@@ -279,7 +279,7 @@ class TestIOMetricsIssue1053:
 
         # Log metrics
         with caplog.at_level(logging.INFO):
-            await metrics.log_summary()
+            metrics.log_summary()
 
         # Clean up
         del os.environ['FW_STORAGE_METRICS_LOG']
@@ -305,7 +305,7 @@ class TestIOMetricsIssue1053:
 
         # Try to log metrics
         with caplog.at_level(logging.INFO):
-            await metrics.log_summary()
+            metrics.log_summary()
 
         # Metrics data should still be available
         assert len(metrics.operations) == 1
