@@ -153,6 +153,7 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     - Shell injection (use subprocess with list arguments or shlex.quote())
     - SQL injection (use parameterized queries)
     - XSS attacks (use proper output encoding)
+    - Format string injection (use safe_log() or proper escaping)
     - Any other security vulnerabilities
 
     The previous name "sanitize_string" was misleading as it suggested security
@@ -161,15 +162,11 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 
     What it removes (for data integrity, NOT security):
     - Control characters (null bytes, newlines, tabs) that break storage formats
-    - Format string characters ({, }, %) that could cause format string bugs
-    - Backslashes (\) to prevent them from interfering with storage formats or
-      causing ambiguity in data representation (e.g., in JSON, CSV, or shell contexts)
     - Unicode spoofing characters (zero-width, bidirectional overrides)
-    - Fullwidth characters are CONVERTED to ASCII via NFKC normalization
 
-    What it NO LONGER removes (Issue #979):
-    - Shell metacharacters (;, |, &, `, $, (, ), <, >) are PRESERVED in general
-      context as they are legitimate characters in user text. Examples:
+    What it NO LONGER removes (Issue #979, #1034):
+    - Shell metacharacters (;, |, &, `, $, (, ), <, >) are PRESERVED as they are
+      legitimate characters in user text. Examples:
       - Semicolons: "Note: this is important; remember it"
       - Pipes: "Use | for separating options"
       - Ampersands: "Johnson & Johnson"
@@ -177,6 +174,11 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
       - Parentheses: "See chapter (5) for details"
       - Angle brackets: "Enter your <name> here"
       - Backticks: "Use `print('hello')` for output"
+    - Format string characters ({, }, %, \) are PRESERVED in general context
+      as they are legitimate characters in user content. Examples:
+      - Curly braces: "Use {'key': 'value'} in Python", "Replace {var} with value"
+      - Percent signs: "Complete 50% of the task", "Get 20% off"
+      - Backslashes: "Path: C:\\Users\\Documents" (Windows paths)
       For security-sensitive contexts where these must be removed, use
       sanitize_for_security_context() with appropriate context parameter.
 
@@ -203,18 +205,20 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
         >>> remove_control_chars("Cost: $100 (discount)")
         'Cost: $100 (discount)'  # Shell metachars preserved (Issue #979)
         >>> remove_control_chars("Use {format} strings")
-        'Use format strings'  # Format string chars removed for safety
+        'Use {format} strings'  # Format string chars preserved (Issue #1034)
+        >>> remove_control_chars("Complete 50% of task")
+        'Complete 50% of task'  # Percent sign preserved (Issue #1034)
 
     NOTE: For shell commands, use subprocess with list arguments or shlex.quote().
-    For SQL, use parameterized queries. This function does NOT prevent injection attacks.
+    For SQL, use parameterized queries. For logging with user data, use safe_log().
+    This function does NOT prevent injection attacks.
 
     Related issues:
         #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
         #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal),
         #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames),
-        #810 (clarified backslash removal documentation - backslashes are removed for data
-        #      normalization, not to prevent escape sequence interpretation),
-        #979 (preserve shell metachars in general context - only remove in security contexts)
+        #979 (preserve shell metachars in general context - only remove in security contexts),
+        #1034 (preserve format string chars in general context - only remove in security contexts)
     """
     if not s:
         return ""
@@ -304,38 +308,24 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # SECURITY FIX (Issue #996): Use precompiled pattern for better performance
     s = CONTROL_CHARS_PATTERN.sub('', s)
 
-    # Step 2: Remove format string characters that could cause injection
-    # Characters removed: { } % \
-    # Note: We preserve quotes, [, ], shell metachars for legitimate text content
-    # WARNING: This does NOT provide shell injection protection. For shell commands,
-    # use subprocess with list arguments (shell=False) or shlex.quote().
-    # For security-sensitive contexts (shell, url, filename), use
-    # sanitize_for_security_context() instead.
+    # Step 2: Format string character handling
+    # SECURITY FIX (Issue #1034): In general context (this function), preserve
+    # format string characters ({}, %, \) as they are legitimate characters in
+    # user content:
+    # - Curly braces: Code snippets (dicts, sets), template placeholders
+    # - Percent signs: Percentages, discounts, progress indicators
+    # - Backslashes: Windows file paths, escape sequences in documentation
     #
-    # Curly braces removed to prevent format string attacks (Issue #690)
-    # Percent sign removed to prevent format string injection (Issue #929)
-    # Backslash removed to prevent storage format ambiguity (Issue #810)
-    #
-    # SECURITY NOTE (Issue #729): To prevent ReDoS, we construct the regex pattern
-    # explicitly rather than using string interpolation. This ensures that:
-    # 1. No hyphens in the middle that could create unintended ranges
-    # 2. No unescaped closing brackets that could break the character class
-    # 3. Pattern is safe from catastrophic backtracking
-    #
-    # SECURITY FIX (Issue #929): Added percent sign (%) to prevent format string
-    # injection when normalized strings are used in legacy % formatting (e.g.,
-    # logger.info(msg)). This prevents information disclosure or crashes from
-    # format string specifiers like %s, %d, etc.
-    #
-    # SECURITY FIX (Issue #979): In general context (this function), preserve
-    # shell metacharacters (; | & ` $ ( ) < >) as they are legitimate characters
-    # in user text (e.g., "Cost: $100", "See (chapter 5)", "Use | to separate").
     # This function is for data normalization, not security protection. For
-    # security-sensitive contexts where shell metachars must be removed, use
+    # security-sensitive contexts where format string chars must be removed, use
     # sanitize_for_security_context() with appropriate context ("shell", "url",
     # "filename").
-    # SECURITY FIX (Issue #996): Use precompiled pattern for better performance
-    s = FORMAT_STRING_PATTERN.sub('', s)
+    #
+    # IMPORTANT: If you need to log user-controlled data, use safe_log() which
+    # properly handles format string safety by using %s placeholders instead of
+    # string formatting. Do NOT use f-strings or .format() with unsanitized input.
+    #
+    # No longer removing format string characters (Issue #1034)
 
     # Remove Unicode spoofing characters:
     # Zero-width characters
