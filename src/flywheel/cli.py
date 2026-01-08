@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 ZERO_WIDTH_CHARS_PATTERN = re.compile(r'[\u200B-\u200D\u2060\uFEFF]')
 BIDI_OVERRIDE_PATTERN = re.compile(r'[\u202A-\u202E\u2066-\u2069]')
 CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x1F\x7F]')
+# SECURITY FIX (Issue #1044): Removed SHELL_METACHARS_SECURE_PATTERN - now using
+# whitelist approach with set lookup which is O(n) and has no ReDoS risk
 SHELL_METACHARS_PATTERN = re.compile(r'[;|&`$()<>]')
-SHELL_METACHARS_SECURE_PATTERN = re.compile(r'[;|&`$()<>{}\\%]')
 FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
 
 
@@ -79,7 +80,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #969 (fullwidth homograph attacks), #944 (NFC preservation),
         #974 (percent sign preservation in general context),
         #979 (preserve shell metachars in general context),
-        #1024 (fix shell metachar removal in general mode)
+        #1024 (fix shell metachar removal in general mode),
+        #1044 (ReDoS protection - use whitelist instead of regex blacklist)
     """
     if not s:
         return ""
@@ -132,8 +134,18 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # SECURITY FIX (Issue #1024): In general context, preserve shell metacharacters
     # (; | & ` $ ( ) < >) as they are legitimate characters in user text, as
     # documented in Issue #979. Only remove them in security contexts.
+    # SECURITY FIX (Issue #1044): Use whitelist approach instead of regex blacklist
+    # to completely eliminate ReDoS risk. This is safer than regex patterns which
+    # could potentially have catastrophic backtracking vulnerabilities. The whitelist
+    # approach uses Python's built-in string operations which are O(n) and have
+    # no backtracking risk.
     if use_nfkc:
-        s = SHELL_METACHARS_SECURE_PATTERN.sub('', s)
+        # Define characters to remove using a set for O(1) lookup
+        # These are shell metacharacters that could cause injection attacks
+        shell_dangerous_chars = {';', '|', '&', '`', '$', '(', ')', '<', '>', '{', '}', '\\', '%'}
+        # Filter out dangerous characters using list comprehension
+        # This is O(n) with no backtracking risk
+        s = ''.join(c for c in s if c not in shell_dangerous_chars)
     # else: General context - preserve ALL shell metacharacters, backslashes,
     # curly braces, and percent signs (Issue #1024, #979)
 
