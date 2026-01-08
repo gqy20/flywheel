@@ -70,9 +70,10 @@ class IOMetrics:
         Fix for Issue #1065: Use deque with maxlen for O(1) circular buffer
         performance instead of list with O(N) pop(0).
         Fix for Issue #1080: Use asyncio.Lock for async context safety.
+        Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = asyncio.Lock()
+        self._lock = threading.Lock()
 
     async def record_operation(self, operation_type: str, duration: float,
                                retries: int, success: bool, error_type: str = None):
@@ -90,6 +91,7 @@ class IOMetrics:
         Fix for Issue #1065: Uses deque with maxlen for O(1) performance.
         Fix for Issue #1066: Thread-safe operations using lock.
         Fix for Issue #1080: Uses asyncio.Lock for async context safety.
+        Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         """
         operation = {
             'operation_type': operation_type,
@@ -99,7 +101,7 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        async with self._lock:
+        with self._lock:
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
@@ -122,11 +124,12 @@ class IOMetrics:
         Fix for Issue #1080: Uses asyncio.Lock for async context safety.
         Fix for Issue #1086: Keeps lock held during entire method including logging,
         preventing race conditions when operations are modified between calculation and logging.
+        Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        async with self._lock:
+        with self._lock:
             if not self.operations:
                 logger.info("I/O Metrics: No operations recorded")
                 return
