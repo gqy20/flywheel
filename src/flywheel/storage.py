@@ -242,13 +242,48 @@ class IOMetrics:
 
         Fix for Issue #1101: This sync version creates a new event loop
         to access the async version, ensuring lock safety.
+
+        Fix for Issue #1131: Handle case where called from within a running
+        event loop (e.g., Jupyter Notebook, async web frameworks).
         """
-        # For sync contexts, use asyncio.run to access the async version
         async def _get_count():
             async with self._lock:
                 return len(self.operations)
 
-        return asyncio.run(_get_count())
+        # Try to get the current running event loop
+        try:
+            loop = asyncio.get_running_loop()
+            # If we're here, there's a running loop, use create_task
+            import concurrent.futures
+            import threading
+
+            # Run in a new thread to avoid blocking the current loop
+            result = [None]
+            exception = [None]
+
+            def run_in_new_loop():
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    try:
+                        result[0] = new_loop.run_until_complete(_get_count())
+                    finally:
+                        new_loop.close()
+                except Exception as e:
+                    exception[0] = e
+
+            thread = threading.Thread(target=run_in_new_loop)
+            thread.start()
+            thread.join()
+
+            if exception[0] is not None:
+                raise exception[0]
+
+            return result[0]
+
+        except RuntimeError:
+            # No running loop, use asyncio.run normally
+            return asyncio.run(_get_count())
 
     async def total_operation_count_async(self) -> int:
         """Get total number of operations recorded (async version).
