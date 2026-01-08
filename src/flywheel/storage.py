@@ -143,9 +143,39 @@ class IOMetrics:
         Fix for Issue #1097: Use custom lock wrapper that supports both
         sync and async context managers.
         Fix for Issue #1109: Use threading.Lock for sync methods to work in async contexts.
+        Fix for Issue #1116: Use _AsyncCompatibleLock for async-safe record_operation.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = threading.Lock()
+        self._lock = _AsyncCompatibleLock()
+
+    async def record_operation_async(self, operation_type: str, duration: float,
+                                     retries: int, success: bool, error_type: str = None):
+        """Record a single I/O operation (async version).
+
+        This async version should be called from async contexts to avoid
+        potential deadlocks with threading.Lock.
+
+        Args:
+            operation_type: Type of operation (read/write/flush/etc.)
+            duration: Operation duration in seconds
+            retries: Number of retry attempts
+            success: Whether the operation succeeded
+            error_type: Type of error if operation failed (e.g., 'ENOENT')
+
+        Fix for Issue #1116: Added async version using _AsyncCompatibleLock
+        to prevent deadlocks in async contexts.
+        """
+        operation = {
+            'operation_type': operation_type,
+            'duration': duration,
+            'retries': retries,
+            'success': success,
+            'error_type': error_type
+        }
+
+        async with self._lock:
+            # deque with maxlen automatically discards oldest when full (O(1))
+            self.operations.append(operation)
 
     def record_operation(self, operation_type: str, duration: float,
                          retries: int, success: bool, error_type: str = None):
@@ -167,6 +197,8 @@ class IOMetrics:
         Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         Fix for Issue #1106: Changed to sync method since it's a simple dict append.
         Fix for Issue #1109: Uses threading.Lock to work correctly in async contexts.
+        Fix for Issue #1116: Provides async-safe version. Use record_operation_async
+        in async contexts to avoid potential deadlocks.
         """
         operation = {
             'operation_type': operation_type,
@@ -425,8 +457,8 @@ class _IOMetricsContextManager:
             self.success = False
             self.error_type = exc_type.__name__
 
-        # Record the operation (sync call for issue #1106)
-        self.metrics.record_operation(
+        # Record the operation using async version to avoid deadlock (issue #1116)
+        await self.metrics.record_operation_async(
             self.operation_type,
             duration,
             self.retries,
