@@ -39,6 +39,12 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     For general text storage (todo titles, descriptions), use remove_control_chars()
     instead, which uses NFC normalization to preserve user intent.
 
+    CRITICAL: Strings sanitized with 'general' context preserve format string characters
+    ({, }, %, \) and should NEVER be used directly in format strings (f-strings, .format(),
+    or % formatting). Doing so would make your code vulnerable to format string injection
+    attacks. Always use 'shell', 'url', or 'filename' context for strings that will be
+    used in dynamic formatting or shell operations.
+
     What NFKC converts (preventing homograph attacks):
     - Fullwidth characters: ｅ → e, Ｔ → T, ． → .
     - Fullwidth punctuation: ！ → !, ？ → ?
@@ -83,7 +89,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1024 (fix shell metachar removal in general mode),
         #1044 (ReDoS protection - use whitelist instead of regex blacklist),
         #1049 (normalization before truncation to prevent orphaned combining marks),
-        #1054 (safe UTF-8 truncation using encode-decode cycle)
+        #1054 (safe UTF-8 truncation using encode-decode cycle),
+        #1089 (document security implications of format string chars in general context)
     """
     if not s:
         return ""
@@ -238,12 +245,24 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     For SQL, use parameterized queries. For logging with user data, use safe_log().
     This function does NOT prevent injection attacks.
 
+    CRITICAL (Issue #1089): Strings returned by this function preserve format string
+    characters ({, }, %, \) and are therefore ONLY safe for display and data storage.
+    They MUST NOT be used in:
+    - Format strings (f-strings, str.format(), % formatting)
+    - Shell commands (use sanitize_for_security_context(context="shell") instead)
+    - URLs (use sanitize_for_security_context(context="url") instead)
+    - Filenames (use sanitize_for_security_context(context="filename") instead)
+    - Any dynamic code generation or evaluation
+    For these security-sensitive use cases, use sanitize_for_security_context() with
+    the appropriate context parameter to remove dangerous characters.
+
     Related issues:
         #669, #619, #690, #725, #729, #736, #754, #769, #779, #780, #804, #805, #814,
         #819, #824, #830, #849, #850 (rename from sanitize_string), #929 (percent sign removal),
         #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames),
         #979 (preserve shell metachars in general context - only remove in security contexts),
-        #1034 (preserve format string chars in general context - only remove in security contexts)
+        #1034 (preserve format string chars in general context - only remove in security contexts),
+        #1089 (document security implications of format string chars in general context)
     """
     if not s:
         return ""
