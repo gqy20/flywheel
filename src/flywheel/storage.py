@@ -290,57 +290,63 @@ class IOMetrics:
         Fix for Issue #1076: Uses lock to ensure thread-safe access to
         self.operations during metrics calculation, preventing race conditions.
         Fix for Issue #1080: Uses asyncio.Lock for async context safety.
-        Fix for Issue #1086: Keeps lock held during entire method including logging,
-        preventing race conditions when operations are modified between calculation and logging.
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
         Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         Fix for Issue #1115: Changed to sync method using threading.Lock to avoid deadlock.
         Fix for Issue #1124: Uses asyncio.Lock via asyncio.run() to ensure pure
         async locking mechanism without threading.Lock.
+        Fix for Issue #1100: Release lock before I/O operations (logging) to prevent deadlock.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _log_with_lock():
+            # Fix for Issue #1100: Calculate metrics inside lock, then release before logging
             async with self._lock:
                 if not self.operations:
-                    logger.info("I/O Metrics: No operations recorded")
-                    return
+                    # Release lock before logging
+                    has_operations = False
+                else:
+                    has_operations = True
+                    total_ops = len(self.operations)
+                    total_dur = sum(op['duration'] for op in self.operations)
+                    total_retries = sum(op['retries'] for op in self.operations)
+                    successful_ops = sum(1 for op in self.operations if op['success'])
+                    failed_ops = total_ops - successful_ops
 
-                total_ops = len(self.operations)
-                total_dur = sum(op['duration'] for op in self.operations)
-                total_retries = sum(op['retries'] for op in self.operations)
-                successful_ops = sum(1 for op in self.operations if op['success'])
-                failed_ops = total_ops - successful_ops
+                    # Group by operation type
+                    by_type = {}
+                    for op in self.operations:
+                        op_type = op['operation_type']
+                        if op_type not in by_type:
+                            by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
+                        by_type[op_type]['count'] += 1
+                        by_type[op_type]['duration'] += op['duration']
+                        by_type[op_type]['retries'] += op['retries']
 
-                # Group by operation type
-                by_type = {}
-                for op in self.operations:
-                    op_type = op['operation_type']
-                    if op_type not in by_type:
-                        by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
-                    by_type[op_type]['count'] += 1
-                    by_type[op_type]['duration'] += op['duration']
-                    by_type[op_type]['retries'] += op['retries']
+            # Lock is now released - perform I/O operations outside the lock
+            if not has_operations:
+                logger.info("I/O Metrics: No operations recorded")
+                return
 
-                # Log the summary while holding the lock to prevent race conditions
+            # Log the summary after releasing the lock to prevent deadlock
+            logger.info(
+                f"I/O Metrics Summary: "
+                f"{total_ops} operations, "
+                f"{successful_ops} successful, "
+                f"{failed_ops} failed, "
+                f"{total_retries} retries, "
+                f"total duration: {total_dur:.3f}s"
+            )
+
+            for op_type, stats in sorted(by_type.items()):
+                avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
                 logger.info(
-                    f"I/O Metrics Summary: "
-                    f"{total_ops} operations, "
-                    f"{successful_ops} successful, "
-                    f"{failed_ops} failed, "
-                    f"{total_retries} retries, "
-                    f"total duration: {total_dur:.3f}s"
+                    f"  {op_type}: {stats['count']} ops, "
+                    f"avg duration: {avg_duration:.3f}s, "
+                    f"total retries: {stats['retries']}"
                 )
-
-                for op_type, stats in sorted(by_type.items()):
-                    avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
-                    logger.info(
-                        f"  {op_type}: {stats['count']} ops, "
-                        f"avg duration: {avg_duration:.3f}s, "
-                        f"total retries: {stats['retries']}"
-                    )
 
         asyncio.run(_log_with_lock())
 
