@@ -146,9 +146,12 @@ class IOMetrics:
         Fix for Issue #1116: Use _AsyncCompatibleLock for async-safe record_operation.
         Fix for Issue #1124: Use pure asyncio.Lock to prevent event loop blocking
         in async contexts. IOMetrics now uses async-only locking mechanism.
+        Fix for Issue #1135: Use threading.Lock for sync methods to prevent
+        RuntimeError when called from threads with running event loop.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
         self._lock = asyncio.Lock()
+        self._sync_lock = threading.Lock()
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):
@@ -207,6 +210,8 @@ class IOMetrics:
         to ensure pure async locking mechanism without threading.Lock.
         Fix for Issue #1130: Fixed exception handling to properly detect running
         event loop without catching the wrong RuntimeError.
+        Fix for Issue #1135: Use threading.Lock instead of asyncio.run() to
+        prevent RuntimeError when called from threads with running event loop.
         """
         # Fix for Issue #1121: Detect if we're in an async context and provide
         # a clear error message directing users to use record_operation_async
@@ -237,14 +242,11 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
-        # This ensures we use pure async locking without threading.Lock
-        async def _record_with_lock():
-            async with self._lock:
-                # deque with maxlen automatically discards oldest when full (O(1))
-                self.operations.append(operation)
-
-        asyncio.run(_record_with_lock())
+        # Fix for Issue #1135: Use threading.Lock instead of asyncio.run()
+        # to prevent RuntimeError when called from threads with running event loop
+        with self._sync_lock:
+            # deque with maxlen automatically discards oldest when full (O(1))
+            self.operations.append(operation)
 
     def total_operation_count(self) -> int:
         """Get total number of operations recorded.
