@@ -82,7 +82,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #979 (preserve shell metachars in general context),
         #1024 (fix shell metachar removal in general mode),
         #1044 (ReDoS protection - use whitelist instead of regex blacklist),
-        #1049 (normalization before truncation to prevent orphaned combining marks)
+        #1049 (normalization before truncation to prevent orphaned combining marks),
+        #1054 (safe UTF-8 truncation using encode-decode cycle)
     """
     if not s:
         return ""
@@ -121,8 +122,14 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # and ensures safer truncation behavior (Issue #1049).
     # The length check still prevents ReDoS attacks by limiting the string length
     # before any regex processing (Issue #999).
+    # SECURITY FIX (Issue #1054): Use safe truncation that preserves UTF-8 validity.
+    # While Python's string slicing operates on code points (not bytes), we use an
+    # encode-decode cycle to ensure the truncated string is always valid UTF-8 and
+    # handle edge cases with surrogate pairs or combining character sequences.
     if len(s) > max_length:
-        s = s[:max_length]
+        # Safely truncate by encoding to UTF-8, truncating bytes, then decoding
+        # This ensures we never have invalid UTF-8 sequences
+        s = s.encode('utf-8', 'ignore')[:max_length].decode('utf-8', 'ignore')
 
     # Remove control characters
     # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
@@ -286,8 +293,10 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # Python's re module handles character classes efficiently, enforcing
     # the limit early ensures that excessively long strings cannot cause
     # catastrophic backtracking in any of the regex patterns.
+    # SECURITY FIX (Issue #1054): Use safe truncation that preserves UTF-8 validity.
+    # Encode-decode cycle ensures we never have invalid UTF-8 sequences after truncation.
     if len(s) > max_length:
-        s = s[:max_length]
+        s = s.encode('utf-8', 'ignore')[:max_length].decode('utf-8', 'ignore')
 
     # Remove certain metacharacters that could interfere with data formats or display systems.
     # Characters removed: ; | & ` $ ( ) < > { } \
@@ -511,8 +520,9 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
     tags_str = unicodedata.normalize('NFC', tags_str)
 
     # Prevent DoS by limiting input length before processing
+    # SECURITY FIX (Issue #1054): Use safe truncation that preserves UTF-8 validity.
     if len(tags_str) > max_length:
-        tags_str = tags_str[:max_length]
+        tags_str = tags_str.encode('utf-8', 'ignore')[:max_length].decode('utf-8', 'ignore')
 
     # Split by comma
     raw_tags = tags_str.split(",")
@@ -537,8 +547,9 @@ def sanitize_tags(tags_str, max_length=10000, max_tags=100, max_tag_length=100):
 
         # Truncate tag if it exceeds max_tag_length to prevent abuse
         # This addresses Issue #751 - individual tag length limit
+        # SECURITY FIX (Issue #1054): Use safe truncation that preserves UTF-8 validity.
         if len(tag) > max_tag_length:
-            tag = tag[:max_tag_length]
+            tag = tag.encode('utf-8', 'ignore')[:max_tag_length].decode('utf-8', 'ignore')
 
         # Use non-regex whitelist approach: only keep allowed characters
         # This completely eliminates ReDoS risk from regex backtracking
