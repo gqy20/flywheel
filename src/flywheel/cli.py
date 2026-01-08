@@ -81,22 +81,11 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #974 (percent sign preservation in general context),
         #979 (preserve shell metachars in general context),
         #1024 (fix shell metachar removal in general mode),
-        #1044 (ReDoS protection - use whitelist instead of regex blacklist)
+        #1044 (ReDoS protection - use whitelist instead of regex blacklist),
+        #1049 (normalization before truncation to prevent orphaned combining marks)
     """
     if not s:
         return ""
-
-    # SECURITY FIX (Issue #999): Enforce max_length at the very beginning of the
-    # function, BEFORE any processing including Unicode normalization. This is the
-    # most secure approach to prevent ReDoS (Regular Expression Denial of Service)
-    # attacks. By checking the length first, we ensure that no matter what other
-    # processing happens (normalization, regex substitution, etc.), we never work
-    # with strings longer than max_length. This prevents potential performance
-    # degradation or denial of service from maliciously long inputs, even if they
-    # contain patterns that could cause catastrophic backtracking in regex patterns
-    # like SHELL_METACHARS_SECURE_PATTERN which contains {} and % characters.
-    if len(s) > max_length:
-        s = s[:max_length]
 
     # SECURITY FIX (Issue #969): Use NFKC for security-sensitive contexts
     # NFKC normalization converts fullwidth characters to ASCII equivalents:
@@ -108,6 +97,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # where fullwidth characters could be used to deceive users or bypass filters.
     #
     # For general text context, use NFC to preserve user intent (Issue #944)
+    #
+    # SECURITY FIX (Issue #1049): Perform Unicode normalization BEFORE truncation.
+    # This ensures that combining sequences (e.g., 'e' + combining_acute) are
+    # composed into single code points (é) before truncation. This prevents
+    # orphaned combining marks and ensures safer truncation behavior.
+    # Normalization is fast and safe even for long strings, so doing it before
+    # the length check doesn't introduce DoS risk.
     security_contexts = {"url", "filename", "shell"}
     use_nfkc = context in security_contexts
 
@@ -119,9 +115,19 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         # Use NFC for general text to preserve special characters
         s = unicodedata.normalize('NFC', s)
 
+    # SECURITY FIX (Issue #999, #1049): Enforce max_length AFTER Unicode normalization.
+    # By normalizing first, we ensure that combining sequences are composed into
+    # single code points before truncation. This prevents orphaned combining marks
+    # and ensures safer truncation behavior (Issue #1049).
+    # The length check still prevents ReDoS attacks by limiting the string length
+    # before any regex processing (Issue #999).
+    if len(s) > max_length:
+        s = s[:max_length]
+
     # Remove control characters
-    # SECURITY FIX (Issue #999): Length check is now at function start (line 90)
-    # to ensure it happens before ANY processing, preventing ReDoS attacks.
+    # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
+    # normalization (line 123) to prevent orphaned combining marks, but BEFORE
+    # any regex processing to prevent ReDoS attacks.
     s = CONTROL_CHARS_PATTERN.sub('', s)
 
     # Remove shell metacharacters (especially important for shell context)
