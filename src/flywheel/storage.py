@@ -53,6 +53,8 @@ if not HAS_AIOFILES:
         max_attempts: int = 3,
         initial_backoff: float = 0.1,
         timeout: float | None = 30.0,
+        path: str | None = None,
+        operation_type: str | None = None,
         **kwargs
     ):
         """Retry I/O operations on transient errors with exponential backoff.
@@ -67,6 +69,8 @@ if not HAS_AIOFILES:
             initial_backoff: Initial backoff time in seconds (default: 0.1)
             timeout: Maximum time in seconds for each operation attempt (default: 30.0).
                      Set to None to disable timeout. Fix for Issue #1043.
+            path: File path for structured logging context (Issue #1042).
+            operation_type: Operation type (read/write/flush/etc.) for logging context (Issue #1042).
             **kwargs: Keyword arguments to pass to the operation
 
         Returns:
@@ -89,7 +93,31 @@ if not HAS_AIOFILES:
 
         Fix for Issue #1038: Automatic retry logic for transient I/O errors.
         Fix for Issue #1043: Configurable timeout for I/O operations.
+        Fix for Issue #1042: Structured logging context with path and operation type.
         """
+        # Create logger adapter with structured context (Issue #1042)
+        # LoggerAdapter automatically adds extra dict to all log records
+        extra_context = {}
+        if path is not None:
+            extra_context['path'] = str(path)
+        if operation_type is not None:
+            extra_context['operation'] = operation_type
+
+        # Create a logger adapter to add context to all log messages
+        if extra_context:
+            class ContextualLoggerAdapter(logging.LoggerAdapter):
+                """Logger adapter that adds extra context as record attributes."""
+                def process(self, msg, kwargs):
+                    # Add extra context to kwargs, which adds them to the LogRecord
+                    if 'extra' not in kwargs:
+                        kwargs['extra'] = {}
+                    kwargs['extra'].update(self.extra)
+                    return msg, kwargs
+
+            retry_logger = ContextualLoggerAdapter(logger, extra_context)
+        else:
+            retry_logger = logger
+
         last_error = None
         for attempt in range(max_attempts):
             try:
@@ -129,7 +157,7 @@ if not HAS_AIOFILES:
                 if attempt < max_attempts - 1:
                     # Calculate exponential backoff
                     backoff = initial_backoff * (2 ** attempt)
-                    logger.debug(
+                    retry_logger.debug(
                         f"Transient I/O error (errno={e.errno}), "
                         f"retrying in {backoff:.1f}s "
                         f"(attempt {attempt + 1}/{max_attempts})"
@@ -137,7 +165,7 @@ if not HAS_AIOFILES:
                     await asyncio.sleep(backoff)
                 else:
                     # Last attempt failed, raise the error
-                    logger.warning(
+                    retry_logger.warning(
                         f"I/O operation failed after {max_attempts} attempts: {e}"
                     )
                     raise
@@ -159,7 +187,8 @@ if not HAS_AIOFILES:
         async def __aenter__(self):
             # Use asyncio.to_thread to run blocking I/O in a thread pool
             # with retry logic for transient errors (Issue #1038)
-            self._file = await _retry_io_operation(open, self.path, self.mode)
+            self._file = await _retry_io_operation(open, self.path, self.mode,
+                                                   path=self.path, operation_type='open')
             return self
 
         async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -177,7 +206,8 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.read)
+            return await _retry_io_operation(self._file.read,
+                                              path=self.path, operation_type='read')
 
         async def write(self, data: str | bytes) -> int:
             """Write data to file asynchronously with retry logic.
@@ -188,7 +218,8 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.write, data)
+            return await _retry_io_operation(self._file.write, data,
+                                              path=self.path, operation_type='write')
 
         async def flush(self):
             """Flush file buffers asynchronously with retry logic.
@@ -197,7 +228,8 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.flush)
+            return await _retry_io_operation(self._file.flush,
+                                              path=self.path, operation_type='flush')
 
         def fileno(self) -> int:
             """Get file descriptor number."""
