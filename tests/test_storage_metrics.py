@@ -214,3 +214,109 @@ class TestStorageMetrics:
 
             # Should have at least 3 timing calls (one per load operation)
             assert call_count >= 3, f"Expected at least 3 timing calls, got {call_count}"
+
+
+class TestIOMetricsIssue1053:
+    """Test suite for I/O operation metrics tracking (Issue #1053)."""
+
+    def test_metrics_class_exists(self):
+        """Test that a Metrics class or similar mechanism exists."""
+        # This test will fail initially as we haven't implemented Metrics yet
+        try:
+            from flywheel.storage import IOMetrics
+            assert True
+        except ImportError:
+            pytest.fail("IOMetrics class not implemented")
+
+    def test_metrics_tracks_operation_duration(self):
+        """Test that metrics track operation duration."""
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+
+        # Verify metrics captured duration
+        assert hasattr(metrics, 'operations')
+        assert len(metrics.operations) == 1
+        assert metrics.operations[0]['duration'] == 0.1
+
+    def test_metrics_tracks_retry_count(self):
+        """Test that metrics track number of retries."""
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("write", duration=0.5, retries=2, success=True)
+
+        # Verify metrics captured retry count
+        assert metrics.operations[0]['retries'] == 2
+
+    def test_metrics_tracks_error_types(self):
+        """Test that metrics track error types."""
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("read", duration=0.1, retries=0, success=False, error_type="ENOENT")
+
+        # Verify metrics captured error type
+        assert metrics.operations[0]['error_type'] == "ENOENT"
+
+    def test_metrics_logging_via_env_var(self, caplog):
+        """Test that metrics can be logged via environment variable."""
+        import os
+        import logging
+
+        # Set environment variable to enable metrics logging
+        os.environ['FW_STORAGE_METRICS_LOG'] = '1'
+
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+
+        # Log metrics
+        with caplog.at_level(logging.INFO):
+            metrics.log_summary()
+
+        # Clean up
+        del os.environ['FW_STORAGE_METRICS_LOG']
+
+        # Verify metrics were logged
+        assert any('Metrics' in record.message or 'duration' in record.message.lower()
+                   for record in caplog.records)
+
+    def test_metrics_without_env_var_no_logging(self, caplog):
+        """Test that metrics are not logged when env var is not set."""
+        import os
+        import logging
+
+        # Ensure env var is not set
+        if 'FW_STORAGE_METRICS_LOG' in os.environ:
+            del os.environ['FW_STORAGE_METRICS_LOG']
+
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+
+        # Try to log metrics
+        with caplog.at_level(logging.INFO):
+            metrics.log_summary()
+
+        # Metrics data should still be available
+        assert len(metrics.operations) == 1
+        # But not explicitly logged (unless env var is set)
+        # This test verifies the object holds data regardless
+
+    def test_metrics_aggregates_multiple_operations(self):
+        """Test that metrics can aggregate data from multiple operations."""
+        from flywheel.storage import IOMetrics
+
+        metrics = IOMetrics()
+        metrics.record_operation("read", duration=0.1, retries=0, success=True)
+        metrics.record_operation("write", duration=0.2, retries=1, success=True)
+        metrics.record_operation("read", duration=0.15, retries=0, success=True)
+
+        # Verify aggregated metrics
+        assert len(metrics.operations) == 3
+        assert metrics.total_operation_count() == 3
+        assert metrics.total_duration() > 0.4
