@@ -114,29 +114,33 @@ class IOMetrics:
 
         This method checks the FW_STORAGE_METRICS_LOG environment variable
         and logs the metrics summary if it's set to '1'.
+
+        Fix for Issue #1076: Uses lock to ensure thread-safe access to
+        self.operations during metrics calculation, preventing race conditions.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        if not self.operations:
-            logger.info("I/O Metrics: No operations recorded")
-            return
+        with self._lock:
+            if not self.operations:
+                logger.info("I/O Metrics: No operations recorded")
+                return
 
-        total_ops = len(self.operations)
-        total_dur = self.total_duration()
-        total_retries = sum(op['retries'] for op in self.operations)
-        successful_ops = sum(1 for op in self.operations if op['success'])
-        failed_ops = total_ops - successful_ops
+            total_ops = len(self.operations)
+            total_dur = sum(op['duration'] for op in self.operations)
+            total_retries = sum(op['retries'] for op in self.operations)
+            successful_ops = sum(1 for op in self.operations if op['success'])
+            failed_ops = total_ops - successful_ops
 
-        # Group by operation type
-        by_type = {}
-        for op in self.operations:
-            op_type = op['operation_type']
-            if op_type not in by_type:
-                by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
-            by_type[op_type]['count'] += 1
-            by_type[op_type]['duration'] += op['duration']
-            by_type[op_type]['retries'] += op['retries']
+            # Group by operation type
+            by_type = {}
+            for op in self.operations:
+                op_type = op['operation_type']
+                if op_type not in by_type:
+                    by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
+                by_type[op_type]['count'] += 1
+                by_type[op_type]['duration'] += op['duration']
+                by_type[op_type]['retries'] += op['retries']
 
         logger.info(
             f"I/O Metrics Summary: "
