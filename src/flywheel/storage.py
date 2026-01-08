@@ -66,6 +66,7 @@ class IOMetrics:
     def __init__(self):
         """Initialize an empty metrics tracker with circular buffer."""
         self.operations = []
+        self._lock = threading.Lock()
 
     def record_operation(self, operation_type: str, duration: float,
                         retries: int, success: bool, error_type: str = None):
@@ -80,6 +81,7 @@ class IOMetrics:
 
         Fix for Issue #1061: Implements circular buffer by removing oldest
         operation when buffer is full.
+        Fix for Issue #1066: Thread-safe operations using lock.
         """
         operation = {
             'operation_type': operation_type,
@@ -89,11 +91,12 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        self.operations.append(operation)
+        with self._lock:
+            self.operations.append(operation)
 
-        # Implement circular buffer: remove oldest operation if buffer is full
-        if len(self.operations) > self.MAX_OPERATIONS:
-            self.operations.pop(0)
+            # Implement circular buffer: remove oldest operation if buffer is full
+            if len(self.operations) > self.MAX_OPERATIONS:
+                self.operations.pop(0)
 
     def total_operation_count(self) -> int:
         """Get total number of operations recorded."""
