@@ -2081,6 +2081,11 @@ class FileStorage(AbstractStorage):
         self._cache: dict[int, Todo] = {}  # Cache dictionary for O(1) lookups by ID
         self._cache_dirty = False  # Track if cache needs invalidation
         self._cache_mtime: float | None = None  # Track file modification time for cache invalidation
+        # LRU cache for metadata reads to reduce I/O on network filesystems (Issue #1073)
+        # Stores recently loaded file contents with limited size to prevent memory bloat
+        self._metadata_cache: dict[str, tuple[list, int, float]] = {}  # path -> (todos, next_id, mtime)
+        self._metadata_cache_maxsize = 128  # Maximum number of entries in LRU cache
+        self._metadata_cache_lock = threading.Lock()  # Thread-safe cache access
         # File lock timeout to prevent indefinite hangs (Issue #396, #777)
         # Use the provided timeout parameter (default 30.0 seconds)
         self._lock_timeout: float = lock_timeout
@@ -5102,6 +5107,10 @@ class FileStorage(AbstractStorage):
         File read and state update are performed atomically to prevent
         race conditions where the file could change between reading and
         updating internal state.
+
+        Implements LRU cache for metadata reads to reduce I/O on network
+        filesystems (Issue #1073). Cache uses file modification time to
+        detect changes and automatically invalidate stale entries.
         """
         import time
         start_time = time.time()
@@ -5112,6 +5121,22 @@ class FileStorage(AbstractStorage):
             self._next_id = 1
             self._dirty = False  # Reset dirty flag (Issue #203)
             return
+
+        # Check LRU cache first (Issue #1073)
+        cache_key = str(self.path)
+        current_mtime = self.path.stat().st_mtime
+
+        with self._metadata_cache_lock:
+            if cache_key in self._metadata_cache:
+                cached_todos, cached_next_id, cached_mtime = self._metadata_cache[cache_key]
+                # Use cached data if file hasn't been modified
+                if cached_mtime == current_mtime:
+                    self._todos = cached_todos
+                    self._next_id = cached_next_id
+                    self._dirty = False
+                    elapsed = time.time() - start_time
+                    logger.debug(f"Load completed in {elapsed:.3f}s (cached, {len(cached_todos)} todos)")
+                    return
 
         try:
             # Read file and parse JSON atomically using json.load()
@@ -5261,6 +5286,17 @@ class FileStorage(AbstractStorage):
             # waiting for the first access to rebuild it
             if self._cache_enabled:
                 self._update_cache_from_todos()
+
+            # Update LRU cache with loaded data (Issue #1073)
+            with self._metadata_cache_lock:
+                # Implement LRU eviction if cache is full
+                if len(self._metadata_cache) >= self._metadata_cache_maxsize:
+                    # Remove oldest entry (first item in dict)
+                    oldest_key = next(iter(self._metadata_cache))
+                    del self._metadata_cache[oldest_key]
+
+                # Store in cache with current modification time
+                self._metadata_cache[cache_key] = (todos, next_id, current_mtime)
 
             # Log successful load completion
             elapsed = time.time() - start_time
@@ -5637,6 +5673,13 @@ class FileStorage(AbstractStorage):
                 # If target doesn't exist, no need to lock
                 os.replace(temp_path, self.path)
 
+            # Invalidate LRU cache on write (Issue #1073)
+            # Remove cached entry for this file since it has been modified
+            cache_key = str(self.path)
+            with self._metadata_cache_lock:
+                if cache_key in self._metadata_cache:
+                    del self._metadata_cache[cache_key]
+
             # Log successful save completion
             elapsed = time.time() - start_time
             bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
@@ -5812,6 +5855,13 @@ class FileStorage(AbstractStorage):
             else:
                 # If target doesn't exist, no need to lock
                 os.replace(temp_path, self.path)
+
+            # Invalidate LRU cache on write (Issue #1073)
+            # Remove cached entry for this file since it has been modified
+            cache_key = str(self.path)
+            with self._metadata_cache_lock:
+                if cache_key in self._metadata_cache:
+                    del self._metadata_cache[cache_key]
 
             # Phase 3: Update internal state ONLY after successful write
             # This ensures consistency between memory and disk (fixes Issue #121, #150)
@@ -5996,6 +6046,13 @@ class FileStorage(AbstractStorage):
             else:
                 # If target doesn't exist, no need to lock
                 os.replace(temp_path, self.path)
+
+            # Invalidate LRU cache on write (Issue #1073)
+            # Remove cached entry for this file since it has been modified
+            cache_key = str(self.path)
+            with self._metadata_cache_lock:
+                if cache_key in self._metadata_cache:
+                    del self._metadata_cache[cache_key]
 
             # Phase 3: Update internal state ONLY after successful write
             # This ensures consistency between memory and disk (fixes Issue #121, #150)
