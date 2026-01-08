@@ -53,20 +53,31 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
+    This implementation uses separate locks for sync and async contexts to avoid
+    creating new event loops in sync contexts, which can break existing async
+    contexts and cause deadlocks.
+
     Fix for Issue #1097: Provides unified lock interface for IOMetrics.
+    Fix for Issue #1105: Uses separate threading.Lock and asyncio.Lock instead of
+    creating new event loops in sync contexts.
     """
 
     def __init__(self):
-        """Initialize with asyncio.Lock for async safety."""
-        self._lock = asyncio.Lock()
+        """Initialize with separate locks for sync and async contexts."""
+        self._sync_lock = threading.Lock()
+        self._async_lock = asyncio.Lock()
 
     def __enter__(self):
         """Support synchronous context manager protocol.
+
+        Uses threading.Lock for synchronous contexts, avoiding the need to create
+        new event loops which can break existing async contexts.
 
         Note: This will raise an error if called from an async context.
         For async contexts, use 'async with' instead.
 
         Fix for Issue #1107: Detects running event loops to prevent deadlocks.
+        Fix for Issue #1105: Uses threading.Lock instead of creating new event loop.
         """
         # Check if there's already a running event loop in the current thread
         try:
@@ -83,31 +94,24 @@ class _AsyncCompatibleLock:
             # No running event loop, we can proceed with sync acquisition
             pass
 
-        # Run the lock acquisition in a new event loop
-        # This is not ideal but provides backward compatibility
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(self._lock.acquire())
-        finally:
-            loop.close()
+        # Acquire the sync lock using threading.Lock
+        self._sync_lock.acquire()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context."""
-        if self._lock.locked():
-            self._lock.release()
+        self._sync_lock.release()
         return False
 
     async def __aenter__(self):
         """Support asynchronous context manager protocol."""
-        await self._lock.acquire()
+        await self._async_lock.acquire()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context."""
-        if self._lock.locked():
-            self._lock.release()
+        if self._async_lock.locked():
+            self._async_lock.release()
         return False
 
 

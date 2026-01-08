@@ -87,12 +87,12 @@ class TestAsyncCompatibleLockNoNewEventLoop:
         async def use_async_lock():
             async with lock:
                 # Lock should be acquired
-                assert lock._lock.locked()
+                assert lock._async_lock.locked()
                 # Do some work
                 await asyncio.sleep(0.01)
 
             # Lock should be released
-            assert not lock._lock.locked()
+            assert not lock._async_lock.locked()
 
         asyncio.run(use_async_lock())
 
