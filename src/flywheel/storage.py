@@ -283,15 +283,15 @@ class IOMetrics:
         """
         async with self._lock:
             operations_list = list(self.operations)
-
-        successful_ops = sum(1 for op in operations_list if op['success'])
-        failed_ops = len(operations_list) - successful_ops
-        total_retries = sum(op['retries'] for op in operations_list)
+            successful_ops = sum(1 for op in operations_list if op['success'])
+            failed_ops = len(operations_list) - successful_ops
+            total_retries = sum(op['retries'] for op in operations_list)
+            total_dur = self.total_duration()
 
         return {
             'operations': operations_list,
             'total_operation_count': len(operations_list),
-            'total_duration': self.total_duration(),
+            'total_duration': total_dur,
             'successful_operations': successful_ops,
             'failed_operations': failed_ops,
             'total_retries': total_retries
