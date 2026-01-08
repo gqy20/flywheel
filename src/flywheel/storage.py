@@ -5187,6 +5187,49 @@ class FileStorage(AbstractStorage):
                 await f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
 
+                # Verify SHA256 integrity by reading back data (Issue #1037)
+                # This prevents silent data corruption by ensuring what was written
+                # matches what was calculated
+                await f.seek(0)  # Go back to start of file
+                read_back_data = await f.read()
+
+                # Separate the hash footer from the actual data
+                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                if hash_footer_start != -1:
+                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    if hash_footer_end != -1:
+                        # Extract the stored hash
+                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+
+                        # Calculate hash of the actual data (before footer)
+                        actual_data = read_back_data[:hash_footer_start]
+                        calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                        # Verify integrity - log critical error if mismatch detected
+                        if stored_hash != calculated_hash:
+                            logger.critical(
+                                f"SHA256 integrity verification failed for {temp_path}: "
+                                f"expected {stored_hash}, calculated {calculated_hash}. "
+                                f"This indicates silent data corruption! Data may be lost.",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_failed',
+                                    'file_path': str(temp_path),
+                                    'expected_hash': stored_hash,
+                                    'calculated_hash': calculated_hash
+                                }
+                            )
+                        else:
+                            logger.debug(
+                                f"SHA256 integrity verification passed for {temp_path}",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_passed',
+                                    'file_path': str(temp_path),
+                                    'hash': stored_hash
+                                }
+                            )
+
             # Close is handled by the context manager
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
@@ -5321,6 +5364,49 @@ class FileStorage(AbstractStorage):
                 f.write(data_bytes_with_hash)
                 f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
+
+                # Verify SHA256 integrity by reading back data (Issue #1037)
+                # This prevents silent data corruption by ensuring what was written
+                # matches what was calculated
+                f.seek(0)  # Go back to start of file
+                read_back_data = f.read()
+
+                # Separate the hash footer from the actual data
+                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                if hash_footer_start != -1:
+                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    if hash_footer_end != -1:
+                        # Extract the stored hash
+                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+
+                        # Calculate hash of the actual data (before footer)
+                        actual_data = read_back_data[:hash_footer_start]
+                        calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                        # Verify integrity - log critical error if mismatch detected
+                        if stored_hash != calculated_hash:
+                            logger.critical(
+                                f"SHA256 integrity verification failed for {temp_path}: "
+                                f"expected {stored_hash}, calculated {calculated_hash}. "
+                                f"This indicates silent data corruption! Data may be lost.",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_failed',
+                                    'file_path': str(temp_path),
+                                    'expected_hash': stored_hash,
+                                    'calculated_hash': calculated_hash
+                                }
+                            )
+                        else:
+                            logger.debug(
+                                f"SHA256 integrity verification passed for {temp_path}",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_passed',
+                                    'file_path': str(temp_path),
+                                    'hash': stored_hash
+                                }
+                            )
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
             # Use async backup rotation to avoid blocking event loop (Issue #747)
@@ -5460,6 +5546,49 @@ class FileStorage(AbstractStorage):
                 await f.write(data_bytes_with_hash)
                 await f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
+
+                # Verify SHA256 integrity by reading back data (Issue #1037)
+                # This prevents silent data corruption by ensuring what was written
+                # matches what was calculated
+                await f.seek(0)  # Go back to start of file
+                read_back_data = await f.read()
+
+                # Separate the hash footer from the actual data
+                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                if hash_footer_start != -1:
+                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    if hash_footer_end != -1:
+                        # Extract the stored hash
+                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+
+                        # Calculate hash of the actual data (before footer)
+                        actual_data = read_back_data[:hash_footer_start]
+                        calculated_hash = hashlib.sha256(actual_data).hexdigest()
+
+                        # Verify integrity - log critical error if mismatch detected
+                        if stored_hash != calculated_hash:
+                            logger.critical(
+                                f"SHA256 integrity verification failed for {temp_path}: "
+                                f"expected {stored_hash}, calculated {calculated_hash}. "
+                                f"This indicates silent data corruption! Data may be lost.",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_failed',
+                                    'file_path': str(temp_path),
+                                    'expected_hash': stored_hash,
+                                    'calculated_hash': calculated_hash
+                                }
+                            )
+                        else:
+                            logger.debug(
+                                f"SHA256 integrity verification passed for {temp_path}",
+                                extra={
+                                    'structured': True,
+                                    'event': 'integrity_verification_passed',
+                                    'file_path': str(temp_path),
+                                    'hash': stored_hash
+                                }
+                            )
 
             # Close is handled by the context manager
 
