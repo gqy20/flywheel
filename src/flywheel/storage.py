@@ -46,6 +46,54 @@ class StorageTimeoutError(TimeoutError):
     pass
 
 
+class _AsyncCompatibleLock:
+    """A lock wrapper that supports both sync and async context managers.
+
+    This wrapper allows the same lock to be used with both 'with' and 'async with'
+    statements, solving the issue where threading.Lock doesn't support async
+    context managers and asyncio.Lock doesn't support sync context managers.
+
+    Fix for Issue #1097: Provides unified lock interface for IOMetrics.
+    """
+
+    def __init__(self):
+        """Initialize with asyncio.Lock for async safety."""
+        self._lock = asyncio.Lock()
+
+    def __enter__(self):
+        """Support synchronous context manager protocol.
+
+        Note: This will block if called from an async context.
+        For async contexts, use 'async with' instead.
+        """
+        # Run the lock acquisition in a new event loop
+        # This is not ideal but provides backward compatibility
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(self._lock.acquire())
+        finally:
+            loop.close()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Release lock when exiting sync context."""
+        if self._lock.locked():
+            self._lock.release()
+        return False
+
+    async def __aenter__(self):
+        """Support asynchronous context manager protocol."""
+        await self._lock.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Release lock when exiting async context."""
+        if self._lock.locked():
+            self._lock.release()
+        return False
+
+
 class IOMetrics:
     """Metrics tracker for I/O operations (Issue #1053).
 
@@ -71,9 +119,11 @@ class IOMetrics:
         performance instead of list with O(N) pop(0).
         Fix for Issue #1080: Use asyncio.Lock for async context safety.
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
+        Fix for Issue #1097: Use custom lock wrapper that supports both
+        sync and async context managers.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = threading.Lock()
+        self._lock = _AsyncCompatibleLock()
 
     async def record_operation(self, operation_type: str, duration: float,
                                retries: int, success: bool, error_type: str = None):
@@ -92,6 +142,7 @@ class IOMetrics:
         Fix for Issue #1066: Thread-safe operations using lock.
         Fix for Issue #1080: Uses asyncio.Lock for async context safety.
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
+        Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         """
         operation = {
             'operation_type': operation_type,
@@ -101,7 +152,7 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        with self._lock:
+        async with self._lock:
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
@@ -125,11 +176,12 @@ class IOMetrics:
         Fix for Issue #1086: Keeps lock held during entire method including logging,
         preventing race conditions when operations are modified between calculation and logging.
         Fix for Issue #1091: Use threading.Lock for sync/async context safety.
+        Fix for Issue #1097: Use custom lock wrapper for both sync and async safety.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
 
-        with self._lock:
+        async with self._lock:
             if not self.operations:
                 logger.info("I/O Metrics: No operations recorded")
                 return
@@ -211,6 +263,8 @@ class IOMetrics:
 
         Fix for Issue #1087: Now an async method that uses async with
         self._lock to avoid RuntimeError when using asyncio.Lock.
+        Fix for Issue #1097: Uses custom lock wrapper that supports both
+        sync and async context managers.
 
         Returns:
             A dictionary containing:
