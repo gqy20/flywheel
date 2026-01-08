@@ -149,6 +149,85 @@ class IOMetrics:
                 f"total retries: {stats['retries']}"
             )
 
+    def track_operation(self, operation_type: str, retries: int = 0):
+        """Async context manager for tracking I/O operations (Issue #1063).
+
+        Simplifies tracking by automatically recording start time and duration.
+        Handles exceptions and marks operations as failed when they occur.
+
+        Args:
+            operation_type: Type of operation (read/write/flush/etc.)
+            retries: Number of retry attempts (default: 0)
+
+        Returns:
+            An async context manager that tracks the operation
+
+        Example:
+            >>> metrics = IOMetrics()
+            >>> async with metrics.track_operation("read"):
+            ...     data = await file.read()
+
+        This is equivalent to the more verbose:
+            >>> start_time = time.time()
+            >>> try:
+            ...     data = await file.read()
+            ...     success = True
+            ...     error_type = None
+            ... except Exception as e:
+            ...     success = False
+            ...     error_type = type(e).__name()
+            ...     raise
+            >>> finally:
+            ...     duration = time.time() - start_time
+            ...     metrics.record_operation("read", duration, 0, success, error_type)
+        """
+        return _IOMetricsContextManager(self, operation_type, retries)
+
+
+class _IOMetricsContextManager:
+    """Async context manager for tracking I/O operations (Issue #1063)."""
+
+    def __init__(self, metrics: IOMetrics, operation_type: str, retries: int = 0):
+        """Initialize the context manager.
+
+        Args:
+            metrics: The IOMetrics instance to record to
+            operation_type: Type of operation being tracked
+            retries: Number of retry attempts
+        """
+        self.metrics = metrics
+        self.operation_type = operation_type
+        self.retries = retries
+        self.start_time = None
+        self.success = True
+        self.error_type = None
+
+    async def __aenter__(self):
+        """Enter the context and record start time."""
+        self.start_time = time.time()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit the context and record the operation."""
+        duration = time.time() - self.start_time
+
+        # Determine success and error type
+        if exc_type is not None:
+            self.success = False
+            self.error_type = exc_type.__name__
+
+        # Record the operation
+        self.metrics.record_operation(
+            self.operation_type,
+            duration,
+            self.retries,
+            self.success,
+            self.error_type
+        )
+
+        # Don't suppress exceptions
+        return False
+
 
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
 if not HAS_AIOFILES:
