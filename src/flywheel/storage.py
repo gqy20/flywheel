@@ -199,7 +199,23 @@ class IOMetrics:
         Fix for Issue #1109: Uses threading.Lock to work correctly in async contexts.
         Fix for Issue #1116: Provides async-safe version. Use record_operation_async
         in async contexts to avoid potential deadlocks.
+        Fix for Issue #1121: Added async context detection to provide clear error
+        message when called from async context.
         """
+        # Fix for Issue #1121: Detect if we're in an async context and provide
+        # a clear error message directing users to use record_operation_async
+        try:
+            asyncio.get_running_loop()
+            # If we get here, there's a running event loop
+            raise RuntimeError(
+                "Cannot call synchronous record_operation() from an async context. "
+                "Use await record_operation_async() instead. "
+                "This prevents potential deadlocks when an event loop is running."
+            )
+        except RuntimeError:
+            # No running event loop, safe to proceed with sync version
+            pass
+
         operation = {
             'operation_type': operation_type,
             'duration': duration,
