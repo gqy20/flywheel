@@ -120,6 +120,8 @@ class IOMetrics:
         Fix for Issue #1076: Uses lock to ensure thread-safe access to
         self.operations during metrics calculation, preventing race conditions.
         Fix for Issue #1080: Uses asyncio.Lock for async context safety.
+        Fix for Issue #1086: Keeps lock held during entire method including logging,
+        preventing race conditions when operations are modified between calculation and logging.
         """
         if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
             return
@@ -145,22 +147,23 @@ class IOMetrics:
                 by_type[op_type]['duration'] += op['duration']
                 by_type[op_type]['retries'] += op['retries']
 
-        logger.info(
-            f"I/O Metrics Summary: "
-            f"{total_ops} operations, "
-            f"{successful_ops} successful, "
-            f"{failed_ops} failed, "
-            f"{total_retries} retries, "
-            f"total duration: {total_dur:.3f}s"
-        )
-
-        for op_type, stats in sorted(by_type.items()):
-            avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+            # Log the summary while holding the lock to prevent race conditions
             logger.info(
-                f"  {op_type}: {stats['count']} ops, "
-                f"avg duration: {avg_duration:.3f}s, "
-                f"total retries: {stats['retries']}"
+                f"I/O Metrics Summary: "
+                f"{total_ops} operations, "
+                f"{successful_ops} successful, "
+                f"{failed_ops} failed, "
+                f"{total_retries} retries, "
+                f"total duration: {total_dur:.3f}s"
             )
+
+            for op_type, stats in sorted(by_type.items()):
+                avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+                logger.info(
+                    f"  {op_type}: {stats['count']} ops, "
+                    f"avg duration: {avg_duration:.3f}s, "
+                    f"total retries: {stats['retries']}"
+                )
 
     def track_operation(self, operation_type: str, retries: int = 0):
         """Async context manager for tracking I/O operations (Issue #1063).
