@@ -28,6 +28,13 @@ SHELL_METACHARS_PATTERN = re.compile(r'[;|&`$()<>]')
 FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
 
 
+# SECURITY FIX (Issue #1094): Define hard upper limit for max_length parameter
+# to prevent memory exhaustion attacks. Even though length checks prevent ReDoS,
+# accepting arbitrarily large max_length values could allow callers to cause
+# memory issues. We cap at 1MB which is reasonable for a CLI tool.
+MAX_LENGTH_HARD_LIMIT = 1 * 1024 * 1024  # 1MB
+
+
 def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 100000) -> str:
     """Normalize string for security-sensitive contexts using stricter normalization.
 
@@ -57,6 +64,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
                  Security contexts ("url", "filename", "shell", "format") use NFKC
                  General context uses NFC (preserves special characters)
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
 
     Returns:
         Normalized string safe for the specified context
@@ -92,6 +100,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1049 (normalization before truncation to prevent orphaned combining marks),
         #1054 (removed - encode-decode cycle replaced with direct slicing),
         #1089 (document security implications of format string chars in general context),
+        #1094 (enforce hard upper limit on max_length to prevent memory exhaustion),
         #1104 (truncate by characters not bytes to prevent multi-byte bypass),
         #1114 (use shlex.quote() for shell context instead of removing chars),
         #1119 (add 'format' context that escapes format string chars for safe usage)
@@ -138,9 +147,12 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # Directly slicing the string ensures we respect max_length as a character limit,
     # not a byte limit. This prevents bypassing the constraint using multi-byte characters
     # like emojis (which are 4 bytes in UTF-8 but 1 character in Python strings).
-    if len(s) > max_length:
-        # Slice directly to truncate at max_length characters
-        s = s[:max_length]
+    # SECURITY FIX (Issue #1094): Enforce hard upper limit on max_length to prevent
+    # memory exhaustion attacks. Cap at 1MB even if caller requests larger limit.
+    effective_max_length = min(max_length, MAX_LENGTH_HARD_LIMIT)
+    if len(s) > effective_max_length:
+        # Slice directly to truncate at effective_max_length characters
+        s = s[:effective_max_length]
 
     # Remove control characters
     # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
@@ -247,6 +259,7 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     Args:
         s: String to normalize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
 
     Returns:
         Normalized string with problematic characters removed for data storage
@@ -284,7 +297,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
         #969 (fullwidth character handling - use sanitize_for_security_context for URLs/filenames),
         #979 (preserve shell metachars in general context - only remove in security contexts),
         #1034 (preserve format string chars in general context - only remove in security contexts),
-        #1089 (document security implications of format string chars in general context)
+        #1089 (document security implications of format string chars in general context),
+        #1094 (enforce hard upper limit on max_length to prevent memory exhaustion)
     """
     if not s:
         return ""
@@ -336,8 +350,11 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
     # catastrophic backtracking in any of the regex patterns.
     # SECURITY FIX (Issue #1104): Truncate by characters, not bytes.
     # Directly slicing ensures max_length is respected as a character limit.
-    if len(s) > max_length:
-        s = s[:max_length]
+    # SECURITY FIX (Issue #1094): Enforce hard upper limit on max_length to prevent
+    # memory exhaustion attacks. Cap at 1MB even if caller requests larger limit.
+    effective_max_length = min(max_length, MAX_LENGTH_HARD_LIMIT)
+    if len(s) > effective_max_length:
+        s = s[:effective_max_length]
 
     # Remove certain metacharacters that could interfere with data formats or display systems.
     # Characters removed: ; | & ` $ ( ) < > { } \
@@ -421,6 +438,7 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
     Args:
         s: String to normalize
         max_length: Maximum input length to prevent DoS attacks (default: 100000)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
 
     Returns:
         Normalized string with problematic characters removed
