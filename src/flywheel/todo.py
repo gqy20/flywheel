@@ -68,12 +68,22 @@ class Todo:
         if not isinstance(data["title"], str):
             raise ValueError(f"Field 'title' must be str, got {type(data['title']).__name__}")
 
-        title = data["title"]
+        # Sanitize and validate title
+        title = data["title"].strip()
+        if not title:
+            raise ValueError("Title cannot be empty or whitespace-only")
+        if len(title) > 200:
+            raise ValueError(f"Title too long: {len(title)} characters (max 200)")
 
         # Validate optional field types
         description = data.get("description", "")
         if not isinstance(description, str):
             raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
+
+        # Sanitize and validate description
+        description = description.strip()
+        if len(description) > 5000:
+            raise ValueError(f"Description too long: {len(description)} characters (max 5000)")
 
         # Validate enum values strictly
         status_value = data.get("status", "todo")
