@@ -86,28 +86,35 @@ class _AsyncCompatibleLock:
         to prevent race conditions.
         Fix for Issue #1231: asyncio.get_running_loop() is called OUTSIDE
         the lock to prevent potential deadlocks and race conditions.
+        Fix for Issue #1235: Do NOT reuse running event loops. If the current
+        thread has a running loop, we still create our own dedicated loop in
+        a separate thread to prevent deadlocks when the lock is used from
+        other threads.
         """
-        # First, try to get the running loop WITHOUT holding the lock
-        # This prevents deadlocks that can occur when calling
-        # asyncio.get_running_loop() while holding a lock
-        try:
-            running_loop = asyncio.get_running_loop()
-            # We have a running loop, now check if we need to use it
+        # Check if we already have a loop cached
+        # This check is done first (outside the lock) to avoid acquiring
+        # the lock unnecessarily
+        if self._event_loop is not None:
             with self._loop_lock:
-                # Check if we already have this loop cached
                 if self._event_loop is not None:
                     try:
                         if not self._event_loop.is_closed():
                             return self._event_loop
                     except RuntimeError:
-                        # Loop is in an invalid state, use the running loop
+                        # Loop is in an invalid state, need to create a new one
                         pass
-                # Cache and return the running loop
-                self._event_loop = running_loop
-                self._event_loop_thread_id = threading.get_ident()
-                return self._event_loop
+
+        # Check if there's a running loop in the current thread
+        # We detect this but DON'T reuse it to prevent deadlocks (Issue #1235)
+        # If we reused a running loop from thread A, and then thread B tries to
+        # use the lock synchronously, it would submit tasks to thread A's loop.
+        # If thread A is blocked waiting for something, we get a deadlock.
+        try:
+            asyncio.get_running_loop()
+            # There is a running loop, but we ignore it and create our own
+            # This prevents the deadlock described in Issue #1235
         except RuntimeError:
-            # No running loop, need to create a new one
+            # No running loop, which is fine
             pass
 
         # No running loop available, create a new one within the lock

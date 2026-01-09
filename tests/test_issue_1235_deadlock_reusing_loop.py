@@ -156,15 +156,12 @@ def test_deadlock_when_reusing_running_loop():
 
 
 def test_lock_should_not_reuse_running_loop_from_other_context():
-    """Test that a lock should not reuse a running event loop.
+    """Test that a lock creates its own dedicated event loop.
 
-    This is a simpler test that verifies the expected behavior: when a lock
-    is created in a context with a running event loop, it should either:
-    1. Create its own dedicated event loop in a separate thread, OR
-    2. Raise an error to prevent misuse
-
-    The current buggy behavior is reusing the running loop, which can cause
-    deadlocks when the lock is used from other threads.
+    This test verifies the fix for Issue #1235: when a lock is created in a
+    context with a running event loop, it should create its own dedicated
+    event loop in a separate thread, rather than reusing the running loop.
+    This prevents deadlocks when the lock is used from other threads.
     """
     # Create an event loop and run it
     loop = asyncio.new_event_loop()
@@ -196,18 +193,11 @@ def test_lock_should_not_reuse_running_loop_from_other_context():
     lock_created.wait(timeout=2.0)
     assert lock_created.is_set(), "Lock should have been created"
 
-    # The bug: the lock reused the running event loop
-    if hasattr(lock_created, "lock_reused_running_loop") and lock_created.lock_reused_running_loop:
-        # This demonstrates the bug from Issue #1235
-        # The fix should prevent this behavior
-        # For now, we'll note this as expected to fail
-        loop.close()
-        # This assertion will fail until the bug is fixed
-        assert False, (
-            "BUG CONFIRMED: The lock reused the running event loop! "
-            "This can cause deadlocks when the lock is used from other threads. "
-            "The fix should ensure locks create their own dedicated event loops "
-            "or raise an error when created in a context with a running loop."
+    # After the fix: the lock should NOT reuse the running event loop
+    if hasattr(lock_created, "lock_reused_running_loop"):
+        assert not lock_created.lock_reused_running_loop, (
+            "FIX VERIFIED: The lock correctly created its own dedicated event loop "
+            "in a separate thread, preventing the deadlock described in Issue #1235."
         )
 
     loop.close()
