@@ -236,3 +236,38 @@ def test_decorator_exception_handling_complete():
     assert 'return sync_wrapper' in storage_source, (
         "Missing return statement for sync_wrapper (Issue #1025)"
     )
+
+
+def test_async_lock_error_message_includes_both_thread_ids():
+    """Verify that _AsyncCompatibleLock error message includes both thread IDs (Issue #1226)."""
+    import asyncio
+    import inspect
+    import threading
+
+    # Import the private _AsyncCompatibleLock class
+    from flywheel.storage import _AsyncCompatibleLock
+
+    # Get the source code of the __aenter__ method where the error is raised
+    lock_source = inspect.getsource(_AsyncCompatibleLock.__aenter__)
+
+    # Verify that the error message includes both thread IDs
+    # The error message should contain:
+    # 1. "Event loop thread ID:" followed by the event_loop_thread_id variable
+    # 2. "current thread ID:" followed by the current_thread_id variable
+
+    assert 'Event loop thread ID: {event_loop_thread_id}' in lock_source, (
+        "Error message missing event loop thread ID (Issue #1226)"
+    )
+
+    assert 'current thread ID: {current_thread_id}' in lock_source, (
+        "Error message missing current thread ID (Issue #1226)"
+    )
+
+    # Verify both variables are referenced in the f-string
+    assert 'event_loop_thread_id' in lock_source, (
+        "Error message should reference event_loop_thread_id variable (Issue #1226)"
+    )
+
+    assert 'current_thread_id' in lock_source, (
+        "Error message should reference current_thread_id variable (Issue #1226)"
+    )
