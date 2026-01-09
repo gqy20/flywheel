@@ -103,7 +103,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1094 (enforce hard upper limit on max_length to prevent memory exhaustion),
         #1104 (truncate by characters not bytes to prevent multi-byte bypass),
         #1114 (use shlex.quote() for shell context instead of removing chars),
-        #1119 (add 'format' context that escapes format string chars for safe usage)
+        #1119 (add 'format' context that escapes format string chars for safe usage),
+        #1225 (remove Unicode spoofing chars in shell context before quoting)
     """
     if not s:
         return ""
@@ -178,6 +179,11 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         # This adds quotes and escapes special characters as needed
         # SECURITY: This must be done AFTER all other normalization (NFKC, control char removal, etc.)
         # so that the quoting is applied to the final normalized string
+        # SECURITY FIX (Issue #1225): Remove Unicode spoofing characters before quoting.
+        # Shell context should also remove zero-width and bidirectional override characters
+        # to prevent homograph attacks and visual spoofing in shell commands.
+        s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
+        s = BIDI_OVERRIDE_PATTERN.sub('', s)
         return shlex.quote(s)
     elif context == "format":
         # SECURITY FIX (Issue #1119): Escape format string characters to prevent
