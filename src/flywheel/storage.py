@@ -98,8 +98,12 @@ class _AsyncCompatibleLock:
             with self._loop_lock:
                 if self._event_loop is not None:
                     try:
+                        # Fix for Issue #1246: Check is_closed() INSIDE the lock
+                        # to prevent race condition where loop might be closed
+                        # between the first check (before lock) and acquiring the lock
                         if not self._event_loop.is_closed():
                             return self._event_loop
+                        # If loop is closed, fall through to create a new one
                     except RuntimeError:
                         # Loop is in an invalid state, need to create a new one
                         pass
