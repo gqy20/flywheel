@@ -136,6 +136,13 @@ class _AsyncCompatibleLock:
             future.result(timeout=1)
             self._locked = True  # Mark lock as acquired for safe release
         except TimeoutError:
+            # Cancel the future to prevent deadlock
+            # Fix for Issue #1180: If the timeout occurs, future.result raises
+            # TimeoutError, but the underlying coroutine self._lock.acquire()
+            # is still scheduled on the loop. If the lock is eventually acquired
+            # in the background thread, it will remain locked forever (deadlock)
+            # because __exit__ will not be called to release it.
+            future.cancel()
             raise TimeoutError("Failed to acquire lock within 1 second")
 
         return self
