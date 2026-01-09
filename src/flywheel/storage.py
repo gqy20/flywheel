@@ -82,6 +82,13 @@ class _AsyncCompatibleLock:
 
         This prevents race conditions where multiple threads might try to
         create different event loops simultaneously.
+
+        Returns:
+            The event loop for this lock.
+
+        Fix for Issue #1196: All access to self._event_loop and
+        self._event_loop_thread_id is strictly protected by self._loop_lock
+        to prevent race conditions.
         """
         # All operations must be atomic within the lock
         with self._loop_lock:
@@ -109,6 +116,22 @@ class _AsyncCompatibleLock:
                 # We'll close it when the lock is garbage collected
 
             return self._event_loop
+
+    def _get_event_loop_thread_id(self):
+        """Get the event loop thread ID safely.
+
+        This method must be called while holding self._loop_lock to ensure
+        thread-safe access to self._event_loop_thread_id.
+
+        Returns:
+            The thread ID that owns the event loop, or None if not set.
+
+        Fix for Issue #1196: Provides safe access to _event_loop_thread_id
+        under lock protection to prevent race conditions.
+        """
+        # This should only be called while holding _loop_lock
+        # The caller is responsible for acquiring the lock
+        return self._event_loop_thread_id
 
     def __enter__(self):
         """Support synchronous context manager protocol.
@@ -152,14 +175,19 @@ class _AsyncCompatibleLock:
         # thread than the one that owns the event loop. This prevents deadlocks where
         # run_coroutine_threadsafe would schedule on the event loop's thread while
         # that thread is blocked waiting for the current thread.
+        # Fix for Issue #1196: Read _event_loop_thread_id under lock protection
+        # to prevent race conditions.
         current_thread_id = threading.get_ident()
-        if self._event_loop_thread_id is not None:
-            if current_thread_id != self._event_loop_thread_id:
+        with self._loop_lock:
+            event_loop_thread_id = self._event_loop_thread_id
+
+        if event_loop_thread_id is not None:
+            if current_thread_id != event_loop_thread_id:
                 raise RuntimeError(
                     "Cannot use _AsyncCompatibleLock from a different thread than "
                     "the one that owns its event loop. This prevents potential "
                     "deadlocks when using run_coroutine_threadsafe across threads. "
-                    f"Event loop thread ID: {self._event_loop_thread_id}, "
+                    f"Event loop thread ID: {event_loop_thread_id}, "
                     f"current thread ID: {current_thread_id}. "
                     "Use thread-local locks or ensure the lock is used from the same thread."
                 )
