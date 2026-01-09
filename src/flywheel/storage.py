@@ -175,7 +175,7 @@ class IOMetrics:
         environments where different threads have different event loops.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._locks = {}  # Dictionary mapping event loops to their locks
+        self._locks = {}  # Dictionary mapping event loop IDs to their locks
         self._sync_lock = threading.Lock()
 
     def _get_async_lock(self):
@@ -194,6 +194,8 @@ class IOMetrics:
         Fix for Issue #1161: Avoid creating asyncio.Lock while holding threading.Lock
         to prevent deadlock when current thread is not the event loop's thread.
         Use call_soon_threadsafe to schedule lock creation on event loop thread.
+        Fix for Issue #1160: Use id(current_loop) instead of current_loop object
+        as dictionary key to avoid circular reference and memory leak.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -205,9 +207,12 @@ class IOMetrics:
                 "with a running event loop"
             )
 
+        # Use id(current_loop) as key to avoid circular reference (Issue #1160)
+        current_loop_id = id(current_loop)
+
         # First check: try to get existing lock without synchronization
-        if current_loop in self._locks:
-            return self._locks[current_loop]
+        if current_loop_id in self._locks:
+            return self._locks[current_loop_id]
 
         # Need to create a new lock - use synchronization safely
         # We'll use a flag to track which thread is creating the lock
@@ -220,10 +225,10 @@ class IOMetrics:
             try:
                 # Double-check under lock to prevent duplicate creation
                 with self._sync_lock:
-                    if current_loop not in self._locks:
+                    if current_loop_id not in self._locks:
                         # Now we're on the event loop thread, safe to create Lock
-                        self._locks[current_loop] = asyncio.Lock()
-                    lock_container[0] = self._locks[current_loop]
+                        self._locks[current_loop_id] = asyncio.Lock()
+                    lock_container[0] = self._locks[current_loop_id]
             except Exception as e:
                 creation_error[0] = e
             finally:
