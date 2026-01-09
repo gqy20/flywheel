@@ -233,6 +233,8 @@ class _AsyncCompatibleLock:
         Fix for Issue #1191: Uses run_coroutine_threadsafe instead of
         call_soon_threadsafe to ensure the release completes before returning,
         preventing permanent lock deadlock if the event loop shuts down.
+        Fix for Issue #1194: Resets _locked flag in finally block to ensure
+        it's always reset even when timeout occurs, preventing state inconsistency.
         """
         if self._locked:
             loop = self._get_or_create_loop()
@@ -259,8 +261,12 @@ class _AsyncCompatibleLock:
                 # If the loop is already closed, the release won't happen
                 # but we've done our best to clean up
                 pass
-
-            self._locked = False
+            finally:
+                # Fix for Issue #1194: Always reset _locked flag in finally block
+                # to ensure it's reset even when timeout occurs. This prevents
+                # state inconsistency where _locked remains True but the actual
+                # lock might be released, causing issues on reuse.
+                self._locked = False
         return False
 
     async def __aenter__(self):
