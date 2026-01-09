@@ -67,6 +67,7 @@ class _AsyncCompatibleLock:
         self._lock = asyncio.Lock()
         self._event_loop = None
         self._loop_lock = threading.Lock()
+        self._locked = False  # Track if lock was acquired for safe release
 
     def _get_or_create_loop(self):
         """Get or create the event loop for this lock.
@@ -133,6 +134,7 @@ class _AsyncCompatibleLock:
         # excessive waiting in potential deadlock scenarios
         try:
             future.result(timeout=1)
+            self._locked = True  # Mark lock as acquired for safe release
         except TimeoutError:
             raise TimeoutError("Failed to acquire lock within 1 second")
 
@@ -149,9 +151,13 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1176: Uses call_soon_threadsafe to safely release
         the lock from the event loop's thread.
+        Fix for Issue #1181: Only releases lock if it was acquired, preventing
+        RuntimeError when __exit__ is called without successful __enter__.
         """
-        loop = self._get_or_create_loop()
-        loop.call_soon_threadsafe(self._lock.release)
+        if self._locked:
+            loop = self._get_or_create_loop()
+            loop.call_soon_threadsafe(self._lock.release)
+            self._locked = False
         return False
 
     async def __aenter__(self):
@@ -170,6 +176,7 @@ class _AsyncCompatibleLock:
             )
 
         await self._lock.acquire()
+        self._locked = True  # Mark lock as acquired for safe release
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -182,8 +189,12 @@ class _AsyncCompatibleLock:
         Fix for Issue #1156: Removed unnecessary locked() check that could
         cause logic issues. If lock was acquired in __aenter__, it should
         always be released in __aexit__.
+        Fix for Issue #1181: Only releases lock if it was acquired, preventing
+        RuntimeError when __aexit__ is called without successful __aenter__.
         """
-        self._lock.release()
+        if self._locked:
+            self._lock.release()
+            self._locked = False
         return False
 
 
