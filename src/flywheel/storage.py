@@ -213,6 +213,20 @@ class _AsyncCompatibleLock:
             # because __exit__ will not be called to release it.
             future.cancel()
             raise TimeoutError("Failed to acquire lock within 1 second")
+        finally:
+            # Fix for Issue #1201: Check if lock was acquired despite timeout/cancellation.
+            # Calling future.cancel() requests cancellation but does not guarantee the
+            # underlying coroutine (self._lock.acquire()) stops executing immediately.
+            # If the lock is acquired *after* the timeout but *before* the cancellation
+            # is processed, the lock will be held forever because __exit__ will not be
+            # called. We must check and release the lock if it was acquired.
+            if not self._locked and self._lock.locked():
+                # Lock was acquired after timeout but before cancellation was processed.
+                # Release it to prevent permanent deadlock.
+                async def cleanup_lock():
+                    if self._lock.locked():
+                        self._lock.release()
+                asyncio.run_coroutine_threadsafe(cleanup_lock(), loop)
 
         return self
 
