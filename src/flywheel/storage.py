@@ -99,6 +99,8 @@ class _AsyncCompatibleLock:
         Fix for Issue #1107: Detects running event loops to prevent deadlocks.
         Fix for Issue #1166: Uses asyncio.run_coroutine_threadsafe to acquire
         the async lock from sync context, ensuring mutual exclusion.
+        Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent excessive
+        waiting in potential deadlock scenarios.
         """
         # Check if there's already a running event loop in the current thread
         try:
@@ -127,10 +129,12 @@ class _AsyncCompatibleLock:
 
         # Wait for the acquisition to complete
         # Use a timeout to prevent indefinite blocking
+        # Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent
+        # excessive waiting in potential deadlock scenarios
         try:
-            future.result(timeout=30)
+            future.result(timeout=1)
         except TimeoutError:
-            raise TimeoutError("Failed to acquire lock within 30 seconds")
+            raise TimeoutError("Failed to acquire lock within 1 second")
 
         return self
 
