@@ -148,10 +148,22 @@ class IOMetrics:
         in async contexts. IOMetrics now uses async-only locking mechanism.
         Fix for Issue #1135: Use threading.Lock for sync methods to prevent
         RuntimeError when called from threads with running event loop.
+        Fix for Issue #1139: Lazy-initialize asyncio.Lock to prevent RuntimeError
+        in sync contexts. Only create when async methods are called.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = asyncio.Lock()
+        self._lock = None  # Lazy-initialized asyncio.Lock, created only when needed
         self._sync_lock = threading.Lock()
+
+    def _get_async_lock(self):
+        """Get or create the asyncio.Lock.
+
+        Fix for Issue #1139: Lazy-initialize asyncio.Lock to prevent RuntimeError
+        in sync contexts. The lock is only created when async methods are called.
+        """
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):
@@ -178,7 +190,7 @@ class IOMetrics:
             'error_type': error_type
         }
 
-        async with self._lock:
+        async with self._get_async_lock():
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
@@ -258,7 +270,7 @@ class IOMetrics:
         event loop (e.g., Jupyter Notebook, async web frameworks).
         """
         async def _get_count():
-            async with self._lock:
+            async with self._get_async_lock():
                 return len(self.operations)
 
         # Try to get the current running event loop
@@ -302,7 +314,7 @@ class IOMetrics:
         Fix for Issue #1101: Async version that properly uses locks
         to ensure thread-safe access to self.operations.
         """
-        async with self._lock:
+        async with self._get_async_lock():
             return len(self.operations)
 
     def total_duration(self) -> float:
@@ -313,7 +325,7 @@ class IOMetrics:
         """
         # For sync contexts, use asyncio.run to access the async version
         async def _get_duration():
-            async with self._lock:
+            async with self._get_async_lock():
                 return sum(op['duration'] for op in self.operations)
 
         return asyncio.run(_get_duration())
@@ -324,7 +336,7 @@ class IOMetrics:
         Fix for Issue #1101: Async version that properly uses locks
         to ensure thread-safe access to self.operations.
         """
-        async with self._lock:
+        async with self._get_async_lock():
             return sum(op['duration'] for op in self.operations)
 
     def log_summary(self):
@@ -349,7 +361,7 @@ class IOMetrics:
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _log_with_lock():
             # Fix for Issue #1100: Calculate metrics inside lock, then release before logging
-            async with self._lock:
+            async with self._get_async_lock():
                 if not self.operations:
                     # Release lock before logging
                     has_operations = False
@@ -462,7 +474,7 @@ class IOMetrics:
         """
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _export_with_lock():
-            async with self._lock:
+            async with self._get_async_lock():
                 operations_list = list(self.operations)
                 successful_ops = sum(1 for op in operations_list if op['success'])
                 failed_ops = len(operations_list) - successful_ops
@@ -549,7 +561,7 @@ class IOMetrics:
         """
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _clear_with_lock():
-            async with self._lock:
+            async with self._get_async_lock():
                 self.operations.clear()
 
         asyncio.run(_clear_with_lock())
