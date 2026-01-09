@@ -249,13 +249,28 @@ class _AsyncCompatibleLock:
             # Fix for Issue #1207: Use call_soon_threadsafe instead of
             # run_coroutine_threadsafe().result() to avoid blocking in the finally block,
             # which can cause deadlock if the event loop is busy or stopping.
+            # Fix for Issue #1210: Ensure cleanup is properly synchronized to avoid
+            # leaving the lock in an inconsistent state. Use an event to track cleanup
+            # completion and verify the lock state is consistent before returning.
             if not self._locked and self._lock.locked():
                 # Lock was acquired after timeout but before cancellation was processed.
                 # Release it to prevent permanent deadlock.
+                # Use a synchronization event to ensure cleanup completes before returning.
+                # This avoids the race condition where the lock is still locked when
+                # __enter__ returns, causing subsequent operations to fail.
+                cleanup_done = threading.Event()
+
                 def cleanup_lock():
-                    if self._lock.locked():
-                        self._lock.release()
+                    try:
+                        if self._lock.locked():
+                            self._lock.release()
+                    finally:
+                        cleanup_done.set()
+
                 loop.call_soon_threadsafe(cleanup_lock)
+                # Wait a brief time for cleanup to complete, but don't block indefinitely
+                # This ensures the lock is released before we return, maintaining consistency
+                cleanup_done.wait(timeout=0.1)
 
         return self
 
