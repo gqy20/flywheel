@@ -78,23 +78,41 @@ class _AsyncCompatibleLock:
         This ensures all acquisitions use the same event loop, enabling
         proper synchronization between sync and async contexts.
 
-        The method uses a double-checked locking pattern to ensure thread safety:
-        1. All checks and assignments happen atomically within the lock
-        2. No checks outside the lock to prevent race conditions
-
-        This prevents race conditions where multiple threads might try to
-        create different event loops simultaneously.
-
         Returns:
             The event loop for this lock.
 
         Fix for Issue #1196: All access to self._event_loop and
         self._event_loop_thread_id is strictly protected by self._loop_lock
         to prevent race conditions.
+        Fix for Issue #1231: asyncio.get_running_loop() is called OUTSIDE
+        the lock to prevent potential deadlocks and race conditions.
         """
-        # All operations must be atomic within the lock
+        # First, try to get the running loop WITHOUT holding the lock
+        # This prevents deadlocks that can occur when calling
+        # asyncio.get_running_loop() while holding a lock
+        try:
+            running_loop = asyncio.get_running_loop()
+            # We have a running loop, now check if we need to use it
+            with self._loop_lock:
+                # Check if we already have this loop cached
+                if self._event_loop is not None:
+                    try:
+                        if not self._event_loop.is_closed():
+                            return self._event_loop
+                    except RuntimeError:
+                        # Loop is in an invalid state, use the running loop
+                        pass
+                # Cache and return the running loop
+                self._event_loop = running_loop
+                self._event_loop_thread_id = threading.get_ident()
+                return self._event_loop
+        except RuntimeError:
+            # No running loop, need to create a new one
+            pass
+
+        # No running loop available, create a new one within the lock
         with self._loop_lock:
-            # Check if we have a valid loop
+            # Double-check: another thread might have created a loop while we waited
             if self._event_loop is not None:
                 try:
                     if not self._event_loop.is_closed():
@@ -103,57 +121,50 @@ class _AsyncCompatibleLock:
                     # Loop is in an invalid state, need to create a new one
                     pass
 
-            # Atomically create and assign the event loop
-            # Try to get the running loop if we're in an async context
-            try:
-                self._event_loop = asyncio.get_running_loop()
-                self._event_loop_thread_id = threading.get_ident()
-            except RuntimeError:
-                # No running loop, create a new one
-                # This is atomic within the lock
-                # Fix for Issue #1211: When creating a new event loop in a sync context,
-                # we must run it in a background thread so that run_coroutine_threadsafe
-                # tasks can actually execute. Otherwise, tasks submitted to the loop
-                # will never run, causing deadlocks.
-                self._event_loop = asyncio.new_event_loop()
-                # Record the thread that created this event loop
-                self._event_loop_thread_id = threading.get_ident()
-                # Create a stop event to signal the loop thread to stop
-                self._loop_thread_stop_event = threading.Event()
+            # Create a new event loop
+            # Fix for Issue #1211: When creating a new event loop in a sync context,
+            # we must run it in a background thread so that run_coroutine_threadsafe
+            # tasks can actually execute. Otherwise, tasks submitted to the loop
+            # will never run, causing deadlocks.
+            self._event_loop = asyncio.new_event_loop()
+            # Record the thread that created this event loop
+            self._event_loop_thread_id = threading.get_ident()
+            # Create a stop event to signal the loop thread to stop
+            self._loop_thread_stop_event = threading.Event()
 
-                # Start the event loop in a background thread
-                # This allows run_coroutine_threadsafe to work properly
-                def run_event_loop(loop, stop_event):
-                    """Run the event loop until stop event is set."""
-                    asyncio.set_event_loop(loop)
+            # Start the event loop in a background thread
+            # This allows run_coroutine_threadsafe to work properly
+            def run_event_loop(loop, stop_event):
+                """Run the event loop until stop event is set."""
+                asyncio.set_event_loop(loop)
 
-                    def stop_loop():
-                        """Stop the event loop when called."""
-                        loop.stop()
+                def stop_loop():
+                    """Stop the event loop when called."""
+                    loop.stop()
 
-                    # Monitor the stop event in a separate thread
-                    # This allows the event loop to run_forever and be cleanly stopped
-                    def monitor_stop_event():
-                        """Monitor the stop event and trigger loop shutdown."""
-                        stop_event.wait()
-                        # When stop event is set, call loop.stop() in a thread-safe manner
-                        loop.call_soon_threadsafe(stop_loop)
+                # Monitor the stop event in a separate thread
+                # This allows the event loop to run_forever and be cleanly stopped
+                def monitor_stop_event():
+                    """Monitor the stop event and trigger loop shutdown."""
+                    stop_event.wait()
+                    # When stop event is set, call loop.stop() in a thread-safe manner
+                    loop.call_soon_threadsafe(stop_loop)
 
-                    # Start the monitor thread
-                    monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
-                    monitor_thread.start()
+                # Start the monitor thread
+                monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
+                monitor_thread.start()
 
-                    # Run the event loop until stop() is called
-                    loop.run_forever()
+                # Run the event loop until stop() is called
+                loop.run_forever()
 
-                self._loop_thread = threading.Thread(
-                    target=run_event_loop,
-                    args=(self._event_loop, self._loop_thread_stop_event),
-                    daemon=True  # Daemon thread will not prevent program exit
-                )
-                self._loop_thread.start()
-                # Don't set as the default loop to avoid conflicts
-                # We'll close it when the lock is garbage collected
+            self._loop_thread = threading.Thread(
+                target=run_event_loop,
+                args=(self._event_loop, self._loop_thread_stop_event),
+                daemon=True  # Daemon thread will not prevent program exit
+            )
+            self._loop_thread.start()
+            # Don't set as the default loop to avoid conflicts
+            # We'll close it when the lock is garbage collected
 
             return self._event_loop
 
