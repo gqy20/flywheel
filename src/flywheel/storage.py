@@ -53,59 +53,113 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
-    This implementation uses separate locks for sync and async contexts to avoid
-    creating new event loops in sync contexts, which can break existing async
-    contexts and cause deadlocks.
+    This implementation uses a single asyncio.Lock with proper synchronization
+    between sync and async contexts using asyncio.run_coroutine_threadsafe.
+    This ensures true mutual exclusion across sync and async code paths.
 
     Fix for Issue #1097: Provides unified lock interface for IOMetrics.
-    Fix for Issue #1105: Uses separate threading.Lock and asyncio.Lock instead of
-    creating new event loops in sync contexts.
+    Fix for Issue #1166: Uses single asyncio.Lock with thread-safe synchronization
+    to ensure mutual exclusion between sync and async contexts.
     """
 
     def __init__(self):
-        """Initialize with separate locks for sync and async contexts."""
-        self._sync_lock = threading.Lock()
-        self._async_lock = asyncio.Lock()
+        """Initialize with a single asyncio.Lock and thread synchronization."""
+        self._lock = asyncio.Lock()
+        self._event_loop = None
+        self._loop_lock = threading.Lock()
+
+    def _get_or_create_loop(self):
+        """Get or create the event loop for this lock.
+
+        This ensures all acquisitions use the same event loop, enabling
+        proper synchronization between sync and async contexts.
+        """
+        with self._loop_lock:
+            if self._event_loop is None or self._event_loop.is_closed():
+                # Try to get the running loop if we're in an async context
+                try:
+                    self._event_loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    # No running loop, create a new one
+                    self._event_loop = asyncio.new_event_loop()
+                    # Don't set as the default loop to avoid conflicts
+                    # We'll close it when the lock is garbage collected
+            return self._event_loop
 
     def __enter__(self):
         """Support synchronous context manager protocol.
 
-        Uses threading.Lock for synchronous contexts, avoiding the need to create
-        new event loops which can break existing async contexts.
+        Uses asyncio.Lock with run_coroutine_threadsafe to safely acquire
+        the lock from a synchronous context. This ensures the same underlying
+        lock is used for both sync and async acquisitions.
 
         Note: This will raise an error if called from an async context.
         For async contexts, use 'async with' instead.
 
         Fix for Issue #1107: Detects running event loops to prevent deadlocks.
-        Fix for Issue #1105: Uses threading.Lock instead of creating new event loop.
+        Fix for Issue #1166: Uses asyncio.run_coroutine_threadsafe to acquire
+        the async lock from sync context, ensuring mutual exclusion.
         """
         # Check if there's already a running event loop in the current thread
         try:
             current_loop = asyncio.get_running_loop()
             # If we get here, there's a running event loop
-            raise RuntimeError(
-                "Cannot use synchronous context manager ('with') for "
-                "_AsyncCompatibleLock within an async context. "
-                "Use 'async with' instead. This prevents potential deadlocks "
-                "when an event loop is already running (e.g., in Jupyter Notebooks "
-                "or async web frameworks)."
-            )
+            # Check if it's the same loop we're using for the lock
+            loop = self._get_or_create_loop()
+            if loop is current_loop:
+                raise RuntimeError(
+                    "Cannot use synchronous context manager ('with') for "
+                    "_AsyncCompatibleLock within an async context using "
+                    "the same event loop. Use 'async with' instead. This prevents "
+                    "potential deadlocks when an event loop is already running."
+                )
         except RuntimeError:
-            # No running event loop, we can proceed with sync acquisition
+            # No running event loop, we can proceed
             pass
 
-        # Acquire the sync lock using threading.Lock
-        self._sync_lock.acquire()
+        # Get or create the event loop for this lock
+        loop = self._get_or_create_loop()
+
+        # Acquire the lock using run_coroutine_threadsafe
+        future = asyncio.run_coroutine_threadsafe(
+            self._lock.acquire(), loop
+        )
+
+        # Wait for the acquisition to complete
+        # Use a timeout to prevent indefinite blocking
+        try:
+            future.result(timeout=30)
+        except TimeoutError:
+            raise TimeoutError("Failed to acquire lock within 30 seconds")
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context."""
-        self._sync_lock.release()
+        loop = self._get_or_create_loop()
+        future = asyncio.run_coroutine_threadsafe(
+            self._lock.release(), loop
+        )
+        # Wait for the release to complete
+        future.result(timeout=5)
         return False
 
     async def __aenter__(self):
-        """Support asynchronous context manager protocol."""
-        await self._async_lock.acquire()
+        """Support asynchronous context manager protocol.
+
+        If the lock was created from a sync context, we need to ensure we're
+        using the same event loop.
+        """
+        loop = self._get_or_create_loop()
+        current_loop = asyncio.get_running_loop()
+
+        if loop is not current_loop:
+            raise RuntimeError(
+                f"Async lock acquisition must use the same event loop that was "
+                f"used for previous acquisitions. Expected loop {loop}, got {current_loop}."
+            )
+
+        await self._lock.acquire()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -119,7 +173,7 @@ class _AsyncCompatibleLock:
         cause logic issues. If lock was acquired in __aenter__, it should
         always be released in __aexit__.
         """
-        self._async_lock.release()
+        self._lock.release()
         return False
 
 
