@@ -163,25 +163,46 @@ class IOMetrics:
         RuntimeError when called from threads with running event loop.
         Fix for Issue #1139: Lazy-initialize asyncio.Lock to prevent RuntimeError
         in sync contexts. Only create when async methods are called.
+        Fix for Issue #1150: Use per-event-loop locks to handle multi-threaded
+        environments where different threads have different event loops.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
-        self._lock = None  # Lazy-initialized asyncio.Lock, created only when needed
+        self._locks = {}  # Dictionary mapping event loops to their locks
         self._sync_lock = threading.Lock()
 
     def _get_async_lock(self):
-        """Get or create the asyncio.Lock.
+        """Get or create the asyncio.Lock for the current event loop.
 
         Fix for Issue #1139: Lazy-initialize asyncio.Lock to prevent RuntimeError
         in sync contexts. The lock is only created when async methods are called.
         Fix for Issue #1145: Use threading.Lock to protect lazy initialization
         against race conditions in multi-threaded environments.
+        Fix for Issue #1150: Use per-event-loop locks to handle multi-threaded
+        environments where different threads have different event loops.
+        Each event loop gets its own lock to avoid RuntimeError when using
+        a lock from a different event loop.
         """
-        if self._lock is None:
-            with self._sync_lock:
-                # Double-check pattern: check again after acquiring lock
-                if self._lock is None:
-                    self._lock = asyncio.Lock()
-        return self._lock
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running event loop - this shouldn't happen in async context
+            # but handle it gracefully
+            raise RuntimeError(
+                "IOMetrics._get_async_lock must be called from an async context "
+                "with a running event loop"
+            )
+
+        # Check if we already have a lock for this event loop
+        if current_loop in self._locks:
+            return self._locks[current_loop]
+
+        # Need to create a new lock for this event loop
+        with self._sync_lock:
+            # Double-check pattern: check again after acquiring lock
+            if current_loop not in self._locks:
+                self._locks[current_loop] = asyncio.Lock()
+
+        return self._locks[current_loop]
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):
