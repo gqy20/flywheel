@@ -68,6 +68,7 @@ class _AsyncCompatibleLock:
         self._event_loop = None
         self._loop_lock = threading.Lock()
         self._locked = False  # Track if lock was acquired for safe release
+        self._event_loop_thread_id = None  # Track which thread owns the event loop
 
     def _get_or_create_loop(self):
         """Get or create the event loop for this lock.
@@ -110,10 +111,13 @@ class _AsyncCompatibleLock:
             # Try to get the running loop if we're in an async context
             try:
                 self._event_loop = asyncio.get_running_loop()
+                self._event_loop_thread_id = threading.get_ident()
             except RuntimeError:
                 # No running loop, create a new one
                 # This is now atomic within the lock
                 self._event_loop = asyncio.new_event_loop()
+                # Record the thread that created this event loop
+                self._event_loop_thread_id = threading.get_ident()
                 # Don't set as the default loop to avoid conflicts
                 # We'll close it when the lock is garbage collected
 
@@ -134,13 +138,18 @@ class _AsyncCompatibleLock:
         the async lock from sync context, ensuring mutual exclusion.
         Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent excessive
         waiting in potential deadlock scenarios.
+        Fix for Issue #1190: Prevents cross-thread lock usage to avoid deadlocks
+        when event loops are involved.
         """
+        # Get or create the event loop for this lock first
+        # This will set _event_loop_thread_id if not already set
+        loop = self._get_or_create_loop()
+
         # Check if there's already a running event loop in the current thread
         try:
             current_loop = asyncio.get_running_loop()
             # If we get here, there's a running event loop
             # Check if it's the same loop we're using for the lock
-            loop = self._get_or_create_loop()
             if loop is current_loop:
                 raise RuntimeError(
                     "Cannot use synchronous context manager ('with') for "
@@ -149,11 +158,24 @@ class _AsyncCompatibleLock:
                     "potential deadlocks when an event loop is already running."
                 )
         except RuntimeError:
-            # No running event loop, we can proceed
+            # No running event loop in current thread, we can proceed
             pass
 
-        # Get or create the event loop for this lock
-        loop = self._get_or_create_loop()
+        # Fix for Issue #1190: Check if we're trying to use the lock from a different
+        # thread than the one that owns the event loop. This prevents deadlocks where
+        # run_coroutine_threadsafe would schedule on the event loop's thread while
+        # that thread is blocked waiting for the current thread.
+        current_thread_id = threading.get_ident()
+        if self._event_loop_thread_id is not None:
+            if current_thread_id != self._event_loop_thread_id:
+                raise RuntimeError(
+                    "Cannot use _AsyncCompatibleLock from a different thread than "
+                    "the one that owns its event loop. This prevents potential "
+                    "deadlocks when using run_coroutine_threadsafe across threads. "
+                    f"Event loop thread ID: {self._event_loop_thread_id}, "
+                    f"current thread ID: {current_thread_id}. "
+                    "Use thread-local locks or ensure the lock is used from the same thread."
+                )
 
         # Acquire the lock using run_coroutine_threadsafe
         future = asyncio.run_coroutine_threadsafe(
