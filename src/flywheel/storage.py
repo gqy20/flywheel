@@ -69,6 +69,8 @@ class _AsyncCompatibleLock:
         self._loop_lock = threading.Lock()
         self._locked = False  # Track if lock was acquired for safe release
         self._event_loop_thread_id = None  # Track which thread owns the event loop
+        self._loop_thread = None  # Thread running the event loop (for sync contexts)
+        self._loop_thread_stop_event = None  # Event to signal loop thread to stop
 
     def _get_or_create_loop(self):
         """Get or create the event loop for this lock.
@@ -109,9 +111,33 @@ class _AsyncCompatibleLock:
             except RuntimeError:
                 # No running loop, create a new one
                 # This is atomic within the lock
+                # Fix for Issue #1211: When creating a new event loop in a sync context,
+                # we must run it in a background thread so that run_coroutine_threadsafe
+                # tasks can actually execute. Otherwise, tasks submitted to the loop
+                # will never run, causing deadlocks.
                 self._event_loop = asyncio.new_event_loop()
                 # Record the thread that created this event loop
                 self._event_loop_thread_id = threading.get_ident()
+                # Create a stop event to signal the loop thread to stop
+                self._loop_thread_stop_event = threading.Event()
+
+                # Start the event loop in a background thread
+                # This allows run_coroutine_threadsafe to work properly
+                def run_event_loop(loop, stop_event):
+                    """Run the event loop until stop event is set."""
+                    asyncio.set_event_loop(loop)
+                    # Run until the stop event is set and there are no more tasks
+                    while not stop_event.is_set():
+                        loop.run_until_complete(asyncio.sleep(0.1))
+                    # Stop the loop
+                    loop.stop()
+
+                self._loop_thread = threading.Thread(
+                    target=run_event_loop,
+                    args=(self._event_loop, self._loop_thread_stop_event),
+                    daemon=True  # Daemon thread will not prevent program exit
+                )
+                self._loop_thread.start()
                 # Don't set as the default loop to avoid conflicts
                 # We'll close it when the lock is garbage collected
 
@@ -333,6 +359,8 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1185: Implements explicit cleanup method to prevent
         event loop resource leaks when locks are created from sync contexts.
+        Fix for Issue #1211: Properly stops the background event loop thread
+        before closing the loop to prevent race conditions.
         """
         with self._loop_lock:
             if self._event_loop is not None:
@@ -342,6 +370,16 @@ class _AsyncCompatibleLock:
                         # Check if this is a loop we created (not get_running_loop)
                         if self._event_loop_thread_id is not None:
                             # We created this loop, so we should close it
+                            # Fix for Issue #1211: Stop the background thread first
+                            if self._loop_thread_stop_event is not None:
+                                # Signal the loop thread to stop
+                                self._loop_thread_stop_event.set()
+
+                            # Wait for the loop thread to finish (with timeout)
+                            if self._loop_thread is not None and self._loop_thread.is_alive():
+                                self._loop_thread.join(timeout=1.0)
+
+                            # Now close the loop
                             self._event_loop.close()
                 except RuntimeError:
                     # Loop is already closed or in an invalid state
@@ -350,6 +388,8 @@ class _AsyncCompatibleLock:
                     # Always clear the reference to allow garbage collection
                     self._event_loop = None
                     self._event_loop_thread_id = None
+                    self._loop_thread = None
+                    self._loop_thread_stop_event = None
 
     def __del__(self):
         """Clean up event loop when lock is garbage collected.
