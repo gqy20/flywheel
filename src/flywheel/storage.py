@@ -109,9 +109,17 @@ class _AsyncCompatibleLock:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Release lock when exiting async context."""
-        if self._async_lock.locked():
-            self._async_lock.release()
+        """Release lock when exiting async context.
+
+        Since __aenter__ successfully acquired the lock, we can directly
+        release it here without checking locked(). This follows RAII principles
+        and ensures the lock is always released properly.
+
+        Fix for Issue #1156: Removed unnecessary locked() check that could
+        cause logic issues. If lock was acquired in __aenter__, it should
+        always be released in __aexit__.
+        """
+        self._async_lock.release()
         return False
 
 
