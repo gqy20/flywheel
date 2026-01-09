@@ -135,13 +135,12 @@ class _AsyncCompatibleLock:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Release lock when exiting sync context."""
-        loop = self._get_or_create_loop()
-        future = asyncio.run_coroutine_threadsafe(
-            self._lock.release(), loop
-        )
-        # Wait for the release to complete
-        future.result(timeout=5)
+        """Release lock when exiting sync context.
+
+        Note: asyncio.Lock.release() is a synchronous method, not a coroutine,
+        so we call it directly without using run_coroutine_threadsafe.
+        """
+        self._lock.release()
         return False
 
     async def __aenter__(self):
