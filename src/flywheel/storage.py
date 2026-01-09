@@ -189,6 +189,8 @@ class IOMetrics:
         environments where different threads have different event loops.
         Each event loop gets its own lock to avoid RuntimeError when using
         a lock from a different event loop.
+        Fix for Issue #1154: Move check inside lock to prevent race condition
+        where multiple threads could create multiple locks or return None.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -200,13 +202,9 @@ class IOMetrics:
                 "with a running event loop"
             )
 
-        # Check if we already have a lock for this event loop
-        if current_loop in self._locks:
-            return self._locks[current_loop]
-
-        # Need to create a new lock for this event loop
+        # Acquire lock first to prevent race condition
         with self._sync_lock:
-            # Double-check pattern: check again after acquiring lock
+            # Double-check pattern: check if lock exists after acquiring lock
             if current_loop not in self._locks:
                 self._locks[current_loop] = asyncio.Lock()
 
