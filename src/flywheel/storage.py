@@ -220,13 +220,16 @@ class _AsyncCompatibleLock:
             # If the lock is acquired *after* the timeout but *before* the cancellation
             # is processed, the lock will be held forever because __exit__ will not be
             # called. We must check and release the lock if it was acquired.
+            # Fix for Issue #1207: Use call_soon_threadsafe instead of
+            # run_coroutine_threadsafe().result() to avoid blocking in the finally block,
+            # which can cause deadlock if the event loop is busy or stopping.
             if not self._locked and self._lock.locked():
                 # Lock was acquired after timeout but before cancellation was processed.
                 # Release it to prevent permanent deadlock.
-                async def cleanup_lock():
+                def cleanup_lock():
                     if self._lock.locked():
                         self._lock.release()
-                asyncio.run_coroutine_threadsafe(cleanup_lock(), loop).result()
+                loop.call_soon_threadsafe(cleanup_lock)
 
         return self
 
