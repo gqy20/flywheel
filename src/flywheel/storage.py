@@ -77,28 +77,15 @@ class _AsyncCompatibleLock:
         proper synchronization between sync and async contexts.
 
         The method uses a double-checked locking pattern to ensure thread safety:
-        1. First check outside the lock for performance (fast path)
-        2. Acquire lock and check again for thread safety
-        3. Atomically create and assign the event loop if needed
+        1. All checks and assignments happen atomically within the lock
+        2. No checks outside the lock to prevent race conditions
 
         This prevents race conditions where multiple threads might try to
         create different event loops simultaneously.
         """
-        # Fast path: if we have a valid loop, return it immediately
-        # This avoids lock contention in the common case
-        if self._event_loop is not None:
-            # Check if loop is still running without acquiring lock first
-            # If it's closed, we'll need to create a new one
-            try:
-                if not self._event_loop.is_closed():
-                    return self._event_loop
-            except RuntimeError:
-                # Loop is in an invalid state, need to create a new one
-                pass
-
-        # Slow path: need to create or recreate the event loop
+        # All operations must be atomic within the lock
         with self._loop_lock:
-            # Double-check: another thread might have created it while we waited
+            # Check if we have a valid loop
             if self._event_loop is not None:
                 try:
                     if not self._event_loop.is_closed():
@@ -114,7 +101,7 @@ class _AsyncCompatibleLock:
                 self._event_loop_thread_id = threading.get_ident()
             except RuntimeError:
                 # No running loop, create a new one
-                # This is now atomic within the lock
+                # This is atomic within the lock
                 self._event_loop = asyncio.new_event_loop()
                 # Record the thread that created this event loop
                 self._event_loop_thread_id = threading.get_ident()
