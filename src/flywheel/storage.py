@@ -126,11 +126,25 @@ class _AsyncCompatibleLock:
                 def run_event_loop(loop, stop_event):
                     """Run the event loop until stop event is set."""
                     asyncio.set_event_loop(loop)
-                    # Run until the stop event is set and there are no more tasks
-                    while not stop_event.is_set():
-                        loop.run_until_complete(asyncio.sleep(0.1))
-                    # Stop the loop
-                    loop.stop()
+
+                    def stop_loop():
+                        """Stop the event loop when called."""
+                        loop.stop()
+
+                    # Monitor the stop event in a separate thread
+                    # This allows the event loop to run_forever and be cleanly stopped
+                    def monitor_stop_event():
+                        """Monitor the stop event and trigger loop shutdown."""
+                        stop_event.wait()
+                        # When stop event is set, call loop.stop() in a thread-safe manner
+                        loop.call_soon_threadsafe(stop_loop)
+
+                    # Start the monitor thread
+                    monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
+                    monitor_thread.start()
+
+                    # Run the event loop until stop() is called
+                    loop.run_forever()
 
                 self._loop_thread = threading.Thread(
                     target=run_event_loop,
