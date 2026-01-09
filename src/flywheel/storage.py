@@ -74,17 +74,49 @@ class _AsyncCompatibleLock:
 
         This ensures all acquisitions use the same event loop, enabling
         proper synchronization between sync and async contexts.
+
+        The method uses a double-checked locking pattern to ensure thread safety:
+        1. First check outside the lock for performance (fast path)
+        2. Acquire lock and check again for thread safety
+        3. Atomically create and assign the event loop if needed
+
+        This prevents race conditions where multiple threads might try to
+        create different event loops simultaneously.
         """
+        # Fast path: if we have a valid loop, return it immediately
+        # This avoids lock contention in the common case
+        if self._event_loop is not None:
+            # Check if loop is still running without acquiring lock first
+            # If it's closed, we'll need to create a new one
+            try:
+                if not self._event_loop.is_closed():
+                    return self._event_loop
+            except RuntimeError:
+                # Loop is in an invalid state, need to create a new one
+                pass
+
+        # Slow path: need to create or recreate the event loop
         with self._loop_lock:
-            if self._event_loop is None or self._event_loop.is_closed():
-                # Try to get the running loop if we're in an async context
+            # Double-check: another thread might have created it while we waited
+            if self._event_loop is not None:
                 try:
-                    self._event_loop = asyncio.get_running_loop()
+                    if not self._event_loop.is_closed():
+                        return self._event_loop
                 except RuntimeError:
-                    # No running loop, create a new one
-                    self._event_loop = asyncio.new_event_loop()
-                    # Don't set as the default loop to avoid conflicts
-                    # We'll close it when the lock is garbage collected
+                    # Loop is in an invalid state, need to create a new one
+                    pass
+
+            # Atomically create and assign the event loop
+            # Try to get the running loop if we're in an async context
+            try:
+                self._event_loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # No running loop, create a new one
+                # This is now atomic within the lock
+                self._event_loop = asyncio.new_event_loop()
+                # Don't set as the default loop to avoid conflicts
+                # We'll close it when the lock is garbage collected
+
             return self._event_loop
 
     def __enter__(self):
