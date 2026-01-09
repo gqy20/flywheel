@@ -160,9 +160,14 @@ class IOMetrics:
 
         Fix for Issue #1139: Lazy-initialize asyncio.Lock to prevent RuntimeError
         in sync contexts. The lock is only created when async methods are called.
+        Fix for Issue #1145: Use threading.Lock to protect lazy initialization
+        against race conditions in multi-threaded environments.
         """
         if self._lock is None:
-            self._lock = asyncio.Lock()
+            with self._sync_lock:
+                # Double-check pattern: check again after acquiring lock
+                if self._lock is None:
+                    self._lock = asyncio.Lock()
         return self._lock
 
     async def record_operation_async(self, operation_type: str, duration: float,
