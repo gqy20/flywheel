@@ -137,10 +137,17 @@ class _AsyncCompatibleLock:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
 
-        Note: asyncio.Lock.release() is a synchronous method, not a coroutine,
-        so we call it directly without using run_coroutine_threadsafe.
+        Since the lock was acquired via run_coroutine_threadsafe from a
+        different thread, we need to schedule the release via
+        loop.call_soon_threadsafe to ensure thread safety. Directly calling
+        release() from a different thread is technically unsafe and not part
+        of the public API contract of asyncio.Lock.
+
+        Fix for Issue #1176: Uses call_soon_threadsafe to safely release
+        the lock from the event loop's thread.
         """
-        self._lock.release()
+        loop = self._get_or_create_loop()
+        loop.call_soon_threadsafe(self._lock.release)
         return False
 
     async def __aenter__(self):
