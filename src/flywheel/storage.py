@@ -306,6 +306,53 @@ class _AsyncCompatibleLock:
             self._locked = False
         return False
 
+    def close(self):
+        """Clean up the event loop resource.
+
+        This method should be called when the lock is no longer needed to
+        properly clean up the event loop that was created for this lock.
+        If the event loop was created by this lock (i.e., we're in a sync
+        context), it will be closed to prevent resource leaks.
+
+        Fix for Issue #1185: Implements explicit cleanup method to prevent
+        event loop resource leaks when locks are created from sync contexts.
+        """
+        with self._loop_lock:
+            if self._event_loop is not None:
+                try:
+                    if not self._event_loop.is_closed():
+                        # Only close loops that we created ourselves
+                        # Check if this is a loop we created (not get_running_loop)
+                        if self._event_loop_thread_id is not None:
+                            # We created this loop, so we should close it
+                            self._event_loop.close()
+                except RuntimeError:
+                    # Loop is already closed or in an invalid state
+                    pass
+                finally:
+                    # Always clear the reference to allow garbage collection
+                    self._event_loop = None
+                    self._event_loop_thread_id = None
+
+    def __del__(self):
+        """Clean up event loop when lock is garbage collected.
+
+        This ensures that event loops created by this lock are properly closed
+        when the lock object is destroyed, preventing resource leaks.
+
+        Fix for Issue #1185: Implements automatic cleanup on deletion to prevent
+        event loop resource leaks.
+        """
+        # Try to clean up the event loop
+        # Use a try-except because __del__ can be called during interpreter shutdown
+        # when various modules may already be cleaned up
+        try:
+            self.close()
+        except Exception:
+            # Ignore errors during cleanup in __del__
+            # The object is being destroyed anyway
+            pass
+
 
 class _AsyncContextError(RuntimeError):
     """Exception raised when sync method is called from async context.
