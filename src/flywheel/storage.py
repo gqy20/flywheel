@@ -226,7 +226,7 @@ class _AsyncCompatibleLock:
                 async def cleanup_lock():
                     if self._lock.locked():
                         self._lock.release()
-                asyncio.run_coroutine_threadsafe(cleanup_lock(), loop)
+                asyncio.run_coroutine_threadsafe(cleanup_lock(), loop).result()
 
         return self
 
