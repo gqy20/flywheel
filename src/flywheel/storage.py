@@ -115,6 +115,19 @@ class _AsyncCompatibleLock:
         return False
 
 
+class _AsyncContextError(RuntimeError):
+    """Exception raised when sync method is called from async context.
+
+    This is a specific exception type to distinguish from other RuntimeError
+    exceptions that might be raised by asyncio.
+
+    Fix for Issue #1144: Uses a unique exception type instead of relying on
+    fragile string matching to differentiate between our custom error and
+    asyncio's RuntimeError.
+    """
+    pass
+
+
 class IOMetrics:
     """Metrics tracker for I/O operations (Issue #1053).
 
@@ -229,26 +242,32 @@ class IOMetrics:
         event loop without catching the wrong RuntimeError.
         Fix for Issue #1135: Use threading.Lock instead of asyncio.run() to
         prevent RuntimeError when called from threads with running event loop.
+        Fix for Issue #1144: Uses custom _AsyncContextError exception instead of
+        fragile string matching to distinguish between our custom error and
+        asyncio's RuntimeError.
         """
         # Fix for Issue #1121: Detect if we're in an async context and provide
         # a clear error message directing users to use record_operation_async
         # Fix for Issue #1130: Properly detect running loop without catching
         # the wrong RuntimeError exception
+        # Fix for Issue #1144: Use custom exception type instead of string matching
         try:
             loop = asyncio.get_running_loop()
             # If we get here, there's a running event loop
-            raise RuntimeError(
+            raise _AsyncContextError(
                 "Cannot call synchronous record_operation() from an async context. "
                 "Use await record_operation_async() instead. "
                 "This prevents potential deadlocks when an event loop is running."
             )
-        except RuntimeError as e:
-            # If the error message mentions "no running event loop", that's
-            # the expected case - we can proceed with sync version
-            # Any other RuntimeError (including our custom one) should be re-raised
-            if "no running event loop" not in str(e):
-                raise
-            # No running event loop, safe to proceed with sync version
+        except _AsyncContextError:
+            # Re-raise our custom error
+            raise
+        except RuntimeError:
+            # Any RuntimeError from asyncio.get_running_loop() (e.g., "no running
+            # event loop", "no current event loop", etc.) means there's no running
+            # loop, which is the expected case - we can proceed with sync version
+            # Fix for Issue #1144: Don't rely on string matching, just catch all
+            # RuntimeError from asyncio since they all indicate no running loop
             pass
 
         operation = {
