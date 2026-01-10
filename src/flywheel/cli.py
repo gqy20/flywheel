@@ -35,7 +35,7 @@ FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
 MAX_LENGTH_HARD_LIMIT = 1 * 1024 * 1024  # 1MB
 
 
-def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 100000) -> str:
+def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 4096) -> str:
     """Normalize string for security-sensitive contexts using stricter normalization.
 
     This function uses NFKC (Compatibility Decomposition) normalization for
@@ -63,8 +63,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         context: Usage context - "url", "filename", "shell", "format", or "general"
                  Security contexts ("url", "filename", "shell", "format") use NFKC
                  General context uses NFC (preserves special characters)
-        max_length: Maximum input length to prevent DoS attacks (default: 100000)
-                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
+        max_length: Maximum input length to prevent DoS attacks (default: 4096)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094, #1280)
 
     Returns:
         Normalized string safe for the specified context
@@ -106,7 +106,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1119 (add 'format' context that escapes format string chars for safe usage),
         #1225 (remove Unicode spoofing chars in shell context before quoting),
         #1249 (move control char removal into context-specific handling to avoid conflicts),
-        #1269 (ensure BIDI override chars removed before shlex.quote() - covered by #1225)
+        #1269 (ensure BIDI override chars removed before shlex.quote() - covered by #1225),
+        #1280 (reduce default max_length from 100000 to 4096 to prevent DoS in CLI tools)
     """
     if not s:
         return ""
@@ -249,7 +250,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     return s
 
 
-def remove_control_chars(s: str, max_length: int = 100000) -> str:
+def remove_control_chars(s: str, max_length: int = 4096) -> str:
     """Normalize string for data storage by removing problematic characters.
 
     SECURITY WARNING: This function does NOT provide security protection.
@@ -297,8 +298,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 
     Args:
         s: String to normalize
-        max_length: Maximum input length to prevent DoS attacks (default: 100000)
-                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
+        max_length: Maximum input length to prevent DoS attacks (default: 4096)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094, #1280)
 
     Returns:
         Normalized string with problematic characters removed for data storage
@@ -337,7 +338,8 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
         #979 (preserve shell metachars in general context - only remove in security contexts),
         #1034 (preserve format string chars in general context - only remove in security contexts),
         #1089 (document security implications of format string chars in general context),
-        #1094 (enforce hard upper limit on max_length to prevent memory exhaustion)
+        #1094 (enforce hard upper limit on max_length to prevent memory exhaustion),
+        #1280 (reduce default max_length from 100000 to 4096 to prevent DoS in CLI tools)
     """
     if not s:
         return ""
@@ -467,7 +469,7 @@ def remove_control_chars(s: str, max_length: int = 100000) -> str:
 # DEPRECATED: Alias for backward compatibility (Issue #850)
 # Use remove_control_chars instead - the name "sanitize_string" is misleading
 # as it suggests security protection that this function does not provide.
-def sanitize_string(s: str, max_length: int = 100000) -> str:
+def sanitize_string(s: str, max_length: int = 4096) -> str:
     """Deprecated alias for remove_control_chars.
 
     DEPRECATED: Use remove_control_chars instead. The name "sanitize_string"
@@ -476,8 +478,8 @@ def sanitize_string(s: str, max_length: int = 100000) -> str:
 
     Args:
         s: String to normalize
-        max_length: Maximum input length to prevent DoS attacks (default: 100000)
-                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094)
+        max_length: Maximum input length to prevent DoS attacks (default: 4096)
+                    Hard capped at 1MB to prevent memory exhaustion (Issue #1094, #1280)
 
     Returns:
         Normalized string with problematic characters removed
