@@ -73,7 +73,12 @@ class _AsyncCompatibleLock:
     def __init__(self):
         """Initialize with separate locks for sync and async contexts."""
         self._lock = threading.Lock()
-        self._async_lock = None
+        # Fix for Issue #1331: Use per-event-loop locks to handle multi-threaded
+        # environments where different threads have different event loops.
+        # Each event loop gets its own lock to avoid RuntimeError when using
+        # a lock from a different event loop.
+        self._async_locks = {}  # Dictionary mapping event loop IDs to their locks
+        self._async_lock_init_lock = threading.Lock()  # Protects lazy initialization
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
 
@@ -85,11 +90,40 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1316: Lazy initialization prevents RuntimeError in
         sync contexts and ensures proper lock-per-event-loop semantics.
+        Fix for Issue #1331: Use per-event-loop locks to handle multi-threaded
+        environments where different threads have different event loops.
+        Each event loop gets its own lock to avoid RuntimeError when using
+        a lock from a different event loop.
         """
-        if self._async_lock is None:
-            # Create asyncio.Lock on-demand when first used in async context
-            self._async_lock = asyncio.Lock()
-        return self._async_lock
+        try:
+            current_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No running event loop - this shouldn't happen in async context
+            # but handle it gracefully by creating a lock in the current thread
+            # Note: This is a fallback and may not work in all scenarios
+            current_loop = asyncio.get_event_loop()
+            if current_loop is None or not current_loop.is_running():
+                raise RuntimeError(
+                    "_AsyncCompatibleLock._get_async_lock must be called from "
+                    "an async context with a running event loop"
+                )
+
+        # Use id(current_loop) as key to avoid circular reference
+        current_loop_id = id(current_loop)
+
+        # Fast path: lock already exists for this event loop
+        if current_loop_id in self._async_locks:
+            return self._async_locks[current_loop_id]
+
+        # Slow path: create new lock with synchronization
+        with self._async_lock_init_lock:
+            # Double-check: another thread might have created it while we waited
+            if current_loop_id in self._async_locks:
+                return self._async_locks[current_loop_id]
+
+            # Create new lock for this event loop
+            self._async_locks[current_loop_id] = asyncio.Lock()
+            return self._async_locks[current_loop_id]
 
     def __enter__(self):
         """Support synchronous context manager protocol.
