@@ -35,7 +35,19 @@ FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
 MAX_LENGTH_HARD_LIMIT = 1 * 1024 * 1024  # 1MB
 
 
-def sanitize_for_security_context(s: str, context: str = "general", max_length: int = 4096) -> str:
+# SECURITY FIX (Issue #1289): Define context-specific default max_length limits
+# For CLI contexts like filenames and URLs, use smaller defaults (255) to prevent
+# terminal display issues and buffer overflow in downstream applications.
+CONTEXT_DEFAULT_MAX_LENGTH = {
+    "filename": 255,
+    "url": 255,
+    "shell": 255,
+    "format": 255,
+    "general": 4096,
+}
+
+
+def sanitize_for_security_context(s: str, context: str = "general", max_length: int | None = None) -> str:
     """Normalize string for security-sensitive contexts using stricter normalization.
 
     This function uses NFKC (Compatibility Decomposition) normalization for
@@ -63,7 +75,10 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         context: Usage context - "url", "filename", "shell", "format", or "general"
                  Security contexts ("url", "filename", "shell", "format") use NFKC
                  General context uses NFC (preserves special characters)
-        max_length: Maximum input length to prevent DoS attacks (default: 4096)
+        max_length: Maximum input length to prevent DoS attacks.
+                    If not specified, uses context-specific default:
+                    - filename/url/shell/format: 255 (Issue #1289)
+                    - general: 4096 (Issue #1280)
                     Hard capped at 1MB to prevent memory exhaustion (Issue #1094, #1280)
 
     Returns:
@@ -102,12 +117,14 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1089 (document security implications of format string chars in general context),
         #1094 (enforce hard upper limit on max_length to prevent memory exhaustion),
         #1104 (truncate by characters not bytes to prevent multi-byte bypass),
+        #1289 (context-specific default max_length for CLI contexts),
         #1114 (use shlex.quote() for shell context instead of removing chars),
         #1119 (add 'format' context that escapes format string chars for safe usage),
         #1225 (remove Unicode spoofing chars in shell context before quoting),
         #1249 (move control char removal into context-specific handling to avoid conflicts),
         #1269 (ensure BIDI override chars removed before shlex.quote() - covered by #1225),
-        #1280 (reduce default max_length from 100000 to 4096 to prevent DoS in CLI tools)
+        #1280 (reduce default max_length from 100000 to 4096 for general context),
+        #1289 (context-specific default max_length - 255 for CLI contexts)
     """
     if not s:
         return ""
@@ -153,6 +170,11 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # like emojis (which are 4 bytes in UTF-8 but 1 character in Python strings).
     # SECURITY FIX (Issue #1094): Enforce hard upper limit on max_length to prevent
     # memory exhaustion attacks. Cap at 1MB even if caller requests larger limit.
+    # SECURITY FIX (Issue #1289): Use context-specific default max_length if not provided.
+    # For CLI contexts (filename, url, shell, format), use 255 to prevent terminal
+    # display issues and buffer overflow in downstream applications.
+    if max_length is None:
+        max_length = CONTEXT_DEFAULT_MAX_LENGTH.get(context, 4096)
     effective_max_length = min(max_length, MAX_LENGTH_HARD_LIMIT)
     if len(s) > effective_max_length:
         # Slice directly to truncate at effective_max_length characters
@@ -339,7 +361,8 @@ def remove_control_chars(s: str, max_length: int = 4096) -> str:
         #1034 (preserve format string chars in general context - only remove in security contexts),
         #1089 (document security implications of format string chars in general context),
         #1094 (enforce hard upper limit on max_length to prevent memory exhaustion),
-        #1280 (reduce default max_length from 100000 to 4096 to prevent DoS in CLI tools)
+        #1280 (reduce default max_length from 100000 to 4096 for general context),
+        #1289 (context-specific default max_length - 255 for CLI contexts)
     """
     if not s:
         return ""
