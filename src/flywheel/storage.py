@@ -14,7 +14,6 @@ import os
 import threading
 import time
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
@@ -54,65 +53,39 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
-    This implementation uses threading.Lock as the underlying synchronization
-    primitive, which provides true cross-thread mutual exclusion without the
-    complexity and deadlock risks of event loop management. The async interface
-    is implemented by wrapping the threading lock in asyncio-compatible methods.
+    The implementation uses a threading.Lock for synchronous contexts and
+    asyncio.Lock for asynchronous contexts, providing optimal performance
+    for each use case without blocking the event loop.
 
     Fix for Issue #1097: Provides unified lock interface for IOMetrics.
     Fix for Issue #1166: Uses single lock with thread-safe synchronization
     to ensure mutual exclusion between sync and async contexts.
-    Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock to prevent
+    Fix for Issue #1290: Uses threading.Lock for sync contexts to prevent
     deadlock risks from event loop reuse and ensure true cross-thread mutual
-    exclusion. asyncio.Lock is tied to specific event loops, which breaks
-    mutual exclusion when different threads use different loops.
-    Fix for Issue #1301: Uses dedicated executor to prevent event loop blocking
-    when the default thread pool is exhausted.
+    exclusion.
+    Fix for Issue #1316: Uses asyncio.Lock for async contexts to prevent
+    event loop blocking and thread pool exhaustion under high concurrency.
     """
 
-    # Class-level dedicated executor for lock operations
-    # This prevents blocking when the default ThreadPoolExecutor is exhausted
-    _lock_executor = None
-    _executor_lock = threading.Lock()
-
     def __init__(self):
-        """Initialize with a threading.Lock for true cross-thread synchronization."""
+        """Initialize with separate locks for sync and async contexts."""
         self._lock = threading.Lock()
+        self._async_lock = None
         self._locked = False  # Track if lock was acquired for safe release
-        self._ensure_executor()
 
-    @classmethod
-    def _ensure_executor(cls):
-        """Ensure the dedicated executor exists and is initialized.
+    def _get_async_lock(self):
+        """Get or create the asyncio.Lock for the current event loop.
 
-        This method is thread-safe and uses a class-level lock to prevent
-        race conditions during initialization. The executor is created
-        once and reused across all lock instances to minimize overhead.
+        This lazy initialization ensures we only create asyncio.Lock when
+        needed, avoiding RuntimeError in purely synchronous contexts.
 
-        Fix for Issue #1301: Dedicated executor prevents event loop blocking.
+        Fix for Issue #1316: Lazy initialization prevents RuntimeError in
+        sync contexts and ensures proper lock-per-event-loop semantics.
         """
-        if cls._lock_executor is None:
-            with cls._executor_lock:
-                # Double-check locking pattern
-                if cls._lock_executor is None:
-                    cls._lock_executor = ThreadPoolExecutor(
-                        max_workers=4,
-                        thread_name_prefix="async_lock_"
-                    )
-
-    @classmethod
-    def shutdown_executor(cls):
-        """Shutdown the dedicated executor.
-
-        This method should be called during application shutdown to
-        cleanly release thread resources. It's safe to call multiple times.
-
-        Fix for Issue #1301: Clean up dedicated executor resources.
-        """
-        with cls._executor_lock:
-            if cls._lock_executor is not None:
-                cls._lock_executor.shutdown(wait=True)
-                cls._lock_executor = None
+        if self._async_lock is None:
+            # Create asyncio.Lock on-demand when first used in async context
+            self._async_lock = asyncio.Lock()
+        return self._async_lock
 
     def __enter__(self):
         """Support synchronous context manager protocol.
@@ -146,44 +119,29 @@ class _AsyncCompatibleLock:
     async def __aenter__(self):
         """Support asynchronous context manager protocol.
 
-        Uses threading.Lock wrapped in an async-compatible way.
-        We yield control to the event loop while waiting to acquire the lock
-        to prevent blocking the event loop.
+        Uses asyncio.Lock for async contexts to prevent event loop blocking
+        and avoid thread pool exhaustion under high concurrency.
 
-        Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock
-        to prevent deadlock risks and ensure true cross-thread mutual exclusion.
-        Fix for Issue #1301: Uses dedicated executor with timeout to prevent
-        event loop blocking when the default thread pool is exhausted.
+        Fix for Issue #1316: Uses asyncio.Lock instead of threading.Lock with
+        executor to prevent event loop blocking and thread pool exhaustion.
         """
-        # Use dedicated executor to avoid blocking when default pool is full
-        # Add timeout to prevent indefinite blocking
-        loop = asyncio.get_event_loop()
-        try:
-            # Use asyncio.wait_for to add timeout protection
-            await asyncio.wait_for(
-                loop.run_in_executor(self._lock_executor, self._lock.acquire),
-                timeout=30.0  # 30 second timeout
-            )
-            self._locked = True
-        except asyncio.TimeoutError:
-            # If timeout occurs, raise a more descriptive error
-            raise TimeoutError(
-                "Failed to acquire lock within 30 seconds. "
-                "This may indicate deadlock or excessive contention."
-            )
+        async_lock = self._get_async_lock()
+        await async_lock.acquire()
+        self._locked = True
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
 
-        Simply releases the threading.Lock.
+        Simply releases the asyncio.Lock.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __aexit__ is called without successful __aenter__.
-        Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
+        Fix for Issue #1316: Uses asyncio.Lock for async context cleanup.
         """
         if self._locked:
-            self._lock.release()
+            async_lock = self._get_async_lock()
+            async_lock.release()
             self._locked = False
         return False
 
