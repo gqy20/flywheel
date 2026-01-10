@@ -114,8 +114,11 @@ class _AsyncCompatibleLock:
                 "an async context with a running event loop"
             )
 
-        # Use id(current_loop) as key to avoid circular reference
-        current_loop_id = id(current_loop)
+        # Use the event loop object itself as the key (not its ID)
+        # Fix for Issue #1356: Using the loop object directly allows WeakValueDictionary
+        # to properly clean up entries when the loop is garbage collected.
+        # Using id(loop) as key causes memory leak because the integer ID is
+        # still referenced by the dictionary key, preventing automatic cleanup.
 
         # Fast path: lock already exists for this event loop
         # Fix for Issue #1346: WeakValueDictionary automatically cleans up
@@ -123,7 +126,7 @@ class _AsyncCompatibleLock:
         # for manual cleanup and avoiding race conditions.
         # Fix for Issue #1350: Use .get() instead of 'in' check + access to
         # prevent KeyError when value is garbage collected between check and access.
-        existing_lock = self._async_locks.get(current_loop_id)
+        existing_lock = self._async_locks.get(current_loop)
         if existing_lock is not None:
             return existing_lock
 
@@ -131,13 +134,13 @@ class _AsyncCompatibleLock:
         with self._async_lock_init_lock:
             # Double-check: another thread might have created it while we waited
             # Fix for Issue #1350: Use .get() to prevent KeyError
-            existing_lock = self._async_locks.get(current_loop_id)
+            existing_lock = self._async_locks.get(current_loop)
             if existing_lock is not None:
                 return existing_lock
 
             # Create new lock for this event loop
             new_lock = asyncio.Lock()
-            self._async_locks[current_loop_id] = new_lock
+            self._async_locks[current_loop] = new_lock
             return new_lock
 
     def __enter__(self):
