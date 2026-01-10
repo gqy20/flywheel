@@ -63,11 +63,12 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     For general text storage (todo titles, descriptions), use remove_control_chars()
     instead, which uses NFC normalization to preserve user intent.
 
-    SECURITY FIX (Issue #1319): Strings sanitized with 'general' context now REMOVE
-    format string characters ({, }, %, \) to prevent format string injection attacks.
-    This provides defense-in-depth protection even if developers accidentally use the
-    output in format strings. For displaying these characters literally in format strings,
-    use 'format' context which escapes them safely ({{, }}, %%, \\).
+    SECURITY FIX (Issue #1324): Strings sanitized with 'general' context now PRESERVE
+    format string characters ({, }, %, \) to maintain user intent and prevent data loss.
+    General context is for data storage and display, not for use in format strings.
+    If the output needs to be used in format strings, use the 'format' context which
+    escapes these characters safely ({{, }}, %%, \\). This fixes the issue where
+    user data like 'Progress: 50%' was incorrectly sanitized to 'Progress: 50'.
 
     What NFKC converts (preventing homograph attacks):
     - Fullwidth characters: ｅ → e, Ｔ → T, ． → .
@@ -102,7 +103,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         >>> sanitize_for_security_context("²³™", context="general")
         '²³™'  # Preserved with NFC (general context)
         >>> sanitize_for_security_context("Progress: 50%", context="general")
-        'Progress: 50'  # Percent sign removed for security (Issue #1319)
+        'Progress: 50%'  # Percent sign preserved (Issue #1324)
         >>> sanitize_for_security_context("file with spaces", context="shell")
         "'file with spaces'"  # Properly quoted for shell usage (Issue #1114)
         >>> sanitize_for_security_context("Cost: $100 (discount)", context="general")
@@ -110,7 +111,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         >>> sanitize_for_security_context("Use {var} for 100%", context="format")
         'Use {{var}} for 100%%'  # Format chars escaped for safe f-string usage (Issue #1119)
         >>> sanitize_for_security_context("Use {var} for 100%", context="general")
-        'Use var for 100'  # Format chars removed for security (Issue #1319)
+        'Use {var} for 100%'  # Format chars preserved in general context (Issue #1324)
 
     Related issues:
         #969 (fullwidth homograph attacks), #944 (NFC preservation),
@@ -131,7 +132,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1280 (reduce default max_length from 100000 to 4096 for general context),
         #1289 (context-specific default max_length - 255 for CLI contexts),
         #1309 (add pre-normalization coarse check to prevent NFKC expansion DoS),
-        #1319 (remove format string chars in general context to prevent injection)
+        #1319 (remove format string chars in general context to prevent injection),
+        #1324 (preserve format string chars in general context to maintain user intent)
     """
     if not s:
         return ""
@@ -289,18 +291,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # any regex processing to prevent ReDoS attacks.
     # SECURITY FIX (Issue #1249): Only remove control chars here if not already removed
     # in context-specific handling above (shell, format, url/filename contexts).
+    # SECURITY FIX (Issue #1324): For general context, only remove control characters
+    # and preserve format string characters ({, }, %, \) to maintain user intent.
+    # General context is primarily for data storage and display, not for use in
+    # format strings. If the output needs to be used in format strings, use the
+    # 'format' context which escapes these characters safely.
     if context == "general":
         s = CONTROL_CHARS_PATTERN.sub('', s)
-
-        # SECURITY FIX (Issue #1319): Remove format string characters in general context
-        # to prevent format string injection attacks. Even though general context is
-        # primarily for data storage, removing these characters provides defense-in-depth
-        # and prevents accidental misuse in format strings.
-        # Format string characters removed: { } % \
-        # These characters are safe in 'format' context (where they are escaped),
-        # but should be removed in general context to prevent injection attacks.
-        format_string_chars = {'{', '}', '%', '\\'}
-        s = ''.join(c for c in s if c not in format_string_chars)
 
     # Remove Unicode spoofing characters (for all contexts except shell, which already did it)
     # SECURITY FIX (Issue #1225): Remove Unicode spoofing characters for all contexts
