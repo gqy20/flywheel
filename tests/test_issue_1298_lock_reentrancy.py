@@ -85,55 +85,20 @@ def test_sync_lock_different_threads():
     # The key test: thread2 should only acquire AFTER thread1 releases
 
 
-def test_current_implementation_is_not_reentrant():
-    """Document the current behavior: threading.Lock is NOT reentrant."""
+def test_rlock_prevents_same_thread_deadlock():
+    """Verify that RLock prevents deadlocks when the same thread acquires multiple times."""
     lock = _AsyncCompatibleLock()
+    success_count = [0]
 
-    # This test demonstrates the problem with the current implementation
-    # using threading.Lock instead of threading.RLock
-    acquired_first = False
-    deadlock_occurred = False
+    def nested_acquire(depth=0):
+        """Recursively acquire the lock to verify reentrancy."""
+        with lock:
+            success_count[0] += 1
+            if depth < 5:
+                nested_acquire(depth + 1)
 
-    def attempt_nested_acquire():
-        nonlocal acquired_first, deadlock_occurred
-        try:
-            with lock:
-                acquired_first = True
-                # This will cause a deadlock with threading.Lock
-                # because the same thread tries to acquire twice
-                with lock:
-                    deadlock_occurred = False  # Should never reach here
-        except RuntimeError:
-            # Might get a different error depending on implementation
-            deadlock_occurred = True
+    # This should complete without deadlock
+    nested_acquire()
 
-    # Run in a thread with timeout to detect actual deadlock
-    result = [None]
-    exception = [None]
-
-    def run_test():
-        try:
-            attempt_nested_acquire()
-            result.append(False)  # No deadlock
-        except Exception as e:
-            exception.append(e)
-
-    thread = threading.Thread(target=run_test)
-    thread.daemon = True
-    thread.start()
-    thread.join(timeout=2.0)
-
-    if thread.is_alive():
-        # Thread is still running => deadlock occurred
-        deadlock_occurred = True
-    elif result[-1] is False:
-        # Completed successfully => lock is reentrant
-        deadlock_occurred = False
-    elif exception[-1] is not None:
-        # Exception occurred
-        deadlock_occurred = True
-
-    # For now, we expect this to fail with the current implementation
-    # After the fix, this test will need to be updated
-    assert deadlock_occurred or not acquired_first, \
-        "Current implementation should demonstrate non-reentrant behavior"
+    # Verify all 6 acquisitions (depth 0-5) succeeded
+    assert success_count[0] == 6, f"Expected 6 successful acquisitions, got {success_count[0]}"

@@ -53,7 +53,7 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
-    The implementation uses a threading.Lock for synchronous contexts and
+    The implementation uses a threading.RLock for synchronous contexts and
     asyncio.Lock for asynchronous contexts, providing optimal performance
     for each use case without blocking the event loop.
 
@@ -63,6 +63,8 @@ class _AsyncCompatibleLock:
     Fix for Issue #1290: Uses threading.Lock for sync contexts to prevent
     deadlock risks from event loop reuse and ensure true cross-thread mutual
     exclusion.
+    Fix for Issue #1298: Uses threading.RLock for reentrancy to allow
+    the same thread to acquire the lock multiple times without deadlock.
     Fix for Issue #1316: Uses asyncio.Lock for async contexts to prevent
     event loop blocking and thread pool exhaustion under high concurrency.
     Fix for Issue #1326: Uses separate state flags (_sync_locked and _async_locked)
@@ -72,7 +74,7 @@ class _AsyncCompatibleLock:
 
     def __init__(self):
         """Initialize with separate locks for sync and async contexts."""
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # Fix for Issue #1298: Use RLock for reentrancy
         # Fix for Issue #1331: Use per-event-loop locks to handle multi-threaded
         # environments where different threads have different event loops.
         # Each event loop gets its own lock to avoid RuntimeError when using
