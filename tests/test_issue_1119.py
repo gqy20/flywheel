@@ -100,26 +100,27 @@ class TestIssue1119:
         assert result == "Progress: 50%%"
 
     def test_general_context_preserves_format_chars(self):
-        """General context should still preserve format characters (existing behavior)."""
-        # This test ensures we don't break existing functionality
-        assert sanitize_for_security_context("{format}", context="general") == "{format}"
-        assert sanitize_for_security_context("50%", context="general") == "50%"
-        assert sanitize_for_security_context("C:\\path", context="general") == "C:\\path"
+        """General context now removes format characters for security (Issue #1319)."""
+        # This test verifies the security fix - format chars are removed in general context
+        assert sanitize_for_security_context("{format}", context="general") == "format"
+        assert sanitize_for_security_context("50%", context="general") == "50"
+        assert sanitize_for_security_context("C:\\path", context="general") == "C:path"
 
     def test_format_context_vs_general_context(self):
-        """Compare format context with general context to show the difference."""
+        """Compare format context with general context after security fix (Issue #1319)."""
         input_str = "Use {var} for 100% on C:\\path"
 
-        # General preserves format characters
+        # General removes format characters (security fix)
         general_result = sanitize_for_security_context(input_str, context="general")
-        assert general_result == input_str
+        assert general_result == "Use var for 100 on C:path"
 
-        # Format escapes them
+        # Format escapes them (for literal display in format strings)
         format_result = sanitize_for_security_context(input_str, context="format")
         assert format_result == "Use {{var}} for 100%% on C:\\\\path"
 
-        # They should be different
+        # They should be different - both safe but different approaches
         assert general_result != format_result
+        # Both are safe for format strings, just different representations
 
     def test_format_context_with_empty_string(self):
         """Format context should handle empty strings."""
