@@ -1,4 +1,11 @@
-"""Tests for Issue #1276 - Resource leak: uncleaned background thread and event loop."""
+"""Tests for Issue #1276 - Resource leak: uncleaned background thread and event loop.
+
+Note: This issue was previously fixed in Issue #1185 and Issue #1211.
+The _AsyncCompatibleLock class already has both close() and __del__() methods
+implemented for proper resource cleanup.
+
+These tests verify that the cleanup functionality works correctly.
+"""
 import threading
 import gc
 import time
