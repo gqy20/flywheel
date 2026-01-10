@@ -9,8 +9,8 @@ prevents indefinite blocking, it turns a potential concurrency bottleneck into
 a failure condition. If the lock is frequently contended, this will cause
 spurious crashes.
 
-The fix: Increase the timeout to a more reasonable value (e.g., 10 seconds) to
-handle high-load scenarios better, or provide a way to configure the timeout.
+The fix: Increased the timeout from 1s to 10s to handle high-load scenarios
+better and prevent spurious crashes under high contention.
 """
 
 import asyncio
@@ -106,17 +106,26 @@ def test_lock_timeout_under_high_contention():
     async_thread.join(timeout=10)
 
     # Verify results
-    # With the current 1-second timeout, we expect timeouts
-    # After the fix, we expect no timeouts (or very few)
+    # After the fix (10-second timeout), we expect no timeouts
     print(f"\nTest Results:")
     print(f"  Timeouts: {results['timeouts']}")
     print(f"  Successful acquisitions: {results['successful_acquisitions']}")
     print(f"  Errors: {results['errors']}")
 
-    # For now, this test documents the current behavior
-    # The fix should reduce/eliminate timeouts
-    # We're not asserting strict behavior yet - this is a RED phase test
-    assert True, "Test completed - results documented for fix"
+    # After the fix (10-second timeout), there should be no timeouts
+    # All threads should successfully acquire the lock
+    assert results['timeouts'] == 0, (
+        f"Expected no timeouts with 10-second timeout, but got {results['timeouts']}. "
+        "This indicates the fix for Issue #1291 is not working correctly."
+    )
+    assert results['successful_acquisitions'] == num_threads, (
+        f"Expected {num_threads} successful acquisitions, but got {results['successful_acquisitions']}. "
+        "This indicates some threads failed to acquire the lock."
+    )
+    assert results['errors'] == 0, (
+        f"Expected no errors, but got {results['errors']}. "
+        f"Errors: {results}"
+    )
 
 
 def test_lock_timeout_with_long_async_operation():
@@ -174,10 +183,17 @@ def test_lock_timeout_with_long_async_operation():
     print(f"  Timeout occurred: {timeout_occurred[0]}")
     print(f"  Time waited: {acquisition_time[0]:.2f}s")
 
-    # The current implementation will timeout (this is expected for RED phase)
-    # After the fix, this should succeed
-    # We're not asserting strict behavior yet - this is a RED phase test
-    assert True, "Test completed - behavior documented for fix"
+    # After the fix (10-second timeout), this should succeed without timeout
+    # The async operation holds the lock for 3 seconds, which is less than 10 seconds
+    assert not timeout_occurred[0], (
+        f"Expected no timeout with 10-second timeout, but timeout occurred after {acquisition_time[0]:.2f}s. "
+        "This indicates the fix for Issue #1291 is not working correctly."
+    )
+    assert acquisition_time[0] >= 3, (
+        f"Expected to wait at least 3 seconds (duration of async operation), "
+        f"but only waited {acquisition_time[0]:.2f}s. "
+        "This indicates the lock was not properly held by the async operation."
+    )
 
 
 if __name__ == "__main__":
@@ -187,4 +203,4 @@ if __name__ == "__main__":
     print("\nTesting lock timeout with long async operation...")
     test_lock_timeout_with_long_async_operation()
 
-    print("\n✅ All tests completed (RED phase - documenting current behavior)")
+    print("\n✅ All tests passed - Issue #1291 is fixed!")

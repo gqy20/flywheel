@@ -231,6 +231,8 @@ class _AsyncCompatibleLock:
         waiting in potential deadlock scenarios.
         Fix for Issue #1190: Prevents cross-thread lock usage to avoid deadlocks
         when event loops are involved.
+        Fix for Issue #1291: Increased timeout from 1s to 10s to prevent spurious
+        crashes under high load when the lock is frequently contended.
         """
         # Get or create the event loop for this lock first
         # This will set _event_loop_thread_id if not already set
@@ -287,8 +289,10 @@ class _AsyncCompatibleLock:
         # Use a timeout to prevent indefinite blocking
         # Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent
         # excessive waiting in potential deadlock scenarios
+        # Fix for Issue #1291: Increased timeout from 1s to 10s to prevent
+        # spurious crashes under high load when the lock is frequently contended
         try:
-            future.result(timeout=1)
+            future.result(timeout=10)
             self._locked = True  # Mark lock as acquired for safe release
         except TimeoutError:
             # Cancel the future to prevent deadlock
@@ -298,7 +302,7 @@ class _AsyncCompatibleLock:
             # in the background thread, it will remain locked forever (deadlock)
             # because __exit__ will not be called to release it.
             future.cancel()
-            raise TimeoutError("Failed to acquire lock within 1 second")
+            raise TimeoutError("Failed to acquire lock within 10 seconds")
         finally:
             # Fix for Issue #1201: Check if lock was acquired despite timeout/cancellation.
             # Calling future.cancel() requests cancellation but does not guarantee the
