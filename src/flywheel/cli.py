@@ -105,7 +105,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1114 (use shlex.quote() for shell context instead of removing chars),
         #1119 (add 'format' context that escapes format string chars for safe usage),
         #1225 (remove Unicode spoofing chars in shell context before quoting),
-        #1249 (move control char removal into context-specific handling to avoid conflicts)
+        #1249 (move control char removal into context-specific handling to avoid conflicts),
+        #1269 (ensure BIDI override chars removed before shlex.quote() - covered by #1225)
     """
     if not s:
         return ""
