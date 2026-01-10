@@ -167,12 +167,34 @@ class _AsyncCompatibleLock:
                 daemon=True  # Daemon thread will not prevent program exit
             )
 
-        # Fix for Issue #1261: Start the thread AFTER releasing the lock
-        # to prevent potential deadlock if run_event_loop tries to acquire
-        # the same lock.
-        self._loop_thread.start()
-        # Don't set as the default loop to avoid conflicts
-        # We'll close it when the lock is garbage collected
+            # Fix for Issue #1285: Use an Event to ensure the loop thread is
+            # fully initialized before releasing the lock. This prevents race
+            # conditions where other threads might try to use the loop before
+            # the thread is ready.
+            loop_ready_event = threading.Event()
+
+            # Modify run_event_loop to signal when the loop is ready
+            original_target = self._loop_thread._target
+
+            def run_event_loop_with_signal(loop, stop_event, ready_event):
+                """Run the event loop and signal when ready."""
+                # Set the event loop for this thread
+                asyncio.set_event_loop(loop)
+                # Signal that the loop is ready
+                ready_event.set()
+                # Run the original target
+                original_target(loop, stop_event)
+
+            # Replace the target with our signaling version
+            self._loop_thread._target = run_event_loop_with_signal
+            self._loop_thread._args = (self._event_loop, self._loop_thread_stop_event, loop_ready_event)
+
+            # Start the thread
+            self._loop_thread.start()
+
+            # Wait for the loop thread to be ready
+            # This ensures the event loop is running before we release the lock
+            loop_ready_event.wait(timeout=1.0)
 
         return self._event_loop
 
