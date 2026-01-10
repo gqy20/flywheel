@@ -104,7 +104,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1104 (truncate by characters not bytes to prevent multi-byte bypass),
         #1114 (use shlex.quote() for shell context instead of removing chars),
         #1119 (add 'format' context that escapes format string chars for safe usage),
-        #1225 (remove Unicode spoofing chars in shell context before quoting)
+        #1225 (remove Unicode spoofing chars in shell context before quoting),
+        #1249 (move control char removal into context-specific handling to avoid conflicts)
     """
     if not s:
         return ""
@@ -155,11 +156,15 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         # Slice directly to truncate at effective_max_length characters
         s = s[:effective_max_length]
 
-    # Remove control characters
-    # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
-    # normalization (line 123) to prevent orphaned combining marks, but BEFORE
-    # any regex processing to prevent ReDoS attacks.
-    s = CONTROL_CHARS_PATTERN.sub('', s)
+    # SECURITY FIX (Issue #1249): Handle control character removal per context
+    # to avoid logical conflicts with context-specific quoting/escaping.
+    #
+    # For shell context, control characters are removed after context-specific
+    # processing to ensure shlex.quote() operates on the correct string.
+    # For other contexts, control characters are removed before further processing.
+    #
+    # This approach prevents issues where removing control characters too early
+    # might interfere with proper quoting or escaping mechanisms.
 
     # SECURITY FIX (Issue #1114): For shell context, use shlex.quote() to properly
     # escape the entire string instead of removing characters. Removing metacharacters
@@ -175,15 +180,23 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # f-strings, .format(), and % formatting. This prevents format string injection
     # attacks while preserving the visual content of the string.
     if context == "shell":
-        # Use shlex.quote() to properly escape the string for safe shell usage
-        # This adds quotes and escapes special characters as needed
-        # SECURITY: This must be done AFTER all other normalization (NFKC, control char removal, etc.)
-        # so that the quoting is applied to the final normalized string
+        # SECURITY FIX (Issue #1249): For shell context, remove control characters
+        # BEFORE removing Unicode spoofing chars and applying shlex.quote().
+        # This ensures the quoting operates on a clean string without control chars.
+        # SECURITY FIX (Issue #999, #1049): Length check happens BEFORE control char
+        # removal to prevent orphaned combining marks, but AFTER Unicode normalization.
+        s = CONTROL_CHARS_PATTERN.sub('', s)
+
         # SECURITY FIX (Issue #1225): Remove Unicode spoofing characters before quoting.
         # Shell context should also remove zero-width and bidirectional override characters
         # to prevent homograph attacks and visual spoofing in shell commands.
         s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
         s = BIDI_OVERRIDE_PATTERN.sub('', s)
+
+        # Use shlex.quote() to properly escape the string for safe shell usage
+        # This adds quotes and escapes special characters as needed
+        # SECURITY: This is done AFTER all normalization (NFKC, control char removal, etc.)
+        # so that the quoting is applied to the final normalized string
         return shlex.quote(s)
     elif context == "format":
         # SECURITY FIX (Issue #1119): Escape format string characters to prevent
@@ -194,12 +207,21 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #
         # Escape sequence: { → {{, } → }}, % → %%, \ → \\
         # This must be done AFTER all other normalization (NFKC, control char removal, etc.)
+
+        # SECURITY FIX (Issue #999, #1049): For format context, remove control characters
+        # before escaping format string characters.
+        s = CONTROL_CHARS_PATTERN.sub('', s)
+
         s = s.replace('\\', '\\\\')  # Must be first to avoid double-escaping
         s = s.replace('{', '{{')
         s = s.replace('}', '}}')
         s = s.replace('%', '%%')
         return s
     elif use_nfkc:  # url or filename context
+        # SECURITY FIX (Issue #999, #1049): For url/filename contexts, remove control
+        # characters before removing shell metacharacters.
+        s = CONTROL_CHARS_PATTERN.sub('', s)
+
         # Define characters to remove using a set for O(1) lookup
         # These are shell metacharacters that could cause injection attacks
         shell_dangerous_chars = {';', '|', '&', '`', '$', '(', ')', '<', '>', '{', '}', '\\', '%'}
@@ -209,7 +231,17 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # else: General context - preserve ALL shell metacharacters, backslashes,
     # curly braces, and percent signs (Issue #1024, #979)
 
-    # Remove Unicode spoofing characters
+    # Remove control characters for non-shell, non-format, non-url/filename contexts
+    # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
+    # normalization (line 123) to prevent orphaned combining marks, but BEFORE
+    # any regex processing to prevent ReDoS attacks.
+    # SECURITY FIX (Issue #1249): Only remove control chars here if not already removed
+    # in context-specific handling above (shell, format, url/filename contexts).
+    if context == "general":
+        s = CONTROL_CHARS_PATTERN.sub('', s)
+
+    # Remove Unicode spoofing characters (for all contexts except shell, which already did it)
+    # SECURITY FIX (Issue #1225): Remove Unicode spoofing characters for all contexts
     s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
     s = BIDI_OVERRIDE_PATTERN.sub('', s)
 
