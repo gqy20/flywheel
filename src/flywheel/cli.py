@@ -28,6 +28,7 @@ CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x1F\x7F]')
 # and eliminate ReDoS vulnerability. All code now uses set-based filtering instead.
 # SECURITY FIX (Issue #1304): Reordered FORMAT_STRING_PATTERN to put backslash first
 # in the character class. This prevents ambiguity and potential ReDoS issues.
+# SECURITY FIX (Issue #1334): Escaped curly braces to prevent ReDoS vulnerability.
 # The pattern matches literal characters: backslash (\), percent (%), and braces ({, })
 FORMAT_STRING_PATTERN = re.compile(r'[\\%{}]')
 
