@@ -173,11 +173,15 @@ class _AsyncCompatibleLock:
                 args=(self._event_loop, self._loop_thread_stop_event),
                 daemon=True  # Daemon thread will not prevent program exit
             )
-            self._loop_thread.start()
-            # Don't set as the default loop to avoid conflicts
-            # We'll close it when the lock is garbage collected
 
-            return self._event_loop
+        # Fix for Issue #1261: Start the thread AFTER releasing the lock
+        # to prevent potential deadlock if run_event_loop tries to acquire
+        # the same lock.
+        self._loop_thread.start()
+        # Don't set as the default loop to avoid conflicts
+        # We'll close it when the lock is garbage collected
+
+        return self._event_loop
 
     def _get_event_loop_thread_id(self):
         """Get the event loop thread ID safely.
