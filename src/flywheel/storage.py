@@ -261,6 +261,9 @@ class IOMetrics:
         Use call_soon_threadsafe to schedule lock creation on event loop thread.
         Fix for Issue #1160: Use id(current_loop) instead of current_loop object
         as dictionary key to avoid circular reference and memory leak.
+        Fix for Issue #1296: Remove initial unsynchronized check to prevent race
+        condition where multiple threads pass the check before entering synchronized
+        section. All checks must be synchronized to ensure atomicity.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -275,9 +278,12 @@ class IOMetrics:
         # Use id(current_loop) as key to avoid circular reference (Issue #1160)
         current_loop_id = id(current_loop)
 
-        # First check: try to get existing lock without synchronization
-        if current_loop_id in self._locks:
-            return self._locks[current_loop_id]
+        # Fix for Issue #1296: Always use synchronization to prevent race condition.
+        # The initial unsynchronized check has been removed to ensure that
+        # check-then-act operations are atomic.
+        with self._sync_lock:
+            if current_loop_id in self._locks:
+                return self._locks[current_loop_id]
 
         # Need to create a new lock - use synchronization safely
         # We'll use a flag to track which thread is creating the lock
