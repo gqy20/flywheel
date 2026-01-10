@@ -127,10 +127,32 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1249 (move control char removal into context-specific handling to avoid conflicts),
         #1269 (ensure BIDI override chars removed before shlex.quote() - covered by #1225),
         #1280 (reduce default max_length from 100000 to 4096 for general context),
-        #1289 (context-specific default max_length - 255 for CLI contexts)
+        #1289 (context-specific default max_length - 255 for CLI contexts),
+        #1309 (add pre-normalization coarse check to prevent NFKC expansion DoS)
     """
     if not s:
         return ""
+
+    # SECURITY FIX (Issue #1289): Use context-specific default max_length if not provided.
+    # For CLI contexts (filename, url, shell, format), use 255 to prevent terminal
+    # display issues and buffer overflow in downstream applications.
+    if max_length is None:
+        max_length = CONTEXT_DEFAULT_MAX_LENGTH.get(context, 4096)
+    effective_max_length = min(max_length, MAX_LENGTH_HARD_LIMIT)
+
+    # SECURITY FIX (Issue #1309): Pre-normalization coarse length check to prevent DoS.
+    # While NFKC normalization is needed to prevent homograph attacks (Issue #969),
+    # compatibility characters can expand during normalization (e.g., 'ﬁ' → 'fi'),
+    # potentially causing memory pressure. We add a coarse pre-check that limits
+    # input to 2x the effective_max_length before normalization. This multiplier
+    # is safe because:
+    # 1. It's large enough to handle reasonable NFKC expansions (typically < 2x)
+    # 2. It's small enough to prevent DoS through extremely long inputs
+    # 3. The post-normalization check (below) still enforces the strict limit
+    # This addresses the concern about normalization expansion while maintaining
+    # the fix for Issue #1049 (normalization before truncation).
+    if len(s) > effective_max_length * 2:
+        s = s[:effective_max_length * 2]
 
     # SECURITY FIX (Issue #969): Use NFKC for security-sensitive contexts
     # NFKC normalization converts fullwidth characters to ASCII equivalents:
