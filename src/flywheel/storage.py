@@ -106,15 +106,13 @@ class _AsyncCompatibleLock:
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running event loop - this shouldn't happen in async context
-            # but handle it gracefully by creating a lock in the current thread
-            # Note: This is a fallback and may not work in all scenarios
-            current_loop = asyncio.get_event_loop()
-            if current_loop is None or not current_loop.is_running():
-                raise RuntimeError(
-                    "_AsyncCompatibleLock._get_async_lock must be called from "
-                    "an async context with a running event loop"
-                )
+            # No running event loop - raise a clear error instead of calling
+            # asyncio.get_event_loop() which would create a new event loop
+            # that is never closed and is not running (Fix for Issue #1351)
+            raise RuntimeError(
+                "_AsyncCompatibleLock._get_async_lock must be called from "
+                "an async context with a running event loop"
+            )
 
         # Use id(current_loop) as key to avoid circular reference
         current_loop_id = id(current_loop)
