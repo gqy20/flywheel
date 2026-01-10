@@ -164,9 +164,19 @@ class _AsyncCompatibleLock:
         # Acquire the lock first, then set the flag
         # This ensures the flag is only True if we actually hold the lock
         # Matching the pattern used in __aenter__ for consistency
+        # Fix for Issue #1354: Use try-finally to ensure atomic state management.
+        # If an exception occurs after acquire() but before __enter__ returns,
+        # we need to ensure the lock is released to prevent deadlock.
         self._lock.acquire()
-        self._sync_locked = True
-        return self
+        try:
+            self._sync_locked = True
+            return self
+        except BaseException:
+            # If any exception occurs before we return, release the lock
+            # and clear the flag to maintain consistent state
+            self._sync_locked = False
+            self._lock.release()
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
