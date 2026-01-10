@@ -242,6 +242,8 @@ class IOMetrics:
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
         self._locks = {}  # Dictionary mapping event loop IDs to their locks
         self._sync_lock = threading.Lock()
+        # Dictionary mapping event loop IDs to their creation events (Issue #1305)
+        self._lock_creation_events = {}
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -264,6 +266,9 @@ class IOMetrics:
         Fix for Issue #1296: Remove initial unsynchronized check to prevent race
         condition where multiple threads pass the check before entering synchronized
         section. All checks must be synchronized to ensure atomicity.
+        Fix for Issue #1305: Eliminate re-entrant lock acquisition in callback
+        to prevent deadlock. Use a 'creating' flag to track in-progress creation
+        without re-acquiring _sync_lock in the event loop thread callback.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -278,46 +283,85 @@ class IOMetrics:
         # Use id(current_loop) as key to avoid circular reference (Issue #1160)
         current_loop_id = id(current_loop)
 
-        # Fix for Issue #1296: Always use synchronization to prevent race condition.
-        # The initial unsynchronized check has been removed to ensure that
-        # check-then-act operations are atomic.
+        # Fix for Issue #1296 and #1305: Use synchronization to prevent race
+        # condition while avoiding re-entrant lock acquisition in callback.
         with self._sync_lock:
+            # Check if lock already exists
             if current_loop_id in self._locks:
-                return self._locks[current_loop_id]
+                existing_lock = self._locks[current_loop_id]
+                # If it's a real lock (not sentinel), return it
+                if existing_lock is not None:
+                    return existing_lock
+                # If sentinel, another thread is creating it - fall through to wait
 
-        # Need to create a new lock - use synchronization safely
-        # We'll use a flag to track which thread is creating the lock
-        lock_created = threading.Event()
-        lock_container = [None]
-        creation_error = [None]
+            # At this point, lock doesn't exist or is being created
+            # Get or create the shared event for this lock creation
+            if current_loop_id not in self._lock_creation_events:
+                # We're the first thread - need to create the lock
+                # Mark it as being created with sentinel value
+                self._locks[current_loop_id] = None  # Sentinel: "creating"
+                # Create a shared event for all threads waiting for this lock
+                self._lock_creation_events[current_loop_id] = threading.Event()
+                is_creator = True
+            else:
+                # Another thread is already creating it - we'll just wait
+                is_creator = False
 
-        def create_lock_on_loop_thread():
-            """Create asyncio.Lock on the event loop's thread."""
-            try:
-                # Double-check under lock to prevent duplicate creation
-                with self._sync_lock:
-                    if current_loop_id not in self._locks:
-                        # Now we're on the event loop thread, safe to create Lock
-                        self._locks[current_loop_id] = asyncio.Lock()
-                    lock_container[0] = self._locks[current_loop_id]
-            except Exception as e:
-                creation_error[0] = e
-            finally:
-                lock_created.set()
+            # Get the shared event
+            lock_created = self._lock_creation_events[current_loop_id]
 
-        # Schedule lock creation on the event loop thread
-        current_loop.call_soon_threadsafe(create_lock_on_loop_thread)
+        # Only the creator thread schedules the lock creation
+        if is_creator:
+            creation_error = [None]
 
-        # Wait for the lock to be created
-        lock_created.wait(timeout=1.0)
+            def create_lock_on_loop_thread():
+                """Create asyncio.Lock on the event loop's thread.
 
-        if creation_error[0] is not None:
-            raise creation_error[0]
+                Fix for Issue #1305: This callback no longer re-acquires _sync_lock,
+                preventing potential deadlock when the calling thread is waiting
+                for lock creation while holding other resources.
+                """
+                try:
+                    # Create the new asyncio.Lock (we're on the event loop thread)
+                    new_lock = asyncio.Lock()
 
-        if lock_container[0] is None:
-            raise RuntimeError("Failed to create asyncio.Lock - timeout")
+                    # Update the dictionary entry from sentinel to actual lock
+                    self._locks[current_loop_id] = new_lock
 
-        return lock_container[0]
+                    # Clean up the event
+                    if current_loop_id in self._lock_creation_events:
+                        del self._lock_creation_events[current_loop_id]
+
+                except Exception as e:
+                    creation_error[0] = e
+                    # Clear the sentinel on error so retry is possible
+                    if current_loop_id in self._locks and self._locks[current_loop_id] is None:
+                        del self._locks[current_loop_id]
+                    # Clean up the event on error too
+                    if current_loop_id in self._lock_creation_events:
+                        del self._lock_creation_events[current_loop_id]
+                finally:
+                    lock_created.set()
+
+            # Schedule lock creation on the event loop thread
+            current_loop.call_soon_threadsafe(create_lock_on_loop_thread)
+
+            # Wait for the lock to be created
+            lock_created.wait(timeout=1.0)
+
+            if creation_error[0] is not None:
+                raise creation_error[0]
+        else:
+            # We're not the creator - just wait for creation to complete
+            lock_created.wait(timeout=1.0)
+
+        # Get the created lock
+        # Fix for Issue #1305: Check for successful creation
+        result_lock = self._locks.get(current_loop_id)
+        if result_lock is None:
+            raise RuntimeError("Failed to create asyncio.Lock - lock not found after creation")
+
+        return result_lock
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):
