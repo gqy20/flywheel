@@ -81,30 +81,14 @@ class _AsyncCompatibleLock:
         # Each event loop gets its own lock to avoid RuntimeError when using
         # a lock from a different event loop.
         # Dictionary mapping event loop IDs to their locks.
-        # Fix for Issue #1341: Cleaned up periodically to prevent memory leaks
-        # when event loops are destroyed.
-        self._async_locks = {}
+        # Fix for Issue #1341: Uses WeakValueDictionary for automatic cleanup
+        # when event loops are destroyed, preventing memory leaks.
+        # Fix for Issue #1346: Replaces manual cleanup with weakref-based
+        # automatic lifecycle management, eliminating race conditions.
+        self._async_locks = weakref.WeakValueDictionary()
         self._async_lock_init_lock = threading.Lock()  # Protects lazy initialization
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
-
-    def _cleanup_stale_locks(self, current_loop_id):
-        """Clean up locks for destroyed event loops.
-
-        Fix for Issue #1341: Prevents memory leaks by removing entries for
-        event loops that have been destroyed.
-
-        Args:
-            current_loop_id: The ID of the current event loop (to preserve).
-        """
-        # Get list of loop IDs to avoid modifying dict during iteration
-        loop_ids = list(self._async_locks.keys())
-        for loop_id in loop_ids:
-            if loop_id != current_loop_id:
-                # Try to verify if the loop still exists
-                # Note: We can't directly check if an ID is still valid,
-                # but we can use heuristics like dictionary size
-                del self._async_locks[loop_id]
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -135,12 +119,10 @@ class _AsyncCompatibleLock:
         # Use id(current_loop) as key to avoid circular reference
         current_loop_id = id(current_loop)
 
-        # Fix for Issue #1341: Clean up stale locks periodically
-        # Do this before checking to avoid keeping dead loops around
-        if len(self._async_locks) > 10:
-            self._cleanup_stale_locks(current_loop_id)
-
         # Fast path: lock already exists for this event loop
+        # Fix for Issue #1346: WeakValueDictionary automatically cleans up
+        # stale entries when event loops are destroyed, eliminating the need
+        # for manual cleanup and avoiding race conditions.
         if current_loop_id in self._async_locks:
             return self._async_locks[current_loop_id]
 
