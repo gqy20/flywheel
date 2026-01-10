@@ -65,13 +65,17 @@ class _AsyncCompatibleLock:
     exclusion.
     Fix for Issue #1316: Uses asyncio.Lock for async contexts to prevent
     event loop blocking and thread pool exhaustion under high concurrency.
+    Fix for Issue #1326: Uses separate state flags (_sync_locked and _async_locked)
+    to prevent race conditions where acquiring one lock overwrites the state of
+    the other.
     """
 
     def __init__(self):
         """Initialize with separate locks for sync and async contexts."""
         self._lock = threading.Lock()
         self._async_lock = None
-        self._locked = False  # Track if lock was acquired for safe release
+        self._sync_locked = False  # Track if sync lock was acquired for safe release
+        self._async_locked = False  # Track if async lock was acquired for safe release
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -97,9 +101,11 @@ class _AsyncCompatibleLock:
         Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock
         to prevent deadlock risks from event loop reuse and ensure true
         cross-thread mutual exclusion.
+        Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
+        independently from async lock state.
         """
         self._lock.acquire()
-        self._locked = True
+        self._sync_locked = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -110,10 +116,12 @@ class _AsyncCompatibleLock:
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __exit__ is called without successful __enter__.
         Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
+        Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
+        independently from async lock state.
         """
-        if self._locked:
+        if self._sync_locked:
             self._lock.release()
-            self._locked = False
+            self._sync_locked = False
         return False
 
     async def __aenter__(self):
@@ -124,10 +132,12 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1316: Uses asyncio.Lock instead of threading.Lock with
         executor to prevent event loop blocking and thread pool exhaustion.
+        Fix for Issue #1326: Uses _async_locked flag to track async lock state
+        independently from sync lock state.
         """
         async_lock = self._get_async_lock()
         await async_lock.acquire()
-        self._locked = True
+        self._async_locked = True
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -138,11 +148,13 @@ class _AsyncCompatibleLock:
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __aexit__ is called without successful __aenter__.
         Fix for Issue #1316: Uses asyncio.Lock for async context cleanup.
+        Fix for Issue #1326: Uses _async_locked flag to track async lock state
+        independently from sync lock state.
         """
-        if self._locked:
+        if self._async_locked:
             async_lock = self._get_async_lock()
             async_lock.release()
-            self._locked = False
+            self._async_locked = False
         return False
 
 
