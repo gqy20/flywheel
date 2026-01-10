@@ -121,18 +121,24 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1346: WeakValueDictionary automatically cleans up
         # stale entries when event loops are destroyed, eliminating the need
         # for manual cleanup and avoiding race conditions.
-        if current_loop_id in self._async_locks:
-            return self._async_locks[current_loop_id]
+        # Fix for Issue #1350: Use .get() instead of 'in' check + access to
+        # prevent KeyError when value is garbage collected between check and access.
+        existing_lock = self._async_locks.get(current_loop_id)
+        if existing_lock is not None:
+            return existing_lock
 
         # Slow path: create new lock with synchronization
         with self._async_lock_init_lock:
             # Double-check: another thread might have created it while we waited
-            if current_loop_id in self._async_locks:
-                return self._async_locks[current_loop_id]
+            # Fix for Issue #1350: Use .get() to prevent KeyError
+            existing_lock = self._async_locks.get(current_loop_id)
+            if existing_lock is not None:
+                return existing_lock
 
             # Create new lock for this event loop
-            self._async_locks[current_loop_id] = asyncio.Lock()
-            return self._async_locks[current_loop_id]
+            new_lock = asyncio.Lock()
+            self._async_locks[current_loop_id] = new_lock
+            return new_lock
 
     def __enter__(self):
         """Support synchronous context manager protocol.
