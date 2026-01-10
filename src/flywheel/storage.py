@@ -240,6 +240,11 @@ class IOMetrics:
         without re-acquiring _sync_lock in the event loop thread callback.
         Fix for Issue #1310: Use _init_lock instead of _sync_lock to clarify
         that this lock is only for initialization, not for public operations.
+        Fix for Issue #1320: Resolve conflict between Issue #1161 and #1296 by using
+        double-checked locking (Check-Lock-Check) pattern. The first check outside
+        the lock provides a fast path for already-created locks. The second check
+        inside the lock ensures atomicity for creation. This avoids creating
+        asyncio.Lock while holding threading.Lock while maintaining thread safety.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -254,11 +259,19 @@ class IOMetrics:
         # Use id(current_loop) as key to avoid circular reference (Issue #1160)
         current_loop_id = id(current_loop)
 
-        # Fix for Issue #1296 and #1305: Use synchronization to prevent race
-        # condition while avoiding re-entrant lock acquisition in callback.
-        # Fix for Issue #1310: Use _init_lock for initialization synchronization.
+        # Fix for Issue #1320: FIRST CHECK (outside lock) - fast path for common case
+        # This avoids unnecessary lock contention when lock already exists
+        if current_loop_id in self._locks:
+            existing_lock = self._locks[current_loop_id]
+            if existing_lock is not None:
+                return existing_lock
+            # If sentinel, fall through to acquire lock and wait
+
+        # Fix for Issue #1320: Use double-checked locking to resolve conflict
+        # between Issue #1161 (can't create asyncio.Lock while holding threading.Lock)
+        # and Issue #1296 (need atomicity during creation).
         with self._init_lock:
-            # Check if lock already exists
+            # SECOND CHECK (inside lock) - verify another thread didn't create it
             if current_loop_id in self._locks:
                 existing_lock = self._locks[current_loop_id]
                 # If it's a real lock (not sentinel), return it
