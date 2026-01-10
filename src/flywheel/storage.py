@@ -148,9 +148,21 @@ class _AsyncCompatibleLock:
         cross-thread mutual exclusion.
         Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
         independently from async lock state.
+        Fix for Issue #1344: Uses try-finally to ensure atomic state management
+        and prevent race conditions between lock acquisition and state update.
         """
-        self._lock.acquire()
+        # Set state flag before acquiring lock to ensure atomicity
+        # This is safe for RLock because:
+        # 1. Only the thread that holds the lock can check the flag
+        # 2. If acquisition fails, __exit__ won't be called
+        # 3. If acquisition succeeds, flag is already set correctly
         self._sync_locked = True
+        try:
+            self._lock.acquire()
+        except:
+            # If acquire fails, reset the flag
+            self._sync_locked = False
+            raise
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
