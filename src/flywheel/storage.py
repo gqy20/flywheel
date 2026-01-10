@@ -53,441 +53,84 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
-    This implementation uses a single asyncio.Lock with proper synchronization
-    between sync and async contexts using asyncio.run_coroutine_threadsafe.
-    This ensures true mutual exclusion across sync and async code paths.
+    This implementation uses threading.Lock as the underlying synchronization
+    primitive, which provides true cross-thread mutual exclusion without the
+    complexity and deadlock risks of event loop management. The async interface
+    is implemented by wrapping the threading lock in asyncio-compatible methods.
 
     Fix for Issue #1097: Provides unified lock interface for IOMetrics.
-    Fix for Issue #1166: Uses single asyncio.Lock with thread-safe synchronization
+    Fix for Issue #1166: Uses single lock with thread-safe synchronization
     to ensure mutual exclusion between sync and async contexts.
+    Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock to prevent
+    deadlock risks from event loop reuse and ensure true cross-thread mutual
+    exclusion. asyncio.Lock is tied to specific event loops, which breaks
+    mutual exclusion when different threads use different loops.
     """
 
     def __init__(self):
-        """Initialize with a single asyncio.Lock and thread synchronization."""
-        self._lock = asyncio.Lock()
-        self._event_loop = None
-        self._loop_lock = threading.Lock()
+        """Initialize with a threading.Lock for true cross-thread synchronization."""
+        self._lock = threading.Lock()
         self._locked = False  # Track if lock was acquired for safe release
-        self._event_loop_thread_id = None  # Track which thread owns the event loop
-        self._loop_thread = None  # Thread running the event loop (for sync contexts)
-        self._loop_thread_stop_event = None  # Event to signal loop thread to stop
-
-    def _get_or_create_loop(self):
-        """Get or create the event loop for this lock.
-
-        This ensures all acquisitions use the same event loop, enabling
-        proper synchronization between sync and async contexts.
-
-        Returns:
-            The event loop for this lock.
-
-        Fix for Issue #1196: All access to self._event_loop and
-        self._event_loop_thread_id is strictly protected by self._loop_lock
-        to prevent race conditions.
-        Fix for Issue #1231: asyncio.get_running_loop() is called OUTSIDE
-        the lock to prevent potential deadlocks and race conditions.
-        Fix for Issue #1235: Do NOT reuse running event loops. If the current
-        thread has a running loop, we still create our own dedicated loop in
-        a separate thread to prevent deadlocks when the lock is used from
-        other threads.
-        Fix for Issue #1271: The lock is held immediately from the start
-        to prevent race conditions where multiple threads might create
-        multiple event loops simultaneously.
-        """
-        # Check if there's a running loop in the current thread
-        # We detect this but DON'T reuse it to prevent deadlocks (Issue #1235)
-        # If we reused a running loop from thread A, and then thread B tries to
-        # use the lock synchronously, it would submit tasks to thread A's loop.
-        # If thread A is blocked waiting for something, we get a deadlock.
-        # IMPORTANT: This check must be OUTSIDE the lock (Issue #1231)
-        try:
-            asyncio.get_running_loop()
-            # There is a running loop, but we ignore it and create our own
-            # This prevents the deadlock described in Issue #1235
-        except RuntimeError:
-            # No running loop, which is fine
-            pass
-
-        # Fix for Issue #1271: Hold the lock immediately to ensure only one
-        # thread performs the initialization logic. This prevents race conditions
-        # where multiple threads could bypass an initial check outside the lock
-        # and each create their own event loop.
-        with self._loop_lock:
-            # Check if we already have a loop cached
-            if self._event_loop is not None:
-                try:
-                    # Fix for Issue #1246: Check is_closed() INSIDE the lock
-                    # to prevent race condition where loop might be closed
-                    if not self._event_loop.is_closed():
-                        return self._event_loop
-                    # If loop is closed, fall through to create a new one
-                except RuntimeError:
-                    # Loop is in an invalid state, need to create a new one
-                    pass
-
-            # Create a new event loop
-            # Fix for Issue #1211: When creating a new event loop in a sync context,
-            # we must run it in a background thread so that run_coroutine_threadsafe
-            # tasks can actually execute. Otherwise, tasks submitted to the loop
-            # will never run, causing deadlocks.
-            self._event_loop = asyncio.new_event_loop()
-            # Record the thread that created this event loop
-            self._event_loop_thread_id = threading.get_ident()
-            # Create a stop event to signal the loop thread to stop
-            self._loop_thread_stop_event = threading.Event()
-
-            # Start the event loop in a background thread
-            # This allows run_coroutine_threadsafe to work properly
-            def run_event_loop(loop, stop_event):
-                """Run the event loop until stop event is set."""
-                asyncio.set_event_loop(loop)
-
-                def stop_loop():
-                    """Stop the event loop when called."""
-                    loop.stop()
-
-                # Monitor the stop event in a separate thread
-                # This allows the event loop to run_forever and be cleanly stopped
-                def monitor_stop_event():
-                    """Monitor the stop event and trigger loop shutdown."""
-                    stop_event.wait()
-                    # When stop event is set, call loop.stop() in a thread-safe manner
-                    loop.call_soon_threadsafe(stop_loop)
-
-                # Start the monitor thread
-                monitor_thread = threading.Thread(target=monitor_stop_event, daemon=True)
-                monitor_thread.start()
-
-                # Run the event loop until stop() is called
-                loop.run_forever()
-
-            self._loop_thread = threading.Thread(
-                target=run_event_loop,
-                args=(self._event_loop, self._loop_thread_stop_event),
-                daemon=True  # Daemon thread will not prevent program exit
-            )
-
-            # Fix for Issue #1285: Use an Event to ensure the loop thread is
-            # fully initialized before releasing the lock. This prevents race
-            # conditions where other threads might try to use the loop before
-            # the thread is ready.
-            loop_ready_event = threading.Event()
-
-            # Modify run_event_loop to signal when the loop is ready
-            original_target = self._loop_thread._target
-
-            def run_event_loop_with_signal(loop, stop_event, ready_event):
-                """Run the event loop and signal when ready."""
-                # Set the event loop for this thread
-                asyncio.set_event_loop(loop)
-                # Signal that the loop is ready
-                ready_event.set()
-                # Run the original target
-                original_target(loop, stop_event)
-
-            # Replace the target with our signaling version
-            self._loop_thread._target = run_event_loop_with_signal
-            self._loop_thread._args = (self._event_loop, self._loop_thread_stop_event, loop_ready_event)
-
-            # Start the thread
-            self._loop_thread.start()
-
-            # Wait for the loop thread to be ready
-            # This ensures the event loop is running before we release the lock
-            loop_ready_event.wait(timeout=1.0)
-
-        return self._event_loop
-
-    def _get_event_loop_thread_id(self):
-        """Get the event loop thread ID safely.
-
-        This method must be called while holding self._loop_lock to ensure
-        thread-safe access to self._event_loop_thread_id.
-
-        Returns:
-            The thread ID that owns the event loop, or None if not set.
-
-        Fix for Issue #1196: Provides safe access to _event_loop_thread_id
-        under lock protection to prevent race conditions.
-        """
-        # This should only be called while holding _loop_lock
-        # The caller is responsible for acquiring the lock
-        return self._event_loop_thread_id
 
     def __enter__(self):
         """Support synchronous context manager protocol.
 
-        Uses asyncio.Lock with run_coroutine_threadsafe to safely acquire
-        the lock from a synchronous context. This ensures the same underlying
-        lock is used for both sync and async acquisitions.
+        Uses threading.Lock directly for simple, reliable cross-thread
+        synchronization without the complexity and deadlock risks of
+        event loop management.
 
-        Note: This will raise an error if called from an async context.
-        For async contexts, use 'async with' instead.
-
-        Fix for Issue #1107: Detects running event loops to prevent deadlocks.
-        Fix for Issue #1166: Uses asyncio.run_coroutine_threadsafe to acquire
-        the async lock from sync context, ensuring mutual exclusion.
-        Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent excessive
-        waiting in potential deadlock scenarios.
-        Fix for Issue #1190: Prevents cross-thread lock usage to avoid deadlocks
-        when event loops are involved.
-        Fix for Issue #1291: Increased timeout from 1s to 10s to prevent spurious
-        crashes under high load when the lock is frequently contended.
+        Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock
+        to prevent deadlock risks from event loop reuse and ensure true
+        cross-thread mutual exclusion.
         """
-        # Get or create the event loop for this lock first
-        # This will set _event_loop_thread_id if not already set
-        loop = self._get_or_create_loop()
-
-        # Check if there's already a running event loop in the current thread
-        try:
-            current_loop = asyncio.get_running_loop()
-            # If we get here, there's a running event loop
-            # Check if it's the same loop we're using for the lock
-            if loop is current_loop:
-                raise RuntimeError(
-                    "Cannot use synchronous context manager ('with') for "
-                    "_AsyncCompatibleLock within an async context using "
-                    "the same event loop. Use 'async with' instead. This prevents "
-                    "potential deadlocks when an event loop is already running."
-                )
-        except RuntimeError as e:
-            # Only catch RuntimeError from get_running_loop() (no running loop)
-            # Re-raise if it's our intentional error from the if statement above
-            if "async" in str(e).lower():
-                # This is our intentional error - re-raise it
-                raise
-            # Otherwise, it's "no running event loop" error - we can proceed
-            pass
-
-        # Fix for Issue #1190: Check if we're trying to use the lock from a different
-        # thread than the one that owns the event loop. This prevents deadlocks where
-        # run_coroutine_threadsafe would schedule on the event loop's thread while
-        # that thread is blocked waiting for the current thread.
-        # Fix for Issue #1196: Read _event_loop_thread_id under lock protection
-        # to prevent race conditions.
-        current_thread_id = threading.get_ident()
-        with self._loop_lock:
-            event_loop_thread_id = self._event_loop_thread_id
-
-        if event_loop_thread_id is not None:
-            if current_thread_id != event_loop_thread_id:
-                raise RuntimeError(
-                    "Cannot use _AsyncCompatibleLock from a different thread than "
-                    "the one that owns its event loop. This prevents potential "
-                    "deadlocks when using run_coroutine_threadsafe across threads. "
-                    f"Event loop thread ID: {event_loop_thread_id}, "
-                    f"current thread ID: {current_thread_id}. "
-                    "Use thread-local locks or ensure the lock is used from the same thread."
-                )
-
-        # Acquire the lock using run_coroutine_threadsafe
-        future = asyncio.run_coroutine_threadsafe(
-            self._lock.acquire(), loop
-        )
-
-        # Wait for the acquisition to complete
-        # Use a timeout to prevent indefinite blocking
-        # Fix for Issue #1175: Reduced timeout from 30s to 1s to prevent
-        # excessive waiting in potential deadlock scenarios
-        # Fix for Issue #1291: Increased timeout from 1s to 10s to prevent
-        # spurious crashes under high load when the lock is frequently contended
-        try:
-            future.result(timeout=10)
-            self._locked = True  # Mark lock as acquired for safe release
-        except TimeoutError:
-            # Cancel the future to prevent deadlock
-            # Fix for Issue #1180: If the timeout occurs, future.result raises
-            # TimeoutError, but the underlying coroutine self._lock.acquire()
-            # is still scheduled on the loop. If the lock is eventually acquired
-            # in the background thread, it will remain locked forever (deadlock)
-            # because __exit__ will not be called to release it.
-            future.cancel()
-            raise TimeoutError("Failed to acquire lock within 10 seconds")
-        finally:
-            # Fix for Issue #1201: Check if lock was acquired despite timeout/cancellation.
-            # Calling future.cancel() requests cancellation but does not guarantee the
-            # underlying coroutine (self._lock.acquire()) stops executing immediately.
-            # If the lock is acquired *after* the timeout but *before* the cancellation
-            # is processed, the lock will be held forever because __exit__ will not be
-            # called. We must check and release the lock if it was acquired.
-            # Fix for Issue #1207: Use call_soon_threadsafe instead of
-            # run_coroutine_threadsafe().result() to avoid blocking in the finally block,
-            # which can cause deadlock if the event loop is busy or stopping.
-            # Fix for Issue #1210: Ensure cleanup is properly synchronized to avoid
-            # leaving the lock in an inconsistent state. Use an event to track cleanup
-            # completion and verify the lock state is consistent before returning.
-            if not self._locked and self._lock.locked():
-                # Lock was acquired after timeout but before cancellation was processed.
-                # Release it to prevent permanent deadlock.
-                # Use a synchronization event to ensure cleanup completes before returning.
-                # This avoids the race condition where the lock is still locked when
-                # __enter__ returns, causing subsequent operations to fail.
-                cleanup_done = threading.Event()
-
-                def cleanup_lock():
-                    try:
-                        if self._lock.locked():
-                            self._lock.release()
-                    finally:
-                        cleanup_done.set()
-
-                loop.call_soon_threadsafe(cleanup_lock)
-                # Wait a brief time for cleanup to complete, but don't block indefinitely
-                # This ensures the lock is released before we return, maintaining consistency
-                cleanup_done.wait(timeout=0.1)
-
+        self._lock.acquire()
+        self._locked = True
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
 
-        Since the lock was acquired via run_coroutine_threadsafe from a
-        different thread, we need to schedule the release via
-        run_coroutine_threadsafe to ensure thread safety and guarantee
-        execution. Using call_soon_threadsafe is risky because if the event
-        loop stops before the release callback runs, the lock remains locked
-        forever.
+        Simply releases the threading.Lock.
 
-        Fix for Issue #1176: Uses thread-safe mechanism to safely release
-        the lock from the event loop's thread.
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __exit__ is called without successful __enter__.
-        Fix for Issue #1191: Uses run_coroutine_threadsafe instead of
-        call_soon_threadsafe to ensure the release completes before returning,
-        preventing permanent lock deadlock if the event loop shuts down.
-        Fix for Issue #1194: Resets _locked flag in finally block to ensure
-        it's always reset even when timeout occurs, preventing state inconsistency.
-        """
-        if self._locked:
-            loop = self._get_or_create_loop()
-            # Use run_coroutine_threadsafe to ensure release completes
-            # This prevents the lock from remaining locked forever if the
-            # event loop stops before processing the release
-            async def release_lock():
-                self._lock.release()
-                return True
-
-            future = asyncio.run_coroutine_threadsafe(release_lock(), loop)
-
-            # Wait for the release to complete with a timeout
-            # Use the same timeout as acquisition (1 second)
-            try:
-                future.result(timeout=1)
-            except TimeoutError:
-                # If timeout occurs, the lock might still be held
-                # Log a warning but don't raise - the lock will eventually
-                # be released when the event loop processes the callback
-                # This is a best-effort cleanup
-                pass
-            except Exception:
-                # If the loop is already closed, the release won't happen
-                # but we've done our best to clean up
-                pass
-            finally:
-                # Fix for Issue #1194: Always reset _locked flag in finally block
-                # to ensure it's reset even when timeout occurs. This prevents
-                # state inconsistency where _locked remains True but the actual
-                # lock might be released, causing issues on reuse.
-                self._locked = False
-        return False
-
-    async def __aenter__(self):
-        """Support asynchronous context manager protocol.
-
-        If the lock was created from a sync context, we need to ensure we're
-        using the same event loop.
-        """
-        loop = self._get_or_create_loop()
-        current_loop = asyncio.get_running_loop()
-
-        if loop is not current_loop:
-            raise RuntimeError(
-                f"Async lock acquisition must use the same event loop that was "
-                f"used for previous acquisitions. Expected loop {loop}, got {current_loop}."
-            )
-
-        await self._lock.acquire()
-        self._locked = True  # Mark lock as acquired for safe release
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Release lock when exiting async context.
-
-        Since __aenter__ successfully acquired the lock, we can directly
-        release it here without checking locked(). This follows RAII principles
-        and ensures the lock is always released properly.
-
-        Fix for Issue #1156: Removed unnecessary locked() check that could
-        cause logic issues. If lock was acquired in __aenter__, it should
-        always be released in __aexit__.
-        Fix for Issue #1181: Only releases lock if it was acquired, preventing
-        RuntimeError when __aexit__ is called without successful __aenter__.
+        Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
         """
         if self._locked:
             self._lock.release()
             self._locked = False
         return False
 
-    def close(self):
-        """Clean up the event loop resource.
+    async def __aenter__(self):
+        """Support asynchronous context manager protocol.
 
-        This method should be called when the lock is no longer needed to
-        properly clean up the event loop that was created for this lock.
-        If the event loop was created by this lock (i.e., we're in a sync
-        context), it will be closed to prevent resource leaks.
+        Uses threading.Lock wrapped in an async-compatible way.
+        We yield control to the event loop while waiting to acquire the lock
+        to prevent blocking the event loop.
 
-        Fix for Issue #1185: Implements explicit cleanup method to prevent
-        event loop resource leaks when locks are created from sync contexts.
-        Fix for Issue #1211: Properly stops the background event loop thread
-        before closing the loop to prevent race conditions.
+        Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock
+        to prevent deadlock risks and ensure true cross-thread mutual exclusion.
         """
-        with self._loop_lock:
-            if self._event_loop is not None:
-                try:
-                    if not self._event_loop.is_closed():
-                        # Only close loops that we created ourselves
-                        # Check if this is a loop we created (not get_running_loop)
-                        if self._event_loop_thread_id is not None:
-                            # We created this loop, so we should close it
-                            # Fix for Issue #1211: Stop the background thread first
-                            if self._loop_thread_stop_event is not None:
-                                # Signal the loop thread to stop
-                                self._loop_thread_stop_event.set()
+        # Yield control to the event loop while waiting for the lock
+        # This prevents blocking the event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._lock.acquire)
+        self._locked = True
+        return self
 
-                            # Wait for the loop thread to finish (with timeout)
-                            if self._loop_thread is not None and self._loop_thread.is_alive():
-                                self._loop_thread.join(timeout=1.0)
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Release lock when exiting async context.
 
-                            # Now close the loop
-                            self._event_loop.close()
-                except RuntimeError:
-                    # Loop is already closed or in an invalid state
-                    pass
-                finally:
-                    # Always clear the reference to allow garbage collection
-                    self._event_loop = None
-                    self._event_loop_thread_id = None
-                    self._loop_thread = None
-                    self._loop_thread_stop_event = None
+        Simply releases the threading.Lock.
 
-    def __del__(self):
-        """Clean up event loop when lock is garbage collected.
-
-        This ensures that event loops created by this lock are properly closed
-        when the lock object is destroyed, preventing resource leaks.
-
-        Fix for Issue #1185: Implements automatic cleanup on deletion to prevent
-        event loop resource leaks.
+        Fix for Issue #1181: Only releases lock if it was acquired, preventing
+        RuntimeError when __aexit__ is called without successful __aenter__.
+        Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
         """
-        # Try to clean up the event loop
-        # Use a try-except because __del__ can be called during interpreter shutdown
-        # when various modules may already be cleaned up
-        try:
-            self.close()
-        except Exception:
-            # Ignore errors during cleanup in __del__
-            # The object is being destroyed anyway
-            pass
+        if self._locked:
+            self._lock.release()
+            self._locked = False
+        return False
 
 
 class _AsyncContextError(RuntimeError):
