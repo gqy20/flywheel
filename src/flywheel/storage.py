@@ -154,19 +154,14 @@ class _AsyncCompatibleLock:
         independently from async lock state.
         Fix for Issue #1344: Uses try-finally to ensure atomic state management
         and prevent race conditions between lock acquisition and state update.
+        Fix for Issue #1349: Sets _sync_locked flag AFTER acquire() succeeds
+        to prevent race condition where flag=True but lock is not held.
         """
-        # Set state flag before acquiring lock to ensure atomicity
-        # This is safe for RLock because:
-        # 1. Only the thread that holds the lock can check the flag
-        # 2. If acquisition fails, __exit__ won't be called
-        # 3. If acquisition succeeds, flag is already set correctly
+        # Acquire the lock first, then set the flag
+        # This ensures the flag is only True if we actually hold the lock
+        # Matching the pattern used in __aenter__ for consistency
+        self._lock.acquire()
         self._sync_locked = True
-        try:
-            self._lock.acquire()
-        except:
-            # If acquire fails, reset the flag
-            self._sync_locked = False
-            raise
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
