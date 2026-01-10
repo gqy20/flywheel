@@ -271,3 +271,36 @@ def test_async_lock_error_message_includes_both_thread_ids():
     assert 'current_thread_id' in lock_source, (
         "Error message should reference current_thread_id variable (Issue #1226)"
     )
+
+
+def test_async_lock_sync_context_error_message_complete():
+    """Verify that _AsyncCompatibleLock error message is properly terminated (Issue #1270)."""
+    import inspect
+
+    # Import the private _AsyncCompatibleLock class
+    from flywheel.storage import _AsyncCompatibleLock
+
+    # Get the source code of the __enter__ method where the error is raised
+    lock_source = inspect.getsource(_AsyncCompatibleLock.__enter__)
+
+    # Verify that the error message is complete and properly terminated
+    # The error message should contain "instead" and be a complete sentence
+    # Issue #1270 reported that the string was cut off at 'ins'
+    assert "async with' instead" in lock_source, (
+        "Error message should contain complete phrase 'async with' instead' (Issue #1270)"
+    )
+
+    # Verify the string is properly continued across lines
+    assert "same event loop" in lock_source, (
+        "Error message should mention 'same event loop' (Issue #1270)"
+    )
+
+    # Verify the message explains the consequence
+    assert "potential deadlocks" in lock_source, (
+        "Error message should explain potential deadlocks (Issue #1270)"
+    )
+
+    # Make sure we don't have the truncated version
+    assert "async with' ins" not in lock_source or "async with' instead" in lock_source, (
+        "Error message should not be truncated at 'ins' (Issue #1270)"
+    )
