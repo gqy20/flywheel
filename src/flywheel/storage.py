@@ -89,6 +89,7 @@ class _AsyncCompatibleLock:
         self._async_lock_init_lock = threading.Lock()  # Protects lazy initialization
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
+        self._held_async_lock = None  # Store the acquired lock instance (Fix for Issue #1355)
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -193,10 +194,13 @@ class _AsyncCompatibleLock:
         executor to prevent event loop blocking and thread pool exhaustion.
         Fix for Issue #1326: Uses _async_locked flag to track async lock state
         independently from sync lock state.
+        Fix for Issue #1355: Stores the acquired lock instance to ensure
+        __aexit__ releases the same lock that was acquired.
         """
         async_lock = self._get_async_lock()
         await async_lock.acquire()
         self._async_locked = True
+        self._held_async_lock = async_lock  # Store for __aexit__
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -209,11 +213,16 @@ class _AsyncCompatibleLock:
         Fix for Issue #1316: Uses asyncio.Lock for async context cleanup.
         Fix for Issue #1326: Uses _async_locked flag to track async lock state
         independently from sync lock state.
+        Fix for Issue #1355: Uses the stored lock instance from __aenter__
+        instead of calling _get_async_lock() again, preventing KeyError or
+        releasing a different lock object.
         """
         if self._async_locked:
-            async_lock = self._get_async_lock()
-            async_lock.release()
+            # Use the stored lock instance instead of calling _get_async_lock() again
+            # This prevents KeyError if the event loop changed or lock was cleaned up
+            self._held_async_lock.release()
             self._async_locked = False
+            self._held_async_lock = None  # Clear the reference
         return False
 
 
