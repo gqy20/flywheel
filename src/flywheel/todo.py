@@ -1,8 +1,32 @@
 """Todo item model."""
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+
+
+def _sanitize_text(text: str) -> str:
+    """Remove control characters and normalize whitespace.
+
+    Args:
+        text: Input text to sanitize
+
+    Returns:
+        Sanitized text with control characters removed
+    """
+    # Remove control characters (ASCII 0-31, 127) except space
+    # This removes: null, tabs, newlines, carriage returns, etc.
+    text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]', '', text)
+
+    # Remove zero-width spaces and other invisible Unicode characters
+    text = re.sub(r'[\u200b-\u200d\u2060\ufeff]', '', text)
+
+    # Normalize whitespace: convert tabs and newlines to single space
+    # (in case any slipped through before strip)
+    text = re.sub(r'\s+', ' ', text)
+
+    return text
 
 
 class Priority(str, Enum):
@@ -69,7 +93,7 @@ class Todo:
             raise ValueError(f"Field 'title' must be str, got {type(data['title']).__name__}")
 
         # Sanitize and validate title
-        title = data["title"].strip()
+        title = _sanitize_text(data["title"]).strip()
         if not title:
             raise ValueError("Title cannot be empty or whitespace-only")
         if len(title) > 200:
@@ -81,7 +105,7 @@ class Todo:
             raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
 
         # Sanitize and validate description
-        description = description.strip()
+        description = _sanitize_text(description).strip()
         if len(description) > 5000:
             raise ValueError(f"Description too long: {len(description)} characters (max 5000)")
 
