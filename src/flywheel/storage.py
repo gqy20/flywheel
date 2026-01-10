@@ -298,6 +298,10 @@ class IOMetrics:
         asyncio.Lock while holding threading.Lock while maintaining thread safety.
         Fix for Issue #1321: Automatically clean up locks for closed event loops
         by calling _cleanup_stale_locks() before lock creation/check.
+        Fix for Issue #1330: Ensure all operations on shared state (_locks, _event_loops,
+        _lock_creation_events) are atomic by using a single critical section protected
+        by _init_lock. This prevents race conditions where lock objects could be
+        overwritten or inconsistent state could be observed between dictionaries.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -312,30 +316,23 @@ class IOMetrics:
         # Use id(current_loop) as key to avoid circular reference (Issue #1160)
         current_loop_id = id(current_loop)
 
-        # Fix for Issue #1321: Clean up stale locks before checking/creating
-        # This prevents memory leaks from closed event loops
-        self._cleanup_stale_locks()
-
-        # Fix for Issue #1320: FIRST CHECK (outside lock) - fast path for common case
-        # This avoids unnecessary lock contention when lock already exists
-        if current_loop_id in self._locks:
-            existing_lock = self._locks[current_loop_id]
-            if existing_lock is not None:
-                # Fix for Issue #1321: Update the event loop reference
-                # to ensure we can detect if it's closed later
-                self._event_loops[current_loop_id] = current_loop
-                return existing_lock
-            # If sentinel, fall through to acquire lock and wait
-
-        # Fix for Issue #1320: Use double-checked locking to resolve conflict
-        # between Issue #1161 (can't create asyncio.Lock while holding threading.Lock)
-        # and Issue #1296 (need atomicity during creation).
+        # Fix for Issue #1330: Use a single critical section to prevent race conditions.
+        # All operations on _locks, _event_loops, and _lock_creation_events must be
+        # atomic to prevent lock objects from being overwritten or inconsistent state.
         with self._init_lock:
-            # SECOND CHECK (inside lock) - verify another thread didn't create it
+            # Fix for Issue #1321: Clean up stale locks before checking/creating
+            # This prevents memory leaks from closed event loops.
+            # Fix for Issue #1330: Now protected by _init_lock for atomicity.
+            self._cleanup_stale_locks()
+
+            # Check if lock already exists for this event loop
             if current_loop_id in self._locks:
                 existing_lock = self._locks[current_loop_id]
-                # If it's a real lock (not sentinel), return it
                 if existing_lock is not None:
+                    # Fix for Issue #1321: Update the event loop reference
+                    # to ensure we can detect if it's closed later
+                    # Fix for Issue #1330: This write is now protected by _init_lock
+                    self._event_loops[current_loop_id] = current_loop
                     return existing_lock
                 # If sentinel, another thread is creating it - fall through to wait
 
