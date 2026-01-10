@@ -90,29 +90,16 @@ class _AsyncCompatibleLock:
         thread has a running loop, we still create our own dedicated loop in
         a separate thread to prevent deadlocks when the lock is used from
         other threads.
+        Fix for Issue #1271: The lock is held immediately from the start
+        to prevent race conditions where multiple threads might create
+        multiple event loops simultaneously.
         """
-        # Check if we already have a loop cached
-        # This check is done first (outside the lock) to avoid acquiring
-        # the lock unnecessarily
-        if self._event_loop is not None:
-            with self._loop_lock:
-                if self._event_loop is not None:
-                    try:
-                        # Fix for Issue #1246: Check is_closed() INSIDE the lock
-                        # to prevent race condition where loop might be closed
-                        # between the first check (before lock) and acquiring the lock
-                        if not self._event_loop.is_closed():
-                            return self._event_loop
-                        # If loop is closed, fall through to create a new one
-                    except RuntimeError:
-                        # Loop is in an invalid state, need to create a new one
-                        pass
-
         # Check if there's a running loop in the current thread
         # We detect this but DON'T reuse it to prevent deadlocks (Issue #1235)
         # If we reused a running loop from thread A, and then thread B tries to
         # use the lock synchronously, it would submit tasks to thread A's loop.
         # If thread A is blocked waiting for something, we get a deadlock.
+        # IMPORTANT: This check must be OUTSIDE the lock (Issue #1231)
         try:
             asyncio.get_running_loop()
             # There is a running loop, but we ignore it and create our own
@@ -121,13 +108,19 @@ class _AsyncCompatibleLock:
             # No running loop, which is fine
             pass
 
-        # No running loop available, create a new one within the lock
+        # Fix for Issue #1271: Hold the lock immediately to ensure only one
+        # thread performs the initialization logic. This prevents race conditions
+        # where multiple threads could bypass an initial check outside the lock
+        # and each create their own event loop.
         with self._loop_lock:
-            # Double-check: another thread might have created a loop while we waited
+            # Check if we already have a loop cached
             if self._event_loop is not None:
                 try:
+                    # Fix for Issue #1246: Check is_closed() INSIDE the lock
+                    # to prevent race condition where loop might be closed
                     if not self._event_loop.is_closed():
                         return self._event_loop
+                    # If loop is closed, fall through to create a new one
                 except RuntimeError:
                     # Loop is in an invalid state, need to create a new one
                     pass
