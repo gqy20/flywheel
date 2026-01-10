@@ -25,7 +25,10 @@ CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x1F\x7F]')
 # SECURITY FIX (Issue #1044): Removed SHELL_METACHARS_SECURE_PATTERN - now using
 # whitelist approach with set lookup which is O(n) and has no ReDoS risk
 SHELL_METACHARS_PATTERN = re.compile(r'[;|&`$()<>]')
-FORMAT_STRING_PATTERN = re.compile(r'[{}\\%]')
+# SECURITY FIX (Issue #1304): Reordered FORMAT_STRING_PATTERN to put backslash first
+# in the character class. This prevents ambiguity and potential ReDoS issues.
+# The pattern matches literal characters: backslash (\), percent (%), and braces ({, })
+FORMAT_STRING_PATTERN = re.compile(r'[\\%{}]')
 
 
 # SECURITY FIX (Issue #1094): Define hard upper limit for max_length parameter
