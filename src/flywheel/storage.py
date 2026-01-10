@@ -238,12 +238,23 @@ class IOMetrics:
         in sync contexts. Only create when async methods are called.
         Fix for Issue #1150: Use per-event-loop locks to handle multi-threaded
         environments where different threads have different event loops.
+        Fix for Issue #1310: Separate locks for initialization (_init_lock) and
+        sync operations (_sync_operation_lock) to maintain consistency with
+        documented async-only locking design while preserving thread safety
+        for sync contexts.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
         self._locks = {}  # Dictionary mapping event loop IDs to their locks
-        self._sync_lock = threading.Lock()
+        # Fix for Issue #1310: Renamed from _sync_lock to clarify its purpose.
+        # This lock ONLY protects lazy initialization of per-event-loop locks
+        # in _get_async_lock(). It is NOT used directly in public methods.
+        self._init_lock = threading.Lock()
         # Dictionary mapping event loop IDs to their creation events (Issue #1305)
         self._lock_creation_events = {}
+        # Fix for Issue #1310: Separate lock for sync-only record_operation.
+        # This ensures thread safety while maintaining the documented async-only
+        # locking design for async methods.
+        self._sync_operation_lock = threading.Lock()
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -269,6 +280,8 @@ class IOMetrics:
         Fix for Issue #1305: Eliminate re-entrant lock acquisition in callback
         to prevent deadlock. Use a 'creating' flag to track in-progress creation
         without re-acquiring _sync_lock in the event loop thread callback.
+        Fix for Issue #1310: Use _init_lock instead of _sync_lock to clarify
+        that this lock is only for initialization, not for public operations.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -285,7 +298,8 @@ class IOMetrics:
 
         # Fix for Issue #1296 and #1305: Use synchronization to prevent race
         # condition while avoiding re-entrant lock acquisition in callback.
-        with self._sync_lock:
+        # Fix for Issue #1310: Use _init_lock for initialization synchronization.
+        with self._init_lock:
             # Check if lock already exists
             if current_loop_id in self._locks:
                 existing_lock = self._locks[current_loop_id]
@@ -320,6 +334,8 @@ class IOMetrics:
                 Fix for Issue #1305: This callback no longer re-acquires _sync_lock,
                 preventing potential deadlock when the calling thread is waiting
                 for lock creation while holding other resources.
+                Fix for Issue #1310: _init_lock is only held during callback setup,
+                not during this callback execution.
                 """
                 try:
                     # Create the new asyncio.Lock (we're on the event loop thread)
@@ -460,7 +476,9 @@ class IOMetrics:
 
         # Fix for Issue #1135: Use threading.Lock instead of asyncio.run()
         # to prevent RuntimeError when called from threads with running event loop
-        with self._sync_lock:
+        # Fix for Issue #1310: Use _sync_operation_lock instead of _sync_lock
+        # to maintain separation between initialization and operation locking
+        with self._sync_operation_lock:
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
