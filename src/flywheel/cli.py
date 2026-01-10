@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 ZERO_WIDTH_CHARS_PATTERN = re.compile(r'[\u200B-\u200D\u2060\uFEFF]')
 BIDI_OVERRIDE_PATTERN = re.compile(r'[\u202A-\u202E\u2066-\u2069]')
 CONTROL_CHARS_PATTERN = re.compile(r'[\x00-\x1F\x7F]')
-# SECURITY FIX (Issue #1044): Removed SHELL_METACHARS_SECURE_PATTERN - now using
-# whitelist approach with set lookup which is O(n) and has no ReDoS risk
-SHELL_METACHARS_PATTERN = re.compile(r'[;|&`$()<>]')
+# SECURITY FIX (Issue #1044, #1314): Removed SHELL_METACHARS_PATTERN - now using
+# whitelist approach with set lookup which is O(n) and has no ReDoS risk.
+# The previous SHELL_METACHARS_PATTERN has been removed to prevent accidental use
+# and eliminate ReDoS vulnerability. All code now uses set-based filtering instead.
 # SECURITY FIX (Issue #1304): Reordered FORMAT_STRING_PATTERN to put backslash first
 # in the character class. This prevents ambiguity and potential ReDoS issues.
 # The pattern matches literal characters: backslash (\), percent (%), and braces ({, })
