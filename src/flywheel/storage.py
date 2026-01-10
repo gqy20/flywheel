@@ -200,6 +200,8 @@ class IOMetrics:
         sync operations (_sync_operation_lock) to maintain consistency with
         documented async-only locking design while preserving thread safety
         for sync contexts.
+        Fix for Issue #1321: Track event loop objects and automatically clean
+        up locks for closed event loops to prevent memory leaks.
         """
         self.operations = deque(maxlen=self.MAX_OPERATIONS)
         self._locks = {}  # Dictionary mapping event loop IDs to their locks
@@ -213,6 +215,9 @@ class IOMetrics:
         # This ensures thread safety while maintaining the documented async-only
         # locking design for async methods.
         self._sync_operation_lock = threading.Lock()
+        # Fix for Issue #1321: Track event loop objects to detect when they're closed
+        # and clean up stale locks to prevent memory leaks.
+        self._event_loops = {}  # Dictionary mapping event loop IDs to loop objects
 
     def _get_async_lock(self):
         """Get or create the asyncio.Lock for the current event loop.
@@ -245,6 +250,8 @@ class IOMetrics:
         the lock provides a fast path for already-created locks. The second check
         inside the lock ensures atomicity for creation. This avoids creating
         asyncio.Lock while holding threading.Lock while maintaining thread safety.
+        Fix for Issue #1321: Automatically clean up locks for closed event loops
+        by calling _cleanup_stale_locks() before lock creation/check.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -259,11 +266,18 @@ class IOMetrics:
         # Use id(current_loop) as key to avoid circular reference (Issue #1160)
         current_loop_id = id(current_loop)
 
+        # Fix for Issue #1321: Clean up stale locks before checking/creating
+        # This prevents memory leaks from closed event loops
+        self._cleanup_stale_locks()
+
         # Fix for Issue #1320: FIRST CHECK (outside lock) - fast path for common case
         # This avoids unnecessary lock contention when lock already exists
         if current_loop_id in self._locks:
             existing_lock = self._locks[current_loop_id]
             if existing_lock is not None:
+                # Fix for Issue #1321: Update the event loop reference
+                # to ensure we can detect if it's closed later
+                self._event_loops[current_loop_id] = current_loop
                 return existing_lock
             # If sentinel, fall through to acquire lock and wait
 
@@ -307,6 +321,7 @@ class IOMetrics:
                 for lock creation while holding other resources.
                 Fix for Issue #1310: _init_lock is only held during callback setup,
                 not during this callback execution.
+                Fix for Issue #1321: Store event loop reference to detect closure.
                 """
                 try:
                     # Create the new asyncio.Lock (we're on the event loop thread)
@@ -314,6 +329,9 @@ class IOMetrics:
 
                     # Update the dictionary entry from sentinel to actual lock
                     self._locks[current_loop_id] = new_lock
+
+                    # Fix for Issue #1321: Store event loop reference for cleanup
+                    self._event_loops[current_loop_id] = current_loop
 
                     # Clean up the event
                     if current_loop_id in self._lock_creation_events:
@@ -349,6 +367,41 @@ class IOMetrics:
             raise RuntimeError("Failed to create asyncio.Lock - lock not found after creation")
 
         return result_lock
+
+    def _cleanup_stale_locks(self):
+        """Clean up locks for closed event loops to prevent memory leaks.
+
+        Fix for Issue #1321: This method removes entries from _locks and
+        _lock_creation_events for event loops that are no longer running.
+        This prevents unbounded memory growth when event loops are created
+        and destroyed over time.
+
+        The method is called automatically before creating new locks to
+        ensure stale entries are cleaned up proactively.
+        """
+        with self._init_lock:
+            # Collect IDs of closed event loops
+            stale_loop_ids = []
+            for loop_id, loop in self._event_loops.items():
+                try:
+                    # Check if the event loop is still running
+                    if not loop.is_running():
+                        stale_loop_ids.append(loop_id)
+                except (RuntimeError, ReferenceError):
+                    # Event loop is closed or invalid
+                    stale_loop_ids.append(loop_id)
+
+            # Clean up stale entries
+            for loop_id in stale_loop_ids:
+                # Remove from _locks
+                if loop_id in self._locks:
+                    del self._locks[loop_id]
+                # Remove from _event_loops
+                if loop_id in self._event_loops:
+                    del self._event_loops[loop_id]
+                # Remove from _lock_creation_events (shouldn't be there, but clean up anyway)
+                if loop_id in self._lock_creation_events:
+                    del self._lock_creation_events[loop_id]
 
     async def record_operation_async(self, operation_type: str, duration: float,
                                      retries: int, success: bool, error_type: str = None):

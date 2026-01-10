@@ -73,20 +73,18 @@ class TestIOMetricsMemoryLeakIssue1321:
         assert thread_finished['value'], "Thread did not finish"
         assert loop_ref['loop_id'] is not None
 
-        # The issue: after loop is closed, the lock still exists in _locks
-        # This is a memory leak because the lock will never be used again
-        # but remains in the dictionary
+        # Fix for Issue #1321: After loop is closed and we call _get_async_lock again,
+        # the stale lock should be cleaned up
+        # Trigger cleanup by creating a new lock (in the current event loop)
+        _ = metrics._get_async_lock()
 
-        # CURRENT BEHAVIOR (BROKEN): Lock still exists after loop closes
-        assert loop_ref['loop_id'] in metrics._locks, (
-            "CURRENT BEHAVIOR: Lock still exists after loop closes - MEMORY LEAK"
+        # EXPECTED BEHAVIOR (AFTER FIX): Old lock should be cleaned up
+        assert loop_ref['loop_id'] not in metrics._locks, (
+            "Lock should be cleaned up after loop closes"
         )
-
-        # EXPECTED BEHAVIOR (AFTER FIX): Lock should be cleaned up
-        # This test should fail until the fix is implemented
-        # assert loop_ref['loop_id'] not in metrics._locks, (
-        #     "Lock should be cleaned up after loop closes"
-        # )
+        assert loop_ref['loop_id'] not in metrics._event_loops, (
+            "Event loop reference should be cleaned up"
+        )
 
     @pytest.mark.asyncio
     async def test_iometrics_memory_leak_multiple_loops(self):
@@ -132,21 +130,26 @@ class TestIOMetricsMemoryLeakIssue1321:
         # Verify all loops were processed
         assert len(loop_ids) == num_loops
 
-        # CURRENT BEHAVIOR (BROKEN): All locks remain in dictionary
-        # This causes memory leak as dictionaries grow unbounded
-        assert len(metrics._locks) == num_loops, (
-            f"CURRENT BEHAVIOR: All {num_loops} locks remain - MEMORY LEAK"
-        )
+        # Trigger cleanup by getting a lock in the current event loop
+        _ = metrics._get_async_lock()
 
         # EXPECTED BEHAVIOR (AFTER FIX): Old locks should be cleaned up
-        # assert len(metrics._locks) == 0, (
-        #     "Old locks should be cleaned up when loops are closed"
-        # )
+        # Only the current event loop's lock should remain
+        current_loop_id = id(asyncio.get_running_loop())
+        assert len(metrics._locks) == 1, (
+            f"Expected 1 lock (current loop), got {len(metrics._locks)}"
+        )
+        assert current_loop_id in metrics._locks, (
+            "Current event loop lock should exist"
+        )
 
-        # Verify each loop_id still has a lock entry (the bug)
+        # Verify all old loop_ids have been cleaned up
         for loop_id in loop_ids:
-            assert loop_id in metrics._locks, (
-                f"CURRENT BEHAVIOR: Lock for loop {loop_id} still exists - MEMORY LEAK"
+            assert loop_id not in metrics._locks, (
+                f"Lock for loop {loop_id} should be cleaned up"
+            )
+            assert loop_id not in metrics._event_loops, (
+                f"Event loop reference for {loop_id} should be cleaned up"
             )
 
     @pytest.mark.asyncio
@@ -182,9 +185,20 @@ class TestIOMetricsMemoryLeakIssue1321:
         loop.close()
         asyncio.set_event_loop(None)
 
-        # The lock entry in _locks should also be cleaned up (this is the bug)
-        assert loop_id in metrics._locks, (
-            "CURRENT BEHAVIOR: Lock remains after loop closes - MEMORY LEAK"
+        # Fix for Issue #1321: After cleanup is triggered, the lock entry
+        # in _locks should be cleaned up
+        # Switch back to the main event loop
+        asyncio.set_event_loop(asyncio.get_event_loop())
+
+        # Trigger cleanup by getting a lock
+        _ = metrics._get_async_lock()
+
+        # EXPECTED BEHAVIOR (AFTER FIX): Lock should be cleaned up
+        assert loop_id not in metrics._locks, (
+            "Lock should be cleaned up after loop closes"
+        )
+        assert loop_id not in metrics._event_loops, (
+            "Event loop reference should be cleaned up"
         )
 
     @pytest.mark.asyncio
