@@ -229,8 +229,13 @@ class _AsyncCompatibleLock:
                     "the same event loop. Use 'async with' instead. This prevents "
                     "potential deadlocks when an event loop is already running."
                 )
-        except RuntimeError:
-            # No running event loop in current thread, we can proceed
+        except RuntimeError as e:
+            # Only catch RuntimeError from get_running_loop() (no running loop)
+            # Re-raise if it's our intentional error from the if statement above
+            if "async" in str(e).lower():
+                # This is our intentional error - re-raise it
+                raise
+            # Otherwise, it's "no running event loop" error - we can proceed
             pass
 
         # Fix for Issue #1190: Check if we're trying to use the lock from a different
