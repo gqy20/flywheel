@@ -100,6 +100,8 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1381: Each event loop gets its own Event object for
         efficient waiting without blocking the event loop.
+        Fix for Issue #1380: Always acquires the lock to prevent race condition
+        where GC could clean up the event between get() and return.
         """
         try:
             current_loop = asyncio.get_running_loop()
@@ -110,24 +112,22 @@ class _AsyncCompatibleLock:
                 "an async context with a running event loop"
             )
 
-        # Fast path: event already exists for this event loop
-        existing_event = self._async_events.get(current_loop)
-        if existing_event is not None:
-            return existing_event
-
-        # Slow path: create new event with synchronization
+        # Acquire the lock first to prevent race condition with GC
+        # Without this, the fast path could return an event that gets GC'd
+        # between the get() call and the return statement.
         with self._async_event_init_lock:
-            # Double-check: another thread might have created it while we waited
+            # Check if event already exists for this event loop
             existing_event = self._async_events.get(current_loop)
-            if existing_event is None:
-                # Create new event for this event loop
-                new_event = asyncio.Event()
-                # Initially set if lock is available (not held)
-                if not self._lock.locked():
-                    new_event.set()
-                self._async_events[current_loop] = new_event
-                return new_event
-            return existing_event
+            if existing_event is not None:
+                return existing_event
+
+            # Create new event for this event loop
+            new_event = asyncio.Event()
+            # Initially set if lock is available (not held)
+            if not self._lock.locked():
+                new_event.set()
+            self._async_events[current_loop] = new_event
+            return new_event
 
     def __enter__(self):
         """Support synchronous context manager protocol.
