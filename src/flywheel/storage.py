@@ -76,6 +76,8 @@ class _AsyncCompatibleLock:
     Fix for Issue #1406: Uses timeout in __enter__ to prevent potential deadlock
     when lock is contested. The lock acquisition is time-bound (10 seconds) to
     avoid freezing the thread indefinitely.
+    Fix for Issue #1402: Raises StorageTimeoutError instead of TimeoutError for
+    consistency with async contexts.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -165,6 +167,8 @@ class _AsyncCompatibleLock:
         Fix for Issue #1406: Uses timeout in acquire() to prevent potential deadlock
         when lock is contested. The lock acquisition is time-bound to avoid freezing
         the thread indefinitely.
+        Fix for Issue #1402: Raises StorageTimeoutError instead of TimeoutError for
+        consistency with async contexts.
         """
         # Acquire the lock with timeout
         # Fix for Issue #1354: Use try-finally to ensure atomic state management.
@@ -172,10 +176,12 @@ class _AsyncCompatibleLock:
         # we need to ensure the lock is released to prevent deadlock.
         # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
         # prevent indefinite blocking. If the lock cannot be acquired within
-        # the timeout period, raise a TimeoutError to prevent deadlock.
+        # the timeout period, raise a StorageTimeoutError to prevent deadlock.
+        # Fix for Issue #1402: Raise StorageTimeoutError instead of TimeoutError
+        # for consistency with async contexts.
         acquired = self._lock.acquire(timeout=self._lock_timeout)
         if not acquired:
-            raise TimeoutError(
+            raise StorageTimeoutError(
                 f"Could not acquire lock within {self._lock_timeout} seconds. "
                 "This may indicate a deadlock or very high contention."
             )
