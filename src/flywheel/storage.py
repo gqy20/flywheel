@@ -80,12 +80,15 @@ class _AsyncCompatibleLock:
         # environments where different threads have different event loops.
         # Each event loop gets its own lock to avoid RuntimeError when using
         # a lock from a different event loop.
-        # Dictionary mapping event loop IDs to their locks.
-        # Fix for Issue #1341: Uses WeakValueDictionary for automatic cleanup
-        # when event loops are destroyed, preventing memory leaks.
+        # Dictionary mapping event loop objects to their locks.
+        # Fix for Issue #1341: Uses weakref for automatic cleanup when event
+        # loops are destroyed, preventing memory leaks.
         # Fix for Issue #1346: Replaces manual cleanup with weakref-based
         # automatic lifecycle management, eliminating race conditions.
-        self._async_locks = weakref.WeakValueDictionary()
+        # Fix for Issue #1365: Uses WeakKeyDictionary (not WeakValueDictionary)
+        # because event loops are KEYS, not values. WeakKeyDictionary properly
+        # cleans up entries when the event loop (key) is garbage collected.
+        self._async_locks = weakref.WeakKeyDictionary()
         self._async_lock_init_lock = threading.Lock()  # Protects lazy initialization
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
@@ -116,17 +119,20 @@ class _AsyncCompatibleLock:
             )
 
         # Use the event loop object itself as the key (not its ID)
-        # Fix for Issue #1356: Using the loop object directly allows WeakValueDictionary
+        # Fix for Issue #1356: Using the loop object directly allows weakref dict
         # to properly clean up entries when the loop is garbage collected.
         # Using id(loop) as key causes memory leak because the integer ID is
         # still referenced by the dictionary key, preventing automatic cleanup.
+        # Fix for Issue #1365: Use WeakKeyDictionary (not WeakValueDictionary)
+        # because the event loop is the KEY. WeakKeyDictionary weakly references
+        # the key (event loop), so entries are cleaned up when loops are destroyed.
 
         # Fast path: lock already exists for this event loop
-        # Fix for Issue #1346: WeakValueDictionary automatically cleans up
+        # Fix for Issue #1346: WeakKeyDictionary automatically cleans up
         # stale entries when event loops are destroyed, eliminating the need
         # for manual cleanup and avoiding race conditions.
         # Fix for Issue #1350: Use .get() instead of 'in' check + access to
-        # prevent KeyError when value is garbage collected between check and access.
+        # prevent KeyError when key is garbage collected between check and access.
         existing_lock = self._async_locks.get(current_loop)
         if existing_lock is not None:
             return existing_lock
@@ -135,7 +141,7 @@ class _AsyncCompatibleLock:
         with self._async_lock_init_lock:
             # Double-check: another thread might have created it while we waited
             # Fix for Issue #1350: Use .get() to prevent KeyError
-            # Fix for Issue #1361: WeakValueDictionary.get() can return None due to GC,
+            # Fix for Issue #1361: WeakKeyDictionary.get() can return None due to GC,
             # so we must check again and create if missing, not return None
             existing_lock = self._async_locks.get(current_loop)
             if existing_lock is None:
