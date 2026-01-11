@@ -178,26 +178,23 @@ class _AsyncCompatibleLock:
         consistency with async contexts.
         """
         # Acquire the lock with timeout
-        # Fix for Issue #1354: Use try-finally to ensure atomic state management.
-        # If an exception occurs after acquire() but before __enter__ returns,
-        # we need to ensure the lock is released to prevent deadlock.
         # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
         # prevent indefinite blocking. If the lock cannot be acquired within
         # the timeout period, raise a StorageTimeoutError to prevent deadlock.
         # Fix for Issue #1402: Raise StorageTimeoutError instead of TimeoutError
         # for consistency with async contexts.
+        # Fix for Issue #1450: Simplified to just acquire and return self.
+        # The try-except wrapping `return self` was problematic because:
+        # 1. `return self` cannot raise an exception under normal circumstances
+        # 2. If an exception somehow occurred, releasing the lock here would
+        #    cause a double release when __exit__ is called, triggering RuntimeError
         acquired = self._lock.acquire(timeout=self._lock_timeout)
         if not acquired:
             raise StorageTimeoutError(
                 f"Could not acquire lock within {self._lock_timeout} seconds. "
                 "This may indicate a deadlock or very high contention."
             )
-        try:
-            return self
-        except BaseException:
-            # If any exception occurs before we return, release the lock
-            self._lock.release()
-            raise
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
@@ -221,8 +218,9 @@ class _AsyncCompatibleLock:
         """
         # For threading.Lock (non-reentrant), we release unconditionally.
         # This is safe because __exit__ is only called after __enter__ succeeds,
-        # which means we hold the lock. The try-finally in __enter__ ensures
-        # the lock is released if __enter__ fails before returning.
+        # which means we hold the lock.
+        # Fix for Issue #1450: Simplified __enter__ to just acquire and return self,
+        # removing the problematic try-except that could cause double release.
         # Fix for Issue #1381: Signal all async events that the lock is available
         # This wakes up any async tasks waiting on the lock
         # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
