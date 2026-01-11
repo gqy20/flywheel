@@ -248,6 +248,24 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         s = ZERO_WIDTH_CHARS_PATTERN.sub('', s)
         s = BIDI_OVERRIDE_PATTERN.sub('', s)
 
+        # SECURITY FIX (Issue #1369): Use shlex.quote() AFTER NFKC normalization.
+        # The order of operations is critical for security:
+        # 1. NFKC normalization first - converts fullwidth/malicious Unicode to ASCII
+        #    (e.g., ｆｉｌｅ → file, ； → ;, ｜ → |)
+        # 2. Remove control/spoofing characters
+        # 3. shlex.quote() last - properly escapes the normalized string
+        #
+        # This order is SAFE because NFKC normalization does NOT introduce new
+        # shell injection vulnerabilities. In fact, it makes the input safer by
+        # converting fullwidth characters (a homograph attack vector) to their
+        # ASCII equivalents before quoting. The final shlex.quote() ensures that
+        # any remaining dangerous characters are properly escaped.
+        #
+        # Example of safe transformation:
+        #   Input: ｆｉｌｅ；ｄａｎｇｅｒｏｕｓ (fullwidth semicolon)
+        #   After NFKC: file;dangerous (ASCII semicolon)
+        #   After shlex.quote(): 'file;dangerous' (properly quoted, safe for shell)
+        #
         # Use shlex.quote() to properly escape the string for safe shell usage
         # This adds quotes and escapes special characters as needed
         # SECURITY: This is done AFTER all normalization (NFKC, control char removal, etc.)
