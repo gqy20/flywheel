@@ -329,6 +329,49 @@ class _AsyncCompatibleLock:
         self._lock.release()
         return False
 
+    def timeout(self, new_timeout: float):
+        """Context manager to temporarily override the lock timeout.
+
+        This allows for flexible timeout handling in different contexts.
+        Some quick reads need short timeouts, while long writes need longer ones.
+
+        Args:
+            new_timeout: The new timeout value in seconds to use within the context.
+
+        Returns:
+            A context manager that temporarily overrides the lock timeout.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock(lock_timeout=10.0)
+            >>> with lock.timeout(new_timeout=5.0):
+            ...     # Lock timeout is 5.0 seconds within this block
+            ...     with lock:
+            ...         # Critical section
+            ...         pass
+            >>> # Lock timeout is restored to 10.0 seconds here
+
+        Fix for Issue #1463: Implements timeout override context manager.
+        """
+        class _TimeoutOverride:
+            """Internal context manager for timeout override."""
+
+            def __init__(self, lock, original_timeout, new_timeout):
+                self._lock = lock
+                self._original_timeout = original_timeout
+                self._new_timeout = new_timeout
+
+            def __enter__(self):
+                """Override the lock timeout."""
+                self._lock._lock_timeout = self._new_timeout
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                """Restore the original lock timeout."""
+                self._lock._lock_timeout = self._original_timeout
+                return False
+
+        return _TimeoutOverride(self, self._lock_timeout, new_timeout)
+
 
 class _TransactionContext:
     """Context manager for storage transactions with rollback support.
