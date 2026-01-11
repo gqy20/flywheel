@@ -189,38 +189,28 @@ class _AsyncCompatibleLock:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
 
-        Simply releases the threading.RLock and wakes up any waiting async tasks.
+        Simply releases the threading.Lock and wakes up any waiting async tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __exit__ is called without successful __enter__.
         Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
         Fix for Issue #1381: Signals all waiting async events that lock is available.
-        Fix for Issue #1395: Relies on _is_owned() instead of _sync_locked flag
-        to determine if the current thread holds the lock. This correctly handles
-        RLock reentrancy where a boolean flag cannot track the reentrant count.
+        Fix for Issue #1394: Uses non-reentrant Lock to prevent deadlock in async
+        contexts where a sync thread holding the lock waits for an async event.
+        Fix for Issue #1410: Removes _is_owned() check (RLock-specific) since
+        threading.Lock does not support reentrancy or have _is_owned() method.
         """
-        # Check if we hold the lock using _is_owned() method.
-        # For RLock, _is_owned() returns True if the current thread holds the lock
-        # (regardless of reentrant count), which is exactly what we need.
-        # This method is available in CPython's threading.RLock implementation.
-        should_release = False
-        if hasattr(self._lock, '_is_owned'):
-            should_release = self._lock._is_owned()
-        else:
-            # Fallback: if _is_owned() is not available, we must release.
-            # This is less safe but ensures we don't leak the lock.
-            # Without _is_owned(), we cannot distinguish between "not acquired"
-            # and "acquired by another thread", so we err on the side of caution.
-            should_release = True
-
-        if should_release:
-            self._lock.release()
-            # Fix for Issue #1381: Signal all async events that the lock is available
-            # This wakes up any async tasks waiting on the lock
-            # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
-            for event in list(self._async_events.values()):
-                if not event.is_set():
-                    event.set()
+        # For threading.Lock (non-reentrant), we release unconditionally.
+        # This is safe because __exit__ is only called after __enter__ succeeds,
+        # which means we hold the lock. The try-finally in __enter__ ensures
+        # the lock is released if __enter__ fails before returning.
+        self._lock.release()
+        # Fix for Issue #1381: Signal all async events that the lock is available
+        # This wakes up any async tasks waiting on the lock
+        # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+        for event in list(self._async_events.values()):
+            if not event.is_set():
+                event.set()
         return False
 
     async def __aenter__(self):
@@ -282,35 +272,28 @@ class _AsyncCompatibleLock:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
 
-        Releases the threading.RLock and signals other waiting tasks.
+        Releases the threading.Lock and signals other waiting tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __aexit__ is called without successful __aenter__.
         Fix for Issue #1316: Uses threading.Lock for async context cleanup.
         Fix for Issue #1381: Uses unified threading.Lock and signals waiting tasks.
-        Fix for Issue #1395: Relies on _is_owned() instead of _async_locked flag
-        to determine if the current thread holds the lock. This correctly handles
-        RLock reentrancy where a boolean flag cannot track the reentrant count.
+        Fix for Issue #1394: Uses non-reentrant Lock to prevent deadlock in async
+        contexts where a sync thread holding the lock waits for an async event.
+        Fix for Issue #1410: Removes _is_owned() check (RLock-specific) since
+        threading.Lock does not support reentrancy or have _is_owned() method.
         """
-        # Check if we hold the lock using _is_owned() method.
-        # For RLock, _is_owned() returns True if the current thread holds the lock
-        # (regardless of reentrant count), which is exactly what we need.
-        should_release = False
-        if hasattr(self._lock, '_is_owned'):
-            should_release = self._lock._is_owned()
-        else:
-            # Fallback: if _is_owned() is not available, we must release.
-            # This is less safe but ensures we don't leak the lock.
-            should_release = True
-
-        if should_release:
-            self._lock.release()
-            # Fix for Issue #1381: Signal all waiting async events that the lock is available
-            # This wakes up any other async tasks waiting on the lock
-            # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
-            for event in list(self._async_events.values()):
-                if not event.is_set():
-                    event.set()
+        # For threading.Lock (non-reentrant), we release unconditionally.
+        # This is safe because __aexit__ is only called after __aenter__ succeeds,
+        # which means we hold the lock. The try-except in __aenter__ ensures
+        # the lock is released if __aenter__ fails before returning.
+        self._lock.release()
+        # Fix for Issue #1381: Signal all waiting async events that the lock is available
+        # This wakes up any other async tasks waiting on the lock
+        # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+        for event in list(self._async_events.values()):
+            if not event.is_set():
+                event.set()
         return False
 
 
