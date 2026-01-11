@@ -155,16 +155,34 @@ class Todo:
 
         # Validate other optional fields
         due_date = data.get("due_date")
-        if due_date is not None and not isinstance(due_date, str):
-            raise ValueError(f"Field 'due_date' must be str or None, got {type(due_date).__name__}")
+        if due_date is not None:
+            if not isinstance(due_date, str):
+                raise ValueError(f"Field 'due_date' must be str or None, got {type(due_date).__name__}")
+            # Validate ISO 8601 format
+            try:
+                datetime.fromisoformat(due_date)
+            except ValueError:
+                raise ValueError(f"Invalid ISO 8601 date format for 'due_date': '{due_date}'")
 
         created_at = data.get("created_at")
-        if created_at is not None and not isinstance(created_at, str):
-            raise ValueError(f"Field 'created_at' must be str or None, got {type(created_at).__name__}")
+        if created_at is not None:
+            if not isinstance(created_at, str):
+                raise ValueError(f"Field 'created_at' must be str or None, got {type(created_at).__name__}")
+            # Validate ISO 8601 format
+            try:
+                datetime.fromisoformat(created_at)
+            except ValueError:
+                raise ValueError(f"Invalid ISO 8601 date format for 'created_at': '{created_at}'")
 
         completed_at = data.get("completed_at")
-        if completed_at is not None and not isinstance(completed_at, str):
-            raise ValueError(f"Field 'completed_at' must be str or None, got {type(completed_at).__name__}")
+        if completed_at is not None:
+            if not isinstance(completed_at, str):
+                raise ValueError(f"Field 'completed_at' must be str or None, got {type(completed_at).__name__}")
+            # Validate ISO 8601 format
+            try:
+                datetime.fromisoformat(completed_at)
+            except ValueError:
+                raise ValueError(f"Invalid ISO 8601 date format for 'completed_at': '{completed_at}'")
 
         tags = data.get("tags")
         if tags is not None and not isinstance(tags, list):
