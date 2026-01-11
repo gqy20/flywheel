@@ -201,6 +201,9 @@ class _AsyncCompatibleLock:
         we need to ensure the lock is released to prevent deadlock.
         Fix for Issue #1381: Uses unified threading.Lock for both sync and async
         to ensure true mutual exclusion. Uses asyncio.Event for efficient async waiting.
+        Fix for Issue #1385: Checks lock availability immediately after wait() to
+        prevent missed wake-ups. If lock is released between acquire() failure and
+        the next wait(), re-checking prevents indefinite blocking.
         """
         # Fix for Issue #1381: Get the event for this event loop
         async_event = self._get_async_event()
@@ -228,9 +231,18 @@ class _AsyncCompatibleLock:
                     async_event.set()
                     raise
             else:
-                # Lock is held by another thread/sync context
-                # Wait a bit and try again
-                await asyncio.sleep(0)
+                # Fix for Issue #1385: Lock is held by another thread/sync context.
+                # Check if the lock is still held before waiting again.
+                # This prevents missed wake-ups if the lock was released between
+                # the failed acquire() above and the next wait() call.
+                # If the lock is now available, the event should be set and we'll
+                # try to acquire it again on the next loop iteration.
+                if not self._lock.locked():
+                    # Lock became available, set event to wake up immediately
+                    async_event.set()
+                else:
+                    # Lock is still held, wait for notification
+                    await asyncio.sleep(0)
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
