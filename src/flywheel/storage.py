@@ -73,10 +73,23 @@ class _AsyncCompatibleLock:
     Fix for Issue #1381: Uses unified threading.Lock for both sync and async
     contexts to ensure true mutual exclusion, replacing the previous approach
     of using separate threading.RLock and asyncio.Lock which were independent.
+    Fix for Issue #1406: Uses timeout in __enter__ to prevent potential deadlock
+    when lock is contested. The lock acquisition is time-bound (10 seconds) to
+    avoid freezing the thread indefinitely.
     """
 
-    def __init__(self):
-        """Initialize with unified lock for sync and async contexts."""
+    # Default timeout for sync lock acquisition (Issue #1406)
+    # 10 seconds provides a reasonable balance between handling high contention
+    # and detecting deadlocks. This matches the timeout from Issue #1291.
+    _DEFAULT_LOCK_TIMEOUT = 10.0
+
+    def __init__(self, lock_timeout: float | None = None):
+        """Initialize with unified lock for sync and async contexts.
+
+        Args:
+            lock_timeout: Timeout in seconds for sync lock acquisition (Issue #1406).
+                         If None, uses the default timeout (10.0 seconds).
+        """
         # Fix for Issue #1381: Use a single threading.Lock for both sync and async
         # contexts to ensure true mutual exclusion.
         # This prevents the bug where threading.Lock and asyncio.Lock were
@@ -88,6 +101,8 @@ class _AsyncCompatibleLock:
         # Note: This removes reentrancy support from Issue #1298, but prevents
         # async deadlocks which are more critical.
         self._lock = threading.Lock()
+        # Fix for Issue #1406: Store the timeout for sync lock acquisition
+        self._lock_timeout = lock_timeout if lock_timeout is not None else self._DEFAULT_LOCK_TIMEOUT
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
@@ -147,12 +162,23 @@ class _AsyncCompatibleLock:
         Fix for Issue #1394: Uses non-reentrant Lock instead of RLock to prevent
         deadlock in async contexts where a sync thread holding the lock waits for
         an async event.
+        Fix for Issue #1406: Uses timeout in acquire() to prevent potential deadlock
+        when lock is contested. The lock acquisition is time-bound to avoid freezing
+        the thread indefinitely.
         """
-        # Acquire the lock
+        # Acquire the lock with timeout
         # Fix for Issue #1354: Use try-finally to ensure atomic state management.
         # If an exception occurs after acquire() but before __enter__ returns,
         # we need to ensure the lock is released to prevent deadlock.
-        self._lock.acquire()
+        # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
+        # prevent indefinite blocking. If the lock cannot be acquired within
+        # the timeout period, raise a TimeoutError to prevent deadlock.
+        acquired = self._lock.acquire(timeout=self._lock_timeout)
+        if not acquired:
+            raise TimeoutError(
+                f"Could not acquire lock within {self._lock_timeout} seconds. "
+                "This may indicate a deadlock or very high contention."
+            )
         try:
             return self
         except BaseException:
