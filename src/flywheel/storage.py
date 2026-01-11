@@ -330,6 +330,70 @@ class _AsyncCompatibleLock:
         return False
 
 
+class _TransactionContext:
+    """Context manager for storage transactions with rollback support.
+
+    This class provides transactional semantics for storage operations.
+    It saves the state before entering the context and rolls back if
+    an exception occurs.
+
+    Fix for Issue #1453: Implements transaction context manager.
+    """
+
+    def __init__(self, storage):
+        """Initialize the transaction context.
+
+        Args:
+            storage: The FileStorage instance to manage transactions for.
+        """
+        self._storage = storage
+        self._saved_todos = None
+        self._saved_next_id = None
+        self._saved_cache = None
+
+    def __enter__(self):
+        """Enter the transaction context.
+
+        Acquires the storage lock and saves the current state for rollback.
+        """
+        self._storage._lock.acquire()
+        # Save current state for rollback
+        self._saved_todos = list(self._storage._todos)
+        self._saved_next_id = self._storage._next_id
+        self._saved_cache = dict(self._storage._cache) if self._storage._cache_enabled else None
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the transaction context.
+
+        If an exception occurred, rolls back to the saved state.
+        Otherwise, commits the changes.
+        Always releases the lock.
+
+        Args:
+            exc_type: The type of exception raised, if any.
+            exc_val: The exception instance raised, if any.
+            exc_tb: The traceback object, if any.
+
+        Returns:
+            bool: False to propagate exceptions.
+        """
+        try:
+            if exc_type is not None:
+                # Exception occurred, rollback to saved state
+                self._storage._todos = self._saved_todos
+                self._storage._next_id = self._saved_next_id
+                if self._storage._cache_enabled and self._saved_cache is not None:
+                    self._storage._cache = self._saved_cache
+                    self._storage._cache_dirty = False
+            # If no exception, changes are already applied
+        finally:
+            # Always release the lock
+            self._storage._lock.release()
+        # Propagate exceptions
+        return False
+
+
 class _AsyncContextError(RuntimeError):
     """Exception raised when sync method is called from async context.
 
@@ -7982,14 +8046,12 @@ class FileStorage(AbstractStorage):
     def transaction(self):
         """Create a transaction context manager for batch operations.
 
-        This method returns a context manager that acquires the storage lock
-        for the duration of a batch operation, ensuring atomic execution of
-        multiple operations. This is useful for read-modify-write patterns
-        where you need to ensure data isn't modified by other processes
-        during the operation.
+        This method returns a context manager that provides transactional
+        semantics for batch operations. Changes are automatically committed
+        if the block succeeds, or rolled back if an exception occurs.
 
         Returns:
-            FileStorage: The storage instance itself as a context manager.
+            _TransactionContext: A context manager for transactional operations.
 
         Example:
             >>> with storage.transaction():
@@ -7998,10 +8060,13 @@ class FileStorage(AbstractStorage):
             ...     storage.add(Todo(title="Task 2"))
 
         Note:
-            The transaction is reentrant, so you can nest transactions if needed.
-            The lock is automatically released even if an exception occurs.
+            The transaction acquires the storage lock and saves the current state.
+            If an exception occurs, the state is rolled back. The storage is
+            NOT closed after the transaction completes.
+
+        Fix for Issue #1453: Implements transaction context manager with rollback.
         """
-        return self
+        return _TransactionContext(self)
 
     def __enter__(self):
         """Enter the context manager.
