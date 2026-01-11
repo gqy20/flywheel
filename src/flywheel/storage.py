@@ -77,11 +77,13 @@ class _AsyncCompatibleLock:
 
     def __init__(self):
         """Initialize with unified lock for sync and async contexts."""
-        # Fix for Issue #1381: Use a single threading.Lock for both sync and async
-        # contexts to ensure true mutual exclusion. This prevents the bug where
-        # threading.RLock and asyncio.Lock were independent and could be held
-        # simultaneously.
-        self._lock = threading.Lock()
+        # Fix for Issue #1381: Use a single threading.RLock for both sync and async
+        # contexts to ensure true mutual exclusion while maintaining reentrancy.
+        # This prevents the bug where threading.RLock and asyncio.Lock were
+        # independent and could be held simultaneously.
+        # Fix for Issue #1298: Uses RLock for reentrancy to allow the same thread
+        # to acquire the lock multiple times without deadlock.
+        self._lock = threading.RLock()
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
