@@ -142,9 +142,16 @@ class _AsyncCompatibleLock:
 
             # Create new event for this event loop
             new_event = asyncio.Event()
-            # Initially set if lock is available (not held)
-            if not self._lock.locked():
+            # Fix for Issue #1446: Atomically check and set initial Event state.
+            # Try to acquire the lock non-blockingly to determine its state.
+            # If successful, the lock was available so set the Event and release.
+            # If unsuccessful, the lock is held so keep Event unset.
+            # This avoids the race condition of checking lock.locked() separately.
+            if self._lock.acquire(blocking=False):
+                # Lock was available, set Event to signal availability
                 new_event.set()
+                self._lock.release()
+            # Otherwise, lock is held, Event remains unset (correct state)
             self._async_events[current_loop] = new_event
             return new_event
 
