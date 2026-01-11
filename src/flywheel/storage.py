@@ -135,14 +135,15 @@ class _AsyncCompatibleLock:
         with self._async_lock_init_lock:
             # Double-check: another thread might have created it while we waited
             # Fix for Issue #1350: Use .get() to prevent KeyError
+            # Fix for Issue #1361: WeakValueDictionary.get() can return None due to GC,
+            # so we must check again and create if missing, not return None
             existing_lock = self._async_locks.get(current_loop)
-            if existing_lock is not None:
-                return existing_lock
-
-            # Create new lock for this event loop
-            new_lock = asyncio.Lock()
-            self._async_locks[current_loop] = new_lock
-            return new_lock
+            if existing_lock is None:
+                # Create new lock for this event loop
+                new_lock = asyncio.Lock()
+                self._async_locks[current_loop] = new_lock
+                return new_lock
+            return existing_lock
 
     def __enter__(self):
         """Support synchronous context manager protocol.
