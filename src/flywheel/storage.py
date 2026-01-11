@@ -181,7 +181,8 @@ class _AsyncCompatibleLock:
             self._sync_locked = False
             # Fix for Issue #1381: Signal all async events that the lock is available
             # This wakes up any async tasks waiting on the lock
-            for event in self._async_events.values():
+            # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+            for event in list(self._async_events.values()):
                 if not event.is_set():
                     event.set()
         return False
@@ -261,7 +262,8 @@ class _AsyncCompatibleLock:
             self._async_locked = False
             # Fix for Issue #1381: Signal all waiting async events that the lock is available
             # This wakes up any other async tasks waiting on the lock
-            for event in self._async_events.values():
+            # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+            for event in list(self._async_events.values()):
                 if not event.is_set():
                     event.set()
         return False
