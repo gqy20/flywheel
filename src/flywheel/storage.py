@@ -213,12 +213,23 @@ class _AsyncCompatibleLock:
         independently from sync lock state.
         Fix for Issue #1355: Stores the acquired lock instance to ensure
         __aexit__ releases the same lock that was acquired.
+        Fix for Issue #1360: Uses try-except to ensure atomic state management.
+        If an exception occurs after acquire() but before __aenter__ returns,
+        we need to ensure the lock is released to prevent deadlock.
         """
         async_lock = self._get_async_lock()
         await async_lock.acquire()
-        self._async_locked = True
-        self._held_async_lock = async_lock  # Store for __aexit__
-        return self
+        try:
+            self._async_locked = True
+            self._held_async_lock = async_lock  # Store for __aexit__
+            return self
+        except BaseException:
+            # If any exception occurs before we return, release the lock
+            # and clear the flag to maintain consistent state
+            self._async_locked = False
+            self._held_async_lock = None
+            async_lock.release()
+            raise
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
