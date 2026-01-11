@@ -83,9 +83,11 @@ class _AsyncCompatibleLock:
         # independent and could be held simultaneously.
         # Fix for Issue #1298: Uses RLock for reentrancy to allow the same thread
         # to acquire the lock multiple times without deadlock.
+        # Fix for Issue #1395: Removes _sync_locked and _async_locked boolean flags
+        # since they cannot track RLock reentrant count. Instead, rely on the
+        # _is_owned() method in __exit__ and __aexit__ to determine if the current
+        # thread holds the lock.
         self._lock = threading.RLock()
-        self._sync_locked = False  # Track if sync lock was acquired for safe release
-        self._async_locked = False  # Track if async lock was acquired for safe release
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
@@ -132,68 +134,63 @@ class _AsyncCompatibleLock:
     def __enter__(self):
         """Support synchronous context manager protocol.
 
-        Uses threading.Lock directly for simple, reliable cross-thread
+        Uses threading.RLock directly for simple, reliable cross-thread
         synchronization and ensures mutual exclusion with async contexts.
 
         Fix for Issue #1290: Uses threading.Lock to prevent
         deadlock risks from event loop reuse and ensure true
         cross-thread mutual exclusion.
-        Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
-        independently from async lock state.
         Fix for Issue #1344: Uses try-finally to ensure atomic state management
         and prevent race conditions between lock acquisition and state update.
-        Fix for Issue #1349: Sets _sync_locked flag AFTER acquire() succeeds
-        to prevent race condition where flag=True but lock is not held.
         Fix for Issue #1381: Uses unified threading.Lock for both sync and async
         to ensure true mutual exclusion.
+        Fix for Issue #1395: Removes _sync_locked flag dependency since RLock
+        supports reentrancy and a boolean flag cannot track the reentrant count.
+        Instead, rely on _is_owned() method in __exit__ to determine if the
+        current thread holds the lock.
         """
-        # Acquire the lock first, then set the flag
-        # This ensures the flag is only True if we actually hold the lock
-        # Matching the pattern used in __aenter__ for consistency
+        # Acquire the lock - RLock supports reentrancy (same thread can acquire multiple times)
         # Fix for Issue #1354: Use try-finally to ensure atomic state management.
         # If an exception occurs after acquire() but before __enter__ returns,
         # we need to ensure the lock is released to prevent deadlock.
         self._lock.acquire()
         try:
-            self._sync_locked = True
             return self
         except BaseException:
             # If any exception occurs before we return, release the lock
-            # and clear the flag to maintain consistent state
-            self._sync_locked = False
+            # For RLock, this will decrement the reentrant count
             self._lock.release()
             raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
 
-        Simply releases the threading.Lock and wakes up any waiting async tasks.
+        Simply releases the threading.RLock and wakes up any waiting async tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __exit__ is called without successful __enter__.
         Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
-        Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
-        independently from async lock state.
         Fix for Issue #1381: Signals all waiting async events that lock is available.
-        Fix for Issue #1386: Checks actual lock state in addition to flag to ensure
-        lock is released even if flag is inconsistent with actual lock state.
+        Fix for Issue #1395: Relies on _is_owned() instead of _sync_locked flag
+        to determine if the current thread holds the lock. This correctly handles
+        RLock reentrancy where a boolean flag cannot track the reentrant count.
         """
-        # Check if we hold the lock by checking both the flag and the actual lock state.
-        # For RLock, we can't easily check if the current thread holds it without
-        # using internal methods, so we use _is_owned() if available, otherwise
-        # fall back to checking the flag.
-        should_release = self._sync_locked
+        # Check if we hold the lock using _is_owned() method.
+        # For RLock, _is_owned() returns True if the current thread holds the lock
+        # (regardless of reentrant count), which is exactly what we need.
+        # This method is available in CPython's threading.RLock implementation.
+        should_release = False
         if hasattr(self._lock, '_is_owned'):
             should_release = self._lock._is_owned()
-        elif not self._sync_locked and self._lock.locked():
-            # Inconsistent state: lock is held but flag is False
-            # This is the edge case addressed by Issue #1386
-            # We should release to prevent deadlock
+        else:
+            # Fallback: if _is_owned() is not available, we must release.
+            # This is less safe but ensures we don't leak the lock.
+            # Without _is_owned(), we cannot distinguish between "not acquired"
+            # and "acquired by another thread", so we err on the side of caution.
             should_release = True
 
         if should_release:
             self._lock.release()
-            self._sync_locked = False
             # Fix for Issue #1381: Signal all async events that the lock is available
             # This wakes up any async tasks waiting on the lock
             # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
@@ -205,13 +202,11 @@ class _AsyncCompatibleLock:
     async def __aenter__(self):
         """Support asynchronous context manager protocol.
 
-        Uses threading.Lock with asyncio.Event for async contexts to ensure
+        Uses threading.RLock with asyncio.Event for async contexts to ensure
         true mutual exclusion with sync contexts while preventing event loop blocking.
 
         Fix for Issue #1316: Uses threading.Lock + asyncio.Event instead of
         asyncio.Lock to ensure mutual exclusion with sync contexts.
-        Fix for Issue #1326: Uses _async_locked flag to track async lock state
-        independently from sync lock state.
         Fix for Issue #1360: Uses try-except to ensure atomic state management.
         If an exception occurs after acquire() but before __aenter__ returns,
         we need to ensure the lock is released to prevent deadlock.
@@ -220,6 +215,9 @@ class _AsyncCompatibleLock:
         Fix for Issue #1385: Checks lock availability immediately after wait() to
         prevent missed wake-ups. If lock is released between acquire() failure and
         the next wait(), re-checking prevents indefinite blocking.
+        Fix for Issue #1395: Removes _async_locked flag dependency for reentrant
+        scenarios. The lock acquisition itself (self._lock.acquire) ensures proper
+        reentrant counting without needing a separate boolean flag.
         """
         # Fix for Issue #1381: Get the event for this event loop
         async_event = self._get_async_event()
@@ -235,14 +233,12 @@ class _AsyncCompatibleLock:
             acquired = self._lock.acquire(blocking=False)
             if acquired:
                 try:
-                    self._async_locked = True
                     # Clear the event so other async tasks know the lock is taken
                     async_event.clear()
                     return self
                 except BaseException:
                     # If any exception occurs before we return, release the lock
                     # and set the event again to maintain consistent state
-                    self._async_locked = False
                     self._lock.release()
                     async_event.set()
                     raise
@@ -263,18 +259,29 @@ class _AsyncCompatibleLock:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
 
-        Releases the threading.Lock and signals other waiting tasks.
+        Releases the threading.RLock and signals other waiting tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __aexit__ is called without successful __aenter__.
         Fix for Issue #1316: Uses threading.Lock for async context cleanup.
-        Fix for Issue #1326: Uses _async_locked flag to track async lock state
-        independently from sync lock state.
         Fix for Issue #1381: Uses unified threading.Lock and signals waiting tasks.
+        Fix for Issue #1395: Relies on _is_owned() instead of _async_locked flag
+        to determine if the current thread holds the lock. This correctly handles
+        RLock reentrancy where a boolean flag cannot track the reentrant count.
         """
-        if self._async_locked:
+        # Check if we hold the lock using _is_owned() method.
+        # For RLock, _is_owned() returns True if the current thread holds the lock
+        # (regardless of reentrant count), which is exactly what we need.
+        should_release = False
+        if hasattr(self._lock, '_is_owned'):
+            should_release = self._lock._is_owned()
+        else:
+            # Fallback: if _is_owned() is not available, we must release.
+            # This is less safe but ensures we don't leak the lock.
+            should_release = True
+
+        if should_release:
             self._lock.release()
-            self._async_locked = False
             # Fix for Issue #1381: Signal all waiting async events that the lock is available
             # This wakes up any other async tasks waiting on the lock
             # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
