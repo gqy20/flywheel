@@ -14,12 +14,31 @@ def _sanitize_text(text: str) -> str:
 
     Returns:
         Sanitized text with control characters removed
+
+    Note:
+        Uses character iteration instead of regex to prevent ReDoS
+        (Regular Expression Denial of Service) vulnerabilities.
+        This approach is O(n) and guaranteed not to backtrack.
     """
-    # Remove control characters (ASCII 0-31, 127) except space
-    # This removes: null, tabs, newlines, carriage returns, etc.
-    text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]', '', text)
+    # Define control characters to remove (ASCII 0-8, 11-12, 14-31, 127)
+    # Excludes \t (9), \n (10), \r (13) which are handled separately
+    control_chars = set(
+        # ASCII 0-8
+        range(0x00, 0x09) |
+        # ASCII 11-12 (skip \t=9 and \n=10)
+        range(0x0b, 0x0d) |
+        # ASCII 14-31 (skip \r=13)
+        range(0x0e, 0x20) |
+        # ASCII 127 (DEL)
+        {0x7f}
+    )
+
+    # Remove control characters using list comprehension (non-backtracking)
+    # This is O(n) and prevents ReDoS vulnerabilities
+    text = ''.join(c for c in text if ord(c) not in control_chars)
 
     # Remove zero-width spaces and other invisible Unicode characters
+    # This regex is safe as it matches fixed character ranges
     text = re.sub(r'[\u200b-\u200d\u2060\ufeff]', '', text)
 
     # Normalize whitespace: convert tabs and newlines to single space
