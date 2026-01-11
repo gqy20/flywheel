@@ -77,17 +77,17 @@ class _AsyncCompatibleLock:
 
     def __init__(self):
         """Initialize with unified lock for sync and async contexts."""
-        # Fix for Issue #1381: Use a single threading.RLock for both sync and async
-        # contexts to ensure true mutual exclusion while maintaining reentrancy.
-        # This prevents the bug where threading.RLock and asyncio.Lock were
+        # Fix for Issue #1381: Use a single threading.Lock for both sync and async
+        # contexts to ensure true mutual exclusion.
+        # This prevents the bug where threading.Lock and asyncio.Lock were
         # independent and could be held simultaneously.
-        # Fix for Issue #1298: Uses RLock for reentrancy to allow the same thread
-        # to acquire the lock multiple times without deadlock.
-        # Fix for Issue #1395: Removes _sync_locked and _async_locked boolean flags
-        # since they cannot track RLock reentrant count. Instead, rely on the
-        # _is_owned() method in __exit__ and __aexit__ to determine if the current
-        # thread holds the lock.
-        self._lock = threading.RLock()
+        # Fix for Issue #1394: Replaces RLock with Lock to prevent deadlock in
+        # async contexts. When using RLock with asyncio.to_thread, if a sync thread
+        # holds the RLock and waits for an async event that requires the same lock
+        # to be released, a deadlock occurs. Using non-reentrant Lock avoids this.
+        # Note: This removes reentrancy support from Issue #1298, but prevents
+        # async deadlocks which are more critical.
+        self._lock = threading.Lock()
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
@@ -134,7 +134,7 @@ class _AsyncCompatibleLock:
     def __enter__(self):
         """Support synchronous context manager protocol.
 
-        Uses threading.RLock directly for simple, reliable cross-thread
+        Uses threading.Lock directly for simple, reliable cross-thread
         synchronization and ensures mutual exclusion with async contexts.
 
         Fix for Issue #1290: Uses threading.Lock to prevent
@@ -144,12 +144,11 @@ class _AsyncCompatibleLock:
         and prevent race conditions between lock acquisition and state update.
         Fix for Issue #1381: Uses unified threading.Lock for both sync and async
         to ensure true mutual exclusion.
-        Fix for Issue #1395: Removes _sync_locked flag dependency since RLock
-        supports reentrancy and a boolean flag cannot track the reentrant count.
-        Instead, rely on _is_owned() method in __exit__ to determine if the
-        current thread holds the lock.
+        Fix for Issue #1394: Uses non-reentrant Lock instead of RLock to prevent
+        deadlock in async contexts where a sync thread holding the lock waits for
+        an async event.
         """
-        # Acquire the lock - RLock supports reentrancy (same thread can acquire multiple times)
+        # Acquire the lock
         # Fix for Issue #1354: Use try-finally to ensure atomic state management.
         # If an exception occurs after acquire() but before __enter__ returns,
         # we need to ensure the lock is released to prevent deadlock.
@@ -158,7 +157,6 @@ class _AsyncCompatibleLock:
             return self
         except BaseException:
             # If any exception occurs before we return, release the lock
-            # For RLock, this will decrement the reentrant count
             self._lock.release()
             raise
 
@@ -202,7 +200,7 @@ class _AsyncCompatibleLock:
     async def __aenter__(self):
         """Support asynchronous context manager protocol.
 
-        Uses threading.RLock with asyncio.Event for async contexts to ensure
+        Uses threading.Lock with asyncio.Event for async contexts to ensure
         true mutual exclusion with sync contexts while preventing event loop blocking.
 
         Fix for Issue #1316: Uses threading.Lock + asyncio.Event instead of
@@ -215,9 +213,8 @@ class _AsyncCompatibleLock:
         Fix for Issue #1385: Checks lock availability immediately after wait() to
         prevent missed wake-ups. If lock is released between acquire() failure and
         the next wait(), re-checking prevents indefinite blocking.
-        Fix for Issue #1395: Removes _async_locked flag dependency for reentrant
-        scenarios. The lock acquisition itself (self._lock.acquire) ensures proper
-        reentrant counting without needing a separate boolean flag.
+        Fix for Issue #1394: Uses non-reentrant Lock instead of RLock to prevent
+        deadlock when sync thread holding lock waits for async event.
         """
         # Fix for Issue #1381: Get the event for this event loop
         async_event = self._get_async_event()
