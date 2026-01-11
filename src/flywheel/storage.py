@@ -302,6 +302,9 @@ class _AsyncCompatibleLock:
         Fix for Issue #1416: Signals events while holding lock to prevent race
         condition where another thread acquires lock and resets event before
         signaling completes.
+        Fix for Issue #1436: Acquires _async_event_init_lock before signaling events
+        to prevent race condition where another thread modifies _async_events during
+        iteration.
         """
         # For threading.Lock (non-reentrant), we release unconditionally.
         # This is safe because __aexit__ is only called after __aenter__ succeeds,
@@ -312,9 +315,12 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
         # Fix for Issue #1416: Signal events BEFORE releasing lock to prevent
         # race condition where another thread acquires lock and clears event
-        for event in list(self._async_events.values()):
-            if not event.is_set():
-                event.set()
+        # Fix for Issue #1436: Acquire _async_event_init_lock before iterating to
+        # prevent race condition where another thread modifies _async_events
+        with self._async_event_init_lock:
+            for event in list(self._async_events.values()):
+                if not event.is_set():
+                    event.set()
         self._lock.release()
         return False
 
