@@ -43,7 +43,9 @@ def _sanitize_text(text: str) -> str:
 
     # Normalize whitespace: convert tabs and newlines to single space
     # (in case any slipped through before strip)
-    text = re.sub(r'\s+', ' ', text)
+    # Using split/join instead of regex to prevent ReDoS vulnerabilities
+    # This is O(n) and safer than regex alternatives
+    text = ' '.join(text.split())
 
     return text
 
