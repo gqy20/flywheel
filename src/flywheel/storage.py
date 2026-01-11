@@ -175,8 +175,23 @@ class _AsyncCompatibleLock:
         Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
         independently from async lock state.
         Fix for Issue #1381: Signals all waiting async events that lock is available.
+        Fix for Issue #1386: Checks actual lock state in addition to flag to ensure
+        lock is released even if flag is inconsistent with actual lock state.
         """
-        if self._sync_locked:
+        # Check if we hold the lock by checking both the flag and the actual lock state.
+        # For RLock, we can't easily check if the current thread holds it without
+        # using internal methods, so we use _is_owned() if available, otherwise
+        # fall back to checking the flag.
+        should_release = self._sync_locked
+        if hasattr(self._lock, '_is_owned'):
+            should_release = self._lock._is_owned()
+        elif not self._sync_locked and self._lock.locked():
+            # Inconsistent state: lock is held but flag is False
+            # This is the edge case addressed by Issue #1386
+            # We should release to prevent deadlock
+            should_release = True
+
+        if should_release:
             self._lock.release()
             self._sync_locked = False
             # Fix for Issue #1381: Signal all async events that the lock is available
