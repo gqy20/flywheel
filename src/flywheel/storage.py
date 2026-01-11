@@ -54,9 +54,10 @@ class _AsyncCompatibleLock:
     statements, solving the issue where threading.Lock doesn't support async
     context managers and asyncio.Lock doesn't support sync context managers.
 
-    The implementation uses a threading.RLock for synchronous contexts and
-    asyncio.Lock for asynchronous contexts, providing optimal performance
-    for each use case without blocking the event loop.
+    The implementation uses a unified threading.Lock for both synchronous and
+    asynchronous contexts, ensuring true mutual exclusion between sync and async
+    operations. Async contexts use an event for efficient waiting without blocking
+    the event loop.
 
     Fix for Issue #1097: Provides unified lock interface for IOMetrics.
     Fix for Issue #1166: Uses single lock with thread-safe synchronization
@@ -64,102 +65,76 @@ class _AsyncCompatibleLock:
     Fix for Issue #1290: Uses threading.Lock for sync contexts to prevent
     deadlock risks from event loop reuse and ensure true cross-thread mutual
     exclusion.
-    Fix for Issue #1298: Uses threading.RLock for reentrancy to allow
-    the same thread to acquire the lock multiple times without deadlock.
-    Fix for Issue #1316: Uses asyncio.Lock for async contexts to prevent
-    event loop blocking and thread pool exhaustion under high concurrency.
+    Fix for Issue #1316: Uses threading.Lock + asyncio.Event for async contexts
+    to prevent event loop blocking and thread pool exhaustion.
     Fix for Issue #1326: Uses separate state flags (_sync_locked and _async_locked)
     to prevent race conditions where acquiring one lock overwrites the state of
     the other.
+    Fix for Issue #1381: Uses unified threading.Lock for both sync and async
+    contexts to ensure true mutual exclusion, replacing the previous approach
+    of using separate threading.RLock and asyncio.Lock which were independent.
     """
 
     def __init__(self):
-        """Initialize with separate locks for sync and async contexts."""
-        self._lock = threading.RLock()  # Fix for Issue #1298: Use RLock for reentrancy
-        # Fix for Issue #1331: Use per-event-loop locks to handle multi-threaded
-        # environments where different threads have different event loops.
-        # Each event loop gets its own lock to avoid RuntimeError when using
-        # a lock from a different event loop.
-        # Dictionary mapping event loop objects to their locks.
-        # Fix for Issue #1341: Uses weakref for automatic cleanup when event
-        # loops are destroyed, preventing memory leaks.
-        # Fix for Issue #1346: Replaces manual cleanup with weakref-based
-        # automatic lifecycle management, eliminating race conditions.
-        # Fix for Issue #1365: Uses WeakKeyDictionary (not WeakValueDictionary)
-        # because event loops are KEYS, not values. WeakKeyDictionary properly
-        # cleans up entries when the event loop (key) is garbage collected.
-        self._async_locks = weakref.WeakKeyDictionary()
-        self._async_lock_init_lock = threading.Lock()  # Protects lazy initialization
+        """Initialize with unified lock for sync and async contexts."""
+        # Fix for Issue #1381: Use a single threading.Lock for both sync and async
+        # contexts to ensure true mutual exclusion. This prevents the bug where
+        # threading.RLock and asyncio.Lock were independent and could be held
+        # simultaneously.
+        self._lock = threading.Lock()
         self._sync_locked = False  # Track if sync lock was acquired for safe release
         self._async_locked = False  # Track if async lock was acquired for safe release
-        self._held_async_lock = None  # Store the acquired lock instance (Fix for Issue #1355)
+        # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
+        # async waiting. These events are set when the lock is released, allowing
+        # async coroutines to wait without blocking the event loop.
+        self._async_events = weakref.WeakKeyDictionary()
+        self._async_event_init_lock = threading.Lock()  # Protects lazy initialization
 
-    def _get_async_lock(self):
-        """Get or create the asyncio.Lock for the current event loop.
+    def _get_async_event(self):
+        """Get or create the asyncio.Event for the current event loop.
 
-        This lazy initialization ensures we only create asyncio.Lock when
+        This lazy initialization ensures we only create asyncio.Event when
         needed, avoiding RuntimeError in purely synchronous contexts.
 
-        Fix for Issue #1316: Lazy initialization prevents RuntimeError in
-        sync contexts and ensures proper lock-per-event-loop semantics.
-        Fix for Issue #1331: Use per-event-loop locks to handle multi-threaded
-        environments where different threads have different event loops.
-        Each event loop gets its own lock to avoid RuntimeError when using
-        a lock from a different event loop.
+        Fix for Issue #1381: Each event loop gets its own Event object for
+        efficient waiting without blocking the event loop.
         """
         try:
             current_loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No running event loop - raise a clear error instead of calling
-            # asyncio.get_event_loop() which would create a new event loop
-            # that is never closed and is not running (Fix for Issue #1351)
+            # No running event loop - raise a clear error
             raise RuntimeError(
-                "_AsyncCompatibleLock._get_async_lock must be called from "
+                "_AsyncCompatibleLock._get_async_event must be called from "
                 "an async context with a running event loop"
             )
 
-        # Use the event loop object itself as the key (not its ID)
-        # Fix for Issue #1356: Using the loop object directly allows weakref dict
-        # to properly clean up entries when the loop is garbage collected.
-        # Using id(loop) as key causes memory leak because the integer ID is
-        # still referenced by the dictionary key, preventing automatic cleanup.
-        # Fix for Issue #1365: Use WeakKeyDictionary (not WeakValueDictionary)
-        # because the event loop is the KEY. WeakKeyDictionary weakly references
-        # the key (event loop), so entries are cleaned up when loops are destroyed.
+        # Fast path: event already exists for this event loop
+        existing_event = self._async_events.get(current_loop)
+        if existing_event is not None:
+            return existing_event
 
-        # Fast path: lock already exists for this event loop
-        # Fix for Issue #1346: WeakKeyDictionary automatically cleans up
-        # stale entries when event loops are destroyed, eliminating the need
-        # for manual cleanup and avoiding race conditions.
-        # Fix for Issue #1350: Use .get() instead of 'in' check + access to
-        # prevent KeyError when key is garbage collected between check and access.
-        existing_lock = self._async_locks.get(current_loop)
-        if existing_lock is not None:
-            return existing_lock
-
-        # Slow path: create new lock with synchronization
-        with self._async_lock_init_lock:
+        # Slow path: create new event with synchronization
+        with self._async_event_init_lock:
             # Double-check: another thread might have created it while we waited
-            # Fix for Issue #1350: Use .get() to prevent KeyError
-            # Fix for Issue #1361: WeakKeyDictionary.get() can return None due to GC,
-            # so we must check again and create if missing, not return None
-            existing_lock = self._async_locks.get(current_loop)
-            if existing_lock is None:
-                # Create new lock for this event loop
-                new_lock = asyncio.Lock()
-                self._async_locks[current_loop] = new_lock
-                return new_lock
-            return existing_lock
+            existing_event = self._async_events.get(current_loop)
+            if existing_event is None:
+                # Create new event for this event loop
+                new_event = asyncio.Event()
+                # Initially set if lock is available (not held)
+                if not self._lock.locked():
+                    new_event.set()
+                self._async_events[current_loop] = new_event
+                return new_event
+            return existing_event
 
     def __enter__(self):
         """Support synchronous context manager protocol.
 
         Uses threading.Lock directly for simple, reliable cross-thread
-        synchronization without the complexity and deadlock risks of
-        event loop management.
+        synchronization and ensures mutual exclusion with async contexts.
 
-        Fix for Issue #1290: Uses threading.Lock instead of asyncio.Lock
-        to prevent deadlock risks from event loop reuse and ensure true
+        Fix for Issue #1290: Uses threading.Lock to prevent
+        deadlock risks from event loop reuse and ensure true
         cross-thread mutual exclusion.
         Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
         independently from async lock state.
@@ -167,6 +142,8 @@ class _AsyncCompatibleLock:
         and prevent race conditions between lock acquisition and state update.
         Fix for Issue #1349: Sets _sync_locked flag AFTER acquire() succeeds
         to prevent race condition where flag=True but lock is not held.
+        Fix for Issue #1381: Uses unified threading.Lock for both sync and async
+        to ensure true mutual exclusion.
         """
         # Acquire the lock first, then set the flag
         # This ensures the flag is only True if we actually hold the lock
@@ -188,69 +165,91 @@ class _AsyncCompatibleLock:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
 
-        Simply releases the threading.Lock.
+        Simply releases the threading.Lock and wakes up any waiting async tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __exit__ is called without successful __enter__.
         Fix for Issue #1290: Uses threading.Lock for simple, reliable cleanup.
         Fix for Issue #1326: Uses _sync_locked flag to track sync lock state
         independently from async lock state.
+        Fix for Issue #1381: Signals all waiting async events that lock is available.
         """
         if self._sync_locked:
             self._lock.release()
             self._sync_locked = False
+            # Fix for Issue #1381: Signal all async events that the lock is available
+            # This wakes up any async tasks waiting on the lock
+            for event in self._async_events.values():
+                if not event.is_set():
+                    event.set()
         return False
 
     async def __aenter__(self):
         """Support asynchronous context manager protocol.
 
-        Uses asyncio.Lock for async contexts to prevent event loop blocking
-        and avoid thread pool exhaustion under high concurrency.
+        Uses threading.Lock with asyncio.Event for async contexts to ensure
+        true mutual exclusion with sync contexts while preventing event loop blocking.
 
-        Fix for Issue #1316: Uses asyncio.Lock instead of threading.Lock with
-        executor to prevent event loop blocking and thread pool exhaustion.
+        Fix for Issue #1316: Uses threading.Lock + asyncio.Event instead of
+        asyncio.Lock to ensure mutual exclusion with sync contexts.
         Fix for Issue #1326: Uses _async_locked flag to track async lock state
         independently from sync lock state.
-        Fix for Issue #1355: Stores the acquired lock instance to ensure
-        __aexit__ releases the same lock that was acquired.
         Fix for Issue #1360: Uses try-except to ensure atomic state management.
         If an exception occurs after acquire() but before __aenter__ returns,
         we need to ensure the lock is released to prevent deadlock.
+        Fix for Issue #1381: Uses unified threading.Lock for both sync and async
+        to ensure true mutual exclusion. Uses asyncio.Event for efficient async waiting.
         """
-        async_lock = self._get_async_lock()
-        await async_lock.acquire()
-        try:
-            self._async_locked = True
-            self._held_async_lock = async_lock  # Store for __aexit__
-            return self
-        except BaseException:
-            # If any exception occurs before we return, release the lock
-            # and clear the flag to maintain consistent state
-            self._async_locked = False
-            self._held_async_lock = None
-            async_lock.release()
-            raise
+        # Fix for Issue #1381: Get the event for this event loop
+        async_event = self._get_async_event()
+
+        # Wait for the event to be set (indicating lock is available)
+        # Then try to acquire the lock
+        while True:
+            # Wait for the event to be set
+            await async_event.wait()
+
+            # Try to acquire the lock with non-blocking attempt
+            # If we get it, clear the event and return
+            acquired = self._lock.acquire(blocking=False)
+            if acquired:
+                try:
+                    self._async_locked = True
+                    # Clear the event so other async tasks know the lock is taken
+                    async_event.clear()
+                    return self
+                except BaseException:
+                    # If any exception occurs before we return, release the lock
+                    # and set the event again to maintain consistent state
+                    self._async_locked = False
+                    self._lock.release()
+                    async_event.set()
+                    raise
+            else:
+                # Lock is held by another thread/sync context
+                # Wait a bit and try again
+                await asyncio.sleep(0)
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
 
-        Simply releases the asyncio.Lock.
+        Releases the threading.Lock and signals other waiting tasks.
 
         Fix for Issue #1181: Only releases lock if it was acquired, preventing
         RuntimeError when __aexit__ is called without successful __aenter__.
-        Fix for Issue #1316: Uses asyncio.Lock for async context cleanup.
+        Fix for Issue #1316: Uses threading.Lock for async context cleanup.
         Fix for Issue #1326: Uses _async_locked flag to track async lock state
         independently from sync lock state.
-        Fix for Issue #1355: Uses the stored lock instance from __aenter__
-        instead of calling _get_async_lock() again, preventing KeyError or
-        releasing a different lock object.
+        Fix for Issue #1381: Uses unified threading.Lock and signals waiting tasks.
         """
         if self._async_locked:
-            # Use the stored lock instance instead of calling _get_async_lock() again
-            # This prevents KeyError if the event loop changed or lock was cleaned up
-            self._held_async_lock.release()
+            self._lock.release()
             self._async_locked = False
-            self._held_async_lock = None  # Clear the reference
+            # Fix for Issue #1381: Signal all waiting async events that the lock is available
+            # This wakes up any other async tasks waiting on the lock
+            for event in self._async_events.values():
+                if not event.is_set():
+                    event.set()
         return False
 
 
