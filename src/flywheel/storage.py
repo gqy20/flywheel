@@ -199,18 +199,23 @@ class _AsyncCompatibleLock:
         contexts where a sync thread holding the lock waits for an async event.
         Fix for Issue #1410: Removes _is_owned() check (RLock-specific) since
         threading.Lock does not support reentrancy or have _is_owned() method.
+        Fix for Issue #1416: Signals events while holding lock to prevent race
+        condition where another thread acquires lock and resets event before
+        signaling completes.
         """
         # For threading.Lock (non-reentrant), we release unconditionally.
         # This is safe because __exit__ is only called after __enter__ succeeds,
         # which means we hold the lock. The try-finally in __enter__ ensures
         # the lock is released if __enter__ fails before returning.
-        self._lock.release()
         # Fix for Issue #1381: Signal all async events that the lock is available
         # This wakes up any async tasks waiting on the lock
         # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+        # Fix for Issue #1416: Signal events BEFORE releasing lock to prevent
+        # race condition where another thread acquires lock and clears event
         for event in list(self._async_events.values()):
             if not event.is_set():
                 event.set()
+        self._lock.release()
         return False
 
     async def __aenter__(self):
@@ -282,18 +287,23 @@ class _AsyncCompatibleLock:
         contexts where a sync thread holding the lock waits for an async event.
         Fix for Issue #1410: Removes _is_owned() check (RLock-specific) since
         threading.Lock does not support reentrancy or have _is_owned() method.
+        Fix for Issue #1416: Signals events while holding lock to prevent race
+        condition where another thread acquires lock and resets event before
+        signaling completes.
         """
         # For threading.Lock (non-reentrant), we release unconditionally.
         # This is safe because __aexit__ is only called after __aenter__ succeeds,
         # which means we hold the lock. The try-except in __aenter__ ensures
         # the lock is released if __aenter__ fails before returning.
-        self._lock.release()
         # Fix for Issue #1381: Signal all waiting async events that the lock is available
         # This wakes up any other async tasks waiting on the lock
         # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
+        # Fix for Issue #1416: Signal events BEFORE releasing lock to prevent
+        # race condition where another thread acquires lock and clears event
         for event in list(self._async_events.values()):
             if not event.is_set():
                 event.set()
+        self._lock.release()
         return False
 
 
