@@ -131,28 +131,37 @@ class _AsyncCompatibleLock:
                 "an async context with a running event loop"
             )
 
-        # Acquire the lock first to prevent race condition with GC
-        # Without this, the fast path could return an event that gets GC'd
-        # between the get() call and the return statement.
+        # Fix for Issue #1470: Check existing event with lock held, but create
+        # and configure the new event outside the lock to prevent potential deadlock.
         with self._async_event_init_lock:
             # Check if event already exists for this event loop
             existing_event = self._async_events.get(current_loop)
             if existing_event is not None:
                 return existing_event
 
-            # Create new event for this event loop
-            new_event = asyncio.Event()
-            # Fix for Issue #1446: Atomically check and set initial Event state.
-            # Fix for Issue #1466: Check lock state using locked() instead of
-            # acquire()/release() to avoid potential TOCTOU race condition.
-            # The entire check-and-set operation is protected by _async_event_init_lock,
-            # ensuring the state remains consistent during this critical section.
-            if not self._lock.locked():
-                # Lock is available, set Event to signal availability
-                new_event.set()
-            # Otherwise, lock is held, Event remains unset (correct state)
+        # Create new event for this event loop (outside lock)
+        new_event = asyncio.Event()
+
+        # Fix for Issue #1446: Check lock state to set initial Event state.
+        # Fix for Issue #1466: Use locked() instead of acquire()/release()
+        # to avoid TOCTOU race condition.
+        # Note: This check is now outside _async_event_init_lock, which is safe
+        # because we're just reading the lock state, not modifying shared state.
+        if not self._lock.locked():
+            # Lock is available, set Event to signal availability
+            new_event.set()
+        # Otherwise, lock is held, Event remains unset (correct state)
+
+        # Store the event in the dictionary (need lock for this)
+        with self._async_event_init_lock:
+            # Double-check: another thread might have created an event while we were
+            # creating ours. If so, return the existing one.
+            existing_event = self._async_events.get(current_loop)
+            if existing_event is not None:
+                return existing_event
             self._async_events[current_loop] = new_event
-            return new_event
+
+        return new_event
 
     def __enter__(self):
         """Support synchronous context manager protocol.
