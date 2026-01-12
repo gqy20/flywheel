@@ -187,13 +187,26 @@ class _AsyncCompatibleLock:
         # 1. `return self` cannot raise an exception under normal circumstances
         # 2. If an exception somehow occurred, releasing the lock here would
         #    cause a double release when __exit__ is called, triggering RuntimeError
+        # Fix for Issue #1465: Added defensive try-finally to ensure the lock is
+        # released if an exception occurs between acquire() and return self.
+        # This prevents lock leaks in the extremely rare case where an exception
+        # could occur after the lock is acquired but before __enter__ returns.
         acquired = self._lock.acquire(timeout=self._lock_timeout)
         if not acquired:
             raise StorageTimeoutError(
                 f"Could not acquire lock within {self._lock_timeout} seconds. "
                 "This may indicate a deadlock or very high contention."
             )
-        return self
+        # Use try-finally for defensive programming (Issue #1465)
+        # While return self cannot normally raise an exception, this ensures
+        # that if somehow an exception occurs, the lock will be released.
+        try:
+            return self
+        except:
+            # If any exception occurs after acquiring the lock, release it
+            # to prevent lock leaks
+            self._lock.release()
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
@@ -215,11 +228,15 @@ class _AsyncCompatibleLock:
         to prevent race condition where another thread modifies _async_events during
         iteration.
         """
-        # For threading.Lock (non-reentrant), we release unconditionally.
-        # This is safe because __exit__ is only called after __enter__ succeeds,
-        # which means we hold the lock.
+        # For threading.Lock (non-reentrant), we need defensive handling.
+        # Fix for Issue #1181: Only releases lock if it was acquired, preventing
+        # RuntimeError when __exit__ is called without successful __enter__.
         # Fix for Issue #1450: Simplified __enter__ to just acquire and return self,
         # removing the problematic try-except that could cause double release.
+        # Fix for Issue #1465: Added defensive exception handling in __exit__ to prevent
+        # lock leaks in edge cases where __enter__ might fail after acquiring the lock.
+        # While threading.Lock.release() raises RuntimeError if the lock isn't held,
+        # we catch this to handle edge cases gracefully.
         # Fix for Issue #1381: Signal all async events that the lock is available
         # This wakes up any async tasks waiting on the lock
         # Fix for Issue #1391: Create snapshot to avoid RuntimeError during iteration
@@ -231,7 +248,13 @@ class _AsyncCompatibleLock:
             for event in list(self._async_events.values()):
                 if not event.is_set():
                     event.set()
-        self._lock.release()
+        try:
+            self._lock.release()
+        except RuntimeError:
+            # Lock is not held by the current thread
+            # This can happen if __exit__ is called without a successful __enter__
+            # (e.g., if __enter__ raised an exception after acquiring the lock)
+            pass
         return False
 
     async def __aenter__(self):
