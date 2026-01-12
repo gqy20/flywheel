@@ -277,13 +277,20 @@ class _AsyncCompatibleLock:
                     "Lock acquired successfully",
                     extra={'component': 'storage', 'op': 'lock_acquire'}
                 )
-                # Fix for Issue #1426: Removed try-except around return self
-                # The previous try-except block was problematic because:
-                # 1. return self cannot raise an exception under normal circumstances
-                # 2. If an exception somehow occurred, releasing the lock here would
-                #    cause a double release when __exit__ is called, triggering RuntimeError
-                # The lock will be properly released by __exit__ when the context exits.
-                return self
+                # Fix for Issue #1531: Use try-finally to ensure lock is released
+                # if an exception occurs between acquire() and return self.
+                # While return self normally cannot raise, this defensive pattern
+                # ensures lock cleanup in edge cases (e.g., signal handlers, async
+                # edge cases, or future code modifications).
+                # The lock will be normally released by __exit__ when the context exits,
+                # but this ensures cleanup even if __exit__ is never reached.
+                try:
+                    return self
+                except BaseException:
+                    # Exception occurred after acquiring lock but before returning.
+                    # Release the lock to prevent deadlock/leak.
+                    self._lock.release()
+                    raise
 
             # Lock acquisition timed out - implement exponential backoff retry
             # Fix for Issue #1498: Instead of failing immediately, retry with
