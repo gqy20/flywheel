@@ -1218,12 +1218,41 @@ class IOMetrics:
         This method is intended to be run in a separate thread via
         asyncio.to_thread to avoid blocking the event loop.
 
+        Uses atomic write pattern (Issue #1509):
+        1. Write to temporary file
+        2. Sync to disk (flush)
+        3. Atomically rename to target path
+
+        This prevents data loss if the process crashes during write.
+
         Args:
             path: Path to the file where metrics will be saved
             data: Dictionary data to write as JSON
         """
-        with open(path, 'w') as f:
-            json.dump(data, f, indent=2)
+        path = Path(path)
+
+        # Create temporary file in the same directory as the target
+        # This ensures the rename operation is atomic (same filesystem)
+        temp_path = path.with_suffix(path.suffix + '.tmp')
+
+        try:
+            # Write data to temporary file
+            with open(temp_path, 'w') as f:
+                json.dump(data, f, indent=2)
+                # Ensure data is written to disk before renaming
+                f.flush()
+                os.fsync(f.fileno())
+
+            # Atomically rename temporary file to target path
+            # This is atomic on POSIX systems and ensures either
+            # the old file or new file exists, never a partial state
+            temp_path.replace(path)
+
+        except Exception:
+            # Clean up temporary file if something goes wrong
+            if temp_path.exists():
+                temp_path.unlink()
+            raise
 
     def reset(self):
         """Clear all recorded metrics (Issue #1078).
