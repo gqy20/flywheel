@@ -13,7 +13,6 @@ import logging
 import os
 import threading
 import time
-import weakref
 from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -150,7 +149,7 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
-        self._async_events = weakref.WeakKeyDictionary()
+        self._async_events = {}
         self._async_event_init_lock = threading.Lock()  # Protects lazy initialization
 
     def _get_async_event(self):
