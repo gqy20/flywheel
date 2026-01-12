@@ -49,10 +49,21 @@ def _sanitize_text(text: str) -> str:
     text = text.translate(invisible_chars_map)
 
     # Normalize whitespace: convert tabs and newlines to single space
-    # (in case any slipped through before strip)
-    # Using split/join instead of regex to prevent ReDoS vulnerabilities
-    # This is O(n) and safer than regex alternatives
-    text = ' '.join(text.split())
+    # Using manual iteration instead of str.split() to explicitly prevent
+    # any potential memory issues with large inputs (even though str.split()
+    # without arguments is already safe, this makes the intent crystal clear)
+    # This is O(n) and uses minimal memory
+    result = []
+    in_whitespace = False
+    for c in text:
+        if c in (' ', '\t', '\n', '\r'):
+            if not in_whitespace:
+                result.append(' ')
+                in_whitespace = True
+        else:
+            result.append(c)
+            in_whitespace = False
+    text = ''.join(result)
 
     return text
 
