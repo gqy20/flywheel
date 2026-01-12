@@ -766,13 +766,15 @@ class _AsyncCompatibleLock:
         - acquire_count: Total number of successful lock acquisitions
         - contention_count: Number of acquisitions that had to wait (> 0 seconds)
         - total_wait_time: Total time spent waiting for the lock (seconds)
+        - average_wait_time: Average wait time per acquisition (seconds)
+        - contention_rate: Ratio of contentions to acquisitions (0.0 to 1.0)
 
         These statistics help identify lock contention issues and optimize
         performance by understanding how often threads/tasks compete for the lock.
 
         Returns:
             dict: Statistics dictionary with keys 'acquire_count', 'contention_count',
-                  and 'total_wait_time'.
+                  'total_wait_time', 'average_wait_time', and 'contention_rate'.
 
         Example:
             >>> lock = _AsyncCompatibleLock()
@@ -782,14 +784,29 @@ class _AsyncCompatibleLock:
             >>> print(f"Acquired {stats['acquire_count']} times")
             >>> print(f"Contention {stats['contention_count']} times")
             >>> print(f"Total wait: {stats['total_wait_time']:.3f}s")
+            >>> print(f"Avg wait: {stats['average_wait_time']:.3f}s")
+            >>> print(f"Contention rate: {stats['contention_rate']:.1%}")
 
         Fix for Issue #1538: Implements lock statistics tracking.
+        Fix for Issue #1552: Adds average_wait_time and contention_rate.
         """
         with self._stats_lock:
+            average_wait_time = (
+                self._total_wait_time / self._acquire_count
+                if self._acquire_count > 0
+                else 0.0
+            )
+            contention_rate = (
+                self._contention_count / self._acquire_count
+                if self._acquire_count > 0
+                else 0.0
+            )
             return {
                 'acquire_count': self._acquire_count,
                 'contention_count': self._contention_count,
                 'total_wait_time': self._total_wait_time,
+                'average_wait_time': average_wait_time,
+                'contention_rate': contention_rate,
             }
 
     def reset_stats(self) -> None:
@@ -853,6 +870,43 @@ class _AsyncCompatibleLock:
             self._contention_count = 0
             self._total_wait_time = 0.0
             self._last_flush_count = 0
+
+    def log_stats(self, message: str = "Lock statistics") -> None:
+        """Log lock statistics for monitoring and diagnostics.
+
+        This method outputs the current lock statistics to the logger,
+        which is useful for monitoring lock contention in production systems
+        or debugging performance issues during development.
+
+        Args:
+            message: Optional custom message to prefix the log output.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> # Use the lock...
+            >>> with lock:
+            ...     pass
+            >>> # Log statistics
+            >>> lock.log_stats()
+            >>> lock.log_stats(message="Custom prefix")
+
+        Fix for Issue #1552: Implements automatic lock statistics reporting.
+        """
+        stats = self.get_stats()
+        logger.info(
+            message,
+            extra={
+                'component': 'lock',
+                'op': 'log_stats',
+                'lock_stats': {
+                    'acquire_count': stats['acquire_count'],
+                    'contention_count': stats['contention_count'],
+                    'total_wait_time': stats['total_wait_time'],
+                    'average_wait_time': stats['average_wait_time'],
+                    'contention_rate': stats['contention_rate'],
+                }
+            }
+        )
 
 
 class _TransactionContext:
