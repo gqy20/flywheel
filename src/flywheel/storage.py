@@ -13,6 +13,7 @@ import logging
 import os
 import threading
 import time
+import weakref
 from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
@@ -202,6 +203,9 @@ class _AsyncCompatibleLock:
         # async coroutines to wait without blocking the event loop.
         self._async_events = {}
         self._async_event_init_lock = threading.Lock()  # Protects lazy initialization
+        # Fix for Issue #1541: Track cleanup callbacks for automatic event cleanup
+        # when event loops are closed to prevent memory leaks
+        self._async_event_cleanups = {}
 
         # Fix for Issue #1538: Initialize lock statistics tracking
         # Use threading.Lock for thread-safe access to statistics
@@ -270,6 +274,20 @@ class _AsyncCompatibleLock:
 
             # Register our event
             self._async_events[current_loop] = new_event
+
+            # Fix for Issue #1541: Register cleanup callback to automatically
+            # remove the event from _async_events when the loop is closed/garbage
+            # collected. This prevents memory leaks in long-running programs.
+            def cleanup_event(loop_ref):
+                """Cleanup callback to remove event when loop is garbage collected."""
+                with self._async_event_init_lock:
+                    self._async_events.pop(loop_ref, None)
+                    self._async_event_cleanups.pop(loop_ref, None)
+
+            # Use weakref.finalize to register cleanup callback
+            # The callback will be triggered when the event loop is garbage collected
+            cleanup = weakref.finalize(current_loop, cleanup_event, current_loop)
+            self._async_event_cleanups[current_loop] = cleanup
 
             # Fix for Issue #1535: Return while still holding lock to ensure
             # the reference remains valid and prevent race conditions
@@ -630,6 +648,8 @@ class _AsyncCompatibleLock:
             >>> lock.cleanup_loop(loop)
 
         Fix for Issue #1493: Implements explicit cleanup for event loop resources.
+        Fix for Issue #1541: Also cleans up the automatic cleanup callback to prevent
+        keeping unnecessary references.
         """
         # Use the same lock that protects _async_events modifications
         # to prevent race conditions with _get_async_event()
@@ -637,6 +657,8 @@ class _AsyncCompatibleLock:
             # Use pop() with default to safely handle case where loop isn't in dict
             # This is thread-safe and won't raise KeyError
             self._async_events.pop(loop, None)
+            # Fix for Issue #1541: Clean up the weakref.finalize callback
+            self._async_event_cleanups.pop(loop, None)
 
     def get_stats(self) -> dict:
         """Get lock statistics for monitoring and performance tuning.
