@@ -5866,6 +5866,10 @@ class FileStorage(AbstractStorage):
                             f"Last error: {last_error}. "
                             f"Cannot continue without secure directory permissions."
                         ) from last_error
+
+                except BaseException:
+                    # Re-raise any exceptions
+                    raise
                 finally:
                     # Security fix for Issue #521: Always release the lock, even if an error occurred
                     if lock_acquired:
