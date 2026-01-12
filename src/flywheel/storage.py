@@ -172,10 +172,10 @@ class _AsyncCompatibleLock:
                 "an async context with a running event loop"
             )
 
-        # Fix for Issue #1491: Create Event outside the lock to prevent potential
-        # deadlock when the event loop is paused or not running in the current thread.
-        # Use double-check locking pattern to prevent race conditions while
-        # maintaining deadlock safety.
+        # Fix for Issue #1526: Create Event inside the lock to ensure atomic
+        # initialization with correct state based on current lock state.
+        # This prevents race condition where Event is created without knowledge
+        # of lock state, making the subsequent check-and-set fragile.
         # Fix for Issue #1476: Double-check inside lock prevents race where
         # multiple threads create different events.
         # Fix for Issue #1480: Only one thread's event gets registered; others
@@ -186,11 +186,6 @@ class _AsyncCompatibleLock:
         if existing_event is not None:
             return existing_event
 
-        # Create the event OUTSIDE the lock to prevent potential deadlock
-        # Fix for Issue #1491: Creating Event while holding threading.Lock could
-        # cause deadlock if the event loop is paused or not running.
-        new_event = asyncio.Event()
-
         with self._async_event_init_lock:
             # Second check: with lock (prevents race condition)
             # Fix for Issue #1476: Double-check locking pattern
@@ -199,14 +194,19 @@ class _AsyncCompatibleLock:
                 # Another thread already created an event, use it instead
                 return existing_event
 
-            # Fix for Issue #1446: Check lock state to set initial Event state.
+            # Fix for Issue #1526: Create Event INSIDE the lock to ensure
+            # atomic initialization with correct state.
+            # Fix for Issue #1446: Set initial Event state based on lock state.
             # Fix for Issue #1475: Perform check and set atomically while holding lock
             # to prevent TOCTOU race condition where lock state changes between
             # check and set.
             if not self._lock.locked():
-                # Lock is available, set Event to signal availability
+                # Lock is available, create Event and set it to signal availability
+                new_event = asyncio.Event()
                 new_event.set()
-            # Otherwise, lock is held, Event remains unset (correct state)
+            else:
+                # Lock is held, create unset Event (correct state for waiting)
+                new_event = asyncio.Event()
 
             # Register our event
             self._async_events[current_loop] = new_event
