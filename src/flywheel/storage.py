@@ -48,8 +48,45 @@ class StorageTimeoutError(TimeoutError):
 
     Fix for Issue #1043: Configurable timeout for I/O retries.
     Fix for Issue #1481: Documents that lock is NOT held after timeout.
+    Fix for Issue #1508: Added optional context parameters (timeout, operation, caller)
+    for better debugging and error handling.
     """
-    pass
+
+    def __init__(self, message: str = "", timeout: float | None = None,
+                 operation: str | None = None, caller: str | None = None):
+        """Initialize StorageTimeoutError with optional context parameters.
+
+        Args:
+            message: The error message
+            timeout: The timeout duration in seconds
+            operation: The operation that timed out (e.g., 'load_cache', 'save_data')
+            caller: The function or method that triggered the timeout
+        """
+        self.timeout = timeout
+        self.operation = operation
+        self.caller = caller
+
+        # Build enhanced error message with context
+        parts = []
+        if message:
+            parts.append(message)
+
+        if timeout is not None:
+            parts.append(f"timeout={timeout}s")
+
+        if operation is not None:
+            parts.append(f"operation={operation}")
+
+        if caller is not None:
+            parts.append(f"caller={caller}")
+
+        # Combine original message with context
+        if len(parts) > 1 or (len(parts) == 1 and parts[0] != message):
+            full_message = " | ".join(parts)
+        else:
+            full_message = message
+
+        super().__init__(full_message)
 
 
 class _AsyncCompatibleLock:
