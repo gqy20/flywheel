@@ -345,6 +345,15 @@ class _AsyncCompatibleLock:
             else:
                 timeout_for_attempt = self._lock_timeout
 
+            # Fix for Issue #1540: Validate timeout is positive to prevent race condition
+            # where acquire() could be called with invalid timeout and cause indefinite blocking.
+            # This defensive check ensures we never call acquire(timeout <= 0) which could
+            # behave like acquire(blocking=True) and block indefinitely.
+            assert timeout_for_attempt > 0, (
+                f"Lock timeout must be positive, got {timeout_for_attempt}. "
+                "This could cause indefinite blocking."
+            )
+
             # Acquire the lock with timeout
             # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
             # prevent indefinite blocking. If the lock cannot be acquired within
@@ -363,6 +372,8 @@ class _AsyncCompatibleLock:
             # Fix for Issue #1481: CRITICAL: When acquire(timeout=X) returns False (timeout),
             # the lock is NOT held. We raise StorageTimeoutError to signal this, and callers
             # MUST NOT assume they hold the lock after catching this exception.
+            # Fix for Issue #1540: CRITICAL: ALWAYS use timeout parameter in acquire() to prevent
+            # indefinite blocking. Never call acquire() without timeout=... in the retry loop.
             acquired = self._lock.acquire(timeout=timeout_for_attempt)
             if acquired:
                 # Lock acquired successfully
