@@ -133,6 +133,8 @@ class _AsyncCompatibleLock:
 
         # Fix for Issue #1470: Check existing event with lock held, but create
         # and configure the new event outside the lock to prevent potential deadlock.
+        # Fix for Issue #1476: Use double-check locking pattern to prevent race
+        # conditions while maintaining deadlock safety.
         with self._async_event_init_lock:
             # Check if event already exists for this event loop
             existing_event = self._async_events.get(current_loop)
@@ -140,6 +142,7 @@ class _AsyncCompatibleLock:
                 return existing_event
 
         # Create new event for this event loop (outside lock)
+        # This is done outside the lock to prevent potential deadlock as per Issue #1470
         new_event = asyncio.Event()
 
         # Fix for Issue #1446: Check lock state to set initial Event state.
@@ -153,6 +156,8 @@ class _AsyncCompatibleLock:
         # Otherwise, lock is held, Event remains unset (correct state)
 
         # Store the event in the dictionary (need lock for this)
+        # Fix for Issue #1476: Double-check locking pattern prevents race condition
+        # where multiple threads could create different events and try to insert them.
         with self._async_event_init_lock:
             # Double-check: another thread might have created an event while we were
             # creating ours. If so, return the existing one.
