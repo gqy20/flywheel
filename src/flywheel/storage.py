@@ -236,6 +236,11 @@ class _AsyncCompatibleLock:
             acquired = self._lock.acquire(timeout=self._lock_timeout)
             if acquired:
                 # Lock acquired successfully
+                # Fix for Issue #1502: Log with structured data for monitoring
+                logger.debug(
+                    "Lock acquired successfully",
+                    extra={'component': 'storage', 'op': 'lock_acquire'}
+                )
                 # Use try-finally for defensive programming (Issue #1465)
                 # While return self cannot normally raise an exception, this ensures
                 # that if somehow an exception occurs, the lock will be released.
@@ -6389,7 +6394,11 @@ class FileStorage(AbstractStorage):
         """
         import time
         start_time = time.time()
-        logger.debug(f"Loading todos from {self.path} (asynchronously)")
+        # Fix for Issue #1502: Use structured logging for monitoring
+        logger.debug(
+            f"Loading todos from {self.path} (asynchronously)",
+            extra={'component': 'storage', 'op': 'load_async'}
+        )
 
         if not self.path.exists():
             self._todos = []
