@@ -140,27 +140,19 @@ class _AsyncCompatibleLock:
         # and configure the new event outside the lock to prevent potential deadlock.
         # Fix for Issue #1476: Use double-check locking pattern to prevent race
         # conditions while maintaining deadlock safety.
+        # Fix for Issue #1480: Create new_event inside lock to prevent race condition
+        # where event state could be overwritten.
         with self._async_event_init_lock:
             # Check if event already exists for this event loop
             existing_event = self._async_events.get(current_loop)
             if existing_event is not None:
                 return existing_event
 
-        # Create new event for this event loop (outside lock)
-        # This is done outside the lock to prevent potential deadlock as per Issue #1470
-        new_event = asyncio.Event()
-
-        # Store the event in the dictionary (need lock for this)
-        # Fix for Issue #1476: Double-check locking pattern prevents race condition
-        # where multiple threads could create different events and try to insert them.
-        # Fix for Issue #1475: Check and set Event state while holding lock to prevent
-        # TOCTOU race condition between locked() check and set() call.
-        with self._async_event_init_lock:
-            # Double-check: another thread might have created an event while we were
-            # creating ours. If so, return the existing one.
-            existing_event = self._async_events.get(current_loop)
-            if existing_event is not None:
-                return existing_event
+            # Create new event for this event loop (inside lock)
+            # Fix for Issue #1480: Move Event creation inside lock to prevent race
+            # condition where multiple threads could create different events and
+            # the last one to insert would overwrite a previously set event state.
+            new_event = asyncio.Event()
 
             # Fix for Issue #1446: Check lock state to set initial Event state.
             # Fix for Issue #1475: Perform check and set atomically while holding lock
