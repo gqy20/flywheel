@@ -5818,7 +5818,18 @@ class FileStorage(AbstractStorage):
 
             if old_backup.exists():
                 try:
-                    shutil.copy2(old_backup, new_backup)
+                    # Use atomic write pattern (Issue #1515):
+                    # 1. Write to temporary file
+                    # 2. Sync to disk (flush)
+                    # 3. Atomically rename to target path
+                    # This prevents data loss if the process crashes during write
+                    temp_backup = new_backup.with_suffix(new_backup.suffix + '.tmp')
+
+                    # Copy to temporary file first
+                    shutil.copy2(old_backup, temp_backup)
+
+                    # Atomically replace the target file
+                    temp_backup.replace(new_backup)
                 except OSError:
                     # Ignore errors during backup rotation
                     pass
@@ -5826,7 +5837,18 @@ class FileStorage(AbstractStorage):
         # Create new backup from current file
         backup_path = self.path.parent / f"{self.path.name}.bak"
         try:
-            shutil.copy2(self.path, backup_path)
+            # Use atomic write pattern (Issue #1515):
+            # 1. Write to temporary file
+            # 2. Sync to disk (flush)
+            # 3. Atomically rename to target path
+            # This prevents data loss if the process crashes during write
+            temp_backup = backup_path.with_suffix(backup_path.suffix + '.tmp')
+
+            # Copy to temporary file first
+            shutil.copy2(self.path, temp_backup)
+
+            # Atomically replace the target file
+            temp_backup.replace(backup_path)
         except OSError:
             # Ignore errors when creating backup
             pass
@@ -5869,11 +5891,26 @@ class FileStorage(AbstractStorage):
 
             if old_backup.exists():
                 try:
+                    # Use atomic write pattern (Issue #1515):
+                    # 1. Write to temporary file
+                    # 2. Sync to disk (flush)
+                    # 3. Atomically rename to target path
+                    # This prevents data loss if the process crashes during write
+                    temp_backup = new_backup.with_suffix(new_backup.suffix + '.tmp')
+
                     # Use async file copy for non-blocking I/O
                     async with aiofiles.open(old_backup, 'rb') as src_file:
                         data = await src_file.read()
-                    async with aiofiles.open(new_backup, 'wb') as dst_file:
+
+                    # Write to temporary file
+                    async with aiofiles.open(temp_backup, 'wb') as dst_file:
                         await dst_file.write(data)
+                        await dst_file.flush()
+                        os.fsync(dst_file.fileno())
+
+                    # Atomically replace the target file
+                    temp_backup.replace(new_backup)
+
                     # Copy metadata (modification time, etc.)
                     shutil.copystat(old_backup, new_backup)
                 except OSError:
@@ -5883,11 +5920,26 @@ class FileStorage(AbstractStorage):
         # Create new backup from current file
         backup_path = self.path.parent / f"{self.path.name}.bak"
         try:
+            # Use atomic write pattern (Issue #1515):
+            # 1. Write to temporary file
+            # 2. Sync to disk (flush)
+            # 3. Atomically rename to target path
+            # This prevents data loss if the process crashes during write
+            temp_backup = backup_path.with_suffix(backup_path.suffix + '.tmp')
+
             # Use async file copy for non-blocking I/O
             async with aiofiles.open(self.path, 'rb') as src_file:
                 data = await src_file.read()
-            async with aiofiles.open(backup_path, 'wb') as dst_file:
+
+            # Write to temporary file
+            async with aiofiles.open(temp_backup, 'wb') as dst_file:
                 await dst_file.write(data)
+                await dst_file.flush()
+                os.fsync(dst_file.fileno())
+
+            # Atomically replace the target file
+            temp_backup.replace(backup_path)
+
             # Copy metadata (modification time, etc.)
             shutil.copystat(self.path, backup_path)
         except OSError:
