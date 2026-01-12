@@ -134,7 +134,8 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         #1289 (context-specific default max_length - 255 for CLI contexts),
         #1309 (add pre-normalization coarse check to prevent NFKC expansion DoS),
         #1319 (remove format string chars in general context to prevent injection),
-        #1324 (preserve format string chars in general context to maintain user intent)
+        #1324 (preserve format string chars in general context to maintain user intent),
+        #1514 (fix inconsistency - clarify general context preserves, format context escapes)
     """
     if not s:
         return ""
@@ -312,7 +313,10 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
         # This is O(n) with no backtracking risk
         s = ''.join(c for c in s if c not in shell_dangerous_chars)
     # else: General context - preserve shell metacharacters (Issue #1024, #979)
-    # but REMOVE format string characters for security (Issue #1319)
+    # and preserve format string characters to maintain user intent (Issue #1324, #1514)
+    # SECURITY NOTE: General context preserves format characters because it's for
+    # data storage and display, not for use in format strings. Use 'format' context
+    # to safely escape format characters for f-strings, .format(), or % formatting.
 
     # Remove control characters for non-shell, non-format, non-url/filename contexts
     # SECURITY FIX (Issue #999, #1049): Length check happens AFTER Unicode
