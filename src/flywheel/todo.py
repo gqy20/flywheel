@@ -38,8 +38,15 @@ def _sanitize_text(text: str) -> str:
     text = ''.join(c for c in text if ord(c) not in control_chars)
 
     # Remove zero-width spaces and other invisible Unicode characters
-    # This regex is safe as it matches fixed character ranges
-    text = re.sub(r'[\u200b-\u200d\u2060\ufeff]', '', text)
+    # Using str.translate() to prevent ReDoS vulnerabilities (O(n) guaranteed)
+    invisible_chars_map = {
+        0x200B: None,  # Zero Width Space
+        0x200C: None,  # Zero Width Non-Joiner
+        0x200D: None,  # Zero Width Joiner
+        0x2060: None,  # Word Joiner
+        0xFEFF: None,  # Zero Width No-Break Space (BOM)
+    }
+    text = text.translate(invisible_chars_map)
 
     # Normalize whitespace: convert tabs and newlines to single space
     # (in case any slipped through before strip)
