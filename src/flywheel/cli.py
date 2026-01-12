@@ -157,6 +157,16 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # 3. The post-normalization check (below) still enforces the strict limit
     # This addresses the concern about normalization expansion while maintaining
     # the fix for Issue #1049 (normalization before truncation).
+    #
+    # SECURITY NOTE (Issue #1505): FALSE POSITIVE - The slicing below is SAFE.
+    # Python 3 strings are sequences of Unicode code points, NOT bytes.
+    # - len(s) returns the number of code points (characters), not UTF-8 bytes
+    # - s[:n] slices by code points, not bytes
+    # - Python string slicing CANNOT create invalid UTF-8 sequences
+    # Example: "😀" * 100 has len() = 100 (code points), not 400 (bytes)
+    # The suggested fix (.encode('utf-8', 'ignore').decode('utf-8')) would be
+    # incorrect because it operates on bytes and would lose valid characters.
+    # The subsequent Unicode normalization (NFKC/NFC) already handles edge cases.
     if len(s) > effective_max_length * 2:
         s = s[:effective_max_length * 2]
 
