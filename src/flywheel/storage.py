@@ -122,6 +122,8 @@ class _AsyncCompatibleLock:
     Fix for Issue #1533: Implements configurable fuzzy lock timeout mechanism
     with timeout_range parameter and custom backoff strategies to prevent
     thundering herd effects during high contention.
+    Fix for Issue #1538: Implements lock statistics tracking for performance
+    monitoring and contention analysis.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -200,6 +202,13 @@ class _AsyncCompatibleLock:
         # async coroutines to wait without blocking the event loop.
         self._async_events = {}
         self._async_event_init_lock = threading.Lock()  # Protects lazy initialization
+
+        # Fix for Issue #1538: Initialize lock statistics tracking
+        # Use threading.Lock for thread-safe access to statistics
+        self._stats_lock = threading.Lock()
+        self._acquire_count = 0  # Total number of lock acquisitions
+        self._contention_count = 0  # Number of times lock was contended (wait time > 0)
+        self._total_wait_time = 0.0  # Total time spent waiting for lock (seconds)
 
     def _get_async_event(self):
         """Get or create the asyncio.Event for the current event loop.
@@ -298,6 +307,10 @@ class _AsyncCompatibleLock:
         import random
         import time
 
+        # Fix for Issue #1538: Track wait time for statistics
+        acquire_start_time = time.time()
+        had_contention = False
+
         # Fix for Issue #1498: Implement exponential backoff for retries
         # This improves throughput under high contention by retrying with
         # increasing delays instead of failing immediately on the first timeout.
@@ -335,6 +348,14 @@ class _AsyncCompatibleLock:
             acquired = self._lock.acquire(timeout=timeout_for_attempt)
             if acquired:
                 # Lock acquired successfully
+                # Fix for Issue #1538: Record statistics
+                wait_time = time.time() - acquire_start_time
+                with self._stats_lock:
+                    self._acquire_count += 1
+                    if wait_time > 0:
+                        self._contention_count += 1
+                        self._total_wait_time += wait_time
+
                 # Fix for Issue #1502: Log with structured data for monitoring
                 logger.debug(
                     "Lock acquired successfully",
@@ -454,7 +475,13 @@ class _AsyncCompatibleLock:
         the next wait(), re-checking prevents indefinite blocking.
         Fix for Issue #1394: Uses non-reentrant Lock instead of RLock to prevent
         deadlock when sync thread holding lock waits for async event.
+        Fix for Issue #1538: Track lock acquisition statistics.
         """
+        import time
+
+        # Fix for Issue #1538: Track wait time for statistics
+        acquire_start_time = time.time()
+
         # Fix for Issue #1381: Get the event for this event loop
         async_event = self._get_async_event()
 
@@ -468,6 +495,14 @@ class _AsyncCompatibleLock:
             # If we get it, clear the event and return
             acquired = self._lock.acquire(blocking=False)
             if acquired:
+                # Fix for Issue #1538: Record statistics
+                wait_time = time.time() - acquire_start_time
+                with self._stats_lock:
+                    self._acquire_count += 1
+                    if wait_time > 0:
+                        self._contention_count += 1
+                        self._total_wait_time += wait_time
+
                 try:
                     # Clear the event so other async tasks know the lock is taken
                     async_event.clear()
@@ -602,6 +637,60 @@ class _AsyncCompatibleLock:
             # Use pop() with default to safely handle case where loop isn't in dict
             # This is thread-safe and won't raise KeyError
             self._async_events.pop(loop, None)
+
+    def get_stats(self) -> dict:
+        """Get lock statistics for monitoring and performance tuning.
+
+        Returns a dictionary containing:
+        - acquire_count: Total number of successful lock acquisitions
+        - contention_count: Number of acquisitions that had to wait (> 0 seconds)
+        - total_wait_time: Total time spent waiting for the lock (seconds)
+
+        These statistics help identify lock contention issues and optimize
+        performance by understanding how often threads/tasks compete for the lock.
+
+        Returns:
+            dict: Statistics dictionary with keys 'acquire_count', 'contention_count',
+                  and 'total_wait_time'.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> with lock:
+            ...     pass
+            >>> stats = lock.get_stats()
+            >>> print(f"Acquired {stats['acquire_count']} times")
+            >>> print(f"Contention {stats['contention_count']} times")
+            >>> print(f"Total wait: {stats['total_wait_time']:.3f}s")
+
+        Fix for Issue #1538: Implements lock statistics tracking.
+        """
+        with self._stats_lock:
+            return {
+                'acquire_count': self._acquire_count,
+                'contention_count': self._contention_count,
+                'total_wait_time': self._total_wait_time,
+            }
+
+    def reset_stats(self) -> None:
+        """Reset lock statistics to zero.
+
+        This is useful for periodic monitoring or testing scenarios where
+        you want to measure statistics for a specific time window.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> # Run some operations...
+            >>> with lock:
+            ...     pass
+            >>> # Reset for next measurement period
+            >>> lock.reset_stats()
+
+        Fix for Issue #1538: Implements statistics reset functionality.
+        """
+        with self._stats_lock:
+            self._acquire_count = 0
+            self._contention_count = 0
+            self._total_wait_time = 0.0
 
 
 class _TransactionContext:
