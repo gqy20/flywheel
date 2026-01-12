@@ -50,10 +50,13 @@ class StorageTimeoutError(TimeoutError):
     Fix for Issue #1481: Documents that lock is NOT held after timeout.
     Fix for Issue #1508: Added optional context parameters (timeout, operation, caller)
     for better debugging and error handling.
+    Fix for Issue #1553: Added suggested_action attribute with context-aware
+    recommendations for different timeout types.
     """
 
     def __init__(self, message: str = "", timeout: float | None = None,
-                 operation: str | None = None, caller: str | None = None):
+                 operation: str | None = None, caller: str | None = None,
+                 suggested_action: str | None = None):
         """Initialize StorageTimeoutError with optional context parameters.
 
         Args:
@@ -61,10 +64,25 @@ class StorageTimeoutError(TimeoutError):
             timeout: The timeout duration in seconds
             operation: The operation that timed out (e.g., 'load_cache', 'save_data')
             caller: The function or method that triggered the timeout
+            suggested_action: Optional custom suggestion for fixing the error
         """
         self.timeout = timeout
         self.operation = operation
         self.caller = caller
+
+        # Determine suggested action based on operation type
+        if suggested_action is not None:
+            self.suggested_action = suggested_action
+        elif operation is not None:
+            operation_lower = operation.lower()
+            if "lock" in operation_lower:
+                self.suggested_action = "Retry the operation after a short delay"
+            elif any(io_op in operation_lower for io_op in ["load", "save", "read", "write", "cache"]):
+                self.suggested_action = "Check disk space and retry the operation"
+            else:
+                self.suggested_action = ""
+        else:
+            self.suggested_action = ""
 
         # Build enhanced error message with context
         parts = []
@@ -79,6 +97,9 @@ class StorageTimeoutError(TimeoutError):
 
         if caller is not None:
             parts.append(f"caller={caller}")
+
+        if self.suggested_action:
+            parts.append(f"suggested_action={self.suggested_action}")
 
         # Combine original message with context
         if len(parts) > 1 or (len(parts) == 1 and parts[0] != message):
