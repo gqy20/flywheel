@@ -234,10 +234,10 @@ class _AsyncCompatibleLock:
                 "an async context with a running event loop"
             )
 
-        # Fix for Issue #1526: Create Event inside the lock to ensure atomic
-        # initialization with correct state based on current lock state.
-        # This prevents race condition where Event is created without knowledge
-        # of lock state, making the subsequent check-and-set fragile.
+        # Fix for Issue #1526: Create Event inside the lock to ensure atomic initialization
+        # with correct state based on current lock state. This prevents race condition
+        # where Event is created without knowledge of lock state, making the subsequent
+        # check-and-set fragile.
         # Fix for Issue #1476: Double-check inside lock prevents race where
         # multiple threads create different events.
         # Fix for Issue #1480: Only one thread's event gets registered; others
