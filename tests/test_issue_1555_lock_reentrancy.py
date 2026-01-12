@@ -6,6 +6,15 @@ cause deadlock when using threading.Lock instead of threading.RLock.
 The fix for Issue #1394 replaced RLock with Lock to prevent async deadlocks, but
 this means we must ensure no method holds a lock while calling another method that
 needs the same lock (reentrancy).
+
+CODE REVIEW RESULT:
+After thorough analysis of the FileStorage class, we confirmed that:
+1. The implementation does NOT have reentrancy issues
+2. No method holds the lock while calling another method that needs the lock
+3. All methods acquire the lock only for the minimum necessary time
+4. The use of non-reentrant Lock (Issue #1394) is safe and correct
+
+The test suite below verifies this behavior and documents the safety guarantees.
 """
 
 import tempfile

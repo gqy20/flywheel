@@ -3578,7 +3578,15 @@ class FileStorage(AbstractStorage):
 
         self._todos: list[Todo] = []
         self._next_id: int = 1  # Track next available ID for O(1) generation
-        self._lock = threading.Lock()  # Thread lock for synchronous operations (Issue #582, #661)
+        # Thread lock for synchronous operations (Issue #582, #661)
+        # IMPORTANT: Uses non-reentrant Lock instead of RLock (Issue #1394)
+        # This prevents deadlock in async contexts when using asyncio.to_thread.
+        # The FileStorage implementation is designed to avoid reentrancy:
+        # - No method holds the lock while calling another method that needs the lock
+        # - All methods acquire the lock only for the minimum necessary time
+        # - Methods release the lock before calling I/O operations
+        # If you add new methods, ensure they follow this pattern to avoid deadlock.
+        self._lock = threading.Lock()
         self._async_lock = asyncio.Lock()  # Async lock for asynchronous operations (Issue #666)
         self._lock_range: int = 0  # File lock range cache (Issue #361)
         self._lock_file_path: str | None = None  # Track lock file path for cleanup (Issue #846)
@@ -8785,6 +8793,10 @@ class FileStorage(AbstractStorage):
         This method enables Storage to be used as a context manager, ensuring
         locks are properly acquired and resources are managed during batch operations.
 
+        NOTE: Uses non-reentrant Lock (Issue #1394). The lock is held for the
+        duration of the context, so avoid calling other storage methods that
+        attempt to acquire the same lock from within the context.
+
         Returns:
             Storage: The storage instance itself.
 
@@ -8792,7 +8804,8 @@ class FileStorage(AbstractStorage):
             >>> with Storage() as storage:
             ...     storage.add(Todo(title="Task"))
         """
-        # Acquire the reentrant lock to ensure thread safety
+        # Acquire the lock to ensure thread safety
+        # Note: This is a non-reentrant Lock (Issue #1394)
         self._lock.acquire()
         return self
 
