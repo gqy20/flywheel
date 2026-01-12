@@ -16,16 +16,43 @@ import time
 import weakref
 from collections import deque
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 
 # Import aiofiles with fallback for graceful degradation (Issue #1032)
 # If aiofiles is not available, we'll use asyncio.to_thread with built-in open
+# Define protocol for aiofiles-like objects to avoid using # type: ignore (Issue #1565)
+
+
+class _AiofilesProtocol(Protocol):
+    """Protocol for aiofiles-like objects to ensure type safety.
+
+    This protocol defines the interface that both real aiofiles and our
+    fallback implementation must satisfy, eliminating the need for
+    # type: ignore comments (Issue #1565).
+    """
+
+    @staticmethod
+    def open(path: str, mode: str = 'rb') -> Any:
+        """Open a file asynchronously.
+
+        Args:
+            path: File path to open
+            mode: File open mode (defaults to 'rb' for binary read)
+
+        Returns:
+            An async context manager for file operations
+        """
+        ...
+
+
 try:
     import aiofiles
     HAS_AIOFILES = True
 except ImportError:
     HAS_AIOFILES = False
-    aiofiles = None  # type: ignore
+    # Set to None temporarily; will be replaced with _AiofilesFallback below
+    # This is typed as _AiofilesProtocol to satisfy type checkers (Issue #1565)
+    aiofiles: _AiofilesProtocol | None = None
 
 from flywheel.todo import Todo
 
@@ -2071,7 +2098,8 @@ if not HAS_AIOFILES:
             return _AsyncFileContextManager(path, mode)
 
     # Replace aiofiles with our fallback implementation
-    aiofiles = _AiofilesFallback()  # type: ignore
+    # Type annotation ensures this satisfies the _AiofilesProtocol (Issue #1565)
+    aiofiles: _AiofilesProtocol = _AiofilesFallback()
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
