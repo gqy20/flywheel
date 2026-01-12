@@ -2515,11 +2515,13 @@ class AbstractStorage(abc.ABC):
     """
 
     @abc.abstractmethod
-    def add(self, todo: Todo) -> Todo:
+    def add(self, todo: Todo, dry_run: bool = False) -> Todo:
         """Add a new todo to storage.
 
         Args:
             todo: The Todo object to add.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
 
         Returns:
             The added Todo with any generated fields (like ID) populated.
@@ -2551,11 +2553,13 @@ class AbstractStorage(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def update(self, todo: Todo) -> Todo | None:
+    def update(self, todo: Todo, dry_run: bool = False) -> Todo | None:
         """Update an existing todo.
 
         Args:
             todo: The Todo object with updated fields.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
 
         Returns:
             The updated Todo if found, None otherwise.
@@ -2563,11 +2567,13 @@ class AbstractStorage(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def delete(self, todo_id: int) -> bool:
+    def delete(self, todo_id: int, dry_run: bool = False) -> bool:
         """Delete a todo by ID.
 
         Args:
             todo_id: The ID of the todo to delete.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
 
         Returns:
             True if deleted, False if not found.
@@ -7136,13 +7142,26 @@ class FileStorage(AbstractStorage):
                 pass
             raise
 
-    def add(self, todo: Todo) -> Todo:
+    def add(self, todo: Todo, dry_run: bool = False) -> Todo:
         """Add a new todo with atomic ID generation.
+
+        Args:
+            todo: The Todo object to add.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
 
         Raises:
             ValueError: If a todo with the same ID already exists.
         """
         with self._lock:
+            # Dry run mode: log the intended action and return success without writing to disk (Issue #1503)
+            if dry_run:
+                logger.info(f"[DRY RUN] Would add todo: {todo}")
+                # Return a todo with generated ID for consistency, without modifying storage
+                if todo.id is None:
+                    todo = Todo(id=self._next_id, title=todo.title, status=todo.status)
+                return todo
+
             # Capture the ID from the todo atomically to prevent race conditions
             # Even if another thread modifies todo.id after this check, we use the captured value
             todo_id = todo.id
@@ -7221,9 +7240,21 @@ class FileStorage(AbstractStorage):
                     return todo
             return None
 
-    def update(self, todo: Todo) -> Todo | None:
-        """Update a todo."""
+    def update(self, todo: Todo, dry_run: bool = False) -> Todo | None:
+        """Update a todo.
+
+        Args:
+            todo: The Todo object with updated fields.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
+        """
         with self._lock:
+            # Dry run mode: log the intended action and return success without writing to disk (Issue #1503)
+            if dry_run:
+                logger.info(f"[DRY RUN] Would update todo: {todo}")
+                # Return the todo to simulate success, without modifying storage
+                return todo
+
             for i, t in enumerate(self._todos):
                 if t.id == todo.id:
                     # Create a copy of todos list with the updated todo
@@ -7245,9 +7276,21 @@ class FileStorage(AbstractStorage):
                     return todo
             return None
 
-    def delete(self, todo_id: int) -> bool:
-        """Delete a todo."""
+    def delete(self, todo_id: int, dry_run: bool = False) -> bool:
+        """Delete a todo.
+
+        Args:
+            todo_id: The ID of the todo to delete.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1503).
+        """
         with self._lock:
+            # Dry run mode: log the intended action and return success without writing to disk (Issue #1503)
+            if dry_run:
+                logger.info(f"[DRY RUN] Would delete todo with id: {todo_id}")
+                # Return True to simulate successful deletion, without modifying storage
+                return True
+
             for i, t in enumerate(self._todos):
                 if t.id == todo_id:
                     # Create a copy of todos list without the deleted todo
