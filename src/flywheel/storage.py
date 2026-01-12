@@ -431,6 +431,36 @@ class _AsyncCompatibleLock:
 
         return _TimeoutOverride(self, self._lock_timeout, new_timeout)
 
+    def cleanup_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Explicitly clean up the asyncio.Event for a specific event loop.
+
+        This method allows for explicit cleanup of Event objects when an event loop
+        is closed or no longer needed. While WeakKeyDictionary will automatically
+        handle garbage collection, explicit cleanup is more predictable and beneficial
+        for resource management in long-running applications or resource-constrained
+        environments (e.g., embedded Python).
+
+        Args:
+            loop: The event loop whose Event should be removed.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> loop = asyncio.get_running_loop()
+            >>> async with lock:
+            ...     # Use the lock
+            ...     pass
+            >>> # When the loop is being closed
+            >>> lock.cleanup_loop(loop)
+
+        Fix for Issue #1493: Implements explicit cleanup for event loop resources.
+        """
+        # Use the same lock that protects _async_events modifications
+        # to prevent race conditions with _get_async_event()
+        with self._async_event_init_lock:
+            # Use pop() with default to safely handle case where loop isn't in dict
+            # This is thread-safe and won't raise KeyError
+            self._async_events.pop(loop, None)
+
 
 class _TransactionContext:
     """Context manager for storage transactions with rollback support.
