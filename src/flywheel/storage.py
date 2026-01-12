@@ -36,13 +36,18 @@ logger = logging.getLogger(__name__)
 
 
 class StorageTimeoutError(TimeoutError):
-    """Exception raised when I/O operation times out.
+    """Exception raised when I/O operation or lock acquisition times out.
 
-    This exception is raised when an I/O operation takes longer than the
-    configured timeout to complete. It is distinct from regular IOError to
-    allow for different handling strategies.
+    This exception is raised when an I/O operation or lock acquisition takes
+    longer than the configured timeout to complete. It is distinct from regular
+    IOError to allow for different handling strategies.
+
+    IMPORTANT: When this exception is raised due to a lock timeout (e.g., in
+    _AsyncCompatibleLock.__enter__), the lock is NOT held by the caller. Callers
+    should not assume they hold the lock after catching this exception.
 
     Fix for Issue #1043: Configurable timeout for I/O retries.
+    Fix for Issue #1481: Documents that lock is NOT held after timeout.
     """
     pass
 
@@ -191,6 +196,9 @@ class _AsyncCompatibleLock:
         the thread indefinitely.
         Fix for Issue #1402: Raises StorageTimeoutError instead of TimeoutError for
         consistency with async contexts.
+        Fix for Issue #1481: Documents that when StorageTimeoutError is raised due
+        to timeout, the lock is NOT held by the caller. This prevents confusion where
+        callers might mistakenly believe they hold the lock after catching the exception.
         """
         # Acquire the lock with timeout
         # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
@@ -207,11 +215,16 @@ class _AsyncCompatibleLock:
         # released if an exception occurs between acquire() and return self.
         # This prevents lock leaks in the extremely rare case where an exception
         # could occur after the lock is acquired but before __enter__ returns.
+        # Fix for Issue #1481: CRITICAL: When acquire(timeout=X) returns False (timeout),
+        # the lock is NOT held. We raise StorageTimeoutError to signal this, and callers
+        # MUST NOT assume they hold the lock after catching this exception.
         acquired = self._lock.acquire(timeout=self._lock_timeout)
         if not acquired:
+            # Lock acquisition timed out - lock is NOT held by current thread
             raise StorageTimeoutError(
                 f"Could not acquire lock within {self._lock_timeout} seconds. "
-                "This may indicate a deadlock or very high contention."
+                "This may indicate a deadlock or very high contention. "
+                "IMPORTANT: The lock is NOT held after this exception."
             )
         # Use try-finally for defensive programming (Issue #1465)
         # While return self cannot normally raise an exception, this ensures
@@ -243,6 +256,10 @@ class _AsyncCompatibleLock:
         Fix for Issue #1431: Acquires _async_event_init_lock before signaling events
         to prevent race condition where another thread modifies _async_events during
         iteration.
+        Fix for Issue #1481: Safe to call even when lock was not acquired (e.g., after
+        StorageTimeoutError from __enter__). The method catches RuntimeError from
+        release() to handle the case where __enter__ timed out and the lock was
+        never acquired.
         """
         # For threading.Lock (non-reentrant), we need defensive handling.
         # Fix for Issue #1181: Only releases lock if it was acquired, preventing
@@ -269,7 +286,9 @@ class _AsyncCompatibleLock:
         except RuntimeError:
             # Lock is not held by the current thread
             # This can happen if __exit__ is called without a successful __enter__
-            # (e.g., if __enter__ raised an exception after acquiring the lock)
+            # (e.g., if __enter__ raised StorageTimeoutError after timeout)
+            # Fix for Issue #1481: This is expected behavior after timeout - the lock
+            # was never acquired, so we silently handle the release attempt.
             pass
         return False
 
