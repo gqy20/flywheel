@@ -119,6 +119,9 @@ class _AsyncCompatibleLock:
     avoid freezing the thread indefinitely.
     Fix for Issue #1402: Raises StorageTimeoutError instead of TimeoutError for
     consistency with async contexts.
+    Fix for Issue #1533: Implements configurable fuzzy lock timeout mechanism
+    with timeout_range parameter and custom backoff strategies to prevent
+    thundering herd effects during high contention.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -126,13 +129,61 @@ class _AsyncCompatibleLock:
     # and detecting deadlocks. This matches the timeout from Issue #1291.
     _DEFAULT_LOCK_TIMEOUT = 10.0
 
-    def __init__(self, lock_timeout: float | None = None):
+    def __init__(self, lock_timeout: float | None = None,
+                 timeout_range: tuple[float, float] | None = None,
+                 backoff_strategy: callable | None = None,
+                 adaptive_timeout: bool = False):
         """Initialize with unified lock for sync and async contexts.
 
         Args:
             lock_timeout: Timeout in seconds for sync lock acquisition (Issue #1406).
                          If None, uses the default timeout (10.0 seconds).
+            timeout_range: Tuple of (min_timeout, max_timeout) for fuzzy timeout (Issue #1533).
+                          If specified, timeout will be randomly selected within this range
+                          for each lock acquisition attempt to prevent thundering herd effects.
+                          If None, uses lock_timeout or default timeout.
+            backoff_strategy: Custom function for retry backoff (Issue #1533).
+                            Function should accept attempt number and return delay in seconds.
+                            If None, uses default exponential backoff.
+            adaptive_timeout: Whether to enable adaptive timeout mechanism (Issue #1533).
+                            When True, timeout adjusts based on contention history.
+                            (Reserved for future implementation)
+
+        Raises:
+            ValueError: If timeout_range has min > max, or if any timeout value is negative.
         """
+        # Fix for Issue #1533: Validate timeout_range parameters
+        if timeout_range is not None:
+            min_timeout, max_timeout = timeout_range
+            if min_timeout < 0 or max_timeout < 0:
+                raise ValueError(
+                    f"timeout_range values must be non-negative, got ({min_timeout}, {max_timeout})"
+                )
+            if min_timeout > max_timeout:
+                raise ValueError(
+                    f"timeout_range min must be <= max, got ({min_timeout}, {max_timeout})"
+                )
+            self._timeout_range = timeout_range
+            # When using timeout_range, use the midpoint as base timeout
+            self._lock_timeout = (min_timeout + max_timeout) / 2
+        elif lock_timeout is not None:
+            # Validate explicit lock_timeout
+            if lock_timeout < 0:
+                raise ValueError(
+                    f"lock_timeout must be non-negative, got {lock_timeout}"
+                )
+            self._timeout_range = None
+            self._lock_timeout = lock_timeout
+        else:
+            self._timeout_range = None
+            self._lock_timeout = self._DEFAULT_LOCK_TIMEOUT
+
+        # Fix for Issue #1533: Store backoff strategy
+        self._backoff_strategy = backoff_strategy
+
+        # Fix for Issue #1533: Store adaptive timeout flag (for future use)
+        self._adaptive_timeout = adaptive_timeout
+
         # Fix for Issue #1381: Use a single threading.Lock for both sync and async
         # contexts to ensure true mutual exclusion.
         # This prevents the bug where threading.Lock and asyncio.Lock were
@@ -144,8 +195,6 @@ class _AsyncCompatibleLock:
         # Note: This removes reentrancy support from Issue #1298, but prevents
         # async deadlocks which are more critical.
         self._lock = threading.Lock()
-        # Fix for Issue #1406: Store the timeout for sync lock acquisition
-        self._lock_timeout = lock_timeout if lock_timeout is not None else self._DEFAULT_LOCK_TIMEOUT
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
@@ -239,6 +288,8 @@ class _AsyncCompatibleLock:
         callers might mistakenly believe they hold the lock after catching the exception.
         Fix for Issue #1498: Implements exponential backoff for lock acquisition retries
         to improve throughput under high contention.
+        Fix for Issue #1533: Implements fuzzy timeout mechanism with configurable range
+        and custom backoff strategies to prevent thundering herd effects.
         """
         import random
         import time
@@ -251,6 +302,14 @@ class _AsyncCompatibleLock:
         MAX_DELAY = 0.1   # Maximum delay for first retry
 
         for attempt in range(MAX_RETRIES):
+            # Fix for Issue #1533: Use fuzzy timeout if timeout_range is specified
+            # This prevents thundering herd effects by randomizing timeout within range
+            if self._timeout_range is not None:
+                min_timeout, max_timeout = self._timeout_range
+                timeout_for_attempt = random.uniform(min_timeout, max_timeout)
+            else:
+                timeout_for_attempt = self._lock_timeout
+
             # Acquire the lock with timeout
             # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
             # prevent indefinite blocking. If the lock cannot be acquired within
@@ -269,7 +328,7 @@ class _AsyncCompatibleLock:
             # Fix for Issue #1481: CRITICAL: When acquire(timeout=X) returns False (timeout),
             # the lock is NOT held. We raise StorageTimeoutError to signal this, and callers
             # MUST NOT assume they hold the lock after catching this exception.
-            acquired = self._lock.acquire(timeout=self._lock_timeout)
+            acquired = self._lock.acquire(timeout=timeout_for_attempt)
             if acquired:
                 # Lock acquired successfully
                 # Fix for Issue #1502: Log with structured data for monitoring
@@ -292,18 +351,27 @@ class _AsyncCompatibleLock:
                     self._lock.release()
                     raise
 
-            # Lock acquisition timed out - implement exponential backoff retry
+            # Lock acquisition timed out - implement backoff retry
             # Fix for Issue #1498: Instead of failing immediately, retry with
             # exponential backoff to reduce contention and improve throughput.
+            # Fix for Issue #1533: Use custom backoff strategy if provided
             if attempt < MAX_RETRIES - 1:
-                # Calculate delay with exponential backoff
-                # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
-                delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+                if self._backoff_strategy is not None:
+                    # Use custom backoff strategy
+                    delay = self._backoff_strategy(attempt)
+                else:
+                    # Default exponential backoff
+                    # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
+                    delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
                 time.sleep(delay)
 
         # All retries exhausted - lock is NOT held by current thread
+        timeout_msg = (
+            f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
+            else f"{self._lock_timeout}"
+        )
         raise StorageTimeoutError(
-            f"Could not acquire lock within {self._lock_timeout} seconds "
+            f"Could not acquire lock within {timeout_msg} seconds "
             f"after {MAX_RETRIES} attempts. "
             "This may indicate a deadlock or very high contention. "
             "IMPORTANT: The lock is NOT held after this exception."
