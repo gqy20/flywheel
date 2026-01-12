@@ -229,18 +229,20 @@ class _AsyncCompatibleLock:
         # multiple threads create different events.
         # Fix for Issue #1480: Only one thread's event gets registered; others
         # are discarded to prevent event state overwriting.
-
-        # First check: without lock (fast path)
-        existing_event = self._async_events.get(current_loop)
-        if existing_event is not None:
-            return existing_event
+        # Fix for Issue #1535: Always hold lock during entire check-and-return
+        # sequence to prevent TOCTOU race condition where GC could clean up
+        # the event between get() and return, or multiple threads could
+        # create and overwrite events.
 
         with self._async_event_init_lock:
-            # Second check: with lock (prevents race condition)
-            # Fix for Issue #1476: Double-check locking pattern
+            # Check with lock (prevents race condition)
+            # Fix for Issue #1535: Must hold lock during get() to prevent
+            # GC from cleaning up the event between get() and return
             existing_event = self._async_events.get(current_loop)
             if existing_event is not None:
                 # Another thread already created an event, use it instead
+                # Fix for Issue #1535: Return while still holding lock to
+                # ensure the reference remains valid
                 return existing_event
 
             # Fix for Issue #1526: Create Event INSIDE the lock to ensure
@@ -260,7 +262,9 @@ class _AsyncCompatibleLock:
             # Register our event
             self._async_events[current_loop] = new_event
 
-        return new_event
+            # Fix for Issue #1535: Return while still holding lock to ensure
+            # the reference remains valid and prevent race conditions
+            return new_event
 
     def __enter__(self):
         """Support synchronous context manager protocol.
