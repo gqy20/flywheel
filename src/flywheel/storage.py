@@ -277,16 +277,13 @@ class _AsyncCompatibleLock:
                     "Lock acquired successfully",
                     extra={'component': 'storage', 'op': 'lock_acquire'}
                 )
-                # Use try-finally for defensive programming (Issue #1465)
-                # While return self cannot normally raise an exception, this ensures
-                # that if somehow an exception occurs, the lock will be released.
-                try:
-                    return self
-                except:
-                    # If any exception occurs after acquiring the lock, release it
-                    # to prevent lock leaks
-                    self._lock.release()
-                    raise
+                # Fix for Issue #1426: Removed try-except around return self
+                # The previous try-except block was problematic because:
+                # 1. return self cannot raise an exception under normal circumstances
+                # 2. If an exception somehow occurred, releasing the lock here would
+                #    cause a double release when __exit__ is called, triggering RuntimeError
+                # The lock will be properly released by __exit__ when the context exits.
+                return self
 
             # Lock acquisition timed out - implement exponential backoff retry
             # Fix for Issue #1498: Instead of failing immediately, retry with
