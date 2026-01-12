@@ -50,8 +50,35 @@ class Formatter:
     def _format_json(self, todos: list[Todo]) -> str:
         """Format as JSON."""
         import json
+        from dataclasses import asdict
 
-        return json.dumps([t.to_dict() for t in todos], indent=2)
+        formatted_todos = []
+        for t in todos:
+            try:
+                # Try to use to_dict() method if available
+                if hasattr(t, 'to_dict') and callable(getattr(t, 'to_dict')):
+                    todo_dict = t.to_dict()
+                    # Validate that to_dict() returns a dictionary
+                    if isinstance(todo_dict, dict):
+                        formatted_todos.append(todo_dict)
+                    else:
+                        # Fallback to dataclasses.asdict if to_dict() returns non-dict
+                        formatted_todos.append(asdict(t))
+                else:
+                    # Fallback to dataclasses.asdict for dataclass objects
+                    formatted_todos.append(asdict(t))
+            except (TypeError, AttributeError) as e:
+                # If serialization fails, use vars() as last resort
+                try:
+                    formatted_todos.append(vars(t))
+                except Exception:
+                    # If all else fails, create a minimal dict with common attributes
+                    formatted_todos.append({
+                        'id': getattr(t, 'id', None),
+                        'title': getattr(t, 'title', str(t)),
+                    })
+
+        return json.dumps(formatted_todos, indent=2)
 
     def _status_icon(self, status: Status) -> str:
         """Get icon for status."""
