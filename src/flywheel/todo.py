@@ -90,7 +90,7 @@ class Todo:
 
     id: int | None
     title: str
-    description: str = ""
+    description: str | None = None
     status: Status = Status.TODO
     priority: Priority = Priority.MEDIUM
     due_date: str | None = None
@@ -139,14 +139,17 @@ class Todo:
             raise ValueError(f"Title too long: {len(title)} characters (max 200)")
 
         # Validate optional field types
-        description = data.get("description", "")
-        if not isinstance(description, str):
-            raise ValueError(f"Field 'description' must be str, got {type(description).__name__}")
+        description = data.get("description")
+        if description is not None and not isinstance(description, str):
+            raise ValueError(f"Field 'description' must be str or None, got {type(description).__name__}")
 
         # Sanitize and validate description
-        description = _sanitize_text(description).strip()
-        if len(description) > 5000:
-            raise ValueError(f"Description too long: {len(description)} characters (max 5000)")
+        if description is not None:
+            description = _sanitize_text(description).strip()
+            if len(description) > 5000:
+                raise ValueError(f"Description too long: {len(description)} characters (max 5000)")
+        else:
+            description = ""
 
         # Validate enum values strictly
         status_value = data.get("status", "todo")
