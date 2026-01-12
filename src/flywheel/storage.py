@@ -218,6 +218,11 @@ class _AsyncCompatibleLock:
         self._contention_count = 0  # Number of times lock was contended (wait time > 0)
         self._total_wait_time = 0.0  # Total time spent waiting for lock (seconds)
 
+        # Fix for Issue #1548: Initialize periodic stats flushing
+        # Flush stats every N acquisitions to prevent overflow in long-running processes
+        self._flush_threshold = 10000  # Flush stats after every 10,000 acquisitions
+        self._last_flush_count = 0  # Track the acquire count at last flush
+
     def _get_async_event(self):
         """Get or create the asyncio.Event for the current event loop.
 
@@ -389,6 +394,35 @@ class _AsyncCompatibleLock:
                         self._contention_count += 1
                         self._total_wait_time += wait_time
 
+                    # Fix for Issue #1548: Check if we should flush stats periodically
+                    # This prevents integer overflow in long-running processes
+                    if self._acquire_count - self._last_flush_count >= self._flush_threshold:
+                        # Capture stats for logging
+                        stats_to_log = {
+                            'acquire_count': self._acquire_count,
+                            'contention_count': self._contention_count,
+                            'total_wait_time': self._total_wait_time
+                        }
+
+                # Flush stats outside the lock to avoid holding it during I/O
+                if self._acquire_count - self._last_flush_count >= self._flush_threshold:
+                    # Log the stats with structured data for monitoring
+                    logger.info(
+                        "Flushing lock statistics (periodic)",
+                        extra={
+                            'component': 'lock',
+                            'op': 'flush_stats',
+                            'stats_flushed': stats_to_log
+                        }
+                    )
+
+                    # Reset counters
+                    with self._stats_lock:
+                        self._acquire_count = 0
+                        self._contention_count = 0
+                        self._total_wait_time = 0.0
+                        self._last_flush_count = 0
+
                 # Fix for Issue #1502: Log with structured data for monitoring
                 logger.debug(
                     "Lock acquired successfully",
@@ -535,6 +569,35 @@ class _AsyncCompatibleLock:
                     if wait_time > 0:
                         self._contention_count += 1
                         self._total_wait_time += wait_time
+
+                    # Fix for Issue #1548: Check if we should flush stats periodically
+                    # This prevents integer overflow in long-running processes
+                    if self._acquire_count - self._last_flush_count >= self._flush_threshold:
+                        # Capture stats for logging
+                        stats_to_log = {
+                            'acquire_count': self._acquire_count,
+                            'contention_count': self._contention_count,
+                            'total_wait_time': self._total_wait_time
+                        }
+
+                # Flush stats outside the lock to avoid holding it during I/O
+                if self._acquire_count - self._last_flush_count >= self._flush_threshold:
+                    # Log the stats with structured data for monitoring
+                    logger.info(
+                        "Flushing lock statistics (periodic)",
+                        extra={
+                            'component': 'lock',
+                            'op': 'flush_stats',
+                            'stats_flushed': stats_to_log
+                        }
+                    )
+
+                    # Reset counters
+                    with self._stats_lock:
+                        self._acquire_count = 0
+                        self._contention_count = 0
+                        self._total_wait_time = 0.0
+                        self._last_flush_count = 0
 
                 try:
                     # Clear the event so other async tasks know the lock is taken
@@ -728,6 +791,47 @@ class _AsyncCompatibleLock:
             self._acquire_count = 0
             self._contention_count = 0
             self._total_wait_time = 0.0
+
+    def flush_stats(self) -> None:
+        """Flush statistics by logging current metrics and resetting counters.
+
+        This method is useful for long-running processes to prevent integer
+        overflow and enable time-series analysis (e.g., 'locks per second').
+        It logs the current statistics and resets the counters to zero.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> # Run many operations...
+            >>> # Flush stats periodically
+            >>> lock.flush_stats()
+
+        Fix for Issue #1548: Implements periodic stats flushing for long-running processes.
+        """
+        with self._stats_lock:
+            # Capture current stats before resetting
+            current_acquire_count = self._acquire_count
+            current_contention_count = self._contention_count
+            current_total_wait_time = self._total_wait_time
+
+            # Log the stats with structured data for monitoring
+            logger.info(
+                "Flushing lock statistics",
+                extra={
+                    'component': 'lock',
+                    'op': 'flush_stats',
+                    'stats_flushed': {
+                        'acquire_count': current_acquire_count,
+                        'contention_count': current_contention_count,
+                        'total_wait_time': current_total_wait_time
+                    }
+                }
+            )
+
+            # Reset counters
+            self._acquire_count = 0
+            self._contention_count = 0
+            self._total_wait_time = 0.0
+            self._last_flush_count = 0
 
 
 class _TransactionContext:
