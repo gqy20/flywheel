@@ -145,25 +145,27 @@ class _AsyncCompatibleLock:
         # This is done outside the lock to prevent potential deadlock as per Issue #1470
         new_event = asyncio.Event()
 
-        # Fix for Issue #1446: Check lock state to set initial Event state.
-        # Fix for Issue #1466: Use locked() instead of acquire()/release()
-        # to avoid TOCTOU race condition.
-        # Note: This check is now outside _async_event_init_lock, which is safe
-        # because we're just reading the lock state, not modifying shared state.
-        if not self._lock.locked():
-            # Lock is available, set Event to signal availability
-            new_event.set()
-        # Otherwise, lock is held, Event remains unset (correct state)
-
         # Store the event in the dictionary (need lock for this)
         # Fix for Issue #1476: Double-check locking pattern prevents race condition
         # where multiple threads could create different events and try to insert them.
+        # Fix for Issue #1475: Check and set Event state while holding lock to prevent
+        # TOCTOU race condition between locked() check and set() call.
         with self._async_event_init_lock:
             # Double-check: another thread might have created an event while we were
             # creating ours. If so, return the existing one.
             existing_event = self._async_events.get(current_loop)
             if existing_event is not None:
                 return existing_event
+
+            # Fix for Issue #1446: Check lock state to set initial Event state.
+            # Fix for Issue #1475: Perform check and set atomically while holding lock
+            # to prevent TOCTOU race condition where lock state changes between
+            # check and set.
+            if not self._lock.locked():
+                # Lock is available, set Event to signal availability
+                new_event.set()
+            # Otherwise, lock is held, Event remains unset (correct state)
+
             self._async_events[current_loop] = new_event
 
         return new_event
