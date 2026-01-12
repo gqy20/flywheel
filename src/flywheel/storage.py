@@ -201,43 +201,68 @@ class _AsyncCompatibleLock:
         Fix for Issue #1481: Documents that when StorageTimeoutError is raised due
         to timeout, the lock is NOT held by the caller. This prevents confusion where
         callers might mistakenly believe they hold the lock after catching the exception.
+        Fix for Issue #1498: Implements exponential backoff for lock acquisition retries
+        to improve throughput under high contention.
         """
-        # Acquire the lock with timeout
-        # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
-        # prevent indefinite blocking. If the lock cannot be acquired within
-        # the timeout period, raise a StorageTimeoutError to prevent deadlock.
-        # Fix for Issue #1402: Raise StorageTimeoutError instead of TimeoutError
-        # for consistency with async contexts.
-        # Fix for Issue #1450: Simplified to just acquire and return self.
-        # The try-except wrapping `return self` was problematic because:
-        # 1. `return self` cannot raise an exception under normal circumstances
-        # 2. If an exception somehow occurred, releasing the lock here would
-        #    cause a double release when __exit__ is called, triggering RuntimeError
-        # Fix for Issue #1465: Added defensive try-finally to ensure the lock is
-        # released if an exception occurs between acquire() and return self.
-        # This prevents lock leaks in the extremely rare case where an exception
-        # could occur after the lock is acquired but before __enter__ returns.
-        # Fix for Issue #1481: CRITICAL: When acquire(timeout=X) returns False (timeout),
-        # the lock is NOT held. We raise StorageTimeoutError to signal this, and callers
-        # MUST NOT assume they hold the lock after catching this exception.
-        acquired = self._lock.acquire(timeout=self._lock_timeout)
-        if not acquired:
-            # Lock acquisition timed out - lock is NOT held by current thread
-            raise StorageTimeoutError(
-                f"Could not acquire lock within {self._lock_timeout} seconds. "
-                "This may indicate a deadlock or very high contention. "
-                "IMPORTANT: The lock is NOT held after this exception."
-            )
-        # Use try-finally for defensive programming (Issue #1465)
-        # While return self cannot normally raise an exception, this ensures
-        # that if somehow an exception occurs, the lock will be released.
-        try:
-            return self
-        except:
-            # If any exception occurs after acquiring the lock, release it
-            # to prevent lock leaks
-            self._lock.release()
-            raise
+        import random
+        import time
+
+        # Fix for Issue #1498: Implement exponential backoff for retries
+        # This improves throughput under high contention by retrying with
+        # increasing delays instead of failing immediately on the first timeout.
+        MAX_RETRIES = 3
+        BASE_DELAY = 0.0  # Base delay in seconds
+        MAX_DELAY = 0.1   # Maximum delay for first retry
+
+        for attempt in range(MAX_RETRIES):
+            # Acquire the lock with timeout
+            # Fix for Issue #1406: Use acquire(timeout=X) instead of acquire() to
+            # prevent indefinite blocking. If the lock cannot be acquired within
+            # the timeout period, raise a StorageTimeoutError to prevent deadlock.
+            # Fix for Issue #1402: Raise StorageTimeoutError instead of TimeoutError
+            # for consistency with async contexts.
+            # Fix for Issue #1450: Simplified to just acquire and return self.
+            # The try-except wrapping `return self` was problematic because:
+            # 1. `return self` cannot raise an exception under normal circumstances
+            # 2. If an exception somehow occurred, releasing the lock here would
+            #    cause a double release when __exit__ is called, triggering RuntimeError
+            # Fix for Issue #1465: Added defensive try-finally to ensure the lock is
+            # released if an exception occurs between acquire() and return self.
+            # This prevents lock leaks in the extremely rare case where an exception
+            # could occur after the lock is acquired but before __enter__ returns.
+            # Fix for Issue #1481: CRITICAL: When acquire(timeout=X) returns False (timeout),
+            # the lock is NOT held. We raise StorageTimeoutError to signal this, and callers
+            # MUST NOT assume they hold the lock after catching this exception.
+            acquired = self._lock.acquire(timeout=self._lock_timeout)
+            if acquired:
+                # Lock acquired successfully
+                # Use try-finally for defensive programming (Issue #1465)
+                # While return self cannot normally raise an exception, this ensures
+                # that if somehow an exception occurs, the lock will be released.
+                try:
+                    return self
+                except:
+                    # If any exception occurs after acquiring the lock, release it
+                    # to prevent lock leaks
+                    self._lock.release()
+                    raise
+
+            # Lock acquisition timed out - implement exponential backoff retry
+            # Fix for Issue #1498: Instead of failing immediately, retry with
+            # exponential backoff to reduce contention and improve throughput.
+            if attempt < MAX_RETRIES - 1:
+                # Calculate delay with exponential backoff
+                # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
+                delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+                time.sleep(delay)
+
+        # All retries exhausted - lock is NOT held by current thread
+        raise StorageTimeoutError(
+            f"Could not acquire lock within {self._lock_timeout} seconds "
+            f"after {MAX_RETRIES} attempts. "
+            "This may indicate a deadlock or very high contention. "
+            "IMPORTANT: The lock is NOT held after this exception."
+        )
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting sync context.
