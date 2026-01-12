@@ -201,8 +201,12 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1381: Per-event-loop asyncio.Event objects for efficient
         # async waiting. These events are set when the lock is released, allowing
         # async coroutines to wait without blocking the event loop.
+        # Fix for Issue #1545: _async_events is a regular dict protected by
+        # _async_event_init_lock. All accesses to _async_events (including get,
+        # set, pop, and iteration) must be guarded by this lock to ensure thread
+        # safety during concurrent access across multiple threads.
         self._async_events = {}
-        self._async_event_init_lock = threading.Lock()  # Protects lazy initialization
+        self._async_event_init_lock = threading.Lock()  # Protects ALL _async_events access
         # Fix for Issue #1541: Track cleanup callbacks for automatic event cleanup
         # when event loops are closed to prevent memory leaks
         self._async_event_cleanups = {}
