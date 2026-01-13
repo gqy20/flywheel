@@ -241,6 +241,233 @@ class JSONFormatter(logging.Formatter):
         return redacted
 
 
+# Fix for Issue #1638: Storage metrics collection hook
+# This allows observability tools (like Prometheus/Datadog) to track storage
+# performance without parsing logs.
+
+
+class StorageMetrics(Protocol):
+    """Protocol for storage metrics collection.
+
+    This protocol defines the interface for metrics collectors that can track
+    storage performance metrics such as I/O operation latency, lock contention,
+    and retry counts. Implementations can integrate with observability tools
+    like Prometheus, Datadog, or custom monitoring systems.
+
+    Fix for Issue #1638: Provides a hook for metrics collection that works
+    with or without external dependencies like prometheus_client.
+    """
+
+    def record_io_operation(
+        self,
+        operation_type: str,
+        duration: float,
+        retries: int = 0,
+        success: bool = True,
+        error_type: str | None = None
+    ) -> None:
+        """Record an I/O operation metric.
+
+        Args:
+            operation_type: Type of operation (e.g., 'read', 'write', 'flush')
+            duration: Operation duration in seconds
+            retries: Number of retry attempts
+            success: Whether the operation succeeded
+            error_type: Type of error if operation failed (e.g., 'EIO', 'TIMEOUT')
+        """
+        ...
+
+    def record_lock_contention(self, wait_time: float) -> None:
+        """Record a lock contention event.
+
+        Args:
+            wait_time: Time spent waiting for lock in seconds
+        """
+        ...
+
+    def record_lock_acquired(self, acquire_time: float) -> None:
+        """Record a successful lock acquisition.
+
+        Args:
+            acquire_time: Time taken to acquire lock in seconds
+        """
+        ...
+
+
+class NoOpStorageMetrics:
+    """No-op implementation of StorageMetrics for when metrics are not needed.
+
+    This implementation provides all the required methods but does nothing,
+    allowing code to use metrics without incurring overhead when not needed.
+
+    Fix for Issue #1638: Provides a fallback when prometheus_client is not
+    available or when metrics collection is not desired.
+    """
+
+    def record_io_operation(
+        self,
+        operation_type: str,
+        duration: float,
+        retries: int = 0,
+        success: bool = True,
+        error_type: str | None = None
+    ) -> None:
+        """No-op implementation."""
+        pass
+
+    def record_lock_contention(self, wait_time: float) -> None:
+        """No-op implementation."""
+        pass
+
+    def record_lock_acquired(self, acquire_time: float) -> None:
+        """No-op implementation."""
+        pass
+
+
+# Try to import prometheus_client for Prometheus integration
+# If not available, we'll use NoOpStorageMetrics as the default
+try:
+    from prometheus_client import Counter, Histogram, Gauge
+
+    class PrometheusStorageMetrics:
+        """Prometheus metrics implementation for storage operations.
+
+        This implementation integrates with prometheus_client to expose
+        metrics in Prometheus format for scraping by Prometheus server or
+        other compatible monitoring systems.
+
+        Fix for Issue #1638: Provides Prometheus integration when available.
+        """
+
+        def __init__(
+            self,
+            namespace: str = "flywheel",
+            subsystem: str = "storage"
+        ):
+            """Initialize Prometheus metrics with default labels.
+
+            Args:
+                namespace: Metric namespace (default: "flywheel")
+                subsystem: Metric subsystem (default: "storage")
+            """
+            self._namespace = namespace
+            self._subsystem = subsystem
+
+            # I/O operation counter
+            self._io_operations_total = Counter(
+                f"{namespace}_{subsystem}_io_operations_total",
+                "Total number of I/O operations",
+                [f"{namespace}_operation", f"{namespace}_success"]
+            )
+
+            # I/O operation duration histogram
+            self._io_operation_duration_seconds = Histogram(
+                f"{namespace}_{subsystem}_io_operation_duration_seconds",
+                "I/O operation duration in seconds",
+                [f"{namespace}_operation"]
+            )
+
+            # I/O operation retries histogram
+            self._io_operation_retries = Histogram(
+                f"{namespace}_{subsystem}_io_operation_retries",
+                "Number of retries for I/O operations",
+                [f"{namespace}_operation"]
+            )
+
+            # Lock contention counter
+            self._lock_contentions_total = Counter(
+                f"{namespace}_{subsystem}_lock_contentions_total",
+                "Total number of lock contentions"
+            )
+
+            # Lock contention duration histogram
+            self._lock_contention_duration_seconds = Histogram(
+                f"{namespace}_{subsystem}_lock_contention_duration_seconds",
+                "Lock contention duration in seconds"
+            )
+
+            # Lock acquisition duration histogram
+            self._lock_acquisition_duration_seconds = Histogram(
+                f"{namespace}_{subsystem}_lock_acquisition_duration_seconds",
+                "Lock acquisition duration in seconds"
+            )
+
+        def record_io_operation(
+            self,
+            operation_type: str,
+            duration: float,
+            retries: int = 0,
+            success: bool = True,
+            error_type: str | None = None
+        ) -> None:
+            """Record an I/O operation metric.
+
+            Args:
+                operation_type: Type of operation (e.g., 'read', 'write', 'flush')
+                duration: Operation duration in seconds
+                retries: Number of retry attempts
+                success: Whether the operation succeeded
+                error_type: Type of error if operation failed (not used in labels)
+            """
+            # Record operation counter
+            self._io_operations_total.labels(
+                **{f"{self._namespace}_operation": operation_type,
+                   f"{self._namespace}_success": str(success).lower()}
+            ).inc()
+
+            # Record operation duration
+            self._io_operation_duration_seconds.labels(
+                **{f"{self._namespace}_operation": operation_type}
+            ).observe(duration)
+
+            # Record retries if any
+            if retries > 0:
+                self._io_operation_retries.labels(
+                    **{f"{self._namespace}_operation": operation_type}
+                ).observe(retries)
+
+        def record_lock_contention(self, wait_time: float) -> None:
+            """Record a lock contention event.
+
+            Args:
+                wait_time: Time spent waiting for lock in seconds
+            """
+            self._lock_contentions_total.inc()
+            self._lock_contention_duration_seconds.observe(wait_time)
+
+        def record_lock_acquired(self, acquire_time: float) -> None:
+            """Record a successful lock acquisition.
+
+            Args:
+                acquire_time: Time taken to acquire lock in seconds
+            """
+            self._lock_acquisition_duration_seconds.observe(acquire_time)
+
+    HAS_PROMETHEUS = True
+except ImportError:
+    # prometheus_client not available, will use NoOpStorageMetrics
+    HAS_PROMETHEUS = False
+    PrometheusStorageMetrics = None  # type: ignore
+
+
+def get_storage_metrics() -> StorageMetrics:
+    """Get a storage metrics instance based on available dependencies.
+
+    Returns PrometheusStorageMetrics if prometheus_client is available,
+    otherwise returns NoOpStorageMetrics.
+
+    Fix for Issue #1638: Provides automatic fallback when prometheus_client
+    is not available.
+
+    Returns:
+        StorageMetrics instance (either PrometheusStorageMetrics or NoOpStorageMetrics)
+    """
+    if HAS_PROMETHEUS and PrometheusStorageMetrics is not None:
+        return PrometheusStorageMetrics()
+    else:
+        return NoOpStorageMetrics()
+
+
 # Fix for Issue #1572: Check DEBUG_STORAGE environment variable to enable debug logging
 # This allows developers and operators to monitor storage performance and tune parameters
 # Fix for Issue #1603: Add JSON handler for structured logging when DEBUG_STORAGE is enabled
@@ -2229,6 +2456,79 @@ class IOMetrics:
 
         asyncio.run(_clear_with_lock())
 
+    def record_io_operation(
+        self,
+        operation_type: str,
+        duration: float,
+        retries: int = 0,
+        success: bool = True,
+        error_type: str | None = None
+    ) -> None:
+        """Record an I/O operation metric (StorageMetrics protocol).
+
+        This method implements the StorageMetrics protocol for integration
+        with observability tools like Prometheus and Datadog.
+
+        Fix for Issue #1638: Implements StorageMetrics.record_io_operation
+        to allow external metrics collection.
+
+        Args:
+            operation_type: Type of operation (e.g., 'read', 'write', 'flush')
+            duration: Operation duration in seconds
+            retries: Number of retry attempts
+            success: Whether the operation succeeded
+            error_type: Type of error if operation failed
+        """
+        # Delegate to existing record_operation method
+        # This maintains compatibility with existing IOMetrics functionality
+        # while implementing the StorageMetrics protocol
+        self.record_operation(
+            operation_type=operation_type,
+            duration=duration,
+            retries=retries,
+            success=success,
+            error_type=error_type
+        )
+
+    def record_lock_contention(self, wait_time: float) -> None:
+        """Record a lock contention event (StorageMetrics protocol).
+
+        This method implements the StorageMetrics protocol for tracking
+        lock contention events.
+
+        Fix for Issue #1638: Implements StorageMetrics.record_lock_contention.
+
+        Args:
+            wait_time: Time spent waiting for lock in seconds
+        """
+        # Record as a special operation type for tracking
+        # This integrates with existing IOMetrics infrastructure
+        self.record_operation(
+            operation_type='lock_contention',
+            duration=wait_time,
+            retries=0,
+            success=True
+        )
+
+    def record_lock_acquired(self, acquire_time: float) -> None:
+        """Record a successful lock acquisition (StorageMetrics protocol).
+
+        This method implements the StorageMetrics protocol for tracking
+        lock acquisition performance.
+
+        Fix for Issue #1638: Implements StorageMetrics.record_lock_acquired.
+
+        Args:
+            acquire_time: Time taken to acquire lock in seconds
+        """
+        # Record as a special operation type for tracking
+        self.record_operation(
+            operation_type='lock_acquired',
+            duration=acquire_time,
+            retries=0,
+            success=True
+        )
+
 
 class _IOMetricsContextManager:
     """Async context manager for tracking I/O operations (Issue #1063)."""
@@ -2392,6 +2692,15 @@ async def _retry_io_operation(
                     retries=0,
                     success=True
                 )
+                # Fix for Issue #1638: Also call StorageMetrics protocol method
+                # if the metrics object implements it
+                if hasattr(metrics, 'record_io_operation'):
+                    metrics.record_io_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=0,
+                        success=True
+                    )
             return result
         except Exception as e:
             # Record failed metrics
@@ -2407,6 +2716,16 @@ async def _retry_io_operation(
                     success=False,
                     error_type=error_type
                 )
+                # Fix for Issue #1638: Also call StorageMetrics protocol method
+                # if the metrics object implements it
+                if hasattr(metrics, 'record_io_operation'):
+                    metrics.record_io_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=0,
+                        success=False,
+                        error_type=error_type
+                    )
             raise
 
     # Track start time and retry count for metrics (Issue #1053)
@@ -2441,6 +2760,14 @@ async def _retry_io_operation(
                         retries=actual_retries,
                         success=True
                     )
+                    # Fix for Issue #1638: Also call StorageMetrics protocol method
+                    if hasattr(metrics, 'record_io_operation'):
+                        metrics.record_io_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=True
+                        )
                 return result
             else:
                 # Issue #1056: Handle both sync and async operations correctly
@@ -2459,6 +2786,14 @@ async def _retry_io_operation(
                         retries=actual_retries,
                         success=True
                     )
+                    # Fix for Issue #1638: Also call StorageMetrics protocol method
+                    if hasattr(metrics, 'record_io_operation'):
+                        metrics.record_io_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=True
+                        )
                 return result
         except asyncio.TimeoutError:
             # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
@@ -2472,6 +2807,15 @@ async def _retry_io_operation(
                     success=False,
                     error_type='TIMEOUT'
                 )
+                # Fix for Issue #1638: Also call StorageMetrics protocol method
+                if hasattr(metrics, 'record_io_operation'):
+                    metrics.record_io_operation(
+                        operation_type or 'unknown',
+                        duration,
+                        retries=actual_retries,
+                        success=False,
+                        error_type='TIMEOUT'
+                    )
             raise StorageTimeoutError(
                 f"I/O operation timed out after {timeout}s"
             )
@@ -2496,6 +2840,15 @@ async def _retry_io_operation(
                         success=False,
                         error_type=error_type
                     )
+                    # Fix for Issue #1638: Also call StorageMetrics protocol method
+                    if hasattr(metrics, 'record_io_operation'):
+                        metrics.record_io_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=False,
+                            error_type=error_type
+                        )
                 raise
 
             if attempt < max_attempts - 1:
@@ -2535,6 +2888,15 @@ async def _retry_io_operation(
                         success=False,
                         error_type=error_type
                     )
+                    # Fix for Issue #1638: Also call StorageMetrics protocol method
+                    if hasattr(metrics, 'record_io_operation'):
+                        metrics.record_io_operation(
+                            operation_type or 'unknown',
+                            duration,
+                            retries=actual_retries,
+                            success=False,
+                            error_type=error_type
+                        )
                 retry_logger.warning(
                     f"I/O operation failed after {max_attempts} attempts: {e}"
                 )
@@ -2555,6 +2917,15 @@ async def _retry_io_operation(
                 success=False,
                 error_type=error_type
             )
+            # Fix for Issue #1638: Also call StorageMetrics protocol method
+            if hasattr(metrics, 'record_io_operation'):
+                metrics.record_io_operation(
+                    operation_type or 'unknown',
+                    duration,
+                    retries=actual_retries,
+                    success=False,
+                    error_type=error_type
+                )
         raise last_error
 
 
@@ -4035,7 +4406,7 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1, dry_run: bool = False):
+    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1, dry_run: bool = False, metrics: StorageMetrics | None = None):
         """Initialize FileStorage.
 
         Args:
@@ -4058,6 +4429,8 @@ class FileStorage(AbstractStorage):
                      When True, skips actual file writes and lock acquisitions,
                      but logs what would have happened. Useful for verifying storage
                      integrity or checking for stale locks without modifying files.
+            metrics: Storage metrics instance for observability (Issue #1638).
+                    If None, creates a NoOpStorageMetrics instance.
 
         Raises:
             ValueError: If lock_timeout or lock_retry_interval is not positive.
@@ -4182,6 +4555,9 @@ class FileStorage(AbstractStorage):
         # Retry interval for non-blocking lock attempts (Issue #396, #777)
         # Use the provided retry interval parameter (default 0.1 seconds)
         self._lock_retry_interval: float = lock_retry_interval
+        # Storage metrics for observability (Issue #1638)
+        # Use provided metrics instance or create NoOpStorageMetrics as fallback
+        self.metrics = metrics if metrics is not None else NoOpStorageMetrics()
         # Auto-save interval for periodic saves during operations (Issue #547)
         # 60 seconds provides a good balance between data durability and performance
         self.AUTO_SAVE_INTERVAL: float = 60.0

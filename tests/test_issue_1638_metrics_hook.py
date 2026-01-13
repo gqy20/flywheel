@@ -14,7 +14,7 @@ import pytest
 from flywheel.storage import (
     _retry_io_operation,
     _AsyncCompatibleLock,
-    LocalStorage,
+    FileStorage,
 )
 
 
@@ -231,17 +231,18 @@ class TestGetStorageMetrics:
 
 
 class TestMetricsIntegrationWithStorage:
-    """Test metrics integration with LocalStorage."""
+    """Test metrics integration with FileStorage."""
 
     def test_storage_accepts_metrics_parameter(self):
-        """Test that LocalStorage can accept a metrics parameter."""
+        """Test that FileStorage can accept a metrics parameter."""
         from flywheel.storage import NoOpStorageMetrics
 
         with tempfile.TemporaryDirectory() as tmpdir:
             metrics = NoOpStorageMetrics()
+            storage_path = os.path.join(tmpdir, "todos.json")
 
-            # LocalStorage should accept metrics parameter
-            storage = LocalStorage(tmpdir, metrics=metrics)
+            # FileStorage should accept metrics parameter
+            storage = FileStorage(storage_path, metrics=metrics)
 
             assert storage.metrics == metrics
 
@@ -252,9 +253,10 @@ class TestMetricsIntegrationWithStorage:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             metrics = NoOpStorageMetrics()
+            storage_path = os.path.join(tmpdir, "todos.json")
 
             with patch.object(metrics, 'record_io_operation') as mock_record:
-                storage = LocalStorage(tmpdir, metrics=metrics)
+                storage = FileStorage(storage_path, metrics=metrics)
 
                 from flywheel.todo import Todo
                 todo = Todo("test", "description")
@@ -273,7 +275,8 @@ class TestMetricsBackwardCompatibility:
     async def test_storage_works_without_metrics(self):
         """Test that storage works normally when metrics is not provided."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            storage = LocalStorage(tmpdir)
+            storage_path = os.path.join(tmpdir, "todos.json")
+            storage = FileStorage(storage_path)
 
             from flywheel.todo import Todo
             todo = Todo("test", "description")
