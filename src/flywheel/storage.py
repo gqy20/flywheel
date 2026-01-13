@@ -46,13 +46,41 @@ class _AiofilesProtocol(Protocol):
         ...
 
 
+# Import aiofiles with fallback for graceful degradation (Issue #1032)
+# If aiofiles is not available, we'll use asyncio.to_thread with built-in open
+# Define protocol for aiofiles-like objects to avoid using # type: ignore (Issue #1565)
+
+
+class _AiofilesProtocol(Protocol):
+    """Protocol for aiofiles-like objects to ensure type safety.
+
+    This protocol defines the interface that both real aiofiles and our
+    fallback implementation must satisfy, eliminating the need for
+    # type: ignore comments (Issue #1565).
+    """
+
+    @staticmethod
+    def open(path: str, mode: str = 'rb') -> Any:
+        """Open a file asynchronously.
+
+        Args:
+            path: File path to open
+            mode: File open mode (defaults to 'rb' for binary read)
+
+        Returns:
+            An async context manager for file operations
+        """
+        ...
+
+
 try:
-    import aiofiles
+    import aiofiles as _aiofiles_real
     HAS_AIOFILES = True
+    # Always assign aiofiles, never leave it as None (Issue #1613)
+    aiofiles: _AiofilesProtocol = _aiofiles_real
 except ImportError:
     HAS_AIOFILES = False
-    # Set to None temporarily; will be replaced with _AiofilesFallback below
-    # This is typed as _AiofilesProtocol to satisfy type checkers (Issue #1565)
+    # Placeholder - will be replaced with fallback after _retry_io_operation is defined
     aiofiles: _AiofilesProtocol | None = None
 
 from flywheel.todo import Todo
@@ -2372,6 +2400,7 @@ async def _retry_io_operation(
 
 
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
+# This ensures aiofiles is ALWAYS available, eliminating need for HAS_AIOFILES checks (Issue #1613)
 if not HAS_AIOFILES:
     class _AsyncFileContextManager:
         """Async context manager for file operations without aiofiles."""
@@ -2437,7 +2466,13 @@ if not HAS_AIOFILES:
             return self._file.fileno()
 
     class _AiofilesFallback:
-        """Fallback module for aiofiles using asyncio.to_thread."""
+        """Fallback module for aiofiles using asyncio.to_thread.
+
+        This provides a drop-in replacement for aiofiles that uses Python's
+        built-in asyncio.to_thread to run file I/O operations in a thread pool.
+        This ensures aiofiles is ALWAYS available, eliminating the need for
+        HAS_AIOFILES checks throughout the codebase (Issue #1613).
+        """
 
         @staticmethod
         def open(path: str, mode: str = 'rb') -> '_AsyncFileContextManager':
@@ -2448,6 +2483,7 @@ if not HAS_AIOFILES:
             return _AsyncFileContextManager(path, mode)
 
     # Replace aiofiles with our fallback implementation
+    # This ensures aiofiles is NEVER None, eliminating need for HAS_AIOFILES checks (Issue #1613)
     # Type annotation ensures this satisfies the _AiofilesProtocol (Issue #1565)
     aiofiles: _AiofilesProtocol = _AiofilesFallback()
 
