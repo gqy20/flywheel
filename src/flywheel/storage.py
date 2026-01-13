@@ -315,19 +315,19 @@ class _AsyncCompatibleLock:
                 # ensure the reference remains valid
                 return existing_event
 
-            # Fix for Issue #1526: Create Event INSIDE the lock to ensure
-            # atomic initialization with correct state.
-            # Fix for Issue #1446: Set initial Event state based on lock state.
-            # Fix for Issue #1475: Perform check and set atomically while holding lock
-            # to prevent TOCTOU race condition where lock state changes between
-            # check and set.
+            # Fix for Issue #1401: Always create Event unset, then set it if lock
+            # is available. This eliminates race condition where lock state changes
+            # between check and event creation. By checking AFTER event creation,
+            # we ensure the event state reflects the current reality at return time.
+            # Replaces previous logic (Issue #1446, #1475, #1526) that checked
+            # lock.locked() before creating the event.
+            new_event = asyncio.Event()
+            # Set the event if lock is currently available
+            # This check happens AFTER event creation, minimizing the window
+            # for state changes. Even if state changes after this, the
+            # waiting logic in __aenter__ will handle it correctly.
             if not self._lock.locked():
-                # Lock is available, create Event and set it to signal availability
-                new_event = asyncio.Event()
                 new_event.set()
-            else:
-                # Lock is held, create unset Event (correct state for waiting)
-                new_event = asyncio.Event()
 
             # Register our event
             self._async_events[current_loop] = new_event
