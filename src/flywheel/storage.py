@@ -317,7 +317,8 @@ class StorageMetrics(Protocol):
         duration: float,
         retries: int = 0,
         success: bool = True,
-        error_type: str | None = None
+        error_type: str | None = None,
+        operation_id: str | None = None
     ) -> None:
         """Record an I/O operation metric.
 
@@ -327,6 +328,7 @@ class StorageMetrics(Protocol):
             retries: Number of retry attempts
             success: Whether the operation succeeded
             error_type: Type of error if operation failed (e.g., 'EIO', 'TIMEOUT')
+            operation_id: Optional unique ID for traceability with logs/traces (Issue #1642)
         """
         ...
 
@@ -363,7 +365,8 @@ class NoOpStorageMetrics:
         duration: float,
         retries: int = 0,
         success: bool = True,
-        error_type: str | None = None
+        error_type: str | None = None,
+        operation_id: str | None = None
     ) -> None:
         """No-op implementation."""
         pass
@@ -451,7 +454,8 @@ try:
             duration: float,
             retries: int = 0,
             success: bool = True,
-            error_type: str | None = None
+            error_type: str | None = None,
+            operation_id: str | None = None
         ) -> None:
             """Record an I/O operation metric.
 
@@ -461,6 +465,7 @@ try:
                 retries: Number of retry attempts
                 success: Whether the operation succeeded
                 error_type: Type of error if operation failed (not used in labels)
+                operation_id: Optional unique ID for traceability with logs/traces (Issue #1642)
             """
             # Record operation counter
             self._io_operations_total.labels(
@@ -2082,7 +2087,8 @@ class IOMetrics:
                     del self._lock_creation_events[loop_id]
 
     async def record_operation_async(self, operation_type: str, duration: float,
-                                     retries: int, success: bool, error_type: str = None):
+                                     retries: int, success: bool, error_type: str = None,
+                                     operation_id: str = None):
         """Record a single I/O operation (async version).
 
         This async version should be called from async contexts to avoid
@@ -2094,16 +2100,19 @@ class IOMetrics:
             retries: Number of retry attempts
             success: Whether the operation succeeded
             error_type: Type of error if operation failed (e.g., 'ENOENT')
+            operation_id: Optional unique ID for traceability with logs/traces (Issue #1642)
 
         Fix for Issue #1116: Added async version using _AsyncCompatibleLock
         to prevent deadlocks in async contexts.
+        Fix for Issue #1642: Added operation_id parameter for traceability.
         """
         operation = {
             'operation_type': operation_type,
             'duration': duration,
             'retries': retries,
             'success': success,
-            'error_type': error_type
+            'error_type': error_type,
+            'operation_id': operation_id
         }
 
         async with self._get_async_lock():
@@ -2111,7 +2120,8 @@ class IOMetrics:
             self.operations.append(operation)
 
     def record_operation(self, operation_type: str, duration: float,
-                         retries: int, success: bool, error_type: str = None):
+                         retries: int, success: bool, error_type: str = None,
+                         operation_id: str = None):
         """Record a single I/O operation.
 
         Args:
@@ -2120,6 +2130,7 @@ class IOMetrics:
             retries: Number of retry attempts
             success: Whether the operation succeeded
             error_type: Type of error if operation failed (e.g., 'ENOENT')
+            operation_id: Optional unique ID for traceability with logs/traces (Issue #1642)
 
         Fix for Issue #1061: Implements circular buffer by removing oldest
         operation when buffer is full.
@@ -2143,6 +2154,7 @@ class IOMetrics:
         Fix for Issue #1144: Uses custom _AsyncContextError exception instead of
         fragile string matching to distinguish between our custom error and
         asyncio's RuntimeError.
+        Fix for Issue #1642: Added operation_id parameter for traceability.
         """
         # Fix for Issue #1121: Detect if we're in an async context and provide
         # a clear error message directing users to use record_operation_async
@@ -2173,7 +2185,8 @@ class IOMetrics:
             'duration': duration,
             'retries': retries,
             'success': success,
-            'error_type': error_type
+            'error_type': error_type,
+            'operation_id': operation_id
         }
 
         # Fix for Issue #1135: Use threading.Lock instead of asyncio.run()
@@ -2525,7 +2538,8 @@ class IOMetrics:
         duration: float,
         retries: int = 0,
         success: bool = True,
-        error_type: str | None = None
+        error_type: str | None = None,
+        operation_id: str | None = None
     ) -> None:
         """Record an I/O operation metric (StorageMetrics protocol).
 
@@ -2534,6 +2548,7 @@ class IOMetrics:
 
         Fix for Issue #1638: Implements StorageMetrics.record_io_operation
         to allow external metrics collection.
+        Fix for Issue #1642: Added operation_id parameter for traceability.
 
         Args:
             operation_type: Type of operation (e.g., 'read', 'write', 'flush')
@@ -2541,6 +2556,7 @@ class IOMetrics:
             retries: Number of retry attempts
             success: Whether the operation succeeded
             error_type: Type of error if operation failed
+            operation_id: Optional unique ID for traceability with logs/traces
         """
         # Delegate to existing record_operation method
         # This maintains compatibility with existing IOMetrics functionality
@@ -2550,7 +2566,8 @@ class IOMetrics:
             duration=duration,
             retries=retries,
             success=success,
-            error_type=error_type
+            error_type=error_type,
+            operation_id=operation_id
         )
 
     def record_lock_contention(self, wait_time: float) -> None:
