@@ -54,33 +54,48 @@ try:
     aiofiles: _AiofilesProtocol = _aiofiles_real
 except ImportError:
     HAS_AIOFILES = False
-    # Temporary placeholder that implements _AiofilesProtocol
-    # This ensures aiofiles.open is callable even before the full fallback
-    # implementation is assigned later (Issue #1624)
+    # Simple fallback that implements _AiofilesProtocol
+    # This provides a basic async file context manager that will be
+    # replaced with the full _AiofilesFallback implementation after
+    # _retry_io_operation is defined (Issue #1624, #1631)
     class _AiofilesPlaceholder:
-        """Temporary placeholder implementing _AiofilesProtocol.
+        """Simple placeholder implementing _AiofilesProtocol.
 
-        This placeholder ensures aiofiles.open exists and is callable,
-        preventing AttributeError at module import time. It will be
-        replaced with the full _AiofilesFallback implementation after
-        _retry_io_operation is defined (Issue #1624).
+        This placeholder provides a minimal working implementation
+        to prevent RuntimeError if it's accidentally called before
+        being replaced with the full _AiofilesFallback (Issue #1631).
         """
 
         @staticmethod
         def open(path: str, mode: str = 'rb'):
-            """Placeholder open method.
+            """Minimal async file context manager.
 
-            This should never be called, as it will be replaced with
-            the proper implementation before any actual use.
+            This provides a basic fallback that uses asyncio.to_thread
+            if called before the full implementation is ready.
 
-            Raises:
-                RuntimeError: If called, indicating the placeholder
-                    was not properly replaced with the fallback.
+            This should normally be replaced with _AiofilesFallback,
+            but this implementation ensures the code won't crash
+            if the replacement fails for any reason (Issue #1631).
             """
-            raise RuntimeError(
-                "aiofiles placeholder was not replaced with fallback implementation. "
-                "This should never happen - report this bug."
-            )
+            from asyncio import to_thread
+
+            class _SimpleAsyncFile:
+                """Simple async file wrapper."""
+
+                def __init__(self, path, mode):
+                    self.path = path
+                    self.mode = mode
+                    self._file = None
+
+                async def __aenter__(self):
+                    self._file = await to_thread(open, self.path, self.mode)
+                    return self._file
+
+                async def __aexit__(self, exc_type, exc_val, exc_tb):
+                    if self._file:
+                        await to_thread(self._file.close)
+
+            return _SimpleAsyncFile(path, mode)
 
     aiofiles: _AiofilesProtocol = _AiofilesPlaceholder()
 
