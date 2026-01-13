@@ -180,6 +180,8 @@ class _AsyncCompatibleLock:
     thundering herd effects during high contention.
     Fix for Issue #1538: Implements lock statistics tracking for performance
     monitoring and contention analysis.
+    Fix for Issue #1582: Adds structured logging context (lock_wait_time, attempts)
+    to lock acquisition when DEBUG_STORAGE is enabled for diagnosing contention.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -479,9 +481,15 @@ class _AsyncCompatibleLock:
                         self._last_flush_count = 0
 
                 # Fix for Issue #1502: Log with structured data for monitoring
+                # Fix for Issue #1582: Add structured logging context with wait_time and attempts
                 logger.debug(
                     "Lock acquired successfully",
-                    extra={'component': 'storage', 'op': 'lock_acquire'}
+                    extra={
+                        'component': 'storage',
+                        'op': 'lock_acquire',
+                        'lock_wait_time': wait_time,
+                        'attempts': attempt + 1
+                    }
                 )
                 # Fix for Issue #1531: Use try-finally to ensure lock is released
                 # if an exception occurs between acquire() and return self.
@@ -692,6 +700,17 @@ class _AsyncCompatibleLock:
                             self._contention_count = 0
                             self._total_wait_time = 0.0
                             self._last_flush_count = 0
+
+                    # Fix for Issue #1582: Add structured logging context with wait_time and attempts
+                    logger.debug(
+                        "Async lock acquired successfully",
+                        extra={
+                            'component': 'storage',
+                            'op': 'async_lock_acquire',
+                            'lock_wait_time': wait_time,
+                            'attempts': attempt + 1
+                        }
+                    )
 
                     try:
                         # Clear the event so other async tasks know the lock is taken
