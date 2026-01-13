@@ -383,6 +383,8 @@ class _AsyncCompatibleLock:
         self._acquire_count = 0  # Total number of lock acquisitions
         self._contention_count = 0  # Number of times lock was contended (wait time > 0)
         self._total_wait_time = 0.0  # Total time spent waiting for lock (seconds)
+        # Fix for Issue #1612: Track maximum wait time for monitoring systems
+        self._max_wait = 0.0  # Maximum time spent waiting for lock (seconds)
 
         # Fix for Issue #1548: Initialize periodic stats flushing
         # Flush stats every N acquisitions to prevent overflow in long-running processes
@@ -637,6 +639,9 @@ class _AsyncCompatibleLock:
                     if wait_time > 0:
                         self._contention_count += 1
                         self._total_wait_time += wait_time
+                        # Fix for Issue #1612: Update maximum wait time
+                        if wait_time > self._max_wait:
+                            self._max_wait = wait_time
 
                     # Fix for Issue #1548: Check if we should flush stats periodically
                     # This prevents integer overflow in long-running processes
@@ -665,6 +670,7 @@ class _AsyncCompatibleLock:
                         self._acquire_count = 0
                         self._contention_count = 0
                         self._total_wait_time = 0.0
+                        self._max_wait = 0.0
                         self._last_flush_count = 0
 
                 # Fix for Issue #1502: Log with structured data for monitoring
@@ -898,6 +904,9 @@ class _AsyncCompatibleLock:
                         if wait_time > 0:
                             self._contention_count += 1
                             self._total_wait_time += wait_time
+                            # Fix for Issue #1612: Update maximum wait time
+                            if wait_time > self._max_wait:
+                                self._max_wait = wait_time
 
                         # Fix for Issue #1548: Check if we should flush stats periodically
                         # This prevents integer overflow in long-running processes
@@ -926,6 +935,7 @@ class _AsyncCompatibleLock:
                             self._acquire_count = 0
                             self._contention_count = 0
                             self._total_wait_time = 0.0
+                            self._max_wait = 0.0
                             self._last_flush_count = 0
 
                     # Fix for Issue #1582: Add structured logging context with wait_time and attempts
@@ -1214,6 +1224,49 @@ class _AsyncCompatibleLock:
                 'contention_rate': contention_rate,
             }
 
+    def get_lock_stats(self) -> dict:
+        """Get simplified lock statistics for monitoring systems.
+
+        Returns a dictionary containing:
+        - total_waits: Number of times lock acquisition had to wait (contention_count)
+        - total_wait_time: Total time spent waiting for the lock (seconds)
+        - max_wait: Maximum time spent waiting for the lock (seconds)
+
+        This method provides a simplified interface for monitoring systems to poll
+        lock contention metrics programmatically without parsing logs. Unlike get_stats(),
+        which provides detailed analysis metrics, this method focuses on the essential
+        metrics needed for dashboards and alerting.
+
+        The returned metrics allow monitoring systems to:
+        - Track lock contention over time
+        - Alert on high wait times
+        - Build dashboards showing lock performance
+        - Correlate lock contention with other system metrics
+
+        Returns:
+            dict: Statistics dictionary with keys 'total_waits', 'total_wait_time',
+                  and 'max_wait'. Returns a copy to prevent external modification.
+
+        Example:
+            >>> lock = _AsyncCompatibleLock()
+            >>> with lock:
+            ...     pass
+            >>> stats = lock.get_lock_stats()
+            >>> print(f"Waits: {stats['total_waits']}")
+            >>> print(f"Total wait: {stats['total_wait_time']:.3f}s")
+            >>> print(f"Max wait: {stats['max_wait']:.3f}s")
+
+        Fix for Issue #1612: Adds metrics export for lock contention to enable
+        programmatic access for monitoring systems without parsing logs.
+        """
+        with self._stats_lock:
+            # Return a copy to prevent external modification of internal state
+            return {
+                'total_waits': self._contention_count,
+                'total_wait_time': self._total_wait_time,
+                'max_wait': self._max_wait,
+            }
+
     def reset_stats(self) -> None:
         """Reset lock statistics to zero.
 
@@ -1229,11 +1282,13 @@ class _AsyncCompatibleLock:
             >>> lock.reset_stats()
 
         Fix for Issue #1538: Implements statistics reset functionality.
+        Fix for Issue #1612: Also resets max_wait.
         """
         with self._stats_lock:
             self._acquire_count = 0
             self._contention_count = 0
             self._total_wait_time = 0.0
+            self._max_wait = 0.0
 
     def flush_stats(self) -> None:
         """Flush statistics by logging current metrics and resetting counters.
@@ -1249,12 +1304,14 @@ class _AsyncCompatibleLock:
             >>> lock.flush_stats()
 
         Fix for Issue #1548: Implements periodic stats flushing for long-running processes.
+        Fix for Issue #1612: Also flushes and resets max_wait.
         """
         with self._stats_lock:
             # Capture current stats before resetting
             current_acquire_count = self._acquire_count
             current_contention_count = self._contention_count
             current_total_wait_time = self._total_wait_time
+            current_max_wait = self._max_wait
 
             # Log the stats with structured data for monitoring
             logger.info(
@@ -1265,7 +1322,8 @@ class _AsyncCompatibleLock:
                     'stats_flushed': {
                         'acquire_count': current_acquire_count,
                         'contention_count': current_contention_count,
-                        'total_wait_time': current_total_wait_time
+                        'total_wait_time': current_total_wait_time,
+                        'max_wait': current_max_wait
                     }
                 }
             )
@@ -1274,6 +1332,7 @@ class _AsyncCompatibleLock:
             self._acquire_count = 0
             self._contention_count = 0
             self._total_wait_time = 0.0
+            self._max_wait = 0.0
             self._last_flush_count = 0
 
     def log_stats(self, message: str = "Lock statistics") -> None:
