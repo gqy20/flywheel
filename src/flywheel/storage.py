@@ -214,8 +214,18 @@ class _AsyncCompatibleLock:
         Raises:
             ValueError: If timeout_range has min > max, or if any timeout value is negative.
         """
-        # Fix for Issue #1533: Validate timeout_range parameters
-        if timeout_range is not None:
+        # Fix for Issue #1599: lock_timeout takes precedence over timeout_range
+        # When explicitly provided, lock_timeout should be respected
+        if lock_timeout is not None:
+            # Validate explicit lock_timeout
+            if lock_timeout < 0:
+                raise ValueError(
+                    f"lock_timeout must be non-negative, got {lock_timeout}"
+                )
+            self._timeout_range = None
+            self._lock_timeout = lock_timeout
+        elif timeout_range is not None:
+            # Fix for Issue #1533: Validate timeout_range parameters
             min_timeout, max_timeout = timeout_range
             if min_timeout < 0 or max_timeout < 0:
                 raise ValueError(
@@ -228,14 +238,6 @@ class _AsyncCompatibleLock:
             self._timeout_range = timeout_range
             # When using timeout_range, use the midpoint as base timeout
             self._lock_timeout = (min_timeout + max_timeout) / 2
-        elif lock_timeout is not None:
-            # Validate explicit lock_timeout
-            if lock_timeout < 0:
-                raise ValueError(
-                    f"lock_timeout must be non-negative, got {lock_timeout}"
-                )
-            self._timeout_range = None
-            self._lock_timeout = lock_timeout
         else:
             self._timeout_range = None
             self._lock_timeout = self._DEFAULT_LOCK_TIMEOUT
