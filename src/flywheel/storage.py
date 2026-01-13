@@ -81,7 +81,10 @@ try:
 except ImportError:
     HAS_AIOFILES = False
     # Placeholder - will be replaced with fallback after _retry_io_operation is defined
-    aiofiles: _AiofilesProtocol | None = None
+    # Type: _AiofilesProtocol (not None) to ensure type safety (Issue #1621)
+    # The actual fallback implementation will be assigned immediately below
+    _aiofiles_placeholder: object = object()  # Unique placeholder object
+    aiofiles: _AiofilesProtocol = _aiofiles_placeholder  # type: ignore[assignment]
 
 from flywheel.todo import Todo
 
