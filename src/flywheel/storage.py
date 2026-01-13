@@ -61,6 +61,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Fix for Issue #1572: Check DEBUG_STORAGE environment variable to enable debug logging
+# This allows developers and operators to monitor storage performance and tune parameters
+if os.environ.get('DEBUG_STORAGE'):
+    logger.setLevel(logging.DEBUG)
+    logger.debug("DEBUG_STORAGE enabled: storage logger set to DEBUG level")
+
 
 class StorageTimeoutError(TimeoutError):
     """Exception raised when I/O operation or lock acquisition times out.
@@ -495,6 +501,7 @@ class _AsyncCompatibleLock:
             # Fix for Issue #1498: Instead of failing immediately, retry with
             # exponential backoff to reduce contention and improve throughput.
             # Fix for Issue #1533: Use custom backoff strategy if provided
+            # Fix for Issue #1572: Add structured logging for contention monitoring
             if attempt < MAX_RETRIES - 1:
                 if self._backoff_strategy is not None:
                     # Use custom backoff strategy
@@ -503,6 +510,22 @@ class _AsyncCompatibleLock:
                     # Default exponential backoff
                     # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
                     delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+
+                # Fix for Issue #1572: Log retry attempt with structured data
+                # This allows monitoring of lock contention and retry behavior
+                logger.debug(
+                    f"Lock acquisition attempt {attempt + 1}/{MAX_RETRIES} timed out, "
+                    f"retrying after backoff delay",
+                    extra={
+                        'component': 'lock',
+                        'op': 'acquire_retry',
+                        'attempt': attempt + 1,
+                        'max_retries': MAX_RETRIES,
+                        'timeout': timeout_for_attempt,
+                        'backoff_delay': delay
+                    }
+                )
+
                 time.sleep(delay)
 
         # All retries exhausted - lock is NOT held by current thread
@@ -692,6 +715,7 @@ class _AsyncCompatibleLock:
                 # Fix for Issue #1498: Instead of failing immediately, retry with
                 # exponential backoff to reduce contention and improve throughput.
                 # Fix for Issue #1573: Use custom backoff strategy if provided
+                # Fix for Issue #1572: Add structured logging for contention monitoring
                 if attempt < MAX_RETRIES - 1:
                     if self._backoff_strategy is not None:
                         # Use custom backoff strategy
@@ -700,6 +724,22 @@ class _AsyncCompatibleLock:
                         # Default exponential backoff
                         # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
                         delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+
+                    # Fix for Issue #1572: Log retry attempt with structured data
+                    # This allows monitoring of lock contention and retry behavior
+                    logger.debug(
+                        f"Async lock acquisition attempt {attempt + 1}/{MAX_RETRIES} timed out, "
+                        f"retrying after backoff delay",
+                        extra={
+                            'component': 'lock',
+                            'op': 'async_acquire_retry',
+                            'attempt': attempt + 1,
+                            'max_retries': MAX_RETRIES,
+                            'timeout': timeout_for_attempt,
+                            'backoff_delay': delay
+                        }
+                    )
+
                     await asyncio.sleep(delay)
                 else:
                     # All retries exhausted - raise StorageTimeoutError
