@@ -62,11 +62,77 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+# Fix for Issue #1603: JSON formatter for structured logging
+class JSONFormatter(logging.Formatter):
+    """Custom JSON formatter for structured logging.
+
+    This formatter converts log records into JSON format with all fields
+    at the top level (not nested) for easy parsing by monitoring tools
+    like Datadog, ELK, and other log aggregators.
+
+    Fix for Issue #1603: Provides machine-readable JSON logs for lock
+    contention monitoring and analysis.
+    """
+
+    def format(self, record):
+        """Format log record as JSON.
+
+        Args:
+            record: The logging record to format
+
+        Returns:
+            JSON string with all log fields at top level
+        """
+        import json
+
+        # Extract all attributes from the record
+        log_data = {
+            'timestamp': self.formatTime(record),
+            'level': record.levelname,
+            'logger': record.name,
+            'message': record.getMessage(),
+        }
+
+        # Add custom fields from the record's extra dict
+        # These are set using logger.info(..., extra={...})
+        for key, value in record.__dict__.items():
+            if key not in {
+                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
+                'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
+                'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
+                'thread', 'threadName', 'processName', 'process', 'message',
+                'asctime', 'timestamp', 'level', 'logger'
+            }:
+                log_data[key] = value
+
+        # Add exception info if present
+        if record.exc_info:
+            log_data['exception'] = self.formatException(record.exc_info)
+
+        return json.dumps(log_data)
+
+
 # Fix for Issue #1572: Check DEBUG_STORAGE environment variable to enable debug logging
 # This allows developers and operators to monitor storage performance and tune parameters
+# Fix for Issue #1603: Add JSON handler for structured logging when DEBUG_STORAGE is enabled
 if os.environ.get('DEBUG_STORAGE'):
     logger.setLevel(logging.DEBUG)
     logger.debug("DEBUG_STORAGE enabled: storage logger set to DEBUG level")
+
+    # Check if logger already has a JSON handler (avoid duplicates)
+    has_json_handler = any(
+        isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatter)
+        for h in logger.handlers
+    )
+
+    if not has_json_handler:
+        # Add JSON handler for structured logging
+        json_handler = logging.StreamHandler()
+        json_handler.setFormatter(JSONFormatter())
+        json_handler.setLevel(logging.INFO)  # Log INFO and above
+        logger.addHandler(json_handler)
+        logger.debug("DEBUG_STORAGE: JSON structured logging enabled")
 
 
 class StorageTimeoutError(TimeoutError):
@@ -184,6 +250,9 @@ class _AsyncCompatibleLock:
     to lock acquisition when DEBUG_STORAGE is enabled for diagnosing contention.
     Fix for Issue #1587: Emits structured JSON logs with event='lock_wait' when
     DEBUG_STORAGE is active for monitoring tools (Datadog, ELK) to visualize bottlenecks.
+    Fix for Issue #1603: Implements JSONFormatter class and adds JSON handler to logger
+    when DEBUG_STORAGE is enabled, emitting machine-readable JSON logs with distinct
+    fields (duration, caller, event, acquired, etc.) for structured logging tools.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -545,14 +614,19 @@ class _AsyncCompatibleLock:
                 # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                 # This provides machine-readable logs for monitoring tools (Datadog, ELK)
                 # to visualize bottlenecks and diagnose contention issues post-mortem
+                # Fix for Issue #1603: Add duration and caller fields for better compatibility
                 if os.environ.get('DEBUG_STORAGE'):
                     logger.info(
                         "Lock contention event",
                         extra={
                             'event': 'lock_wait',
                             'wait_time': wait_time,
+                            'duration': wait_time,  # Alias for compatibility
                             'acquired': True,
-                            'thread': threading.current_thread().name
+                            'thread': threading.current_thread().name,
+                            'caller': threading.current_thread().name,  # Alias for compatibility
+                            'attempts': attempt + 1,
+                            'lock_timeout': self._lock_timeout
                         }
                     )
                 # Fix for Issue #1531: Use try-finally to ensure lock is released
@@ -607,14 +681,19 @@ class _AsyncCompatibleLock:
 
         # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
         # Log the failed acquisition attempt for monitoring and analysis
+        # Fix for Issue #1603: Add duration and caller fields for better compatibility
         if os.environ.get('DEBUG_STORAGE'):
             logger.info(
                 "Lock contention event - failed to acquire",
                 extra={
                     'event': 'lock_wait',
                     'wait_time': total_wait_time,
+                    'duration': total_wait_time,  # Alias for compatibility
                     'acquired': False,
-                    'thread': threading.current_thread().name
+                    'thread': threading.current_thread().name,
+                    'caller': threading.current_thread().name,  # Alias for compatibility
+                    'attempts': MAX_RETRIES,
+                    'lock_timeout': self._lock_timeout
                 }
             )
 
@@ -795,14 +874,20 @@ class _AsyncCompatibleLock:
                     # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                     # This provides machine-readable logs for monitoring tools (Datadog, ELK)
                     # to visualize bottlenecks and diagnose contention issues post-mortem
+                    # Fix for Issue #1603: Add duration and caller fields for better compatibility
                     if os.environ.get('DEBUG_STORAGE'):
                         logger.info(
                             "Lock contention event",
                             extra={
                                 'event': 'lock_wait',
                                 'wait_time': wait_time,
+                                'duration': wait_time,  # Alias for compatibility
                                 'acquired': True,
-                                'thread': threading.current_thread().name
+                                'thread': threading.current_thread().name,
+                                'caller': threading.current_thread().name,  # Alias for compatibility
+                                'attempts': attempt + 1,
+                                'lock_timeout': self._lock_timeout,
+                                'context': 'async'
                             }
                         )
 
@@ -862,14 +947,20 @@ class _AsyncCompatibleLock:
 
                     # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                     # Log the failed acquisition attempt for monitoring and analysis
+                    # Fix for Issue #1603: Add duration and caller fields for better compatibility
                     if os.environ.get('DEBUG_STORAGE'):
                         logger.info(
                             "Lock contention event - failed to acquire",
                             extra={
                                 'event': 'lock_wait',
                                 'wait_time': total_wait_time,
+                                'duration': total_wait_time,  # Alias for compatibility
                                 'acquired': False,
-                                'thread': threading.current_thread().name
+                                'thread': threading.current_thread().name,
+                                'caller': threading.current_thread().name,  # Alias for compatibility
+                                'attempts': MAX_RETRIES,
+                                'lock_timeout': self._lock_timeout,
+                                'context': 'async'
                             }
                         )
 
