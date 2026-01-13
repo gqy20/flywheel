@@ -304,3 +304,41 @@ def test_async_lock_sync_context_error_message_complete():
     assert "async with' ins" not in lock_source or "async with' instead" in lock_source, (
         "Error message should not be truncated at 'ins' (Issue #1270)"
     )
+
+
+def test_storage_context_no_mutation():
+    """Verify that set_storage_context creates new dict instead of mutating (Issue #1634)."""
+    import inspect
+
+    # Get the source code of set_storage_context function
+    from flywheel.storage import set_storage_context
+    context_source = inspect.getsource(set_storage_context)
+
+    # The current implementation has a race condition:
+    # current_context = _storage_context.get({})
+    # current_context.update(kwargs)
+    # _storage_context.set(current_context)
+    #
+    # This mutates the original dict, which can cause race conditions in async contexts.
+    # The safe approach is to create a new dict:
+    # _storage_context.set({**_storage_context.get({}), **kwargs})
+
+    # Check for the unsafe pattern: .update() followed by .set()
+    has_update_pattern = (
+        '.update(' in context_source and
+        '_storage_context.set(current_context)' in context_source
+    )
+
+    # Check for the safe pattern: dictionary unpacking
+    has_safe_pattern = (
+        '{**' in context_source or
+        'dict(' in context_source
+    )
+
+    # The test should fail if the unsafe pattern is present without safe pattern
+    assert has_safe_pattern or not has_update_pattern, (
+        "set_storage_context has race condition: it mutates the dictionary directly "
+        "instead of creating a new one. Use: "
+        "_storage_context.set({**_storage_context.get({}), **kwargs}) "
+        "(Issue #1634)"
+    )
