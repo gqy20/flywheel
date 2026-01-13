@@ -224,6 +224,12 @@ class Todo:
         if tags is not None and not all(isinstance(tag, str) for tag in tags):
             raise ValueError("All items in 'tags' must be str")
 
+        # Sanitize each tag to remove control characters
+        if tags is not None:
+            tags = [_sanitize_text(tag).strip() for tag in tags]
+            # Remove empty tags that result from sanitization
+            tags = [tag for tag in tags if tag]
+
         # Build kwargs dynamically to avoid overriding default_factory
         kwargs = {
             "id": data["id"],
