@@ -591,7 +591,12 @@ class _AsyncCompatibleLock:
         Fix for Issue #1394: Uses non-reentrant Lock instead of RLock to prevent
         deadlock when sync thread holding lock waits for async event.
         Fix for Issue #1538: Track lock acquisition statistics.
+        Fix for Issue #1498: Implements exponential backoff for lock acquisition retries
+        to improve throughput under high contention.
+        Fix for Issue #1573: Implements fuzzy timeout mechanism with configurable range
+        and custom backoff strategies in async contexts to prevent thundering herd effects.
         """
+        import random
         import time
 
         # Fix for Issue #1538: Track wait time for statistics
@@ -600,76 +605,120 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1381: Get the event for this event loop
         async_event = self._get_async_event()
 
-        # Wait for the event to be set (indicating lock is available)
-        # Then try to acquire the lock
-        while True:
-            # Wait for the event to be set
-            await async_event.wait()
+        # Fix for Issue #1498: Implement exponential backoff for retries
+        # This improves throughput under high contention by retrying with
+        # increasing delays instead of waiting indefinitely.
+        MAX_RETRIES = 3
+        BASE_DELAY = 0.0  # Base delay in seconds
+        MAX_DELAY = 0.1   # Maximum delay for first retry
 
-            # Try to acquire the lock with non-blocking attempt
-            # If we get it, clear the event and return
-            acquired = self._lock.acquire(blocking=False)
-            if acquired:
-                # Fix for Issue #1538: Record statistics
-                wait_time = time.time() - acquire_start_time
-                with self._stats_lock:
-                    self._acquire_count += 1
-                    if wait_time > 0:
-                        self._contention_count += 1
-                        self._total_wait_time += wait_time
+        for attempt in range(MAX_RETRIES):
+            # Fix for Issue #1573: Calculate timeout for this attempt
+            # Use fuzzy timeout if timeout_range is specified
+            if self._timeout_range is not None:
+                min_timeout, max_timeout = self._timeout_range
+                timeout_for_attempt = random.uniform(min_timeout, max_timeout)
+            else:
+                timeout_for_attempt = self._lock_timeout
 
-                    # Fix for Issue #1548: Check if we should flush stats periodically
-                    # This prevents integer overflow in long-running processes
+            # Try to acquire the lock with timeout
+            # Instead of waiting indefinitely, we use asyncio.wait_for with timeout
+            try:
+                # Wait for the event to be set (indicating lock is available)
+                # with timeout to prevent indefinite blocking
+                await asyncio.wait_for(async_event.wait(), timeout=timeout_for_attempt)
+
+                # Event is set, try to acquire the lock with non-blocking attempt
+                acquired = self._lock.acquire(blocking=False)
+                if acquired:
+                    # Lock acquired successfully
+                    # Fix for Issue #1538: Record statistics
+                    wait_time = time.time() - acquire_start_time
+                    with self._stats_lock:
+                        self._acquire_count += 1
+                        if wait_time > 0:
+                            self._contention_count += 1
+                            self._total_wait_time += wait_time
+
+                        # Fix for Issue #1548: Check if we should flush stats periodically
+                        # This prevents integer overflow in long-running processes
+                        if self._acquire_count - self._last_flush_count >= self._flush_threshold:
+                            # Capture stats for logging
+                            stats_to_log = {
+                                'acquire_count': self._acquire_count,
+                                'contention_count': self._contention_count,
+                                'total_wait_time': self._total_wait_time
+                            }
+
+                    # Flush stats outside the lock to avoid holding it during I/O
                     if self._acquire_count - self._last_flush_count >= self._flush_threshold:
-                        # Capture stats for logging
-                        stats_to_log = {
-                            'acquire_count': self._acquire_count,
-                            'contention_count': self._contention_count,
-                            'total_wait_time': self._total_wait_time
-                        }
+                        # Log the stats with structured data for monitoring
+                        logger.info(
+                            "Flushing lock statistics (periodic)",
+                            extra={
+                                'component': 'lock',
+                                'op': 'flush_stats',
+                                'stats_flushed': stats_to_log
+                            }
+                        )
 
-                # Flush stats outside the lock to avoid holding it during I/O
-                if self._acquire_count - self._last_flush_count >= self._flush_threshold:
-                    # Log the stats with structured data for monitoring
-                    logger.info(
-                        "Flushing lock statistics (periodic)",
-                        extra={
-                            'component': 'lock',
-                            'op': 'flush_stats',
-                            'stats_flushed': stats_to_log
-                        }
+                        # Reset counters
+                        with self._stats_lock:
+                            self._acquire_count = 0
+                            self._contention_count = 0
+                            self._total_wait_time = 0.0
+                            self._last_flush_count = 0
+
+                    try:
+                        # Clear the event so other async tasks know the lock is taken
+                        async_event.clear()
+                        return self
+                    except BaseException:
+                        # If any exception occurs before we return, release the lock
+                        # and set the event again to maintain consistent state
+                        self._lock.release()
+                        async_event.set()
+                        raise
+                else:
+                    # Lock is held by another thread/sync context
+                    # Check if the lock is still held before waiting again
+                    if not self._lock.locked():
+                        # Lock became available, set event to wake up immediately
+                        async_event.set()
+                    # Continue to next iteration to retry
+
+            except asyncio.TimeoutError:
+                # Timeout waiting for event - implement backoff retry
+                # Fix for Issue #1498: Instead of failing immediately, retry with
+                # exponential backoff to reduce contention and improve throughput.
+                # Fix for Issue #1573: Use custom backoff strategy if provided
+                if attempt < MAX_RETRIES - 1:
+                    if self._backoff_strategy is not None:
+                        # Use custom backoff strategy
+                        delay = self._backoff_strategy(attempt)
+                    else:
+                        # Default exponential backoff
+                        # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
+                        delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+                    await asyncio.sleep(delay)
+                else:
+                    # All retries exhausted - raise StorageTimeoutError
+                    timeout_msg = (
+                        f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
+                        else f"{self._lock_timeout}"
+                    )
+                    raise StorageTimeoutError(
+                        f"Could not acquire lock within {timeout_msg} seconds "
+                        f"after {MAX_RETRIES} attempts. "
+                        "This may indicate a deadlock or very high contention. "
+                        "IMPORTANT: The lock is NOT held after this exception."
                     )
 
-                    # Reset counters
-                    with self._stats_lock:
-                        self._acquire_count = 0
-                        self._contention_count = 0
-                        self._total_wait_time = 0.0
-                        self._last_flush_count = 0
-
-                try:
-                    # Clear the event so other async tasks know the lock is taken
-                    async_event.clear()
-                    return self
-                except BaseException:
-                    # If any exception occurs before we return, release the lock
-                    # and set the event again to maintain consistent state
-                    self._lock.release()
-                    async_event.set()
-                    raise
-            else:
-                # Fix for Issue #1385: Lock is held by another thread/sync context.
-                # Check if the lock is still held before waiting again.
-                # This prevents missed wake-ups if the lock was released between
-                # the failed acquire() above and the next wait() call.
-                # If the lock is now available, the event should be set and we'll
-                # try to acquire it again on the next loop iteration.
-                if not self._lock.locked():
-                    # Lock became available, set event to wake up immediately
-                    async_event.set()
-                else:
-                    # Lock is still held, wait for notification
-                    await asyncio.sleep(0)
+        # Should not reach here, but if we do, raise timeout error
+        raise StorageTimeoutError(
+            f"Could not acquire lock after {MAX_RETRIES} attempts. "
+            "IMPORTANT: The lock is NOT held after this exception."
+        )
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Release lock when exiting async context.
