@@ -255,34 +255,66 @@ class JSONFormatter(logging.Formatter):
         For non-string values: completely redacted with '***REDACTED***'
         This preserves debugging information while protecting sensitive data.
 
+        This method recursively processes all levels of nested dictionaries and lists
+        to ensure sensitive fields are redacted at any depth.
+
         Args:
             log_data: Dictionary of log fields
 
         Returns:
             Dictionary with sensitive field values redacted
         """
-        redacted = log_data.copy()
-        for key in redacted.keys():
-            # Check if field name matches any sensitive field (case-insensitive)
-            if key.lower() in self.SENSITIVE_FIELDS:
-                value = redacted[key]
+        return self._redact_sensitive_fields_recursive(log_data)
 
-                # Handle None or non-string values
-                # Fix for Issue #1657: Check type before attempting string operations
-                if not isinstance(value, str):
-                    redacted[key] = '***REDACTED***'
-                    continue
+    def _redact_sensitive_fields_recursive(self, data):
+        """Recursively redact sensitive field values at all nesting levels.
 
-                # Partial redaction: show first 3 and last 3 chars
-                if len(value) >= 8:
-                    # Show first 3 + asterisks + last 3
-                    redacted[key] = f"{value[:3]}***{value[-3:]}"
+        Args:
+            data: Any data structure (dict, list, or primitive value)
+
+        Returns:
+            Data structure with sensitive field values redacted
+        """
+        if isinstance(data, dict):
+            redacted = {}
+            for key, value in data.items():
+                # Check if field name matches any sensitive field (case-insensitive)
+                if key.lower() in self.SENSITIVE_FIELDS:
+                    # Redact the sensitive value
+                    redacted[key] = self._redact_value(value)
                 else:
-                    # For shorter values (including empty string), completely redact
-                    # Fix for Issue #1662: Use consistent redaction marker
-                    redacted[key] = '***REDACTED***'
+                    # Recursively process non-sensitive fields
+                    redacted[key] = self._redact_sensitive_fields_recursive(value)
+            return redacted
+        elif isinstance(data, list):
+            # Recursively process each item in the list
+            return [self._redact_sensitive_fields_recursive(item) for item in data]
+        else:
+            # Return primitive values as-is
+            return data
 
-        return redacted
+    def _redact_value(self, value):
+        """Redact a single sensitive value.
+
+        Args:
+            value: The value to redact
+
+        Returns:
+            Redacted string representation
+        """
+        # Handle None or non-string values
+        # Fix for Issue #1657: Check type before attempting string operations
+        if not isinstance(value, str):
+            return '***REDACTED***'
+
+        # Partial redaction: show first 3 and last 3 chars
+        if len(value) >= 8:
+            # Show first 3 + asterisks + last 3
+            return f"{value[:3]}***{value[-3:]}"
+        else:
+            # For shorter values (including empty string), completely redact
+            # Fix for Issue #1662: Use consistent redaction marker
+            return '***REDACTED***'
 
     def _truncate_large_values(self, log_data):
         """Truncate string values that exceed MAX_LOG_SIZE.
