@@ -46,33 +46,6 @@ class _AiofilesProtocol(Protocol):
         ...
 
 
-# Import aiofiles with fallback for graceful degradation (Issue #1032)
-# If aiofiles is not available, we'll use asyncio.to_thread with built-in open
-# Define protocol for aiofiles-like objects to avoid using # type: ignore (Issue #1565)
-
-
-class _AiofilesProtocol(Protocol):
-    """Protocol for aiofiles-like objects to ensure type safety.
-
-    This protocol defines the interface that both real aiofiles and our
-    fallback implementation must satisfy, eliminating the need for
-    # type: ignore comments (Issue #1565).
-    """
-
-    @staticmethod
-    def open(path: str, mode: str = 'rb') -> Any:
-        """Open a file asynchronously.
-
-        Args:
-            path: File path to open
-            mode: File open mode (defaults to 'rb' for binary read)
-
-        Returns:
-            An async context manager for file operations
-        """
-        ...
-
-
 try:
     import aiofiles as _aiofiles_real
     HAS_AIOFILES = True
