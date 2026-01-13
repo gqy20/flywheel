@@ -146,10 +146,11 @@ class Todo:
         # Sanitize and validate description
         if description is not None:
             description = _sanitize_text(description).strip()
-            if len(description) > 5000:
+            # Convert empty/whitespace-only strings to None for type consistency
+            if not description:
+                description = None
+            elif len(description) > 5000:
                 raise ValueError(f"Description too long: {len(description)} characters (max 5000)")
-        else:
-            description = ""
 
         # Validate enum values strictly
         status_value = data.get("status", "todo")
