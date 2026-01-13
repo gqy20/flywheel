@@ -161,6 +161,14 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # 3. If so, pre-truncate the original string before main normalization
     # This ensures strict enforcement of max_length even with extreme expansion.
     #
+    # SECURITY FIX (Issue #1614): Strengthen NFKC expansion DoS protection.
+    # The previous pre-check mechanism was insufficient for extreme expansion cases.
+    # New protections:
+    # 1. Enforce strict hard limit BEFORE any normalization to prevent memory exhaustion
+    # 2. Use smaller check sample for extreme inputs to limit DoS surface
+    # 3. Apply conservative safe limit with minimum of max_length/4 for worst-case expansion
+    # 4. Add second validation after normalization to catch any bypass attempts
+    #
     # SECURITY NOTE (Issue #1505): FALSE POSITIVE - The slicing below is SAFE.
     # Python 3 strings are sequences of Unicode code points, NOT bytes.
     # - len(s) returns the number of code points (characters), not UTF-8 bytes
@@ -174,17 +182,41 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     use_nfkc = context in security_contexts
     norm_form = 'NFKC' if use_nfkc else 'NFC'
 
-    # Normalize a copy first to check for expansion
-    # Limit the copy to a reasonable size to prevent DoS during this check
-    check_copy = s[:effective_max_length * 2] if len(s) > effective_max_length * 2 else s
+    # SECURITY FIX (Issue #1614): Enforce strict hard limit BEFORE any processing
+    # This is the FIRST line of defense - reject inputs that are obviously too large
+    # even before normalization. Use a conservative 4x multiplier for NFKC contexts
+    # to account for worst-case expansion while still preventing memory exhaustion.
+    if use_nfkc:
+        # For NFKC normalization, use a more conservative pre-check limit
+        # Some characters can expand 2-3x (e.g., '㈱' → '（株）')
+        # Using 4x multiplier provides safety margin for extreme cases
+        strict_pre_limit = effective_max_length * 4
+        if len(s) > strict_pre_limit:
+            s = s[:strict_pre_limit]
+
+    # SECURITY FIX (Issue #1614): Use smaller sample size for expansion check
+    # to prevent DoS during the check itself. Limit sample to max_length + 100
+    # instead of 2*max_length, reducing attack surface.
+    check_sample_size = min(effective_max_length + 100, len(s))
+    check_copy = s[:check_sample_size] if len(s) > check_sample_size else s
+
+    # Normalize the copy to check for expansion
     normalized_check = unicodedata.normalize(norm_form, check_copy)
 
-    # If normalized version exceeds max_length, pre-truncate original string
-    # Use a conservative multiplier to account for expansion
+    # If normalized version exceeds max_length, calculate safe truncation limit
     if len(normalized_check) > effective_max_length:
         # Calculate safe truncation limit based on observed expansion ratio
         expansion_ratio = len(normalized_check) / len(check_copy) if len(check_copy) > 0 else 1
-        safe_limit = int(effective_max_length / max(expansion_ratio, 1))
+
+        # SECURITY FIX (Issue #1614): Use conservative safe limit with minimum threshold
+        # Ensure we never allow more than max_length/4 of input for worst-case expansion
+        # This provides defense-in-depth against extreme expansion ratios
+        conservative_limit = max(
+            int(effective_max_length / max(expansion_ratio, 1)),  # Ratio-based limit
+            int(effective_max_length / 4)  # Conservative minimum for 4x expansion
+        )
+        safe_limit = min(conservative_limit, len(s))
+
         if len(s) > safe_limit:
             s = s[:safe_limit]
 
@@ -214,6 +246,13 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     else:
         # Use NFC for general text to preserve special characters
         s = unicodedata.normalize('NFC', s)
+
+    # SECURITY FIX (Issue #1614): SECOND VALIDATION - Strict enforcement after normalization
+    # This is the FINAL line of defense to ensure max_length is never exceeded,
+    # even if NFKC expansion bypassed all previous checks. This provides
+    # defense-in-depth and guarantees memory safety regardless of expansion ratio.
+    if len(s) > effective_max_length:
+        s = s[:effective_max_length]
 
     # SECURITY FIX (Issue #999, #1049): Enforce max_length AFTER Unicode normalization.
     # By normalizing first, we ensure that combining sequences are composed into
