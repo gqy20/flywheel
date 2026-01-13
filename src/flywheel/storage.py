@@ -471,23 +471,33 @@ def get_storage_metrics() -> StorageMetrics:
 # Fix for Issue #1572: Check DEBUG_STORAGE environment variable to enable debug logging
 # This allows developers and operators to monitor storage performance and tune parameters
 # Fix for Issue #1603: Add JSON handler for structured logging when DEBUG_STORAGE is enabled
+# Fix for Issue #1637: Replace StreamHandler with RotatingFileHandler for log rotation
 if os.environ.get('DEBUG_STORAGE'):
     logger.setLevel(logging.DEBUG)
     logger.debug("DEBUG_STORAGE enabled: storage logger set to DEBUG level")
 
-    # Check if logger already has a JSON handler (avoid duplicates)
+    # Import RotatingFileHandler for log rotation
+    from logging.handlers import RotatingFileHandler
+
+    # Check if logger already has a JSON rotating handler (avoid duplicates)
     has_json_handler = any(
-        isinstance(h, logging.StreamHandler) and isinstance(h.formatter, JSONFormatter)
+        isinstance(h, RotatingFileHandler) and isinstance(h.formatter, JSONFormatter)
         for h in logger.handlers
     )
 
     if not has_json_handler:
-        # Add JSON handler for structured logging
-        json_handler = logging.StreamHandler()
+        # Add JSON handler with log rotation for structured logging
+        # Configure rotation to prevent disk space exhaustion
+        log_file = os.path.join(os.getcwd(), 'flywheel_storage.log')
+        json_handler = RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10 MB per file
+            backupCount=5,  # Keep up to 5 backup files
+        )
         json_handler.setFormatter(JSONFormatter())
         json_handler.setLevel(logging.INFO)  # Log INFO and above
         logger.addHandler(json_handler)
-        logger.debug("DEBUG_STORAGE: JSON structured logging enabled")
+        logger.debug(f"DEBUG_STORAGE: JSON structured logging with rotation enabled: {log_file}")
 
 
 class StorageTimeoutError(TimeoutError):
