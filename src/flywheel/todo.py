@@ -94,9 +94,18 @@ class Todo:
     status: Status = Status.TODO
     priority: Priority = Priority.MEDIUM
     due_date: str | None = None
-    created_at: str | None = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str | None = None
     completed_at: str | None = None
     tags: list[str] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Generate created_at timestamp if not provided.
+
+        This ensures each instance gets a unique timestamp at creation time,
+        not at class definition time (fixes issue #1585).
+        """
+        if self.created_at is None:
+            self.created_at = datetime.now().isoformat()
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
