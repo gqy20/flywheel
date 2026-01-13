@@ -40,11 +40,61 @@ def _sanitize_text(text: str) -> str:
     # Remove zero-width spaces and other invisible Unicode characters
     # Using str.translate() to prevent ReDoS vulnerabilities (O(n) guaranteed)
     invisible_chars_map = {
+        # Zero-width characters (U+200B-U+200F, U+2060, U+FEFF)
         0x200B: None,  # Zero Width Space
         0x200C: None,  # Zero Width Non-Joiner
         0x200D: None,  # Zero Width Joiner
+        0x200E: None,  # Left-to-Right Mark
+        0x200F: None,  # Right-to-Left Mark
         0x2060: None,  # Word Joiner
         0xFEFF: None,  # Zero Width No-Break Space (BOM)
+        # Soft hyphen and other invisible format characters
+        0x00AD: None,  # Soft Hyphen
+        0x034F: None,  # Combining Grapheme Joiner
+        # General punctuation and invisible separators
+        0x2028: None,  # Line Separator
+        0x2029: None,  # Paragraph Separator
+        # Invisible mathematical operators
+        0x2061: None,  # Function Application
+        0x2062: None,  # Invisible Times
+        0x2063: None,  # Invisible Separator
+        0x2064: None,  # Invisible Plus
+        # Arabic and other script-specific invisible chars
+        0x0600: None,  # Arabic Number Sign
+        0x0601: None,  # Arabic Sign Sanah
+        0x0602: None,  # Arabic Footnote Marker
+        0x0603: None,  # Arabic Sign Safha
+        0x06DD: None,  # Arabic End of Ayah
+        # Mongolian and other script separators
+        0x180B: None,  # Mongolian Free Variation Selector One
+        0x180C: None,  # Mongolian Free Variation Selector Two
+        0x180D: None,  # Mongolian Free Variation Selector Three
+        0x180E: None,  # Mongolian Vowel Separator
+        # Variation Selectors
+        0xFE00: None,  # Variation Selector-1
+        0xFE01: None,  # Variation Selector-2
+        0xFE02: None,  # Variation Selector-3
+        0xFE03: None,  # Variation Selector-4
+        0xFE04: None,  # Variation Selector-5
+        0xFE05: None,  # Variation Selector-6
+        0xFE06: None,  # Variation Selector-7
+        0xFE07: None,  # Variation Selector-8
+        0xFE08: None,  # Variation Selector-9
+        0xFE09: None,  # Variation Selector-10
+        0xFE0A: None,  # Variation Selector-11
+        0xFE0B: None,  # Variation Selector-12
+        0xFE0C: None,  # Variation Selector-13
+        0xFE0D: None,  # Variation Selector-14
+        0xFE0E: None,  # Variation Selector-15
+        0xFE0F: None,  # Variation Selector-16
+        # Tag characters (invisible, used for language tagging)
+        0xE0000: None,  # Tag Space
+        0xE0001: None,  # Tag Character
+        # Combining characters that can be invisible
+        0x034F: None,  # Combining Grapheme Joiner (duplicate, already set above)
+        # Deprecated/invisible characters
+        0x0091: None,  # Private Use 1 (part of control chars range, but handled here for safety)
+        0x0092: None,  # Private Use 2
     }
     text = text.translate(invisible_chars_map)
 
