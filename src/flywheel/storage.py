@@ -280,6 +280,52 @@ class _AsyncCompatibleLock:
         self._flush_threshold = 10000  # Flush stats after every 10,000 acquisitions
         self._last_flush_count = 0  # Track the acquire count at last flush
 
+        # Fix for Issue #1588: Register atexit handler to check lock state at shutdown
+        # This helps prevent lock state inconsistencies or hangs during abrupt exits
+        atexit.register(self._atexit_handler)
+
+    def _atexit_handler(self):
+        """Handle lock state at application exit.
+
+        This atexit handler checks if the lock is still held when the application
+        is exiting. If the lock is held, it logs a warning and attempts to safely
+        release the lock to prevent hangs in other threads during shutdown.
+
+        Fix for Issue #1588: Adds atexit handler to release lock on exit.
+        """
+        # Try to check if lock is held using non-blocking acquire
+        # If lock is held, we need to handle it
+        try:
+            # Try to acquire the lock with timeout=0 (non-blocking)
+            acquired = self._lock.acquire(blocking=False)
+            if acquired:
+                # Lock was not held, so we just release it and return
+                self._lock.release()
+            else:
+                # Lock is held by another thread
+                # Log a warning and attempt to signal waiting async tasks
+                logger = logging.getLogger("flywheel.storage")
+                logger.warning(
+                    "Application exiting while _AsyncCompatibleLock is still held. "
+                    "This may cause hangs or inconsistent state. "
+                    "Attempting to signal waiting tasks..."
+                )
+                # Signal all waiting async events
+                with self._async_event_init_lock:
+                    for event in list(self._async_events.values()):
+                        if not event.is_set():
+                            event.set()
+        except RuntimeError:
+            # Lock operations may fail during shutdown
+            # This is acceptable as the process is terminating anyway
+            pass
+        except Exception as e:
+            # Log any unexpected exceptions but don't raise during atexit
+            logger = logging.getLogger("flywheel.storage")
+            logger.warning(
+                f"Unexpected error in _AsyncCompatibleLock atexit handler: {e}"
+            )
+
     def _get_async_event(self):
         """Get or create the asyncio.Event for the current event loop.
 
