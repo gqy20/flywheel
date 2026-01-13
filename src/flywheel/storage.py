@@ -179,7 +179,6 @@ class JSONFormatter(logging.Formatter):
         Returns:
             JSON string with all log fields at top level
         """
-        import json
 
         # Standard fields that should never be overridden by custom fields
         standard_fields = {
