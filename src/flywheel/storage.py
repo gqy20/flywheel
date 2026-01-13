@@ -20,6 +20,8 @@ from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Protocol
 
+from flywheel.todo import Todo
+
 # Import aiofiles with fallback for graceful degradation (Issue #1032)
 # If aiofiles is not available, we'll use asyncio.to_thread with built-in open
 # Define protocol for aiofiles-like objects to avoid using # type: ignore (Issue #1565)
@@ -98,8 +100,6 @@ except ImportError:
             return _SimpleAsyncFile(path, mode)
 
     aiofiles: _AiofilesProtocol = _AiofilesPlaceholder()
-
-from flywheel.todo import Todo
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
