@@ -253,12 +253,20 @@ class _AsyncCompatibleLock:
     Fix for Issue #1603: Implements JSONFormatter class and adds JSON handler to logger
     when DEBUG_STORAGE is enabled, emitting machine-readable JSON logs with distinct
     fields (duration, caller, event, acquired, etc.) for structured logging tools.
+    Fix for Issue #1609: Uses weak references for atexit handlers to prevent
+    memory leaks when lock instances are garbage collected.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
     # 10 seconds provides a reasonable balance between handling high contention
     # and detecting deadlocks. This matches the timeout from Issue #1291.
     _DEFAULT_LOCK_TIMEOUT = 10.0
+
+    # Fix for Issue #1609: Class-level tracking of live lock instances using weak refs
+    # This allows garbage collection while still providing atexit cleanup
+    _live_locks = weakref.WeakSet()
+    _atexit_handler_registered = False
+    _registry_lock = threading.Lock()
 
     def __init__(self, lock_timeout: float | None = None,
                  timeout_range: tuple[float, float] | None = None,
@@ -353,18 +361,26 @@ class _AsyncCompatibleLock:
         self._flush_threshold = 10000  # Flush stats after every 10,000 acquisitions
         self._last_flush_count = 0  # Track the acquire count at last flush
 
-        # Fix for Issue #1588: Register atexit handler to check lock state at shutdown
-        # This helps prevent lock state inconsistencies or hangs during abrupt exits
-        atexit.register(self._atexit_handler)
+        # Fix for Issue #1609: Add this instance to the class-level WeakSet
+        # and register a single class-level atexit handler (if not already registered)
+        # This prevents memory leaks from accumulating atexit handlers while still
+        # providing cleanup on exit
+        with self.__class__._registry_lock:
+            self.__class__._live_locks.add(self)
+            if not self.__class__._atexit_handler_registered:
+                atexit.register(self.__class__._class_atexit_handler)
+                self.__class__._atexit_handler_registered = True
 
-    def _atexit_handler(self):
-        """Handle lock state at application exit.
+    def _check_lock_at_exit(self):
+        """Check this lock instance's state at application exit.
 
-        This atexit handler checks if the lock is still held when the application
+        This method checks if the lock is still held when the application
         is exiting. If the lock is held, it logs a warning and attempts to safely
         release the lock to prevent hangs in other threads during shutdown.
 
         Fix for Issue #1588: Adds atexit handler to release lock on exit.
+        Fix for Issue #1609: Renamed to _check_lock_at_exit to allow for
+        class-level atexit handler that iterates over all live locks.
         """
         # Try to check if lock is held using non-blocking acquire
         # If lock is held, we need to handle it
@@ -398,6 +414,30 @@ class _AsyncCompatibleLock:
             logger.warning(
                 f"Unexpected error in _AsyncCompatibleLock atexit handler: {e}"
             )
+
+    @classmethod
+    def _class_atexit_handler(cls):
+        """Class-level atexit handler that checks all live lock instances.
+
+        This handler is registered only once (when the first lock instance is created)
+        and iterates over all live lock instances (tracked via WeakSet) to check
+        their state at exit.
+
+        Fix for Issue #1609: Uses single class-level handler instead of per-instance
+        handlers to prevent memory leaks. The WeakSet automatically removes garbage
+        collected instances, so we only check locks that are still alive.
+        """
+        # Iterate over all live locks and check their state
+        # We create a list to avoid "WeakSet changed size during iteration" errors
+        for lock in list(cls._live_locks):
+            try:
+                lock._check_lock_at_exit()
+            except Exception as e:
+                # Log but continue checking other locks
+                logger = logging.getLogger("flywheel.storage")
+                logger.warning(
+                    f"Error checking lock state during atexit: {e}"
+                )
 
     def _get_async_event(self):
         """Get or create the asyncio.Event for the current event loop.
