@@ -157,10 +157,18 @@ class JSONFormatter(logging.Formatter):
     Fix for Issue #1633: Automatically redacts sensitive fields like
     'password', 'token', and 'api_key' to prevent sensitive information
     leakage in structured logs.
+
+    Fix for Issue #1643: Implements size limit for log data to prevent
+    massive strings from breaking log parsers or increasing ingestion costs.
     """
 
     # Sensitive field names that should be redacted (case-insensitive)
     SENSITIVE_FIELDS = {'password', 'token', 'api_key'}
+
+    # Maximum size for string values in log data (10KB)
+    # This prevents large strings (e.g., stack traces, data dumps) from
+    # breaking log parsers or significantly increasing ingestion costs
+    MAX_LOG_SIZE = 10 * 1024  # 10KB in bytes
 
     def format(self, record):
         """Format log record as JSON.
@@ -222,6 +230,10 @@ class JSONFormatter(logging.Formatter):
         # Check all field names (case-insensitive) and redact sensitive values
         log_data = self._redact_sensitive_fields(log_data)
 
+        # Fix for Issue #1643: Truncate large string values
+        # Iterate through log_data and truncate string values that exceed MAX_LOG_SIZE
+        log_data = self._truncate_large_values(log_data)
+
         return json.dumps(log_data)
 
     def _redact_sensitive_fields(self, log_data):
@@ -239,6 +251,47 @@ class JSONFormatter(logging.Formatter):
             if key.lower() in self.SENSITIVE_FIELDS:
                 redacted[key] = '******'
         return redacted
+
+    def _truncate_large_values(self, log_data):
+        """Truncate string values that exceed MAX_LOG_SIZE.
+
+        This method recursively processes all values in log_data and truncates
+        string values that exceed MAX_LOG_SIZE, appending a '...[truncated]' suffix.
+
+        Args:
+            log_data: Dictionary of log fields
+
+        Returns:
+            Dictionary with large string values truncated
+        """
+        truncated = {}
+        for key, value in log_data.items():
+            if isinstance(value, str):
+                # Truncate string if it exceeds MAX_LOG_SIZE
+                if len(value) > self.MAX_LOG_SIZE:
+                    suffix = '...[truncated]'
+                    # Truncate the string and add suffix
+                    truncated[key] = value[:self.MAX_LOG_SIZE - len(suffix)] + suffix
+                else:
+                    truncated[key] = value
+            elif isinstance(value, dict):
+                # Recursively truncate nested dictionaries
+                truncated[key] = self._truncate_large_values(value)
+            elif isinstance(value, list):
+                # Process lists - truncate strings in the list
+                truncated[key] = []
+                for item in value:
+                    if isinstance(item, str) and len(item) > self.MAX_LOG_SIZE:
+                        suffix = '...[truncated]'
+                        truncated[key].append(item[:self.MAX_LOG_SIZE - len(suffix)] + suffix)
+                    elif isinstance(item, dict):
+                        truncated[key].append(self._truncate_large_values(item))
+                    else:
+                        truncated[key].append(item)
+            else:
+                # Keep non-string, non-dict, non-list values as-is
+                truncated[key] = value
+        return truncated
 
 
 # Fix for Issue #1638: Storage metrics collection hook
