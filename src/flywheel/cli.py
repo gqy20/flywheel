@@ -150,14 +150,16 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # SECURITY FIX (Issue #1309): Pre-normalization coarse length check to prevent DoS.
     # While NFKC normalization is needed to prevent homograph attacks (Issue #969),
     # compatibility characters can expand during normalization (e.g., 'ﬁ' → 'fi'),
-    # potentially causing memory pressure. We add a coarse pre-check that limits
-    # input to 2x the effective_max_length before normalization. This multiplier
-    # is safe because:
-    # 1. It's large enough to handle reasonable NFKC expansions (typically < 2x)
-    # 2. It's small enough to prevent DoS through extremely long inputs
-    # 3. The post-normalization check (below) still enforces the strict limit
-    # This addresses the concern about normalization expansion while maintaining
-    # the fix for Issue #1049 (normalization before truncation).
+    # potentially causing memory pressure.
+    #
+    # SECURITY FIX (Issue #1604): Normalize a copy first to check expansion before
+    # processing the full string. This prevents bypass of length checks via extreme
+    # NFKC expansion that could theoretically exceed the 2x multiplier assumption.
+    # The approach:
+    # 1. Create a temporary copy and normalize it
+    # 2. Check if normalized copy would exceed max_length
+    # 3. If so, pre-truncate the original string before main normalization
+    # This ensures strict enforcement of max_length even with extreme expansion.
     #
     # SECURITY NOTE (Issue #1505): FALSE POSITIVE - The slicing below is SAFE.
     # Python 3 strings are sequences of Unicode code points, NOT bytes.
@@ -165,11 +167,26 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # - s[:n] slices by code points, not bytes
     # - Python string slicing CANNOT create invalid UTF-8 sequences
     # Example: "😀" * 100 has len() = 100 (code points), not 400 (bytes)
-    # The suggested fix (.encode('utf-8', 'ignore').decode('utf-8')) would be
-    # incorrect because it operates on bytes and would lose valid characters.
     # The subsequent Unicode normalization (NFKC/NFC) already handles edge cases.
-    if len(s) > effective_max_length * 2:
-        s = s[:effective_max_length * 2]
+
+    # Determine which normalization form will be used
+    security_contexts = {"url", "filename", "shell", "format"}
+    use_nfkc = context in security_contexts
+    norm_form = 'NFKC' if use_nfkc else 'NFC'
+
+    # Normalize a copy first to check for expansion
+    # Limit the copy to a reasonable size to prevent DoS during this check
+    check_copy = s[:effective_max_length * 2] if len(s) > effective_max_length * 2 else s
+    normalized_check = unicodedata.normalize(norm_form, check_copy)
+
+    # If normalized version exceeds max_length, pre-truncate original string
+    # Use a conservative multiplier to account for expansion
+    if len(normalized_check) > effective_max_length:
+        # Calculate safe truncation limit based on observed expansion ratio
+        expansion_ratio = len(normalized_check) / len(check_copy) if len(check_copy) > 0 else 1
+        safe_limit = int(effective_max_length / max(expansion_ratio, 1))
+        if len(s) > safe_limit:
+            s = s[:safe_limit]
 
     # SECURITY FIX (Issue #969): Use NFKC for security-sensitive contexts
     # NFKC normalization converts fullwidth characters to ASCII equivalents:
@@ -188,8 +205,7 @@ def sanitize_for_security_context(s: str, context: str = "general", max_length: 
     # orphaned combining marks and ensures safer truncation behavior.
     # Normalization is fast and safe even for long strings, so doing it before
     # the length check doesn't introduce DoS risk.
-    security_contexts = {"url", "filename", "shell", "format"}
-    use_nfkc = context in security_contexts
+    # Note: security_contexts and use_nfkc are already defined above (Issue #1604 fix)
 
     if use_nfkc:
         # Use NFKC for security-sensitive contexts
