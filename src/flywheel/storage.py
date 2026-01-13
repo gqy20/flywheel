@@ -4597,6 +4597,7 @@ class FileStorage(AbstractStorage):
                                 'lock_type': 'file_based',
                                 'lock_file_path': lock_file_path,
                                 'acquisition_time_seconds': elapsed,
+                                'lock_wait_ms': elapsed * 1000,  # Issue #1618: Performance metric
                                 'pid': os.getpid()
                             }
                         )
@@ -4783,6 +4784,7 @@ class FileStorage(AbstractStorage):
                                 'lock_type': 'windows_win32',
                                 'file_path': file_handle.name,
                                 'acquisition_time_seconds': elapsed,
+                                'lock_wait_ms': elapsed * 1000,  # Issue #1618: Performance metric
                                 'lock_range_low': lock_range_low,
                                 'lock_range_high': lock_range_high
                             }
@@ -4973,7 +4975,8 @@ class FileStorage(AbstractStorage):
                                 'event': 'lock_acquired',
                                 'lock_type': 'unix_fcntl',
                                 'file_path': file_handle.name,
-                                'acquisition_time_seconds': elapsed
+                                'acquisition_time_seconds': elapsed,
+                                'lock_wait_ms': elapsed * 1000  # Issue #1618: Performance metric
                             }
                         )
                         break
@@ -7124,7 +7127,10 @@ class FileStorage(AbstractStorage):
 
                 # Log successful load completion
                 elapsed = time.time() - start_time
-                logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
+                logger.debug(
+                    f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
+                    extra={'duration_ms': elapsed * 1000, 'operation': 'load', 'bytes_read': bytes_read}
+                )
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
                 backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -7181,7 +7187,10 @@ class FileStorage(AbstractStorage):
                     self._next_id = cached_next_id
                     self._dirty = False
                     elapsed = time.time() - start_time
-                    logger.debug(f"Load completed in {elapsed:.3f}s (cached, {len(cached_todos)} todos)")
+                    logger.debug(
+                        f"Load completed in {elapsed:.3f}s (cached, {len(cached_todos)} todos)",
+                        extra={'duration_ms': elapsed * 1000, 'operation': 'load_cached', 'todos_count': len(cached_todos)}
+                    )
                     return
 
         try:
@@ -7346,7 +7355,10 @@ class FileStorage(AbstractStorage):
 
             # Log successful load completion
             elapsed = time.time() - start_time
-            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
+            logger.debug(
+                f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
+                extra={'duration_ms': elapsed * 1000, 'operation': 'load_sync', 'bytes_read': bytes_read}
+            )
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
             backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -7535,7 +7547,10 @@ class FileStorage(AbstractStorage):
 
             # Log successful load completion
             elapsed = time.time() - start_time
-            logger.debug(f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)")
+            logger.debug(
+                f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
+                extra={'duration_ms': elapsed * 1000, 'operation': 'load_sync', 'bytes_read': bytes_read}
+            )
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
             backup_path = self._create_backup(f"Invalid JSON in {self.path}")
@@ -7733,7 +7748,10 @@ class FileStorage(AbstractStorage):
             # Log successful save completion
             elapsed = time.time() - start_time
             bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
-            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
+            logger.debug(
+                f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
+                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+            )
         except Exception:
             # Clean up temp file on error
             try:
@@ -7933,7 +7951,10 @@ class FileStorage(AbstractStorage):
             # Log successful save completion
             elapsed = time.time() - start_time
             bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
-            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
+            logger.debug(
+                f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
+                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+            )
         except Exception:
             # Clean up temp file on error (Issue #748: ensure no partial writes remain)
             try:
@@ -8125,7 +8146,10 @@ class FileStorage(AbstractStorage):
             # Log successful save completion
             elapsed = time.time() - start_time
             bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
-            logger.debug(f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)")
+            logger.debug(
+                f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
+                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+            )
         except Exception:
             # Clean up temp file on error
             try:
