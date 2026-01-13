@@ -237,7 +237,15 @@ class JSONFormatter(logging.Formatter):
         # Iterate through log_data and truncate string values that exceed MAX_LOG_SIZE
         log_data = self._truncate_large_values(log_data)
 
-        return json.dumps(log_data)
+        # Fix for Issue #1646: Handle JSON serialization errors
+        # Try to serialize log_data to JSON, falling back to safe serialization
+        # if non-serializable objects are present
+        try:
+            return json.dumps(log_data)
+        except (TypeError, ValueError):
+            # If serialization fails, convert all values to safe strings
+            safe_log_data = self._make_serializable(log_data)
+            return json.dumps(safe_log_data)
 
     def _redact_sensitive_fields(self, log_data):
         """Redact sensitive field values by partially masking them.
@@ -318,6 +326,58 @@ class JSONFormatter(logging.Formatter):
                 # Keep non-string, non-dict, non-list values as-is
                 truncated[key] = value
         return truncated
+
+    def _make_serializable(self, log_data):
+        """Convert non-serializable values to serializable strings.
+
+        This method recursively processes all values in log_data and converts
+        non-serializable objects (like custom classes, lambdas, etc.) to their
+        string representation, making them JSON-safe.
+
+        Args:
+            log_data: Dictionary of log fields
+
+        Returns:
+            Dictionary with all values converted to JSON-serializable types
+        """
+        serializable = {}
+        for key, value in log_data.items():
+            if isinstance(value, dict):
+                # Recursively process nested dictionaries
+                serializable[key] = self._make_serializable(value)
+            elif isinstance(value, list):
+                # Process lists - convert non-serializable items
+                serializable[key] = []
+                for item in value:
+                    if isinstance(item, dict):
+                        serializable[key].append(self._make_serializable(item))
+                    elif self._is_serializable(item):
+                        serializable[key].append(item)
+                    else:
+                        # Convert non-serializable item to string
+                        serializable[key].append(str(item))
+            elif self._is_serializable(value):
+                # Keep serializable values as-is
+                serializable[key] = value
+            else:
+                # Convert non-serializable value to string
+                serializable[key] = str(value)
+        return serializable
+
+    def _is_serializable(self, value):
+        """Check if a value is JSON-serializable.
+
+        Args:
+            value: Any Python value
+
+        Returns:
+            True if the value can be serialized to JSON, False otherwise
+        """
+        try:
+            json.dumps(value)
+            return True
+        except (TypeError, ValueError):
+            return False
 
 
 # Fix for Issue #1638: Storage metrics collection hook
