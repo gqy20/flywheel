@@ -252,6 +252,7 @@ class JSONFormatter(logging.Formatter):
 
         For values >= 8 characters: shows first 3 and last 3 chars with middle redacted
         For values < 8 characters: completely redacted with asterisks
+        For non-string values: completely redacted with '***REDACTED***'
         This preserves debugging information while protecting sensitive data.
 
         Args:
@@ -267,12 +268,10 @@ class JSONFormatter(logging.Formatter):
                 value = redacted[key]
 
                 # Handle None or non-string values
-                if value is None:
-                    redacted[key] = 'None'
-                    continue
-
+                # Fix for Issue #1657: Check type before attempting string operations
                 if not isinstance(value, str):
-                    value = str(value)
+                    redacted[key] = '***REDACTED***'
+                    continue
 
                 # Partial redaction: show first 3 and last 3 chars
                 if len(value) >= 8:
