@@ -163,7 +163,11 @@ class JSONFormatter(logging.Formatter):
     """
 
     # Sensitive field names that should be redacted (case-insensitive)
-    SENSITIVE_FIELDS = {'password', 'token', 'api_key'}
+    SENSITIVE_FIELDS = {
+        'password', 'token', 'api_key', 'secret', 'credential',
+        'private_key', 'access_token', 'auth_token', 'api_secret',
+        'password_hash', 'passphrase', 'credentials'
+    }
 
     # Maximum size for string values in log data (10KB)
     # This prevents large strings (e.g., stack traces, data dumps) from
@@ -236,7 +240,11 @@ class JSONFormatter(logging.Formatter):
         return json.dumps(log_data)
 
     def _redact_sensitive_fields(self, log_data):
-        """Redact sensitive field values by replacing them with '******'.
+        """Redact sensitive field values by partially masking them.
+
+        For values >= 8 characters: shows first 3 and last 3 chars with middle redacted
+        For values < 8 characters: completely redacted with asterisks
+        This preserves debugging information while protecting sensitive data.
 
         Args:
             log_data: Dictionary of log fields
@@ -248,7 +256,26 @@ class JSONFormatter(logging.Formatter):
         for key in redacted.keys():
             # Check if field name matches any sensitive field (case-insensitive)
             if key.lower() in self.SENSITIVE_FIELDS:
-                redacted[key] = '******'
+                value = redacted[key]
+
+                # Handle None or non-string values
+                if value is None:
+                    redacted[key] = 'None'
+                    continue
+
+                if not isinstance(value, str):
+                    value = str(value)
+
+                # Partial redaction: show first 3 and last 3 chars
+                if len(value) >= 8:
+                    # Show first 3 + asterisks + last 3
+                    redacted[key] = f"{value[:3]}***{value[-3:]}"
+                elif len(value) > 0:
+                    # For shorter values, completely redact but indicate length
+                    redacted[key] = '*' * len(value)
+                else:
+                    redacted[key] = ''
+
         return redacted
 
     def _truncate_large_values(self, log_data):
