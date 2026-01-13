@@ -154,7 +154,14 @@ class JSONFormatter(logging.Formatter):
 
     Fix for Issue #1603: Provides machine-readable JSON logs for lock
     contention monitoring and analysis.
+
+    Fix for Issue #1633: Automatically redacts sensitive fields like
+    'password', 'token', and 'api_key' to prevent sensitive information
+    leakage in structured logs.
     """
+
+    # Sensitive field names that should be redacted (case-insensitive)
+    SENSITIVE_FIELDS = {'password', 'token', 'api_key'}
 
     def format(self, record):
         """Format log record as JSON.
@@ -212,7 +219,27 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             log_data['exception'] = self.formatException(record.exc_info)
 
+        # Fix for Issue #1633: Redact sensitive fields
+        # Check all field names (case-insensitive) and redact sensitive values
+        log_data = self._redact_sensitive_fields(log_data)
+
         return json.dumps(log_data)
+
+    def _redact_sensitive_fields(self, log_data):
+        """Redact sensitive field values by replacing them with '******'.
+
+        Args:
+            log_data: Dictionary of log fields
+
+        Returns:
+            Dictionary with sensitive field values redacted
+        """
+        redacted = log_data.copy()
+        for key in redacted.keys():
+            # Check if field name matches any sensitive field (case-insensitive)
+            if key.lower() in self.SENSITIVE_FIELDS:
+                redacted[key] = '******'
+        return redacted
 
 
 # Fix for Issue #1572: Check DEBUG_STORAGE environment variable to enable debug logging
