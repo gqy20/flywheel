@@ -8310,11 +8310,16 @@ class FileStorage(AbstractStorage):
         Args:
             todo_id: The ID of the todo to delete.
             dry_run: If True, log the intended action and return success without
-                    writing to disk (Issue #1503).
+                    writing to disk (Issue #1503). Can also be enabled globally
+                    via DRY_RUN_STORAGE=1 environment variable (Issue #1628).
         """
+        # Check environment variable for global dry_run mode (Issue #1628)
+        env_dry_run = os.environ.get('DRY_RUN_STORAGE', '0').strip() in ('1', 'true', 'yes', 'on')
+        effective_dry_run = dry_run or env_dry_run
+
         with self._lock:
-            # Dry run mode: log the intended action and return success without writing to disk (Issue #1503)
-            if dry_run:
+            # Dry run mode: log the intended action and return success without writing to disk (Issue #1503, #1628)
+            if effective_dry_run:
                 logger.info(f"[DRY RUN] Would delete todo with id: {todo_id}")
                 # Return True to simulate successful deletion, without modifying storage
                 return True
@@ -8473,7 +8478,7 @@ class FileStorage(AbstractStorage):
 
             return updated_todos
 
-    def delete_batch(self, todo_ids: list[int]) -> list[bool]:
+    def delete_batch(self, todo_ids: list[int], dry_run: bool = False) -> list[bool]:
         """Delete multiple todos in a single batch operation.
 
         This is more efficient than calling delete() multiple times as it
@@ -8485,6 +8490,9 @@ class FileStorage(AbstractStorage):
 
         Args:
             todo_ids: List of todo IDs to delete.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1628). Can also be enabled globally
+                    via DRY_RUN_STORAGE=1 environment variable.
 
         Returns:
             List of boolean values indicating whether each todo was deleted.
@@ -8492,6 +8500,10 @@ class FileStorage(AbstractStorage):
         """
         if not todo_ids:
             return []
+
+        # Check environment variable for global dry_run mode (Issue #1628)
+        env_dry_run = os.environ.get('DRY_RUN_STORAGE', '0').strip() in ('1', 'true', 'yes', 'on')
+        effective_dry_run = dry_run or env_dry_run
 
         with self._lock:
             # Track which IDs were found and deleted
@@ -8508,6 +8520,12 @@ class FileStorage(AbstractStorage):
             # Create result list in the same order as input
             for todo_id in todo_ids:
                 results.append(todo_id in ids_to_delete)
+
+            # Dry run mode: log the intended action and return success without writing to disk (Issue #1628)
+            if effective_dry_run:
+                logger.info(f"[DRY RUN] Would delete todos with ids: {list(ids_to_delete)}")
+                # Return results to simulate successful deletion, without modifying storage
+                return results
 
             # Only save if we actually found something to delete
             if indices_to_delete:
@@ -8924,7 +8942,7 @@ class FileStorage(AbstractStorage):
         """
         return self.update_batch(todos)
 
-    def delete_many(self, todo_ids: list[int]) -> list[bool]:
+    def delete_many(self, todo_ids: list[int], dry_run: bool = False) -> list[bool]:
         """Delete multiple todos (alias for delete_batch).
 
         This is a convenience alias for delete_batch() for users who prefer
@@ -8932,12 +8950,15 @@ class FileStorage(AbstractStorage):
 
         Args:
             todo_ids: List of todo IDs to delete.
+            dry_run: If True, log the intended action and return success without
+                    writing to disk (Issue #1628). Can also be enabled globally
+                    via DRY_RUN_STORAGE=1 environment variable.
 
         Returns:
             List of boolean values indicating whether each todo was deleted.
             True if deleted, False if not found.
         """
-        return self.delete_batch(todo_ids)
+        return self.delete_batch(todo_ids, dry_run=dry_run)
 
     async def async_add_many(self, todos: list[Todo]) -> list[Todo]:
         """Asynchronously add multiple todos (alias for async_add_batch).
