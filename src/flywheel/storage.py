@@ -139,9 +139,8 @@ def set_storage_context(**kwargs: Any) -> None:
         automatically.
     """
     # Get current context and merge with new values
-    current_context = _storage_context.get({})
-    current_context.update(kwargs)
-    _storage_context.set(current_context)
+    # Use dictionary unpacking to avoid race conditions (Issue #1634)
+    _storage_context.set({**_storage_context.get({}), **kwargs})
 
 
 # Fix for Issue #1603: JSON formatter for structured logging
