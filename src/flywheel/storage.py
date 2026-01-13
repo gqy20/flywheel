@@ -117,25 +117,37 @@ class JSONFormatter(logging.Formatter):
         """
         import json
 
-        # Extract all attributes from the record
-        log_data = {
+        # Standard fields that should never be overridden by custom fields
+        standard_fields = {
             'timestamp': self.formatTime(record),
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
         }
 
+        # Fields to exclude from custom fields (standard logging attributes)
+        excluded_fields = {
+            'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
+            'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
+            'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
+            'thread', 'threadName', 'processName', 'process', 'message',
+            'asctime'
+        }
+
+        # Build log data with standard fields first
+        log_data = standard_fields.copy()
+
         # Add custom fields from the record's extra dict
         # These are set using logger.info(..., extra={...})
         for key, value in record.__dict__.items():
-            if key not in {
-                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-                'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-                'thread', 'threadName', 'processName', 'process', 'message',
-                'asctime', 'timestamp', 'level', 'logger'
-            }:
-                log_data[key] = value
+            if key not in excluded_fields:
+                # Check if custom field conflicts with standard fields
+                if key in standard_fields:
+                    # Prefix conflicting fields with 'extra_' to preserve them
+                    # while protecting standard fields
+                    log_data[f'extra_{key}'] = value
+                else:
+                    log_data[key] = value
 
         # Add exception info if present
         if record.exc_info:
