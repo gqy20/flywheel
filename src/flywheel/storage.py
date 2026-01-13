@@ -3,6 +3,7 @@
 import abc
 import asyncio
 import atexit
+import contextvars
 import errno
 import functools
 import gzip
@@ -91,6 +92,43 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Fix for Issue #1627: Context propagation for structured logging
+# ContextVar to hold storage context that propagates across async tasks
+_storage_context: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
+    '_storage_context', default={}
+)
+
+
+def set_storage_context(**kwargs: Any) -> None:
+    """Set storage context variables for automatic log propagation.
+
+    This function sets context variables that will be automatically included
+    in all log messages formatted by JSONFormatter, without needing to pass
+    'extra=' to every log call.
+
+    Context variables propagate across async tasks and threads, making them
+    ideal for tracing request IDs, user IDs, and other metadata in
+    microservices and complex async applications.
+
+    Args:
+        **kwargs: Arbitrary key-value pairs to include in log context.
+                  These will be merged into the log data by JSONFormatter.
+
+    Example:
+        >>> set_storage_context(request_id="req-123", user_id="user-456")
+        >>> logger.info("Processing request")  # Automatically includes request_id and user_id
+
+    Note:
+        Context can be updated by calling this function again - new keys are added
+        and existing keys are updated. The context propagates to child tasks
+        automatically.
+    """
+    # Get current context and merge with new values
+    current_context = _storage_context.get({})
+    current_context.update(kwargs)
+    _storage_context.set(current_context)
+
+
 # Fix for Issue #1603: JSON formatter for structured logging
 class JSONFormatter(logging.Formatter):
     """Custom JSON formatter for structured logging.
@@ -145,6 +183,15 @@ class JSONFormatter(logging.Formatter):
                     log_data[f'extra_{key}'] = value
                 else:
                     log_data[key] = value
+
+        # Fix for Issue #1627: Merge context variables into log data
+        # Context vars are added first, so extra fields can override them
+        storage_context = _storage_context.get({})
+        for key, value in storage_context.items():
+            # Only add context var if not already present in log_data
+            # (extra fields take precedence over context)
+            if key not in log_data:
+                log_data[key] = value
 
         # Add exception info if present
         if record.exc_info:
