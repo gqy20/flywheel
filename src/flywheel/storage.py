@@ -182,6 +182,8 @@ class _AsyncCompatibleLock:
     monitoring and contention analysis.
     Fix for Issue #1582: Adds structured logging context (lock_wait_time, attempts)
     to lock acquisition when DEBUG_STORAGE is enabled for diagnosing contention.
+    Fix for Issue #1587: Emits structured JSON logs with event='lock_wait' when
+    DEBUG_STORAGE is active for monitoring tools (Datadog, ELK) to visualize bottlenecks.
     """
 
     # Default timeout for sync lock acquisition (Issue #1406)
@@ -537,6 +539,20 @@ class _AsyncCompatibleLock:
                         'attempts': attempt + 1
                     }
                 )
+
+                # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
+                # This provides machine-readable logs for monitoring tools (Datadog, ELK)
+                # to visualize bottlenecks and diagnose contention issues post-mortem
+                if os.environ.get('DEBUG_STORAGE'):
+                    logger.info(
+                        "Lock contention event",
+                        extra={
+                            'event': 'lock_wait',
+                            'wait_time': wait_time,
+                            'acquired': True,
+                            'thread': threading.current_thread().name
+                        }
+                    )
                 # Fix for Issue #1531: Use try-finally to ensure lock is released
                 # if an exception occurs between acquire() and return self.
                 # While return self normally cannot raise, this defensive pattern
@@ -584,6 +600,22 @@ class _AsyncCompatibleLock:
                 time.sleep(delay)
 
         # All retries exhausted - lock is NOT held by current thread
+        # Calculate total wait time
+        total_wait_time = time.time() - acquire_start_time
+
+        # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
+        # Log the failed acquisition attempt for monitoring and analysis
+        if os.environ.get('DEBUG_STORAGE'):
+            logger.info(
+                "Lock contention event - failed to acquire",
+                extra={
+                    'event': 'lock_wait',
+                    'wait_time': total_wait_time,
+                    'acquired': False,
+                    'thread': threading.current_thread().name
+                }
+            )
+
         timeout_msg = (
             f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
             else f"{self._lock_timeout}"
@@ -758,6 +790,20 @@ class _AsyncCompatibleLock:
                         }
                     )
 
+                    # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
+                    # This provides machine-readable logs for monitoring tools (Datadog, ELK)
+                    # to visualize bottlenecks and diagnose contention issues post-mortem
+                    if os.environ.get('DEBUG_STORAGE'):
+                        logger.info(
+                            "Lock contention event",
+                            extra={
+                                'event': 'lock_wait',
+                                'wait_time': wait_time,
+                                'acquired': True,
+                                'thread': threading.current_thread().name
+                            }
+                        )
+
                     try:
                         # Clear the event so other async tasks know the lock is taken
                         async_event.clear()
@@ -809,6 +855,22 @@ class _AsyncCompatibleLock:
                     await asyncio.sleep(delay)
                 else:
                     # All retries exhausted - raise StorageTimeoutError
+                    # Calculate total wait time
+                    total_wait_time = time.time() - acquire_start_time
+
+                    # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
+                    # Log the failed acquisition attempt for monitoring and analysis
+                    if os.environ.get('DEBUG_STORAGE'):
+                        logger.info(
+                            "Lock contention event - failed to acquire",
+                            extra={
+                                'event': 'lock_wait',
+                                'wait_time': total_wait_time,
+                                'acquired': False,
+                                'thread': threading.current_thread().name
+                            }
+                        )
+
                     timeout_msg = (
                         f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
                         else f"{self._lock_timeout}"
