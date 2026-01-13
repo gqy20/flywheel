@@ -53,11 +53,35 @@ try:
     aiofiles: _AiofilesProtocol = _aiofiles_real
 except ImportError:
     HAS_AIOFILES = False
-    # Placeholder - will be replaced with fallback after _retry_io_operation is defined
-    # Type: _AiofilesProtocol (not None) to ensure type safety (Issue #1621)
-    # The actual fallback implementation will be assigned immediately below
-    _aiofiles_placeholder: object = object()  # Unique placeholder object
-    aiofiles: _AiofilesProtocol = _aiofiles_placeholder  # type: ignore[assignment]
+    # Temporary placeholder that implements _AiofilesProtocol
+    # This ensures aiofiles.open is callable even before the full fallback
+    # implementation is assigned later (Issue #1624)
+    class _AiofilesPlaceholder:
+        """Temporary placeholder implementing _AiofilesProtocol.
+
+        This placeholder ensures aiofiles.open exists and is callable,
+        preventing AttributeError at module import time. It will be
+        replaced with the full _AiofilesFallback implementation after
+        _retry_io_operation is defined (Issue #1624).
+        """
+
+        @staticmethod
+        def open(path: str, mode: str = 'rb'):
+            """Placeholder open method.
+
+            This should never be called, as it will be replaced with
+            the proper implementation before any actual use.
+
+            Raises:
+                RuntimeError: If called, indicating the placeholder
+                    was not properly replaced with the fallback.
+            """
+            raise RuntimeError(
+                "aiofiles placeholder was not replaced with fallback implementation. "
+                "This should never happen - report this bug."
+            )
+
+    aiofiles: _AiofilesProtocol = _AiofilesPlaceholder()
 
 from flywheel.todo import Todo
 
