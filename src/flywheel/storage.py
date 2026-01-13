@@ -277,11 +277,10 @@ class JSONFormatter(logging.Formatter):
                 if len(value) >= 8:
                     # Show first 3 + asterisks + last 3
                     redacted[key] = f"{value[:3]}***{value[-3:]}"
-                elif len(value) > 0:
-                    # For shorter values, completely redact but indicate length
-                    redacted[key] = '*' * len(value)
                 else:
-                    redacted[key] = ''
+                    # For shorter values (including empty string), completely redact
+                    # Fix for Issue #1662: Use consistent redaction marker
+                    redacted[key] = '***REDACTED***'
 
         return redacted
 
