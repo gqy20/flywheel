@@ -111,7 +111,7 @@ except ImportError:
                                 )
                             else:
                                 # No other exception, so re-raise the close exception
-                            raise
+                                raise close_exc
 
             return _SimpleAsyncFile(path, mode)
 
