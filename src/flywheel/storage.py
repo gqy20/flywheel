@@ -109,8 +109,9 @@ logger = logging.getLogger(__name__)
 
 # Fix for Issue #1627: Context propagation for structured logging
 # ContextVar to hold storage context that propagates across async tasks
-_storage_context: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    '_storage_context', default={}
+# Fix for Issue #1725: Use default=None to avoid mutable default dict risk
+_storage_context: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
+    '_storage_context', default=None
 )
 
 
@@ -139,8 +140,8 @@ def set_storage_context(**kwargs: Any) -> None:
         automatically.
     """
     # Get current context and merge with new values
-    # Create a new dict to avoid modifying the shared default (Issue #1720)
-    current = _storage_context.get({})
+    # Fix for Issue #1725: Handle None default to avoid mutable dict sharing
+    current = _storage_context.get() or {}
     new_context = {**current, **kwargs}
     _storage_context.set(new_context)
 
@@ -220,7 +221,8 @@ class JSONFormatter(logging.Formatter):
 
         # Fix for Issue #1627: Merge context variables into log data
         # Context vars are added first, so extra fields can override them
-        storage_context = _storage_context.get({})
+        # Fix for Issue #1725: Handle None default to avoid mutable dict sharing
+        storage_context = _storage_context.get() or {}
         for key, value in storage_context.items():
             # Only add context var if not already present in log_data
             # (extra fields take precedence over context)
