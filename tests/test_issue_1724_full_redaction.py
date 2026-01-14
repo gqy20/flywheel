@@ -12,7 +12,7 @@ This test verifies that:
 """
 
 import pytest
-from flywheel.storage import JSONStorageFormatter
+from flywheel.storage import JSONFormatter
 
 
 class TestFullSensitiveFieldRedaction:
@@ -20,7 +20,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_long_password_fully_redacted(self):
         """Test that long passwords (>= 8 chars) are FULLY redacted, not partial."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {'password': 'myVeryLongSecretPassword123', 'user': 'john'}
         result = formatter._redact_sensitive_fields(log_data)
 
@@ -31,7 +31,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_short_password_fully_redacted(self):
         """Test that short passwords (< 8 chars) are fully redacted."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {'password': 'short', 'user': 'john'}
         result = formatter._redact_sensitive_fields(log_data)
 
@@ -40,7 +40,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_token_fully_redacted(self):
         """Test that tokens are fully redacted without partial exposure."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {
             'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.very.long.token',
             'request_id': 'req_123'
@@ -54,7 +54,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_api_key_fully_redacted(self):
         """Test that API keys are fully redacted without partial exposure."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {
             'api_key': 'sk-1234567890abcdefghijklmnopqrstuv',
             'endpoint': 'api.example.com'
@@ -68,7 +68,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_secret_fully_redacted(self):
         """Test that secret fields are fully redacted without partial exposure."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {
             'secret': 'mySuperSecretValueThatIsVeryLong',
             'config_id': 'cfg_456'
@@ -82,7 +82,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_exactly_8_chars_fully_redacted(self):
         """Test boundary case: exactly 8 characters should be fully redacted."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {'password': '12345678'}
         result = formatter._redact_sensitive_fields(log_data)
 
@@ -92,7 +92,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_multiple_sensitive_fields_fully_redacted(self):
         """Test that all sensitive fields are fully redacted."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {
             'password': 'longPassword123',
             'token': 'abc123def456ghi789',
@@ -115,7 +115,7 @@ class TestFullSensitiveFieldRedaction:
 
     def test_case_insensitive_fully_redacted(self):
         """Test that case variations of sensitive fields are fully redacted."""
-        formatter = JSONStorageFormatter()
+        formatter = JSONFormatter()
         log_data = {
             'Password': 'UppercasePassword',
             'TOKEN': 'UPPERCASE_TOKEN',
@@ -134,7 +134,7 @@ class TestFullSensitiveFieldRedaction:
 
 def test_issue_1724_full_redaction():
     """Main test for Issue #1724 - verify NO partial hash exposure."""
-    formatter = JSONStorageFormatter()
+    formatter = JSONFormatter()
 
     # Test with a long password that would previously show "fir***ast"
     log_data = {
