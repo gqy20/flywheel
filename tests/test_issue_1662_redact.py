@@ -2,8 +2,7 @@
 
 Tests the _redact_sensitive_fields method to ensure it properly redacts
 sensitive information according to the specification:
-- String length >= 8: show first 3 + *** + last 3
-- String length < 8: replace with ***REDACTED***
+- Issue #1724: All values (regardless of length) are fully redacted with ***REDACTED***
 - Non-string values: replace with ***REDACTED***
 """
 
@@ -15,12 +14,13 @@ class TestSensitiveFieldRedaction:
     """Test suite for sensitive field redaction functionality."""
 
     def test_redact_long_string_password(self):
-        """Test that passwords >= 8 chars are partially redacted."""
+        """Test that passwords >= 8 chars are fully redacted (Issue #1724)."""
         formatter = JSONStorageFormatter()
         log_data = {'password': 'mySecretPassword123', 'user': 'john'}
         result = formatter._redact_sensitive_fields(log_data)
 
-        assert result['password'] == 'myS***123'
+        # Issue #1724: Full redaction instead of partial
+        assert result['password'] == '***REDACTED***'
         assert result['user'] == 'john'
 
     def test_redact_short_string_password(self):
@@ -67,8 +67,9 @@ class TestSensitiveFieldRedaction:
         log_data = {'Token': 'abc123def456', 'API_KEY': 'key123456'}
         result = formatter._redact_sensitive_fields(log_data)
 
-        assert result['Token'] == 'abc***456'
-        assert result['API_KEY'] == 'key***456'
+        # Issue #1724: Full redaction instead of partial
+        assert result['Token'] == '***REDACTED***'
+        assert result['API_KEY'] == '***REDACTED***'
 
     def test_redact_multiple_sensitive_fields(self):
         """Test that multiple sensitive fields are all redacted."""
@@ -82,20 +83,21 @@ class TestSensitiveFieldRedaction:
         }
         result = formatter._redact_sensitive_fields(log_data)
 
-        assert result['password'] == 'lon***123'
-        assert result['token'] == '***REDACTED***'  # Issue #1662
+        # Issue #1724: All sensitive fields fully redacted
+        assert result['password'] == '***REDACTED***'
+        assert result['token'] == '***REDACTED***'
         assert result['api_key'] == '***REDACTED***'
         assert result['user'] == 'john'
         assert result['message'] == 'test'
 
     def test_redact_exactly_8_chars(self):
-        """Test boundary case: exactly 8 characters."""
+        """Test boundary case: exactly 8 characters (Issue #1724)."""
         formatter = JSONStorageFormatter()
         log_data = {'password': '12345678'}
         result = formatter._redact_sensitive_fields(log_data)
 
-        # 8 chars >= 8, so should be partially redacted
-        assert result['password'] == '123***678'
+        # Issue #1724: Full redaction even for 8 chars
+        assert result['password'] == '***REDACTED***'
 
     def test_redact_7_chars(self):
         """Test boundary case: 7 characters (Issue #1662)."""
