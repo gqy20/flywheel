@@ -279,7 +279,7 @@ class JSONFormatter(logging.Formatter):
         # Even after truncating individual fields, the overall JSON might be too large
         # (e.g., many fields). This prevents log system congestion.
         if len(json_output) > self.MAX_JSON_SIZE:
-            # Truncate the message field to reduce size
+            # Step 1: Truncate the message field to reduce size
             # Message is often the largest field after field-level truncation
             if 'message' in log_data and isinstance(log_data['message'], str):
                 excess_bytes = len(json_output) - self.MAX_JSON_SIZE
@@ -288,6 +288,54 @@ class JSONFormatter(logging.Formatter):
                 if max_message_len > 0:
                     log_data['message'] = log_data['message'][:max_message_len] + '...[truncated]'
                     # Re-serialize with truncated message
+                    try:
+                        json_output = json.dumps(log_data)
+                    except (TypeError, ValueError):
+                        safe_log_data = self._make_serializable(log_data)
+                        json_output = json.dumps(safe_log_data)
+
+            # Fix for Issue #1757: If still too large after message truncation,
+            # remove non-critical fields in priority order
+            if len(json_output) > self.MAX_JSON_SIZE:
+                # Define priority order for field removal (lowest priority first)
+                # Fields that are less critical for log analysis should be removed first
+                removal_priority = [
+                    'exception',  # Stack traces are useful but can be very large
+                    'extra_',     # Fields that conflicted with standard fields
+                ]
+
+                # Remove fields in priority order until JSON fits
+                for priority_field in removal_priority:
+                    if len(json_output) <= self.MAX_JSON_SIZE:
+                        break
+
+                    # Find and remove matching fields
+                    fields_to_remove = []
+                    for key in log_data.keys():
+                        if key == priority_field or key.startswith(priority_field):
+                            fields_to_remove.append(key)
+
+                    # Remove the fields
+                    for field in fields_to_remove:
+                        del log_data[field]
+
+                    # Re-serialize after removing fields
+                    if fields_to_remove:
+                        try:
+                            json_output = json.dumps(log_data)
+                        except (TypeError, ValueError):
+                            safe_log_data = self._make_serializable(log_data)
+                            json_output = json.dumps(safe_log_data)
+
+                # Final fallback: If still too large, remove custom fields
+                # Keep only the most critical standard fields
+                if len(json_output) > self.MAX_JSON_SIZE:
+                    critical_fields = {'timestamp', 'level', 'logger', 'message'}
+                    fields_to_remove = [k for k in log_data.keys() if k not in critical_fields]
+                    for field in fields_to_remove:
+                        del log_data[field]
+
+                    # Final re-serialize
                     try:
                         json_output = json.dumps(log_data)
                     except (TypeError, ValueError):
