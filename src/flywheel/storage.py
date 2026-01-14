@@ -164,6 +164,40 @@ def set_storage_context(**kwargs: Any) -> None:
     _storage_context.set(new_context)
 
 
+# Fix for Issue #1773: Sampling for high-frequency debug logs
+def sample_debug_log(rate_limit: float = 0.1):
+    """Create a sampling wrapper for high-frequency debug log calls.
+
+    This function returns a wrapper that only logs a fraction of debug messages,
+    which is useful for high-frequency logs (like retries or lock contention)
+    that can degrade performance and explode log volume when logged in tight loops.
+
+    Args:
+        rate_limit: Fraction of messages to log (0.0 to 1.0).
+                   0.1 = log 10% of messages (default)
+                   1.0 = log all messages
+                   0.0 = log no messages
+
+    Returns:
+        A function that takes (logger, message, *args, **kwargs) and
+        conditionally logs based on the rate limit.
+
+    Example:
+        >>> sampler = sample_debug_log(rate_limit=0.1)  # Log 10% of messages
+        >>> sampler(logger, "Retrying operation", attempt=3)
+        >>> # Only ~10% of such calls will actually log
+
+    Note:
+        Sampling uses random.random() for probabilistic sampling.
+        For reproducible sampling in tests, set random.seed() beforehand.
+    """
+    def sampler(log_obj, msg, *args, **kwargs):
+        # Only log if random check passes
+        if random.random() < rate_limit:
+            log_obj.debug(msg, *args, **kwargs)
+    return sampler
+
+
 # Fix for Issue #1603: JSON formatter for structured logging
 class JSONFormatter(logging.Formatter):
     """Custom JSON formatter for structured logging.
@@ -3090,6 +3124,12 @@ async def _retry_io_operation(
     if log_level is None:
         log_level = os.environ.get('FW_LOG_LEVEL', 'WARNING').upper()
 
+    # Create sampler for high-frequency debug logs (Issue #1773)
+    # Get sampling rate from environment variable, default to 10% (0.1)
+    # Set to 1.0 to log all messages, 0.0 to disable debug retry logging
+    debug_sample_rate = float(os.environ.get('FW_DEBUG_SAMPLE_RATE', '0.1'))
+    retry_debug_sampler = sample_debug_log(rate_limit=debug_sample_rate)
+
     # Import traceback here for stack trace logging in DEBUG mode
     import traceback
 
@@ -3287,8 +3327,10 @@ async def _retry_io_operation(
                 # Log retry with details based on configured log level (Issue #1072)
                 if log_level == 'DEBUG':
                     # In DEBUG mode, include stack trace and detailed backoff information
+                    # Apply sampling to reduce log volume in tight loops (Issue #1773)
                     stack_trace = ''.join(traceback.format_stack())
-                    retry_logger.debug(
+                    retry_debug_sampler(
+                        retry_logger,
                         f"Transient I/O error (errno={e.errno}), "
                         f"retrying in {backoff:.1f}s "
                         f"(attempt {attempt + 1}/{max_attempts})\n"
