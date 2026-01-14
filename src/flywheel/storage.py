@@ -109,6 +109,8 @@ except ImportError:
                                 logging.getLogger(__name__).warning(
                                     f"Exception during file close: {close_exc}"
                                 )
+                                # Re-raise the original exception from the context body
+                                raise
                             else:
                                 # No other exception, so re-raise the close exception
                                 raise close_exc
