@@ -78,9 +78,11 @@ except ImportError:
             This should normally be replaced with _AiofilesFallback,
             but this implementation ensures the code won't crash
             if the replacement fails for any reason (Issue #1631).
-            """
-            from asyncio import to_thread
 
+            Note: asyncio is already imported at module level (line 4),
+            and asyncio.to_thread is available since Python 3.9. The project
+            requires Python >=3.13, so it's always available (Issue #1730).
+            """
             class _SimpleAsyncFile:
                 """Simple async file wrapper."""
 
@@ -90,12 +92,12 @@ except ImportError:
                     self._file = None
 
                 async def __aenter__(self):
-                    self._file = await to_thread(open, self.path, self.mode)
+                    self._file = await asyncio.to_thread(open, self.path, self.mode)
                     return self._file
 
                 async def __aexit__(self, exc_type, exc_val, exc_tb):
                     if self._file:
-                        await to_thread(self._file.close)
+                        await asyncio.to_thread(self._file.close)
 
             return _SimpleAsyncFile(path, mode)
 
