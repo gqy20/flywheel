@@ -391,3 +391,66 @@ def test_jsonformatter_has_make_serializable():
     assert 'lambda_func' in result['nested']
     # Lambda should be converted to string
     assert isinstance(result['nested']['lambda_func'], str)
+
+
+def test_jsonformatter_redact_sensitive_fields_has_return_value():
+    """Test that _redact_sensitive_fields returns a value (Issue #1719).
+
+    This test verifies that the _redact_sensitive_fields method correctly
+    returns a dictionary with sensitive fields redacted, proving that
+    Issue #1719 (which claimed the method was missing a return statement)
+    is a false positive.
+    """
+    from flywheel.storage import JSONFormatter
+
+    formatter = JSONFormatter()
+
+    # Test basic sensitive field redaction
+    log_data = {
+        'message': 'Test log',
+        'password': 'secret123',
+        'api_key': 'key_abc',
+        'normal_field': 'value'
+    }
+
+    result = formatter._redact_sensitive_fields(log_data)
+
+    # Verify the method returns a dictionary
+    assert isinstance(result, dict), "Method should return a dictionary"
+
+    # Verify sensitive fields are redacted
+    assert result['password'] == '***REDACTED***', "Password should be redacted"
+    assert result['api_key'] == '***REDACTED***', "API key should be redacted"
+
+    # Verify normal fields are preserved
+    assert result['message'] == 'Test log', "Normal fields should be preserved"
+    assert result['normal_field'] == 'value', "Normal fields should be preserved"
+
+    # Test nested structure redaction
+    nested_data = {
+        'user': {
+            'name': 'John',
+            'password': 'nested_secret'
+        },
+        'tokens': ['token1', 'token2']
+    }
+
+    result = formatter._redact_sensitive_fields(nested_data)
+
+    # Verify nested sensitive fields are redacted
+    assert result['user']['password'] == '***REDACTED***', "Nested password should be redacted"
+    assert result['user']['name'] == 'John', "Nested normal fields should be preserved"
+
+    # Test case-insensitive matching
+    case_data = {
+        'Password': 'uppercase_secret',
+        'API_KEY': 'uppercase_key',
+        'PasSwOrD': 'mixed_case_secret'
+    }
+
+    result = formatter._redact_sensitive_fields(case_data)
+
+    # Verify case-insensitive redaction works
+    assert result['Password'] == '***REDACTED***', "Uppercase Password should be redacted"
+    assert result['API_KEY'] == '***REDACTED***', "Uppercase API_KEY should be redacted"
+    assert result['PasSwOrD'] == '***REDACTED***', "Mixed case PasSwOrD should be redacted"
