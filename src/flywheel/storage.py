@@ -95,7 +95,12 @@ except ImportError:
 
                 async def __aexit__(self, exc_type, exc_val, exc_tb):
                     if self._file:
-                        await to_thread(self._file.close)
+                        try:
+                            await to_thread(self._file.close)
+                        finally:
+                            # 确保文件句柄被关闭，即使 to_thread 失败 (Issue #1686)
+                            if not self._file.closed:
+                                self._file.close()
 
             return _SimpleAsyncFile(path, mode)
 
