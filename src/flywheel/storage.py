@@ -163,6 +163,9 @@ class JSONFormatter(logging.Formatter):
 
     Fix for Issue #1643: Implements size limit for log data to prevent
     massive strings from breaking log parsers or increasing ingestion costs.
+
+    Fix for Issue #1722: Implements final JSON size check to prevent
+    log system congestion from large aggregated log entries.
     """
 
     # Sensitive field names that should be redacted (case-insensitive)
@@ -176,6 +179,11 @@ class JSONFormatter(logging.Formatter):
     # This prevents large strings (e.g., stack traces, data dumps) from
     # breaking log parsers or significantly increasing ingestion costs
     MAX_LOG_SIZE = 10 * 1024  # 10KB in bytes
+
+    # Maximum size for final JSON output (1MB)
+    # This prevents the entire log entry from being too large even after
+    # individual field truncation, protecting log systems from congestion
+    MAX_JSON_SIZE = 1 * 1024 * 1024  # 1MB in bytes
 
     def format(self, record):
         """Format log record as JSON.
@@ -245,11 +253,32 @@ class JSONFormatter(logging.Formatter):
         # Try to serialize log_data to JSON, falling back to safe serialization
         # if non-serializable objects are present
         try:
-            return json.dumps(log_data)
+            json_output = json.dumps(log_data)
         except (TypeError, ValueError):
             # If serialization fails, convert all values to safe strings
             safe_log_data = self._make_serializable(log_data)
-            return json.dumps(safe_log_data)
+            json_output = json.dumps(safe_log_data)
+
+        # Fix for Issue #1722: Check final JSON size
+        # Even after truncating individual fields, the overall JSON might be too large
+        # (e.g., many fields). This prevents log system congestion.
+        if len(json_output) > self.MAX_JSON_SIZE:
+            # Truncate the message field to reduce size
+            # Message is often the largest field after field-level truncation
+            if 'message' in log_data and isinstance(log_data['message'], str):
+                excess_bytes = len(json_output) - self.MAX_JSON_SIZE
+                # Truncate message to fit within MAX_JSON_SIZE
+                max_message_len = len(log_data['message']) - excess_bytes - 20
+                if max_message_len > 0:
+                    log_data['message'] = log_data['message'][:max_message_len] + '...[truncated]'
+                    # Re-serialize with truncated message
+                    try:
+                        json_output = json.dumps(log_data)
+                    except (TypeError, ValueError):
+                        safe_log_data = self._make_serializable(log_data)
+                        json_output = json.dumps(safe_log_data)
+
+        return json_output
 
     def _redact_sensitive_fields(self, log_data):
         """Redact sensitive field values by fully masking them.
