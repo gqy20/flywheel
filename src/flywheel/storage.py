@@ -13,12 +13,14 @@ import json
 import logging
 import os
 import random
+import re
 import threading
 import time
 import weakref
 from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Protocol
+from urllib.parse import parse_qs, urlencode, urlparse
 
 from flywheel.todo import Todo
 
@@ -315,6 +317,11 @@ class JSONFormatter(logging.Formatter):
     def _redact_sensitive_fields_recursive(self, data):
         """Recursively redact sensitive field values at all nesting levels.
 
+        Fix for Issue #1758: Enhanced to:
+        1. Parse and redact sensitive data in JSON strings
+        2. Parse and redact sensitive data in URL parameters
+        3. Scan large strings for sensitive keyword patterns
+
         Args:
             data: Any data structure (dict, list, or primitive value)
 
@@ -335,9 +342,147 @@ class JSONFormatter(logging.Formatter):
         elif isinstance(data, list):
             # Recursively process each item in the list
             return [self._redact_sensitive_fields_recursive(item) for item in data]
+        elif isinstance(data, str):
+            # Fix for Issue #1758: Enhanced string value processing
+            return self._redact_string_value(data)
         else:
             # Return primitive values as-is
             return data
+
+    def _redact_string_value(self, value):
+        """Redact sensitive data in string values.
+
+        Fix for Issue #1758: Attempts to:
+        1. Parse as JSON and recursively redact
+        2. Parse as URL and redact sensitive parameters
+        3. Scan for sensitive patterns in large strings
+
+        Args:
+            value: String value to check for sensitive data
+
+        Returns:
+            Redacted or original string value
+        """
+        # Try parsing as JSON
+        json_result = self._try_redact_json_string(value)
+        if json_result is not None:
+            return json_result
+
+        # Try parsing/redacting as URL
+        url_result = self._try_redact_url_string(value)
+        if url_result is not None:
+            return url_result
+
+        # For large strings, scan for sensitive keywords
+        if len(value) > 100:  # Only scan larger strings to avoid false positives
+            return self._scan_and_redact_sensitive_patterns(value)
+
+        # Return as-is if no patterns detected
+        return value
+
+    def _try_redact_json_string(self, value):
+        """Try to parse string as JSON and redact sensitive fields.
+
+        Args:
+            value: String value that might be JSON
+
+        Returns:
+            Redacted JSON string, or None if not valid JSON
+        """
+        try:
+            # Try to parse as JSON
+            parsed = json.loads(value)
+            # Recursively redact sensitive fields in the parsed data
+            redacted = self._redact_sensitive_fields_recursive(parsed)
+            # Convert back to JSON string
+            return json.dumps(redacted)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            # Not valid JSON, return None to indicate no redaction occurred
+            return None
+
+    def _try_redact_url_string(self, value):
+        """Try to parse string as URL and redact sensitive parameters.
+
+        Args:
+            value: String value that might be a URL
+
+        Returns:
+            URL with sensitive parameters redacted, or None if not a URL
+        """
+        # Check if string looks like a URL (contains :// and has ?)
+        if '://' not in value or '?' not in value:
+            return None
+
+        try:
+            # Parse URL
+            parsed = urlparse(value)
+            # Parse query parameters
+            query_params = parse_qs(parsed.query)
+
+            # Check if any sensitive parameters exist
+            has_sensitive = any(
+                param.lower() in self.SENSITIVE_FIELDS
+                for param in query_params.keys()
+            )
+
+            if not has_sensitive:
+                return None  # No sensitive params, return original
+
+            # Redact sensitive parameter values
+            redacted_params = {}
+            for param, values in query_params.items():
+                if param.lower() in self.SENSITIVE_FIELDS:
+                    # Redact all values for this parameter
+                    redacted_params[param] = ['***REDACTED***'] * len(values)
+                else:
+                    redacted_params[param] = values
+
+            # Rebuild query string
+            redacted_query = urlencode(redacted_params, doseq=True)
+
+            # Rebuild URL with redacted query
+            redacted_url = parsed._replace(query=redacted_query).geturl()
+            return redacted_url
+
+        except Exception:
+            # URL parsing failed, return None
+            return None
+
+    def _scan_and_redact_sensitive_patterns(self, value):
+        """Scan string for sensitive keyword patterns and redact values.
+
+        For large strings, looks for patterns like 'password: secret123'
+        and redacts the values.
+
+        Args:
+            value: Large string value to scan
+
+        Returns:
+            String with sensitive patterns redacted, or original if none found
+        """
+        # Build regex pattern to match common sensitive field patterns
+        # Matches: password: value, password=value, password="value", etc.
+        patterns = []
+        for field in self.SENSITIVE_FIELDS:
+            # Pattern for: field: value or field=value (case-insensitive)
+            pattern = rf'{field}["\']?\s*[:=]\s*["\']?([^"\'\s\}]+)["\']?'
+            patterns.append(pattern)
+
+        if not patterns:
+            return value
+
+        # Combine all patterns with OR
+        combined_pattern = re.compile('|'.join(patterns), re.IGNORECASE)
+
+        # Function to replace matched values with redaction
+        def replace_match(match):
+            # Return the field name with redacted value
+            return match.group(0).replace(match.group(1), '***REDACTED***')
+
+        # Apply replacement
+        result = combined_pattern.sub(replace_match, value)
+
+        return result
 
     def _redact_value(self, value):
         """Redact a single sensitive value.
