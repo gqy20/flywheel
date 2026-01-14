@@ -342,3 +342,52 @@ def test_storage_context_no_mutation():
         "_storage_context.set({**_storage_context.get({}), **kwargs}) "
         "(Issue #1634)"
     )
+
+
+def test_jsonformatter_has_make_serializable():
+    """Test that JSONFormatter has _make_serializable method (Issue #1735 is false positive)."""
+    import logging
+    from flywheel.storage import JSONFormatter
+
+    # Verify the method exists
+    formatter = JSONFormatter()
+    assert hasattr(formatter, '_make_serializable'), (
+        "JSONFormatter should have _make_serializable method. "
+        "Issue #1735 is a false positive - the method exists."
+    )
+
+    # Test that the method works correctly
+    # Test with non-serializable object
+    class CustomClass:
+        def __str__(self):
+            return "CustomClass instance"
+
+    log_data = {
+        'string': 'test',
+        'number': 42,
+        'custom': CustomClass(),
+        'nested': {
+            'lambda_func': lambda x: x,
+            'list_with_custom': [1, CustomClass(), 'string']
+        }
+    }
+
+    result = formatter._make_serializable(log_data)
+
+    # Verify the result is JSON-serializable
+    import json
+    json_output = json.dumps(result)
+
+    # Verify the conversion happened
+    assert 'string' in result
+    assert result['string'] == 'test'
+    assert result['number'] == 42
+    # Non-serializable objects should be converted to strings
+    assert isinstance(result['custom'], str)
+    assert 'CustomClass' in result['custom']
+    # Nested structures should be processed
+    assert 'nested' in result
+    assert isinstance(result['nested'], dict)
+    assert 'lambda_func' in result['nested']
+    # Lambda should be converted to string
+    assert isinstance(result['nested']['lambda_func'], str)
