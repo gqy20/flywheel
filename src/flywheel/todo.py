@@ -153,9 +153,22 @@ class Todo:
 
         This ensures each instance gets a unique timestamp at creation time,
         not at class definition time (fixes issue #1585).
+
+        Also sanitizes title and description to remove control characters
+        and normalize whitespace (fixes issue #1705).
         """
         if self.created_at is None:
             self.created_at = datetime.now().isoformat()
+
+        # Sanitize title
+        self.title = _sanitize_text(self.title).strip()
+
+        # Sanitize description if present
+        if self.description is not None:
+            self.description = _sanitize_text(self.description).strip()
+            # Convert empty/whitespace-only strings to None for type consistency
+            if not self.description:
+                self.description = None
 
     def to_dict(self) -> dict:
         """Convert to dictionary."""
