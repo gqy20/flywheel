@@ -97,7 +97,19 @@ except ImportError:
 
                 async def __aexit__(self, exc_type, exc_val, exc_tb):
                     if self._file:
-                        await asyncio.to_thread(self._file.close)
+                        try:
+                            await asyncio.to_thread(self._file.close)
+                        except Exception as close_exc:
+                            # Log the close exception but don't suppress it
+                            # If there's already an exception from the context body,
+                            # log the close exception and re-raise the original exception
+                            if exc_type is not None:
+                                logging.getLogger(__name__).warning(
+                                    f"Exception during file close: {close_exc}"
+                                )
+                            else:
+                                # No other exception, so re-raise the close exception
+                            raise
 
             return _SimpleAsyncFile(path, mode)
 
