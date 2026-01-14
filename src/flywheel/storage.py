@@ -252,12 +252,11 @@ class JSONFormatter(logging.Formatter):
             return json.dumps(safe_log_data)
 
     def _redact_sensitive_fields(self, log_data):
-        """Redact sensitive field values by partially masking them.
+        """Redact sensitive field values by fully masking them.
 
-        For values >= 8 characters: shows first 3 and last 3 chars with middle redacted
-        For values < 8 characters: completely redacted with asterisks
-        For non-string values: completely redacted with '***REDACTED***'
-        This preserves debugging information while protecting sensitive data.
+        All sensitive values are completely redacted with '***REDACTED***'
+        regardless of length or type. This prevents partial hash exposure which
+        can be a security vulnerability in high-security contexts.
 
         This method recursively processes all levels of nested dictionaries and lists
         to ensure sensitive fields are redacted at any depth.
@@ -306,19 +305,10 @@ class JSONFormatter(logging.Formatter):
         Returns:
             Redacted string representation
         """
-        # Handle None or non-string values
-        # Fix for Issue #1657: Check type before attempting string operations
-        if not isinstance(value, str):
-            return '***REDACTED***'
-
-        # Partial redaction: show first 3 and last 3 chars
-        if len(value) >= 8:
-            # Show first 3 + asterisks + last 3
-            return f"{value[:3]}***{value[-3:]}"
-        else:
-            # For shorter values (including empty string), completely redact
-            # Fix for Issue #1662: Use consistent redaction marker
-            return '***REDACTED***'
+        # Fix for Issue #1724: Full redaction for all sensitive values
+        # Partial hash exposure can be a security vulnerability in high-security contexts
+        # All sensitive values are now fully redacted regardless of length or type
+        return '***REDACTED***'
 
     def _truncate_large_values(self, log_data):
         """Truncate string values that exceed MAX_LOG_SIZE.
