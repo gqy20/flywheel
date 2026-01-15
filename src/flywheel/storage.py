@@ -95,7 +95,7 @@ except ImportError:
 
                 async def __aenter__(self):
                     self._file = await asyncio.to_thread(open, self.path, self.mode)
-                    return self._file
+                    return self
 
                 async def __aexit__(self, exc_type, exc_val, exc_tb):
                     if self._file:
@@ -114,6 +114,14 @@ except ImportError:
                             else:
                                 # No other exception, so re-raise the close exception
                                 raise close_exc
+
+                async def read(self, size=-1):
+                    """Read content from file asynchronously."""
+                    return await asyncio.to_thread(self._file.read, size)
+
+                async def write(self, data):
+                    """Write data to file asynchronously."""
+                    return await asyncio.to_thread(self._file.write, data)
 
             return _SimpleAsyncFile(path, mode)
 
