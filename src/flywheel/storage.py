@@ -372,7 +372,7 @@ class JSONFormatter(logging.Formatter):
                             safe_log_data = self._make_serializable(log_data)
                             json_output = json.dumps(safe_log_data)
 
-                # Final fallback: If still too large, remove custom fields
+                # Fix for Issue #1827: If still too large, remove custom fields
                 # Keep only the most critical standard fields
                 if len(json_output) > self.MAX_JSON_SIZE:
                     critical_fields = {'timestamp', 'level', 'logger', 'message'}
@@ -380,12 +380,68 @@ class JSONFormatter(logging.Formatter):
                     for field in fields_to_remove:
                         del log_data[field]
 
-                    # Final re-serialize
+                    # Re-serialize after removing custom fields
                     try:
                         json_output = json.dumps(log_data)
                     except (TypeError, ValueError):
                         safe_log_data = self._make_serializable(log_data)
                         json_output = json.dumps(safe_log_data)
+
+                    # Fix for Issue #1824: Final enforcement - truncate message if still too large
+                    # This is the last resort to ensure JSON output never exceeds MAX_JSON_SIZE
+                    # Even if it means losing most of the message content
+                    if len(json_output) > self.MAX_JSON_SIZE and 'message' in log_data:
+                        # Calculate how much we need to remove
+                        excess_bytes = len(json_output) - self.MAX_JSON_SIZE
+
+                        # Estimate message max length (conservative, accounting for JSON encoding)
+                        # JSON encoding adds ~2 chars per special char, so we use a safety factor
+                        estimated_overhead = len(json_output) - len(log_data.get('message', ''))
+                        max_message_length = max(0, self.MAX_JSON_SIZE - estimated_overhead - 100)  # 100 byte safety margin
+
+                        if max_message_length > 0:
+                            # Truncate message to fit
+                            original_message = log_data['message']
+                            if isinstance(original_message, str):
+                                log_data['message'] = original_message[:max_message_length] + '...[truncated]'
+                            else:
+                                # Convert to string if not already
+                                log_data['message'] = str(original_message)[:max_message_length] + '...[truncated]'
+
+                            # Final re-serialize
+                            try:
+                                json_output = json.dumps(log_data)
+                            except (TypeError, ValueError):
+                                safe_log_data = self._make_serializable(log_data)
+                                json_output = json.dumps(safe_log_data)
+                        else:
+                            # Extreme case: Even empty message is too large with other fields
+                            # This should never happen with current critical fields, but handle it gracefully
+                            log_data['message'] = ''
+                            try:
+                                json_output = json.dumps(log_data)
+                            except (TypeError, ValueError):
+                                safe_log_data = self._make_serializable(log_data)
+                                json_output = json.dumps(safe_log_data)
+
+                        # Fix for Issue #1824: Final absolute enforcement - ensure valid JSON
+                        # If all truncation attempts fail, use a minimal safe message
+                        # This ensures we NEVER output invalid JSON
+                        if len(json_output) > self.MAX_JSON_SIZE:
+                            # Absolute last resort: Replace with minimal safe log entry
+                            # This ensures we always return valid JSON within size limit
+                            minimal_log = {
+                                'timestamp': log_data.get('timestamp', ''),
+                                'level': log_data.get('level', 'ERROR'),
+                                'logger': log_data.get('logger', ''),
+                                'message': '[LOG TRUNCATED - Original message exceeded maximum size]',
+                            }
+                            json_output = json.dumps(minimal_log)
+
+                            # Double-check the minimal log fits (it always should)
+                            if len(json_output) > self.MAX_JSON_SIZE:
+                                # This should never happen, but if it does, use even more minimal
+                                json_output = json.dumps({'error': 'Log exceeded maximum size'})
 
         return json_output
 
