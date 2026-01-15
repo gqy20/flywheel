@@ -253,6 +253,7 @@ class JSONFormatter(logging.Formatter):
             'level': record.levelname,
             'logger': record.name,
             'message': record.getMessage(),
+            'thread_id': threading.get_ident(),
         }
 
         # Fields to exclude from custom fields (standard logging attributes)
