@@ -5,6 +5,9 @@ on:
     - cron: '30 * * * *'  # Every hour at minute 30 (30min after scan)
   workflow_dispatch:
 
+# Temporarily disabled
+if: false
+
 permissions:
   contents: write
   issues: write

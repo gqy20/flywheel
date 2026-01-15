@@ -5,6 +5,9 @@ on:
     - cron: '15 * * * *'  # At minute 15 (15min after scan)
   workflow_dispatch:
 
+# Temporarily disabled
+if: false
+
 permissions:
   contents: read
   issues: write

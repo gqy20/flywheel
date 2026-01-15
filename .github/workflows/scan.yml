@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'  # Every hour at minute 0
   workflow_dispatch:
 
+# Temporarily disabled
+if: false
+
 permissions:
   contents: read
   issues: write
