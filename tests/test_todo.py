@@ -60,3 +60,31 @@ def test_todo_defaults():
     assert todo.tags == []
     assert todo.completed_at is None
     assert todo.created_at is not None
+
+
+def test_todo_from_dict_invalid_due_date():
+    """Test creating todo from dictionary with invalid due_date format."""
+    data = {
+        "id": 1,
+        "title": "Test",
+        "due_date": "invalid-date-format",
+    }
+
+    try:
+        Todo.from_dict(data)
+        assert False, "Should have raised ValueError for invalid due_date"
+    except ValueError as e:
+        assert "Invalid ISO 8601 date format for 'due_date'" in str(e)
+        assert "invalid-date-format" in str(e)
+
+
+def test_todo_from_dict_valid_due_date():
+    """Test creating todo from dictionary with valid due_date format."""
+    data = {
+        "id": 1,
+        "title": "Test",
+        "due_date": "2026-01-15T10:30:00",
+    }
+    todo = Todo.from_dict(data)
+
+    assert todo.due_date == "2026-01-15T10:30:00"
