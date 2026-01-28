@@ -1,0 +1,97 @@
+[project]
+name = "flywheel"
+version = "0.1.0"
+description = "A self-improving Todo CLI powered by AI"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.75.0",
+    "pygithub>=2.5.0",
+    "pyyaml>=6.0.2",
+    "requests>=2.32.0",
+    "pywin32>=305; sys_platform == 'win32'",
+]
+
+[project.scripts]
+todo = "flywheel.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
+    "pre-commit>=4.0.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.9.0",
+    "mypy>=1.15.0",
+    "pre-commit>=4.0.0",
+]
+
+# Ruff configuration
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "W",     # pycodestyle warnings
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "RUF001", # allow Chinese characters in strings
+    "RUF002", # allow Chinese characters in docstrings
+    "RUF003", # allow Chinese comments
+    "RUF005", # allow list concatenation for clarity
+    "SIM103", # prefer explicit return for readability
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]  # allow assert in tests
+"scripts/**/*.py" = ["F841"]  # ignore unused variables in prompts
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# Mypy configuration
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-v --strict-markers --cov=src --cov-report=term-missing"
+asyncio_mode = "auto"
+
+# Hatch build configuration
+[tool.hatch.build.targets.wheel]
+packages = ["src/flywheel", "scripts"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
