@@ -23,10 +23,14 @@ Choose and merge exactly one best candidate PR per issue after hard gates pass.
    - complexity and maintainability (weight 0.15)
    - test quality and verification evidence (weight 0.10)
 4. Compute weighted total score and rank candidates.
-5. Post score table and rationale before merge.
-6. Merge exactly one winner (prefer squash).
-7. Comment and close non-winners.
-8. If no safe winner, do not merge and comment issue with blockers.
+5. Post machine-readable scorecard before merge:
+   - Marker line: `<!-- arbiter-scorecard -->`
+   - Next line must be one-line JSON:
+     `{"issue":<id>,"winner_pr":<id>,"scores":[...]}`
+6. Include per-candidate scores for correctness, risk, maintainability, tests, total, verdict, reason.
+7. Merge exactly one winner (prefer squash).
+8. Comment and close non-winners.
+9. If no safe winner, do not merge and comment issue with blockers.
 
 ## Safety Rules
 

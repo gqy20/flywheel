@@ -244,7 +244,9 @@ jobs:
                - Simplicity and maintainability (weight 0.15)
                - Test quality and verification evidence (weight 0.10)
             3. Compute total score = weighted sum and rank all candidates.
-            4. Publish the score table in a comment on the winner PR before merge.
+            4. Publish a machine-readable scorecard comment on the winner PR before merge, exactly:
+               <!-- arbiter-scorecard -->
+               {"issue":<issue_number>,"winner_pr":<pr_number>,"scores":[{"pr":<number>,"correctness":<0-10>,"risk":<0-10>,"maintainability":<0-10>,"tests":<0-10>,"total":<0-10>,"verdict":"winner|rejected","reason":"..."}]}
             5. Merge exactly one winner to `master` using squash merge.
             6. Comment and close non-winner candidate PRs with brief reasons and score deltas.
             7. If no candidate is safe after deep review, do not merge and comment on issue #${{ needs.select-group.outputs.issue_number }}.
@@ -265,3 +267,55 @@ jobs:
           echo "- Issue: #${{ needs.select-group.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Candidate PRs: ${{ needs.select-group.outputs.pr_numbers_csv }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Eligible PRs: ${{ steps.eligible.outputs.eligible_csv }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Validate structured scorecard
+        if: always() && steps.eligible.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.select-group.outputs.issue_number }}
+          ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          winner=""
+          merged_count=0
+          for pr in $(echo "$ELIGIBLE_CSV" | tr ',' ' '); do
+            [ -z "$pr" ] && continue
+            merged_at="$(gh pr view "$pr" --json mergedAt --jq '.mergedAt // empty')"
+            if [ -n "$merged_at" ]; then
+              winner="$pr"
+              merged_count=$((merged_count + 1))
+            fi
+          done
+
+          if [ "$merged_count" -eq 0 ]; then
+            echo "No eligible winner merged; skip scorecard validation."
+            exit 0
+          fi
+          if [ "$merged_count" -gt 1 ]; then
+            echo "Unexpected: multiple merged winners among eligible candidates."
+            exit 1
+          fi
+
+          body="$(gh pr view "$winner" --json comments --jq '[.comments[].body | select(test("<!-- arbiter-scorecard -->"))][-1] // empty')"
+          if [ -z "$body" ]; then
+            echo "Missing structured scorecard marker on winner PR #$winner."
+            exit 1
+          fi
+
+          payload="$(printf '%s\n' "$body" | awk '/<!-- arbiter-scorecard -->/{getline; print; exit}')"
+          if [ -z "$payload" ]; then
+            echo "Missing JSON payload after scorecard marker on winner PR #$winner."
+            exit 1
+          fi
+
+          echo "$payload" | jq -e --argjson issue "$ISSUE_NUMBER" --argjson winner "$winner" '
+            (.issue == $issue)
+            and (.winner_pr == $winner)
+            and (.scores | type == "array")
+            and ((.scores | length) >= 2)
+            and ([.scores[] | has("pr") and has("correctness") and has("risk") and has("maintainability") and has("tests") and has("total") and has("verdict") and has("reason")] | all)
+          ' >/dev/null
