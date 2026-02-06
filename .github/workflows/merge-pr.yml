@@ -19,6 +19,11 @@ on:
         required: false
         default: "90"
         type: string
+      require_scorecard:
+        description: "Require structured candidate scorecard files before arbitration"
+        required: false
+        default: "true"
+        type: boolean
 
 permissions:
   contents: write
@@ -245,6 +250,7 @@ jobs:
           ISSUE_NUMBER: ${{ needs.select-group.outputs.issue_number }}
           ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
           CLAUDE_MAX_TURNS: "25"
+          CLAUDE_REQUIRE_SCORECARD: ${{ inputs.require_scorecard || true }}
         run: timeout 25m uv run python scripts/merge.py
 
       - name: Summary

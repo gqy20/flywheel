@@ -24,6 +24,15 @@ BRANCH_PATTERN = re.compile(
 )
 
 
+def _parse_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    normalized = value.strip().lower()
+    if not normalized:
+        return default
+    return normalized in {"1", "true", "yes", "on"}
+
+
 def _required_env(name: str) -> str:
     value = os.environ.get(name, "").strip()
     if not value:
@@ -144,6 +153,25 @@ def _persist_bundle(issue_number: str, candidates: list[dict[str, Any]]) -> Path
     return bundle_path
 
 
+def _filter_candidates_for_arbitration(
+    candidates: list[dict[str, Any]], require_scorecard: bool
+) -> list[dict[str, Any]]:
+    if not require_scorecard:
+        return candidates
+
+    filtered = [
+        item
+        for item in candidates
+        if str(item.get("scorecard", {}).get("source", "")) == "scorecard_file"
+    ]
+    dropped = len(candidates) - len(filtered)
+    if dropped > 0:
+        logger.info(
+            "Dropped %s candidates without structured scorecards due to strict gate", dropped
+        )
+    return filtered
+
+
 def build_prompt(issue_number: str, eligible_csv: str, candidates_json: str) -> str:
     return f"""
 You are the dedicated merge arbiter for auto-fix candidates.
@@ -184,19 +212,39 @@ def main() -> int:
     issue_number = _required_env("ISSUE_NUMBER")
     eligible_csv = _required_env("ELIGIBLE_CSV")
     repo = _required_repo()
+    require_scorecard = _parse_bool(os.environ.get("CLAUDE_REQUIRE_SCORECARD"), default=False)
 
     logger.info(
-        "Starting merge arbiter issue=%s eligible=%s repo=%s",
+        "Starting merge arbiter issue=%s eligible=%s repo=%s require_scorecard=%s",
         issue_number,
         eligible_csv,
         repo,
+        require_scorecard,
     )
 
-    candidates = _collect_candidate_data(
+    raw_candidates = _collect_candidate_data(
         repo=repo, issue_number=issue_number, eligible_csv=eligible_csv
     )
-    bundle_path = _persist_bundle(issue_number=issue_number, candidates=candidates)
-    logger.info("Persisted candidate evidence bundle: %s", bundle_path)
+    candidates = _filter_candidates_for_arbitration(
+        candidates=raw_candidates,
+        require_scorecard=require_scorecard,
+    )
+    bundle_path = _persist_bundle(issue_number=issue_number, candidates=raw_candidates)
+    logger.info(
+        "Persisted candidate evidence bundle: %s (raw=%s, selected=%s)",
+        bundle_path,
+        len(raw_candidates),
+        len(candidates),
+    )
+
+    if len(candidates) < 2:
+        logger.warning(
+            "Insufficient candidates after scorecard gate issue=%s require_scorecard=%s selected=%s",
+            issue_number,
+            require_scorecard,
+            len(candidates),
+        )
+        return 0
 
     prompt = build_prompt(
         issue_number=issue_number,
