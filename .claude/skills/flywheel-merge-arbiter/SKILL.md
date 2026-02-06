@@ -1,5 +1,5 @@
 ---
-name: Flywheel Merge Arbiter
+name: flywheel-merge-arbiter
 description: Arbitrate multiple candidate PRs for the same issue and merge exactly one winner. Use when running merge-pr workflow or comparing AUTOFIX candidate PRs.
 allowed-tools: Read,Grep,Glob,LS,Bash(gh:*),Bash(git:*)
 ---

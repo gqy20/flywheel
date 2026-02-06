@@ -1,5 +1,5 @@
 ---
-name: Flywheel Priority Evaluate
+name: flywheel-priority-evaluate
 description: Re-evaluate and normalize issue priority labels (p0-p3) based on issue content and business impact.
 allowed-tools: Read,Grep,Glob,LS,Bash(gh:*),Bash(git:*)
 ---
