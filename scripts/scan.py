@@ -30,6 +30,32 @@ TYPE_TO_PRIORITY = {
 type IssueData = dict[str, Any]
 
 
+def _render_str_list(items: Any) -> str:
+    if not isinstance(items, list) or not items:
+        return "- N/A"
+    values = [str(item).strip() for item in items if str(item).strip()]
+    if not values:
+        return "- N/A"
+    return "\n".join(f"- {value}" for value in values)
+
+
+def _render_evidence(items: Any) -> str:
+    if not isinstance(items, list) or not items:
+        return "- N/A"
+
+    rows: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        file_path = str(item.get("file", "")).strip() or "unknown"
+        line = item.get("line", "N/A")
+        note = str(item.get("note", "")).strip() or "no note"
+        rows.append(f"- `{file_path}`:{line} - {note}")
+    if not rows:
+        return "- N/A"
+    return "\n".join(rows)
+
+
 class Scanner:
     """Code scanner that finds issues using Claude."""
 
@@ -241,6 +267,13 @@ class Scanner:
         """
         title = f"[{issue['type']}] {issue['description'][:80]}"
         priority = issue.get("severity", "p2")
+        evidence_block = _render_evidence(issue.get("evidence"))
+        acceptance_block = _render_str_list(issue.get("acceptance_criteria"))
+        test_plan_block = _render_str_list(issue.get("minimal_test_plan"))
+        fixable = bool(issue.get("fixable", True))
+        unfixable_reason = str(issue.get("unfixable_reason", "")).strip() or "N/A"
+        fixability_line = "yes" if fixable else "no"
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
 
         # 根据类型选择对应的模板格式
         issue_type = issue.get("type", "").lower()
@@ -262,8 +295,21 @@ class Scanner:
 **修复建议**
 {issue.get("suggestion", "待 AI 生成")}
 
+**证据**
+{evidence_block}
+
+**验收标准**
+{acceptance_block}
+
+**最小测试计划**
+{test_plan_block}
+
+**可修复**
+- fixable: {fixability_line}
+- reason: {unfixable_reason}
+
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
+*AI 扫描器生成 • {self.client.model} • {timestamp}*
 """
         elif issue_type in ["perf", "refactor", "test"]:
             # Feature/Improvement 模板格式
@@ -281,11 +327,24 @@ class Scanner:
 **改进建议**
 {issue.get("suggestion", "待 AI 生成")}
 
+**证据**
+{evidence_block}
+
+**验收标准**
+{acceptance_block}
+
+**最小测试计划**
+{test_plan_block}
+
+**可修复**
+- fixable: {fixability_line}
+- reason: {unfixable_reason}
+
 **优先级**
 {priority.upper()}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
+*AI 扫描器生成 • {self.client.model} • {timestamp}*
 """
         elif issue_type in ["feature", "enhancement"]:
             # Feature/Enhancement 专用模板格式
@@ -301,11 +360,24 @@ class Scanner:
 **实现建议**
 {issue.get("suggestion", "待补充实现细节")}
 
+**证据**
+{evidence_block}
+
+**验收标准**
+{acceptance_block}
+
+**最小测试计划**
+{test_plan_block}
+
+**可修复**
+- fixable: {fixability_line}
+- reason: {unfixable_reason}
+
 **优先级**
 {priority.upper()}
 
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
+*AI 扫描器生成 • {self.client.model} • {timestamp}*
 """
         else:
             # Docs/Other 模板格式
@@ -318,8 +390,21 @@ class Scanner:
 **建议**
 {issue.get("suggestion", "待补充")}
 
+**证据**
+{evidence_block}
+
+**验收标准**
+{acceptance_block}
+
+**最小测试计划**
+{test_plan_block}
+
+**可修复**
+- fixable: {fixability_line}
+- reason: {unfixable_reason}
+
 ---
-*AI 扫描器生成 • {self.client.model} • {datetime.now().strftime("%Y-%m-%d %H:%M")}*
+*AI 扫描器生成 • {self.client.model} • {timestamp}*
 """
 
         labels = [priority]

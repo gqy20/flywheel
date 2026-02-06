@@ -3,6 +3,7 @@
 import logging
 import os
 import time
+from pathlib import Path
 from typing import Any, cast
 
 from shared.agent_sdk import AgentSDKClient
@@ -40,6 +41,11 @@ class ClaudeClient:
         self.max_retries = 3
         self.sdk_client = AgentSDKClient(model=model)
         self.readonly_tools = ["Read", "Grep", "Glob", "LS"]
+        self.prompt_dir = Path(__file__).resolve().parent.parent / "prompts"
+
+    def _load_prompt(self, filename: str, filepath: str) -> str:
+        template_path = self.prompt_dir / filename
+        return template_path.read_text(encoding="utf-8").replace("{{FILEPATH}}", filepath)
 
     def _calculate_priority(self, title: str) -> str:
         """Calculate priority from issue title."""
@@ -74,26 +80,7 @@ class ClaudeClient:
         raise RuntimeError("Max retries exceeded")
 
     def analyze_code(self, filepath: str) -> list[dict]:
-        prompt = f"""
-分析以下 Python 文件，找出潜在问题。
-请先使用 Read 工具读取该文件内容，不要猜测。
-
-文件: {filepath}
-
-请以 JSON 格式返回：
-{{
-    "issues": [
-        {{
-            "type": "Bug|Security|Test|Docs|Refactor|Perf",
-            "severity": "p0|p1|p2|p3",
-            "description": "简短描述",
-            "line": 行号 (int),
-            "code": "相关代码片段",
-            "suggestion": "修复建议"
-        }}
-    ]
-}}
-"""
+        prompt = self._load_prompt("analyze_code.md", filepath)
 
         response = self.chat(prompt, temperature=0.1)
 
@@ -112,36 +99,7 @@ class ClaudeClient:
         return []
 
     def analyze_opportunities(self, filepath: str) -> list[dict]:
-        prompt = f"""
-分析以下 Python 文件，发现功能增强和改进机会。
-请先使用 Read 工具读取该文件内容，不要猜测。
-
-文件: {filepath}
-
-请思考这个文件可以如何改进，包括：
-1. 缺少的常用功能（如日志、配置、缓存）
-2. 用户体验改进（如进度条、彩色输出、交互模式）
-3. 架构扩展性（如插件系统、钩子、抽象层）
-4. 开发体验改进（如 debug 模式、错误提示、文档）
-
-注意：
-- 只建议**小的、可实现的改进**（不是大规模重构）
-- 优先考虑对用户或开发者有实际价值的功能
-- 避免过于抽象或理论化的建议
-
-请以 JSON 格式返回：
-{{
-    "issues": [
-        {{
-            "type": "Feature|Enhancement",
-            "description": "简短描述要添加的功能",
-            "file": "文件路径（从filepath推断）",
-            "value": "这个功能的价值（为什么有用）",
-            "suggestion": "实现建议"
-        }}
-    ]
-}}
-"""
+        prompt = self._load_prompt("analyze_opportunities.md", filepath)
 
         response = self.chat(prompt, temperature=0.3)
 
