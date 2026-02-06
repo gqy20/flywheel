@@ -114,6 +114,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
           prompt: |
             Scan repository code and create actionable issues.
             First, load and follow `.claude/skills/flywheel-scan-issues/SKILL.md`.
