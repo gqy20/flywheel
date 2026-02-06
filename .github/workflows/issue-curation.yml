@@ -126,6 +126,7 @@ jobs:
             7. Post a concise summary comment in workflow output.
           claude_args: |
             --max-turns 20
+            --model "${{ secrets.ANTHROPIC_MODEL }}"
             --allowedTools "Read,Glob,Grep,LS,Bash(gh:*),Bash(git:*)"
 
       - name: Summary

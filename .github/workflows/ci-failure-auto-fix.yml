@@ -236,6 +236,7 @@ jobs:
             - Do not modify workflows or secrets.
           claude_args: |
             --max-turns 20
+            --model "${{ secrets.ANTHROPIC_MODEL }}"
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
 
       - name: Summary
