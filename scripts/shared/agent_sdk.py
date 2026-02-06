@@ -38,7 +38,13 @@ class AgentSDKClient:
             env["ANTHROPIC_MODEL"] = self.model
         return env
 
-    async def _chat_async(self, prompt: str, max_turns: int, temperature: float) -> str:
+    async def _chat_async(
+        self,
+        prompt: str,
+        max_turns: int,
+        temperature: float,
+        allowed_tools: list[str] | None,
+    ) -> str:
         extra_args: dict[str, Any] = {"max-turns": str(max_turns)}
         if self.model:
             extra_args["model"] = self.model
@@ -50,6 +56,7 @@ class AgentSDKClient:
             env=self._build_env(),
             extra_args=extra_args,
             permission_mode="bypassPermissions",
+            allowed_tools=allowed_tools or [],
         )
 
         chunks: list[str] = []
@@ -75,6 +82,7 @@ class AgentSDKClient:
         max_tokens: int = 4096,
         temperature: float = 0.2,
         max_turns: int | None = None,
+        allowed_tools: list[str] | None = None,
     ) -> str:
         """Chat via Claude Agent SDK.
 
@@ -83,4 +91,7 @@ class AgentSDKClient:
         _ = max_tokens
         _ = temperature
         turns = max_turns if max_turns is not None else self.max_turns_default
-        return cast(str, anyio.run(self._chat_async, prompt, turns, temperature))
+        return cast(
+            str,
+            anyio.run(self._chat_async, prompt, turns, temperature, allowed_tools),
+        )

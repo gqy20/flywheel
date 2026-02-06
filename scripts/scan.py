@@ -6,6 +6,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -26,6 +27,8 @@ TYPE_TO_PRIORITY = {
     "Enhancement": "p2",  # 改进建议
 }
 
+type IssueData = dict[str, Any]
+
 
 class Scanner:
     """Code scanner that finds issues using Claude."""
@@ -35,7 +38,7 @@ class Scanner:
         self.max_issues = int(os.getenv("MAX_ISSUES", "3"))
         self.created = 0
 
-    def scan_file(self, filepath: str) -> list[dict]:
+    def scan_file(self, filepath: str) -> list[IssueData]:
         """Scan a single file for issues.
 
         Args:
@@ -44,15 +47,13 @@ class Scanner:
         Returns:
             List of found issues
         """
-        try:
-            content = Path(filepath).read_text()
-        except Exception as e:
-            logger.warning(f"Failed to read {filepath}: {e}")
+        if not Path(filepath).exists():
+            logger.warning(f"File does not exist: {filepath}")
             return []
 
-        logger.info(f"Scanning {filepath} ({len(content)} chars)")
+        logger.info(f"Scanning {filepath}")
 
-        issues = self.client.analyze_code(content, filepath)
+        issues = self.client.analyze_code(filepath)
         logger.info(f"Found {len(issues)} issues in {filepath}")
 
         # Add filepath to each issue
@@ -61,7 +62,7 @@ class Scanner:
 
         return issues
 
-    def scan_opportunities(self, filepath: str) -> list[dict]:
+    def scan_opportunities(self, filepath: str) -> list[IssueData]:
         """Scan a single file for enhancement opportunities.
 
         Args:
@@ -70,15 +71,13 @@ class Scanner:
         Returns:
             List of found opportunities
         """
-        try:
-            content = Path(filepath).read_text()
-        except Exception as e:
-            logger.warning(f"Failed to read {filepath}: {e}")
+        if not Path(filepath).exists():
+            logger.warning(f"File does not exist: {filepath}")
             return []
 
-        logger.info(f"Scanning opportunities in {filepath} ({len(content)} chars)")
+        logger.info(f"Scanning opportunities in {filepath}")
 
-        opportunities = self.client.analyze_opportunities(content, filepath)
+        opportunities = self.client.analyze_opportunities(filepath)
         logger.info(f"Found {len(opportunities)} opportunities in {filepath}")
 
         # Add filepath to each opportunity
@@ -88,7 +87,9 @@ class Scanner:
 
         return opportunities
 
-    def scan_directory(self, directory: str, patterns: list[str] | None = None) -> list[dict]:
+    def scan_directory(
+        self, directory: str, patterns: list[str] | None = None
+    ) -> tuple[list[IssueData], list[IssueData]]:
         """Scan directory for issues and opportunities.
 
         Args:
@@ -101,8 +102,8 @@ class Scanner:
         if patterns is None:
             patterns = ["*.py"]
 
-        all_problems = []
-        all_opportunities = []
+        all_problems: list[IssueData] = []
+        all_opportunities: list[IssueData] = []
         base_path = Path(directory)
 
         for pattern in patterns:
@@ -121,7 +122,7 @@ class Scanner:
 
         return all_problems, all_opportunities
 
-    def deduplicate_issues(self, issues: list[dict]) -> list[dict]:
+    def deduplicate_issues(self, issues: list[IssueData]) -> list[IssueData]:
         """Remove duplicate issues.
 
         Args:
@@ -148,7 +149,7 @@ class Scanner:
 
         return unique_issues
 
-    def filter_existing_issues(self, issues: list[dict]) -> list[dict]:
+    def filter_existing_issues(self, issues: list[IssueData]) -> list[IssueData]:
         """Filter out issues that already exist.
 
         Args:
@@ -182,7 +183,7 @@ class Scanner:
         """
         return TYPE_TO_PRIORITY.get(issue_type, "p2")
 
-    def ensure_diverse_distribution(self, issues: list[dict]) -> list[dict]:
+    def ensure_diverse_distribution(self, issues: list[IssueData]) -> list[IssueData]:
         """Ensure issues are distributed across different types.
 
         Args:
@@ -201,7 +202,7 @@ class Scanner:
             by_priority[priority].append(issue)
 
         # Select issues ensuring diversity (at most 1-2 per priority level)
-        selected = []
+        selected: list[IssueData] = []
         max_per_priority = 2  # Each priority level at most 2 issues
 
         # Prioritize order: p0 > p1 > p2 > p3
@@ -222,14 +223,14 @@ class Scanner:
                         selected.append(issue)
 
         # Log distribution
-        dist = defaultdict(int)
+        dist: defaultdict[str, int] = defaultdict(int)
         for issue in selected:
             dist[issue.get("severity", "p2")] += 1
         logger.info(f"Issue distribution: {dict(dist)}")
 
         return selected
 
-    def create_issue_from_data(self, issue: dict) -> int:
+    def create_issue_from_data(self, issue: IssueData) -> int:
         """Create a GitHub issue from issue data.
 
         Args:
@@ -349,12 +350,12 @@ class Scanner:
         logger.info(f"New problems: {len(problems)}, new opportunities: {len(opportunities)}")
 
         # Balance distribution: 3 problems + 2 opportunities
-        selected_issues = []
+        selected_issues: list[IssueData] = []
         max_problems = 3
         max_opportunities = 2
 
         # Add problems (priority-sorted)
-        problems_with_priority = []
+        problems_with_priority: list[tuple[str, IssueData]] = []
         for p in problems:
             priority = self.get_priority_for_type(p.get("type", ""))
             p["severity"] = priority

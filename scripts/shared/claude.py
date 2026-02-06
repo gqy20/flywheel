@@ -39,6 +39,7 @@ class ClaudeClient:
         self.model = model
         self.max_retries = 3
         self.sdk_client = AgentSDKClient(model=model)
+        self.readonly_tools = ["Read", "Grep", "Glob", "LS"]
 
     def _calculate_priority(self, title: str) -> str:
         """Calculate priority from issue title."""
@@ -63,6 +64,7 @@ class ClaudeClient:
                     payload,
                     max_tokens=max_tokens,
                     temperature=temperature,
+                    allowed_tools=self.readonly_tools,
                 )
             except Exception as e:
                 if attempt >= self.max_retries - 1:
@@ -71,15 +73,12 @@ class ClaudeClient:
                 time.sleep(2**attempt)
         raise RuntimeError("Max retries exceeded")
 
-    def analyze_code(self, code: str, filepath: str) -> list[dict]:
+    def analyze_code(self, filepath: str) -> list[dict]:
         prompt = f"""
-扫描以下 Python 代码，找出潜在问题：
+分析以下 Python 文件，找出潜在问题。
+请先使用 Read 工具读取该文件内容，不要猜测。
 
 文件: {filepath}
-
-```python
-{code[:10000]}
-```
 
 请以 JSON 格式返回：
 {{
@@ -112,15 +111,12 @@ class ClaudeClient:
 
         return []
 
-    def analyze_opportunities(self, code: str, filepath: str) -> list[dict]:
+    def analyze_opportunities(self, filepath: str) -> list[dict]:
         prompt = f"""
-分析以下 Python 代码，发现功能增强和改进机会：
+分析以下 Python 文件，发现功能增强和改进机会。
+请先使用 Read 工具读取该文件内容，不要猜测。
 
 文件: {filepath}
-
-```python
-{code[:10000]}
-```
 
 请思考这个文件可以如何改进，包括：
 1. 缺少的常用功能（如日志、配置、缓存）
