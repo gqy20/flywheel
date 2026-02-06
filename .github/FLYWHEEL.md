@@ -54,9 +54,13 @@
 ### 4) 失败熔断与冷却
 
 - `scan/evaluate/issue-curation/fix/merge-pr/ci-failure-auto-fix` 都启用统一熔断门控
-- 默认策略：
-  - 连续失败阈值：`3`
-  - 冷却窗口：`120` 分钟
+- 默认策略（可在 `workflow_dispatch` 用参数覆盖）：
+  - `scan`: 阈值 `4`，冷却 `90m`
+  - `evaluate`: 阈值 `4`，冷却 `90m`
+  - `issue-curation`: 阈值 `4`，冷却 `60m`
+  - `fix`: 阈值 `3`，冷却 `120m`
+  - `merge-pr`: 阈值 `2`，冷却 `90m`
+  - `ci-failure-auto-fix`: 阈值 `3`，冷却 `90m`
 - 在冷却窗口内自动跳过本轮运行，避免异常时持续放大噪音和成本
 
 ### 5) CI 失败自愈
@@ -98,6 +102,9 @@ gh workflow run fix.yml
 
 # 指定 issue 触发并行修复候选
 gh workflow run fix.yml -f issue_number=123
+
+# 临时覆盖熔断参数（示例）
+gh workflow run fix.yml -f issue_number=123 -f circuit_failure_threshold=5 -f circuit_cooldown_minutes=30
 
 # 触发候选 PR 仲裁合并
 gh workflow run merge-pr.yml

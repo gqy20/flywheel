@@ -6,6 +6,17 @@ on:
   issues:
     types: [opened, edited, labeled, reopened]
   workflow_dispatch:
+    inputs:
+      circuit_failure_threshold:
+        description: "Circuit breaker consecutive failure threshold"
+        required: false
+        default: "4"
+        type: string
+      circuit_cooldown_minutes:
+        description: "Circuit breaker cooldown window (minutes)"
+        required: false
+        default: "90"
+        type: string
 
 permissions:
   contents: read
@@ -28,8 +39,8 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FAILURE_THRESHOLD: "3"
-          COOLDOWN_MINUTES: "120"
+          FAILURE_THRESHOLD: ${{ inputs.circuit_failure_threshold || '4' }}
+          COOLDOWN_MINUTES: ${{ inputs.circuit_cooldown_minutes || '90' }}
           GH_PAGER: cat
           PAGER: cat
         shell: bash

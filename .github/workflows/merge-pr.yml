@@ -9,6 +9,16 @@ on:
         description: "Optional: merge candidates for this issue only"
         required: false
         type: string
+      circuit_failure_threshold:
+        description: "Circuit breaker consecutive failure threshold"
+        required: false
+        default: "2"
+        type: string
+      circuit_cooldown_minutes:
+        description: "Circuit breaker cooldown window (minutes)"
+        required: false
+        default: "90"
+        type: string
 
 permissions:
   contents: write
@@ -32,8 +42,8 @@ jobs:
         id: gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          FAILURE_THRESHOLD: "3"
-          COOLDOWN_MINUTES: "120"
+          FAILURE_THRESHOLD: ${{ inputs.circuit_failure_threshold || '2' }}
+          COOLDOWN_MINUTES: ${{ inputs.circuit_cooldown_minutes || '90' }}
           GH_PAGER: cat
           PAGER: cat
         shell: bash
