@@ -124,8 +124,11 @@ class AgentSDKClient:
         async with anyio.create_task_group() as tg:
             tg.start_soon(_produce_messages)
             while True:
-                with anyio.move_on_after(self.idle_timeout_seconds) as idle_scope:
-                    message = await recv_stream.receive()
+                try:
+                    with anyio.move_on_after(self.idle_timeout_seconds) as idle_scope:
+                        message = await recv_stream.receive()
+                except anyio.EndOfStream:
+                    break
                 if idle_scope.cancel_called:
                     raise TimeoutError(
                         f"Claude Agent SDK idle timeout after {self.idle_timeout_seconds}s "
