@@ -45,7 +45,6 @@ jobs:
           setting_sources: "user"
           settings: |
             {"enableAllProjectMcpServers":false}
-          show_full_output: true
           # Keep tool scope tight; expand only when needed.
           claude_args: |
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
@@ -68,6 +67,5 @@ jobs:
           setting_sources: "user"
           settings: |
             {"enableAllProjectMcpServers":false}
-          show_full_output: true
           claude_args: |
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
