@@ -39,6 +39,9 @@
   - 提交分支并创建 PR
   - PR 标题必须带统一前缀：
     - `[AUTOFIX][ISSUE-<id>][CANDIDATE-<n>]`
+- 候选 PR 创建后立即走质量门（默认阈值 `70/100`）：
+  - 对改动规模、测试覆盖迹象、PR 说明完整性、检查状态进行打分
+  - 低于阈值自动关闭，避免低质量候选进入仲裁
 
 ### 3) 独立 PR 仲裁与合并
 
@@ -102,6 +105,9 @@ gh workflow run fix.yml
 
 # 指定 issue 触发并行修复候选
 gh workflow run fix.yml -f issue_number=123
+
+# 指定 issue 且覆盖候选质量门阈值
+gh workflow run fix.yml -f issue_number=123 -f candidate_quality_min_score=80
 
 # 临时覆盖熔断参数（示例）
 gh workflow run fix.yml -f issue_number=123 -f circuit_failure_threshold=5 -f circuit_cooldown_minutes=30

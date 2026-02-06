@@ -9,6 +9,11 @@ on:
         description: "Optional: fix a specific issue number"
         required: false
         type: string
+      candidate_quality_min_score:
+        description: "Minimum quality score required for candidate PR (0-100)"
+        required: false
+        default: "70"
+        type: string
       circuit_failure_threshold:
         description: "Circuit breaker consecutive failure threshold"
         required: false
@@ -233,6 +238,115 @@ jobs:
             --max-turns 20
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
 
+      - name: Quality gate candidate PR
+        id: quality_gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          CANDIDATE_ID: ${{ matrix.candidate_id }}
+          RUN_ID: ${{ github.run_id }}
+          MIN_SCORE: ${{ inputs.candidate_quality_min_score || '70' }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          branch="claude/issue-${ISSUE_NUMBER}-candidate-${CANDIDATE_ID}-${RUN_ID}"
+          pr_number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+
+          if [ -z "$pr_number" ]; then
+            echo "status=no_pr" >> "$GITHUB_OUTPUT"
+            echo "score=0" >> "$GITHUB_OUTPUT"
+            echo "reason=no_open_pr_found_for_branch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr_json="$(gh pr view "$pr_number" --json number,url,body,isDraft,changedFiles,additions,deletions,statusCheckRollup,files)"
+
+          changed_files="$(echo "$pr_json" | jq -r '.changedFiles // 0')"
+          additions="$(echo "$pr_json" | jq -r '.additions // 0')"
+          deletions="$(echo "$pr_json" | jq -r '.deletions // 0')"
+          total_delta=$((additions + deletions))
+          is_draft="$(echo "$pr_json" | jq -r '.isDraft')"
+
+          tests_touched="$(echo "$pr_json" | jq -r '
+            [.files[].path
+             | test("(^tests/|/tests/|^test_.*\\.py$|_test\\.py$|/test_.*\\.py$)")]
+            | any
+          ')"
+
+          checks_ok="$(echo "$pr_json" | jq -r '
+            ([.statusCheckRollup[]?
+              | if has("conclusion") then .conclusion
+                elif has("state") then .state
+                else "SUCCESS" end
+            ]
+            | all(. == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED"))
+          ')"
+
+          body="$(echo "$pr_json" | jq -r '.body // ""')"
+          has_summary="false"
+          has_tests_run="false"
+          has_risks="false"
+          if echo "$body" | grep -qi "summary"; then has_summary="true"; fi
+          if echo "$body" | grep -qi "tests run"; then has_tests_run="true"; fi
+          if echo "$body" | grep -qi "risks/limitations"; then has_risks="true"; fi
+
+          score=100
+
+          if [ "$changed_files" -gt 20 ]; then
+            score=$((score - 35))
+          elif [ "$changed_files" -gt 12 ]; then
+            score=$((score - 20))
+          fi
+
+          if [ "$total_delta" -gt 600 ]; then
+            score=$((score - 25))
+          elif [ "$total_delta" -gt 300 ]; then
+            score=$((score - 15))
+          fi
+
+          if [ "$tests_touched" != "true" ]; then
+            score=$((score - 20))
+          fi
+
+          if [ "$has_summary" != "true" ]; then
+            score=$((score - 8))
+          fi
+          if [ "$has_tests_run" != "true" ]; then
+            score=$((score - 8))
+          fi
+          if [ "$has_risks" != "true" ]; then
+            score=$((score - 8))
+          fi
+
+          if [ "$is_draft" = "true" ]; then
+            score=$((score - 40))
+          fi
+
+          if [ "$checks_ok" != "true" ]; then
+            score=$((score - 30))
+          fi
+
+          if [ "$score" -lt 0 ]; then score=0; fi
+          if [ "$score" -gt 100 ]; then score=100; fi
+
+          gate_status="passed"
+          gate_reason="meets_quality_threshold"
+          if [ "$score" -lt "$MIN_SCORE" ]; then
+            gate_status="failed"
+            gate_reason="score_${score}_below_threshold_${MIN_SCORE}"
+            gh pr comment "$pr_number" --body "Auto quality gate rejected this candidate (score: $score, threshold: $MIN_SCORE). This PR is closed to reduce low-quality candidate noise."
+            gh pr close "$pr_number" || true
+          fi
+
+          echo "status=$gate_status" >> "$GITHUB_OUTPUT"
+          echo "score=$score" >> "$GITHUB_OUTPUT"
+          echo "reason=$gate_reason" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$(echo "$pr_json" | jq -r '.url')" >> "$GITHUB_OUTPUT"
+
       - name: Candidate summary
         if: always()
         run: |
@@ -241,3 +355,7 @@ jobs:
           echo "- Issue: #${{ needs.select-issue.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Candidate: ${{ matrix.candidate_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Title: ${{ needs.select-issue.outputs.issue_title }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Quality gate status: ${{ steps.quality_gate.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Quality gate score: ${{ steps.quality_gate.outputs.score }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Quality gate reason: ${{ steps.quality_gate.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Candidate PR: #${{ steps.quality_gate.outputs.pr_number }} ${{ steps.quality_gate.outputs.pr_url }}" >> "$GITHUB_STEP_SUMMARY"
