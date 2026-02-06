@@ -1,0 +1,88 @@
+name: Docs CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Verify generated workflow input docs are synced
+        run: uv run python scripts/check_docs_sync.py --check
+
+  markdown-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: |
+            README.md
+            AGENTS.md
+            .github/FLYWHEEL.md
+            docs/**/*.md
+
+  docs-change-policy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Enforce docs updates when workflows/scripts change
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin "$BASE_REF"
+          changed_files="$(git diff --name-only "origin/$BASE_REF...HEAD")"
+
+          if [ -z "$changed_files" ]; then
+            echo "No changed files detected."
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '^(scripts/|\.github/workflows/)'; then
+            if echo "$changed_files" | grep -Eq '^(README\.md|\.github/FLYWHEEL\.md|docs/)'; then
+              echo "Docs change detected with automation/code changes."
+              exit 0
+            fi
+
+            echo "Changes in scripts/workflows require docs updates."
+            echo "Please update one of: README.md, .github/FLYWHEEL.md, docs/*"
+            exit 1
+          fi
+
+          echo "No scripts/workflows changes requiring docs updates."

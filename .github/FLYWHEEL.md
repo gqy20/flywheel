@@ -20,6 +20,7 @@
 | `merge-pr.yml` | 每小时 / 手动 | 对同一 issue 的候选 PR 做硬性 checks 过滤后仲裁合并 |
 | `ci-failure-auto-fix.yml` | CI 失败时 / 手动 | 针对失败 CI 自动生成修复候选 PR |
 | `automation-metrics.yml` | 每日 / 手动 | 汇总自动化健康指标并写入 dashboard issue |
+| `docs-ci.yml` | push / PR / 手动 | 文档质量门禁（Markdown lint、文档-Workflow 同步、文档更新策略） |
 | `claude-code.yml` | 评论/手动 | 交互式 @claude 能力 |
 | `ci.yml` | push / PR | lint + test + coverage |
 
@@ -97,6 +98,15 @@
 - `ci-failure-auto-fix.yml` 在 prompt 中显式加载：
   - `.claude/skills/flywheel-ci-failure-autofix/SKILL.md`
 
+### 7) 文档维护门禁
+
+- `docs-ci.yml` 包含 3 项检查：
+  - Markdown 规范检查（`README.md`、`AGENTS.md`、`.github/FLYWHEEL.md`、`docs/**/*.md`）
+  - 文档与 workflow 输入一致性检查（`scripts/check_docs_sync.py --check`）
+  - PR 场景下，当 `scripts/` 或 `.github/workflows/` 变更时，要求同步更新文档
+- workflow 输入参数索引文档由脚本自动生成：
+  - `docs/generated/workflow-inputs.md`
+
 ## 人工触发命令
 
 ```bash
@@ -132,6 +142,9 @@ gh workflow run ci-failure-auto-fix.yml
 
 # 触发自动化指标汇总
 gh workflow run automation-metrics.yml
+
+# 触发文档质量门禁
+gh workflow run docs-ci.yml
 ```
 
 ## 必要 Secrets

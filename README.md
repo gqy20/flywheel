@@ -71,6 +71,9 @@ uv run ruff format .
 
 # 扫描脚本（本地）
 MAX_ISSUES=5 TARGET_DIR=src uv run python scripts/scan.py
+
+# 文档同步校验
+uv run python scripts/check_docs_sync.py --check
 ```
 
 ## 项目结构
@@ -94,6 +97,8 @@ flywheel/
 
 - `.github/FLYWHEEL.md`（飞轮自动化策略与运行说明）
 - `docs/claude-api.md`（Claude API 调研）
+- `docs/generated/workflow-inputs.md`（workflow_dispatch 参数自动生成索引）
+- `docs/runbook.md`（自动化运行与故障处置手册）
 
 ## 许可证
 
