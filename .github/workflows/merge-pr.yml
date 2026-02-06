@@ -1,0 +1,144 @@
+name: Merge Candidate PRs
+
+on:
+  schedule:
+    - cron: "40 * * * *"
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Optional: merge candidates for this issue only"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+  id-token: write
+
+concurrency:
+  group: merge-candidate-prs
+  cancel-in-progress: false
+
+jobs:
+  select-group:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.pick.outputs.should_run }}
+      issue_number: ${{ steps.pick.outputs.issue_number }}
+      pr_numbers_csv: ${{ steps.pick.outputs.pr_numbers_csv }}
+    steps:
+      - name: Pick candidate PR group
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          prs_json="$(gh pr list --state open --limit 200 --json number,title,url)"
+
+          if [ -n "${INPUT_ISSUE_NUMBER:-}" ]; then
+            grouped="$(echo "$prs_json" | jq -r --arg issue "$INPUT_ISSUE_NUMBER" '
+              map(select(.title | test("^\\[AUTOFIX\\]\\[ISSUE-" + $issue + "\\]\\[CANDIDATE-[0-9]+\\]")))
+              | map(.number)
+              | join(",")
+            ')"
+            if [ -z "$grouped" ]; then
+              echo "No candidate PRs for issue #$INPUT_ISSUE_NUMBER"
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "issue_number=$INPUT_ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+            echo "pr_numbers_csv=$grouped" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          selected="$(echo "$prs_json" | jq -r '
+            [ .[]
+              | select(.title | test("^\\[AUTOFIX\\]\\[ISSUE-[0-9]+\\]\\[CANDIDATE-[0-9]+\\]"))
+              | . + {issue: (.title | capture("^\\[AUTOFIX\\]\\[ISSUE-(?<id>[0-9]+)\\]") .id)}
+            ]
+            | group_by(.issue)
+            | map({issue: .[0].issue, prs: [.[].number], count: length})
+            | sort_by(-.count, (.issue|tonumber))
+            | .[0] // empty
+          ')"
+
+          if [ -z "$selected" ]; then
+            echo "No candidate PR groups found."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          issue_number="$(echo "$selected" | jq -r '.issue')"
+          pr_numbers_csv="$(echo "$selected" | jq -r '.prs | join(",")')"
+          count="$(echo "$selected" | jq -r '.count')"
+
+          # Require at least 2 candidates for arbitration.
+          if [ "$count" -lt 2 ]; then
+            echo "Found only $count candidate PR(s) for issue #$issue_number; waiting for at least 2."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
+          echo "pr_numbers_csv=$pr_numbers_csv" >> "$GITHUB_OUTPUT"
+
+  merge:
+    needs: select-group
+    if: needs.select-group.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Decide best candidate and merge
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are the dedicated merge arbiter for auto-fix candidates.
+
+            Target issue: #${{ needs.select-group.outputs.issue_number }}
+            Candidate PRs (CSV): ${{ needs.select-group.outputs.pr_numbers_csv }}
+
+            Required workflow:
+            1. Inspect each candidate PR (diff, checks, conversation, risk).
+            2. Rank candidates by:
+               - CI/check status must be green
+               - Correctness and issue coverage
+               - Minimal regression risk
+               - Simplicity and maintainability
+            3. If no candidate is safe, do NOT merge:
+               - Comment on the issue with reasons.
+               - Keep PRs open.
+            4. If one candidate is clearly best and checks are green:
+               - Merge that PR into `master` (prefer squash merge).
+               - Comment on merged PR explaining why it won.
+               - Comment on non-winning PRs with reason and close them.
+            5. Never merge more than one candidate for the same issue in one run.
+
+            Constraints:
+            - Use GitHub CLI for PR/issue actions.
+            - Do not modify workflows or repository settings.
+          claude_args: |
+            --max-turns 25
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Merge Arbiter Run" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Issue: #${{ needs.select-group.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Candidate PRs: ${{ needs.select-group.outputs.pr_numbers_csv }}" >> "$GITHUB_STEP_SUMMARY"

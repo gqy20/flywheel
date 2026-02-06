@@ -1,5 +1,7 @@
 """Todo storage backend."""
 
+from __future__ import annotations
+
 import abc
 import asyncio
 import atexit
@@ -18,8 +20,9 @@ import threading
 import time
 import weakref
 from collections import deque
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from urllib.parse import parse_qs, urlencode, urlparse
 
 from flywheel.todo import Todo
@@ -38,7 +41,7 @@ class _AiofilesProtocol(Protocol):
     """
 
     @staticmethod
-    def open(path: str, mode: str = 'rb') -> Any:
+    def open(path: str, mode: str = "rb") -> Any:
         """Open a file asynchronously.
 
         Args:
@@ -53,11 +56,13 @@ class _AiofilesProtocol(Protocol):
 
 try:
     import aiofiles as _aiofiles_real
+
     HAS_AIOFILES = True
     # Always assign aiofiles, never leave it as None (Issue #1613)
     aiofiles: _AiofilesProtocol = _aiofiles_real
 except ImportError:
     HAS_AIOFILES = False
+
     # Simple fallback that implements _AiofilesProtocol
     # This provides a basic async file context manager that will be
     # replaced with the full _AiofilesFallback implementation after
@@ -71,7 +76,7 @@ except ImportError:
         """
 
         @staticmethod
-        def open(path: str, mode: str = 'rb'):
+        def open(path: str, mode: str = "rb"):
             """Minimal async file context manager.
 
             This provides a basic fallback that uses asyncio.to_thread
@@ -85,6 +90,7 @@ except ImportError:
             and asyncio.to_thread is available since Python 3.9. The project
             requires Python >=3.13, so it's always available (Issue #1730).
             """
+
             class _SimpleAsyncFile:
                 """Simple async file wrapper."""
 
@@ -128,7 +134,7 @@ except ImportError:
     aiofiles: _AiofilesProtocol = _AiofilesPlaceholder()
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +143,7 @@ logger = logging.getLogger(__name__)
 # ContextVar to hold storage context that propagates across async tasks
 # Fix for Issue #1725: Use default=None to avoid mutable default dict risk
 _storage_context: contextvars.ContextVar[dict[str, Any] | None] = contextvars.ContextVar(
-    '_storage_context', default=None
+    "_storage_context", default=None
 )
 
 
@@ -199,10 +205,12 @@ def sample_debug_log(rate_limit: float = 0.1):
         Sampling uses random.random() for probabilistic sampling.
         For reproducible sampling in tests, set random.seed() beforehand.
     """
+
     def sampler(log_obj, msg, *args, **kwargs):
         # Only log if random check passes
         if random.random() < rate_limit:
             log_obj.debug(msg, *args, **kwargs)
+
     return sampler
 
 
@@ -230,9 +238,18 @@ class JSONFormatter(logging.Formatter):
 
     # Sensitive field names that should be redacted (case-insensitive)
     SENSITIVE_FIELDS = {
-        'password', 'token', 'api_key', 'secret', 'credential',
-        'private_key', 'access_token', 'auth_token', 'api_secret',
-        'password_hash', 'passphrase', 'credentials'
+        "password",
+        "token",
+        "api_key",
+        "secret",
+        "credential",
+        "private_key",
+        "access_token",
+        "auth_token",
+        "api_secret",
+        "password_hash",
+        "passphrase",
+        "credentials",
     }
 
     # Maximum size for string values in log data (10KB)
@@ -257,20 +274,37 @@ class JSONFormatter(logging.Formatter):
 
         # Standard fields that should never be overridden by custom fields
         standard_fields = {
-            'timestamp': self.formatTime(record),
-            'level': record.levelname,
-            'logger': record.name,
-            'message': record.getMessage(),
-            'thread_id': threading.get_ident(),
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "thread_id": threading.get_ident(),
         }
 
         # Fields to exclude from custom fields (standard logging attributes)
         excluded_fields = {
-            'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-            'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-            'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-            'thread', 'threadName', 'processName', 'process', 'message',
-            'asctime'
+            "name",
+            "msg",
+            "args",
+            "levelname",
+            "levelno",
+            "pathname",
+            "filename",
+            "module",
+            "exc_info",
+            "exc_text",
+            "stack_info",
+            "lineno",
+            "funcName",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "message",
+            "asctime",
         }
 
         # Build log data with standard fields first
@@ -284,7 +318,7 @@ class JSONFormatter(logging.Formatter):
                 if key in standard_fields:
                     # Prefix conflicting fields with 'extra_' to preserve them
                     # while protecting standard fields
-                    log_data[f'extra_{key}'] = value
+                    log_data[f"extra_{key}"] = value
                 else:
                     log_data[key] = value
 
@@ -300,7 +334,7 @@ class JSONFormatter(logging.Formatter):
 
         # Add exception info if present
         if record.exc_info:
-            log_data['exception'] = self.formatException(record.exc_info)
+            log_data["exception"] = self.formatException(record.exc_info)
 
         # Fix for Issue #1633: Redact sensitive fields
         # Check all field names (case-insensitive) and redact sensitive values
@@ -326,12 +360,12 @@ class JSONFormatter(logging.Formatter):
         if len(json_output) > self.MAX_JSON_SIZE:
             # Step 1: Truncate the message field to reduce size
             # Message is often the largest field after field-level truncation
-            if 'message' in log_data and isinstance(log_data['message'], str):
+            if "message" in log_data and isinstance(log_data["message"], str):
                 excess_bytes = len(json_output) - self.MAX_JSON_SIZE
                 # Truncate message to fit within MAX_JSON_SIZE
-                max_message_len = len(log_data['message']) - excess_bytes - 20
+                max_message_len = len(log_data["message"]) - excess_bytes - 20
                 if max_message_len > 0:
-                    log_data['message'] = log_data['message'][:max_message_len] + '...[truncated]'
+                    log_data["message"] = log_data["message"][:max_message_len] + "...[truncated]"
                     # Re-serialize with truncated message
                     try:
                         json_output = json.dumps(log_data)
@@ -345,8 +379,8 @@ class JSONFormatter(logging.Formatter):
                 # Define priority order for field removal (lowest priority first)
                 # Fields that are less critical for log analysis should be removed first
                 removal_priority = [
-                    'exception',  # Stack traces are useful but can be very large
-                    'extra_',     # Fields that conflicted with standard fields
+                    "exception",  # Stack traces are useful but can be very large
+                    "extra_",  # Fields that conflicted with standard fields
                 ]
 
                 # Remove fields in priority order until JSON fits
@@ -375,7 +409,7 @@ class JSONFormatter(logging.Formatter):
                 # Fix for Issue #1827: If still too large, remove custom fields
                 # Keep only the most critical standard fields
                 if len(json_output) > self.MAX_JSON_SIZE:
-                    critical_fields = {'timestamp', 'level', 'logger', 'message'}
+                    critical_fields = {"timestamp", "level", "logger", "message"}
                     fields_to_remove = [k for k in log_data.keys() if k not in critical_fields]
                     for field in fields_to_remove:
                         del log_data[field]
@@ -390,23 +424,29 @@ class JSONFormatter(logging.Formatter):
                     # Fix for Issue #1824: Final enforcement - truncate message if still too large
                     # This is the last resort to ensure JSON output never exceeds MAX_JSON_SIZE
                     # Even if it means losing most of the message content
-                    if len(json_output) > self.MAX_JSON_SIZE and 'message' in log_data:
+                    if len(json_output) > self.MAX_JSON_SIZE and "message" in log_data:
                         # Calculate how much we need to remove
                         excess_bytes = len(json_output) - self.MAX_JSON_SIZE
 
                         # Estimate message max length (conservative, accounting for JSON encoding)
                         # JSON encoding adds ~2 chars per special char, so we use a safety factor
-                        estimated_overhead = len(json_output) - len(log_data.get('message', ''))
-                        max_message_length = max(0, self.MAX_JSON_SIZE - estimated_overhead - 100)  # 100 byte safety margin
+                        estimated_overhead = len(json_output) - len(log_data.get("message", ""))
+                        max_message_length = max(
+                            0, self.MAX_JSON_SIZE - estimated_overhead - 100
+                        )  # 100 byte safety margin
 
                         if max_message_length > 0:
                             # Truncate message to fit
-                            original_message = log_data['message']
+                            original_message = log_data["message"]
                             if isinstance(original_message, str):
-                                log_data['message'] = original_message[:max_message_length] + '...[truncated]'
+                                log_data["message"] = (
+                                    original_message[:max_message_length] + "...[truncated]"
+                                )
                             else:
                                 # Convert to string if not already
-                                log_data['message'] = str(original_message)[:max_message_length] + '...[truncated]'
+                                log_data["message"] = (
+                                    str(original_message)[:max_message_length] + "...[truncated]"
+                                )
 
                             # Final re-serialize
                             try:
@@ -417,7 +457,7 @@ class JSONFormatter(logging.Formatter):
                         else:
                             # Extreme case: Even empty message is too large with other fields
                             # This should never happen with current critical fields, but handle it gracefully
-                            log_data['message'] = ''
+                            log_data["message"] = ""
                             try:
                                 json_output = json.dumps(log_data)
                             except (TypeError, ValueError):
@@ -431,17 +471,17 @@ class JSONFormatter(logging.Formatter):
                             # Absolute last resort: Replace with minimal safe log entry
                             # This ensures we always return valid JSON within size limit
                             minimal_log = {
-                                'timestamp': log_data.get('timestamp', ''),
-                                'level': log_data.get('level', 'ERROR'),
-                                'logger': log_data.get('logger', ''),
-                                'message': '[LOG TRUNCATED - Original message exceeded maximum size]',
+                                "timestamp": log_data.get("timestamp", ""),
+                                "level": log_data.get("level", "ERROR"),
+                                "logger": log_data.get("logger", ""),
+                                "message": "[LOG TRUNCATED - Original message exceeded maximum size]",
                             }
                             json_output = json.dumps(minimal_log)
 
                             # Double-check the minimal log fits (it always should)
                             if len(json_output) > self.MAX_JSON_SIZE:
                                 # This should never happen, but if it does, use even more minimal
-                                json_output = json.dumps({'error': 'Log exceeded maximum size'})
+                                json_output = json.dumps({"error": "Log exceeded maximum size"})
 
         return json_output
 
@@ -559,7 +599,7 @@ class JSONFormatter(logging.Formatter):
             URL with sensitive parameters redacted, or None if not a URL
         """
         # Check if string looks like a URL (contains :// and has ?)
-        if '://' not in value or '?' not in value:
+        if "://" not in value or "?" not in value:
             return None
 
         try:
@@ -570,8 +610,7 @@ class JSONFormatter(logging.Formatter):
 
             # Check if any sensitive parameters exist
             has_sensitive = any(
-                param.lower() in self.SENSITIVE_FIELDS
-                for param in query_params.keys()
+                param.lower() in self.SENSITIVE_FIELDS for param in query_params.keys()
             )
 
             if not has_sensitive:
@@ -582,7 +621,7 @@ class JSONFormatter(logging.Formatter):
             for param, values in query_params.items():
                 if param.lower() in self.SENSITIVE_FIELDS:
                     # Redact all values for this parameter
-                    redacted_params[param] = ['***REDACTED***'] * len(values)
+                    redacted_params[param] = ["***REDACTED***"] * len(values)
                 else:
                     redacted_params[param] = values
 
@@ -614,19 +653,19 @@ class JSONFormatter(logging.Formatter):
         patterns = []
         for field in self.SENSITIVE_FIELDS:
             # Pattern for: field: value or field=value (case-insensitive)
-            pattern = rf'{field}["\']?\s*[:=]\s*["\']?([^"\'\s\}]+)["\']?'
+            pattern = rf'{field}["\']?\s*[:=]\s*["\']?([^"\'\s}}]+)["\']?'
             patterns.append(pattern)
 
         if not patterns:
             return value
 
         # Combine all patterns with OR
-        combined_pattern = re.compile('|'.join(patterns), re.IGNORECASE)
+        combined_pattern = re.compile("|".join(patterns), re.IGNORECASE)
 
         # Function to replace matched values with redaction
         def replace_match(match):
             # Return the field name with redacted value
-            return match.group(0).replace(match.group(1), '***REDACTED***')
+            return match.group(0).replace(match.group(1), "***REDACTED***")
 
         # Apply replacement
         result = combined_pattern.sub(replace_match, value)
@@ -645,7 +684,7 @@ class JSONFormatter(logging.Formatter):
         # Fix for Issue #1724: Full redaction for all sensitive values
         # Partial hash exposure can be a security vulnerability in high-security contexts
         # All sensitive values are now fully redacted regardless of length or type
-        return '***REDACTED***'
+        return "***REDACTED***"
 
     def _truncate_large_values(self, log_data):
         """Truncate string values that exceed MAX_LOG_SIZE.
@@ -664,9 +703,9 @@ class JSONFormatter(logging.Formatter):
             if isinstance(value, str):
                 # Truncate string if it exceeds MAX_LOG_SIZE
                 if len(value) > self.MAX_LOG_SIZE:
-                    suffix = '...[truncated]'
+                    suffix = "...[truncated]"
                     # Truncate the string and add suffix
-                    truncated[key] = value[:self.MAX_LOG_SIZE - len(suffix)] + suffix
+                    truncated[key] = value[: self.MAX_LOG_SIZE - len(suffix)] + suffix
                 else:
                     truncated[key] = value
             elif isinstance(value, dict):
@@ -677,8 +716,8 @@ class JSONFormatter(logging.Formatter):
                 truncated[key] = []
                 for item in value:
                     if isinstance(item, str) and len(item) > self.MAX_LOG_SIZE:
-                        suffix = '...[truncated]'
-                        truncated[key].append(item[:self.MAX_LOG_SIZE - len(suffix)] + suffix)
+                        suffix = "...[truncated]"
+                        truncated[key].append(item[: self.MAX_LOG_SIZE - len(suffix)] + suffix)
                     elif isinstance(item, dict):
                         truncated[key].append(self._truncate_large_values(item))
                     else:
@@ -765,7 +804,7 @@ class StorageMetrics(Protocol):
         retries: int = 0,
         success: bool = True,
         error_type: str | None = None,
-        operation_id: str | None = None
+        operation_id: str | None = None,
     ) -> None:
         """Record an I/O operation metric.
 
@@ -813,7 +852,7 @@ class NoOpStorageMetrics:
         retries: int = 0,
         success: bool = True,
         error_type: str | None = None,
-        operation_id: str | None = None
+        operation_id: str | None = None,
     ) -> None:
         """No-op implementation."""
         pass
@@ -830,7 +869,7 @@ class NoOpStorageMetrics:
 # Try to import prometheus_client for Prometheus integration
 # If not available, we'll use NoOpStorageMetrics as the default
 try:
-    from prometheus_client import Counter, Histogram, Gauge
+    from prometheus_client import Counter, Gauge, Histogram
 
     class PrometheusStorageMetrics:
         """Prometheus metrics implementation for storage operations.
@@ -842,11 +881,7 @@ try:
         Fix for Issue #1638: Provides Prometheus integration when available.
         """
 
-        def __init__(
-            self,
-            namespace: str = "flywheel",
-            subsystem: str = "storage"
-        ):
+        def __init__(self, namespace: str = "flywheel", subsystem: str = "storage"):
             """Initialize Prometheus metrics with default labels.
 
             Args:
@@ -860,39 +895,39 @@ try:
             self._io_operations_total = Counter(
                 f"{namespace}_{subsystem}_io_operations_total",
                 "Total number of I/O operations",
-                [f"{namespace}_operation", f"{namespace}_success"]
+                [f"{namespace}_operation", f"{namespace}_success"],
             )
 
             # I/O operation duration histogram
             self._io_operation_duration_seconds = Histogram(
                 f"{namespace}_{subsystem}_io_operation_duration_seconds",
                 "I/O operation duration in seconds",
-                [f"{namespace}_operation"]
+                [f"{namespace}_operation"],
             )
 
             # I/O operation retries histogram
             self._io_operation_retries = Histogram(
                 f"{namespace}_{subsystem}_io_operation_retries",
                 "Number of retries for I/O operations",
-                [f"{namespace}_operation"]
+                [f"{namespace}_operation"],
             )
 
             # Lock contention counter
             self._lock_contentions_total = Counter(
                 f"{namespace}_{subsystem}_lock_contentions_total",
-                "Total number of lock contentions"
+                "Total number of lock contentions",
             )
 
             # Lock contention duration histogram
             self._lock_contention_duration_seconds = Histogram(
                 f"{namespace}_{subsystem}_lock_contention_duration_seconds",
-                "Lock contention duration in seconds"
+                "Lock contention duration in seconds",
             )
 
             # Lock acquisition duration histogram
             self._lock_acquisition_duration_seconds = Histogram(
                 f"{namespace}_{subsystem}_lock_acquisition_duration_seconds",
-                "Lock acquisition duration in seconds"
+                "Lock acquisition duration in seconds",
             )
 
         def record_io_operation(
@@ -902,7 +937,7 @@ try:
             retries: int = 0,
             success: bool = True,
             error_type: str | None = None,
-            operation_id: str | None = None
+            operation_id: str | None = None,
         ) -> None:
             """Record an I/O operation metric.
 
@@ -916,8 +951,10 @@ try:
             """
             # Record operation counter
             self._io_operations_total.labels(
-                **{f"{self._namespace}_operation": operation_type,
-                   f"{self._namespace}_success": str(success).lower()}
+                **{
+                    f"{self._namespace}_operation": operation_type,
+                    f"{self._namespace}_success": str(success).lower(),
+                }
             ).inc()
 
             # Record operation duration
@@ -977,7 +1014,7 @@ def get_storage_metrics() -> StorageMetrics:
 # This allows developers and operators to monitor storage performance and tune parameters
 # Fix for Issue #1603: Add JSON handler for structured logging when DEBUG_STORAGE is enabled
 # Fix for Issue #1637: Replace StreamHandler with RotatingFileHandler for log rotation
-if os.environ.get('DEBUG_STORAGE'):
+if os.environ.get("DEBUG_STORAGE"):
     logger.setLevel(logging.DEBUG)
     logger.debug("DEBUG_STORAGE enabled: storage logger set to DEBUG level")
 
@@ -993,7 +1030,7 @@ if os.environ.get('DEBUG_STORAGE'):
     if not has_json_handler:
         # Add JSON handler with log rotation for structured logging
         # Configure rotation to prevent disk space exhaustion
-        log_file = os.path.join(os.getcwd(), 'flywheel_storage.log')
+        log_file = os.path.join(os.getcwd(), "flywheel_storage.log")
         json_handler = RotatingFileHandler(
             log_file,
             maxBytes=10 * 1024 * 1024,  # 10 MB per file
@@ -1024,9 +1061,14 @@ class StorageTimeoutError(TimeoutError):
     recommendations for different timeout types.
     """
 
-    def __init__(self, message: str = "", timeout: float | None = None,
-                 operation: str | None = None, caller: str | None = None,
-                 suggested_action: str | None = None):
+    def __init__(
+        self,
+        message: str = "",
+        timeout: float | None = None,
+        operation: str | None = None,
+        caller: str | None = None,
+        suggested_action: str | None = None,
+    ):
         """Initialize StorageTimeoutError with optional context parameters.
 
         Args:
@@ -1047,7 +1089,9 @@ class StorageTimeoutError(TimeoutError):
             operation_lower = operation.lower()
             if "lock" in operation_lower:
                 self.suggested_action = "Retry the operation after a short delay"
-            elif any(io_op in operation_lower for io_op in ["load", "save", "read", "write", "cache"]):
+            elif any(
+                io_op in operation_lower for io_op in ["load", "save", "read", "write", "cache"]
+            ):
                 self.suggested_action = "Check disk space and retry the operation"
             else:
                 self.suggested_action = ""
@@ -1138,10 +1182,13 @@ class _AsyncCompatibleLock:
     _atexit_handler_registered = False
     _registry_lock = threading.Lock()
 
-    def __init__(self, lock_timeout: float | None = None,
-                 timeout_range: tuple[float, float] | None = None,
-                 backoff_strategy: callable | None = None,
-                 adaptive_timeout: bool = False):
+    def __init__(
+        self,
+        lock_timeout: float | None = None,
+        timeout_range: tuple[float, float] | None = None,
+        backoff_strategy: Callable[[int], float] | None = None,
+        adaptive_timeout: bool = False,
+    ):
         """Initialize with unified lock for sync and async contexts.
 
         Args:
@@ -1166,9 +1213,7 @@ class _AsyncCompatibleLock:
         if lock_timeout is not None:
             # Validate explicit lock_timeout
             if lock_timeout < 0:
-                raise ValueError(
-                    f"lock_timeout must be non-negative, got {lock_timeout}"
-                )
+                raise ValueError(f"lock_timeout must be non-negative, got {lock_timeout}")
             self._timeout_range = None
             self._lock_timeout = lock_timeout
         elif timeout_range is not None:
@@ -1283,9 +1328,7 @@ class _AsyncCompatibleLock:
         except Exception as e:
             # Log any unexpected exceptions but don't raise during atexit
             logger = logging.getLogger("flywheel.storage")
-            logger.warning(
-                f"Unexpected error in _AsyncCompatibleLock atexit handler: {e}"
-            )
+            logger.warning(f"Unexpected error in _AsyncCompatibleLock atexit handler: {e}")
 
     @classmethod
     def _class_atexit_handler(cls):
@@ -1307,9 +1350,7 @@ class _AsyncCompatibleLock:
             except Exception as e:
                 # Log but continue checking other locks
                 logger = logging.getLogger("flywheel.storage")
-                logger.warning(
-                    f"Error checking lock state during atexit: {e}"
-                )
+                logger.warning(f"Error checking lock state during atexit: {e}")
 
     def _get_async_event(self):
         """Get or create the asyncio.Event for the current event loop.
@@ -1431,7 +1472,7 @@ class _AsyncCompatibleLock:
         # increasing delays instead of failing immediately on the first timeout.
         MAX_RETRIES = 3
         BASE_DELAY = 0.0  # Base delay in seconds
-        MAX_DELAY = 0.1   # Maximum delay for first retry
+        MAX_DELAY = 0.1  # Maximum delay for first retry
 
         for attempt in range(MAX_RETRIES):
             # Fix for Issue #1533: Use fuzzy timeout if timeout_range is specified
@@ -1490,9 +1531,9 @@ class _AsyncCompatibleLock:
                     if self._acquire_count - self._last_flush_count >= self._flush_threshold:
                         # Capture stats for logging
                         stats_to_log = {
-                            'acquire_count': self._acquire_count,
-                            'contention_count': self._contention_count,
-                            'total_wait_time': self._total_wait_time
+                            "acquire_count": self._acquire_count,
+                            "contention_count": self._contention_count,
+                            "total_wait_time": self._total_wait_time,
                         }
 
                 # Flush stats outside the lock to avoid holding it during I/O
@@ -1501,10 +1542,10 @@ class _AsyncCompatibleLock:
                     logger.info(
                         "Flushing lock statistics (periodic)",
                         extra={
-                            'component': 'lock',
-                            'op': 'flush_stats',
-                            'stats_flushed': stats_to_log
-                        }
+                            "component": "lock",
+                            "op": "flush_stats",
+                            "stats_flushed": stats_to_log,
+                        },
                     )
 
                     # Reset counters
@@ -1520,30 +1561,30 @@ class _AsyncCompatibleLock:
                 logger.debug(
                     "Lock acquired successfully",
                     extra={
-                        'component': 'storage',
-                        'op': 'lock_acquire',
-                        'lock_wait_time': wait_time,
-                        'attempts': attempt + 1
-                    }
+                        "component": "storage",
+                        "op": "lock_acquire",
+                        "lock_wait_time": wait_time,
+                        "attempts": attempt + 1,
+                    },
                 )
 
                 # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                 # This provides machine-readable logs for monitoring tools (Datadog, ELK)
                 # to visualize bottlenecks and diagnose contention issues post-mortem
                 # Fix for Issue #1603: Add duration and caller fields for better compatibility
-                if os.environ.get('DEBUG_STORAGE'):
+                if os.environ.get("DEBUG_STORAGE"):
                     logger.info(
                         "Lock contention event",
                         extra={
-                            'event': 'lock_wait',
-                            'wait_time': wait_time,
-                            'duration': wait_time,  # Alias for compatibility
-                            'acquired': True,
-                            'thread': threading.current_thread().name,
-                            'caller': threading.current_thread().name,  # Alias for compatibility
-                            'attempts': attempt + 1,
-                            'lock_timeout': self._lock_timeout
-                        }
+                            "event": "lock_wait",
+                            "wait_time": wait_time,
+                            "duration": wait_time,  # Alias for compatibility
+                            "acquired": True,
+                            "thread": threading.current_thread().name,
+                            "caller": threading.current_thread().name,  # Alias for compatibility
+                            "attempts": attempt + 1,
+                            "lock_timeout": self._lock_timeout,
+                        },
                     )
                 # Fix for Issue #1531: Use try-finally to ensure lock is released
                 # if an exception occurs between acquire() and return self.
@@ -1572,7 +1613,7 @@ class _AsyncCompatibleLock:
                 else:
                     # Default exponential backoff
                     # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
-                    delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+                    delay = random.uniform(BASE_DELAY, MAX_DELAY * (2**attempt))
 
                 # Fix for Issue #1572: Log retry attempt with structured data
                 # This allows monitoring of lock contention and retry behavior
@@ -1580,13 +1621,13 @@ class _AsyncCompatibleLock:
                     f"Lock acquisition attempt {attempt + 1}/{MAX_RETRIES} timed out, "
                     f"retrying after backoff delay",
                     extra={
-                        'component': 'lock',
-                        'op': 'acquire_retry',
-                        'attempt': attempt + 1,
-                        'max_retries': MAX_RETRIES,
-                        'timeout': timeout_for_attempt,
-                        'backoff_delay': delay
-                    }
+                        "component": "lock",
+                        "op": "acquire_retry",
+                        "attempt": attempt + 1,
+                        "max_retries": MAX_RETRIES,
+                        "timeout": timeout_for_attempt,
+                        "backoff_delay": delay,
+                    },
                 )
 
                 time.sleep(delay)
@@ -1598,23 +1639,24 @@ class _AsyncCompatibleLock:
         # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
         # Log the failed acquisition attempt for monitoring and analysis
         # Fix for Issue #1603: Add duration and caller fields for better compatibility
-        if os.environ.get('DEBUG_STORAGE'):
+        if os.environ.get("DEBUG_STORAGE"):
             logger.info(
                 "Lock contention event - failed to acquire",
                 extra={
-                    'event': 'lock_wait',
-                    'wait_time': total_wait_time,
-                    'duration': total_wait_time,  # Alias for compatibility
-                    'acquired': False,
-                    'thread': threading.current_thread().name,
-                    'caller': threading.current_thread().name,  # Alias for compatibility
-                    'attempts': MAX_RETRIES,
-                    'lock_timeout': self._lock_timeout
-                }
+                    "event": "lock_wait",
+                    "wait_time": total_wait_time,
+                    "duration": total_wait_time,  # Alias for compatibility
+                    "acquired": False,
+                    "thread": threading.current_thread().name,
+                    "caller": threading.current_thread().name,  # Alias for compatibility
+                    "attempts": MAX_RETRIES,
+                    "lock_timeout": self._lock_timeout,
+                },
             )
 
         timeout_msg = (
-            f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
+            f"{timeout_for_attempt:.2f}"
+            if self._timeout_range is not None
             else f"{self._lock_timeout}"
         )
         raise StorageTimeoutError(
@@ -1717,7 +1759,7 @@ class _AsyncCompatibleLock:
         # increasing delays instead of waiting indefinitely.
         MAX_RETRIES = 3
         BASE_DELAY = 0.0  # Base delay in seconds
-        MAX_DELAY = 0.1   # Maximum delay for first retry
+        MAX_DELAY = 0.1  # Maximum delay for first retry
 
         for attempt in range(MAX_RETRIES):
             # Fix for Issue #1573: Calculate timeout for this attempt
@@ -1755,9 +1797,9 @@ class _AsyncCompatibleLock:
                         if self._acquire_count - self._last_flush_count >= self._flush_threshold:
                             # Capture stats for logging
                             stats_to_log = {
-                                'acquire_count': self._acquire_count,
-                                'contention_count': self._contention_count,
-                                'total_wait_time': self._total_wait_time
+                                "acquire_count": self._acquire_count,
+                                "contention_count": self._contention_count,
+                                "total_wait_time": self._total_wait_time,
                             }
 
                     # Flush stats outside the lock to avoid holding it during I/O
@@ -1766,10 +1808,10 @@ class _AsyncCompatibleLock:
                         logger.info(
                             "Flushing lock statistics (periodic)",
                             extra={
-                                'component': 'lock',
-                                'op': 'flush_stats',
-                                'stats_flushed': stats_to_log
-                            }
+                                "component": "lock",
+                                "op": "flush_stats",
+                                "stats_flushed": stats_to_log,
+                            },
                         )
 
                         # Reset counters
@@ -1784,31 +1826,31 @@ class _AsyncCompatibleLock:
                     logger.debug(
                         "Async lock acquired successfully",
                         extra={
-                            'component': 'storage',
-                            'op': 'async_lock_acquire',
-                            'lock_wait_time': wait_time,
-                            'attempts': attempt + 1
-                        }
+                            "component": "storage",
+                            "op": "async_lock_acquire",
+                            "lock_wait_time": wait_time,
+                            "attempts": attempt + 1,
+                        },
                     )
 
                     # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                     # This provides machine-readable logs for monitoring tools (Datadog, ELK)
                     # to visualize bottlenecks and diagnose contention issues post-mortem
                     # Fix for Issue #1603: Add duration and caller fields for better compatibility
-                    if os.environ.get('DEBUG_STORAGE'):
+                    if os.environ.get("DEBUG_STORAGE"):
                         logger.info(
                             "Lock contention event",
                             extra={
-                                'event': 'lock_wait',
-                                'wait_time': wait_time,
-                                'duration': wait_time,  # Alias for compatibility
-                                'acquired': True,
-                                'thread': threading.current_thread().name,
-                                'caller': threading.current_thread().name,  # Alias for compatibility
-                                'attempts': attempt + 1,
-                                'lock_timeout': self._lock_timeout,
-                                'context': 'async'
-                            }
+                                "event": "lock_wait",
+                                "wait_time": wait_time,
+                                "duration": wait_time,  # Alias for compatibility
+                                "acquired": True,
+                                "thread": threading.current_thread().name,
+                                "caller": threading.current_thread().name,  # Alias for compatibility
+                                "attempts": attempt + 1,
+                                "lock_timeout": self._lock_timeout,
+                                "context": "async",
+                            },
                         )
 
                     try:
@@ -1829,7 +1871,7 @@ class _AsyncCompatibleLock:
                         async_event.set()
                     # Continue to next iteration to retry
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Timeout waiting for event - implement backoff retry
                 # Fix for Issue #1498: Instead of failing immediately, retry with
                 # exponential backoff to reduce contention and improve throughput.
@@ -1842,7 +1884,7 @@ class _AsyncCompatibleLock:
                     else:
                         # Default exponential backoff
                         # Each retry uses a longer maximum delay: 0.1s, 0.2s, 0.4s
-                        delay = random.uniform(BASE_DELAY, MAX_DELAY * (2 ** attempt))
+                        delay = random.uniform(BASE_DELAY, MAX_DELAY * (2**attempt))
 
                     # Fix for Issue #1572: Log retry attempt with structured data
                     # This allows monitoring of lock contention and retry behavior
@@ -1850,13 +1892,13 @@ class _AsyncCompatibleLock:
                         f"Async lock acquisition attempt {attempt + 1}/{MAX_RETRIES} timed out, "
                         f"retrying after backoff delay",
                         extra={
-                            'component': 'lock',
-                            'op': 'async_acquire_retry',
-                            'attempt': attempt + 1,
-                            'max_retries': MAX_RETRIES,
-                            'timeout': timeout_for_attempt,
-                            'backoff_delay': delay
-                        }
+                            "component": "lock",
+                            "op": "async_acquire_retry",
+                            "attempt": attempt + 1,
+                            "max_retries": MAX_RETRIES,
+                            "timeout": timeout_for_attempt,
+                            "backoff_delay": delay,
+                        },
                     )
 
                     await asyncio.sleep(delay)
@@ -1868,24 +1910,25 @@ class _AsyncCompatibleLock:
                     # Fix for Issue #1587: Emit structured JSON log when DEBUG_STORAGE is active
                     # Log the failed acquisition attempt for monitoring and analysis
                     # Fix for Issue #1603: Add duration and caller fields for better compatibility
-                    if os.environ.get('DEBUG_STORAGE'):
+                    if os.environ.get("DEBUG_STORAGE"):
                         logger.info(
                             "Lock contention event - failed to acquire",
                             extra={
-                                'event': 'lock_wait',
-                                'wait_time': total_wait_time,
-                                'duration': total_wait_time,  # Alias for compatibility
-                                'acquired': False,
-                                'thread': threading.current_thread().name,
-                                'caller': threading.current_thread().name,  # Alias for compatibility
-                                'attempts': MAX_RETRIES,
-                                'lock_timeout': self._lock_timeout,
-                                'context': 'async'
-                            }
+                                "event": "lock_wait",
+                                "wait_time": total_wait_time,
+                                "duration": total_wait_time,  # Alias for compatibility
+                                "acquired": False,
+                                "thread": threading.current_thread().name,
+                                "caller": threading.current_thread().name,  # Alias for compatibility
+                                "attempts": MAX_RETRIES,
+                                "lock_timeout": self._lock_timeout,
+                                "context": "async",
+                            },
                         )
 
                     timeout_msg = (
-                        f"{timeout_for_attempt:.2f}" if self._timeout_range is not None
+                        f"{timeout_for_attempt:.2f}"
+                        if self._timeout_range is not None
                         else f"{self._lock_timeout}"
                     )
                     raise StorageTimeoutError(
@@ -1962,6 +2005,7 @@ class _AsyncCompatibleLock:
 
         Fix for Issue #1463: Implements timeout override context manager.
         """
+
         class _TimeoutOverride:
             """Internal context manager for timeout override."""
 
@@ -2049,21 +2093,17 @@ class _AsyncCompatibleLock:
         """
         with self._stats_lock:
             average_wait_time = (
-                self._total_wait_time / self._acquire_count
-                if self._acquire_count > 0
-                else 0.0
+                self._total_wait_time / self._acquire_count if self._acquire_count > 0 else 0.0
             )
             contention_rate = (
-                self._contention_count / self._acquire_count
-                if self._acquire_count > 0
-                else 0.0
+                self._contention_count / self._acquire_count if self._acquire_count > 0 else 0.0
             )
             return {
-                'acquire_count': self._acquire_count,
-                'contention_count': self._contention_count,
-                'total_wait_time': self._total_wait_time,
-                'average_wait_time': average_wait_time,
-                'contention_rate': contention_rate,
+                "acquire_count": self._acquire_count,
+                "contention_count": self._contention_count,
+                "total_wait_time": self._total_wait_time,
+                "average_wait_time": average_wait_time,
+                "contention_rate": contention_rate,
             }
 
     def get_lock_stats(self) -> dict:
@@ -2104,9 +2144,9 @@ class _AsyncCompatibleLock:
         with self._stats_lock:
             # Return a copy to prevent external modification of internal state
             return {
-                'total_waits': self._contention_count,
-                'total_wait_time': self._total_wait_time,
-                'max_wait': self._max_wait,
+                "total_waits": self._contention_count,
+                "total_wait_time": self._total_wait_time,
+                "max_wait": self._max_wait,
             }
 
     def reset_stats(self) -> None:
@@ -2159,15 +2199,15 @@ class _AsyncCompatibleLock:
             logger.info(
                 "Flushing lock statistics",
                 extra={
-                    'component': 'lock',
-                    'op': 'flush_stats',
-                    'stats_flushed': {
-                        'acquire_count': current_acquire_count,
-                        'contention_count': current_contention_count,
-                        'total_wait_time': current_total_wait_time,
-                        'max_wait': current_max_wait
-                    }
-                }
+                    "component": "lock",
+                    "op": "flush_stats",
+                    "stats_flushed": {
+                        "acquire_count": current_acquire_count,
+                        "contention_count": current_contention_count,
+                        "total_wait_time": current_total_wait_time,
+                        "max_wait": current_max_wait,
+                    },
+                },
             )
 
             # Reset counters
@@ -2202,16 +2242,16 @@ class _AsyncCompatibleLock:
         logger.info(
             message,
             extra={
-                'component': 'lock',
-                'op': 'log_stats',
-                'lock_stats': {
-                    'acquire_count': stats['acquire_count'],
-                    'contention_count': stats['contention_count'],
-                    'total_wait_time': stats['total_wait_time'],
-                    'average_wait_time': stats['average_wait_time'],
-                    'contention_rate': stats['contention_rate'],
-                }
-            }
+                "component": "lock",
+                "op": "log_stats",
+                "lock_stats": {
+                    "acquire_count": stats["acquire_count"],
+                    "contention_count": stats["contention_count"],
+                    "total_wait_time": stats["total_wait_time"],
+                    "average_wait_time": stats["average_wait_time"],
+                    "contention_rate": stats["contention_rate"],
+                },
+            },
         )
 
 
@@ -2289,6 +2329,7 @@ class _AsyncContextError(RuntimeError):
     fragile string matching to differentiate between our custom error and
     asyncio's RuntimeError.
     """
+
     pass
 
 
@@ -2533,9 +2574,15 @@ class IOMetrics:
                 if loop_id in self._lock_creation_events:
                     del self._lock_creation_events[loop_id]
 
-    async def record_operation_async(self, operation_type: str, duration: float,
-                                     retries: int, success: bool, error_type: str = None,
-                                     operation_id: str = None):
+    async def record_operation_async(
+        self,
+        operation_type: str,
+        duration: float,
+        retries: int,
+        success: bool,
+        error_type: str = None,
+        operation_id: str = None,
+    ):
         """Record a single I/O operation (async version).
 
         This async version should be called from async contexts to avoid
@@ -2554,21 +2601,27 @@ class IOMetrics:
         Fix for Issue #1642: Added operation_id parameter for traceability.
         """
         operation = {
-            'operation_type': operation_type,
-            'duration': duration,
-            'retries': retries,
-            'success': success,
-            'error_type': error_type,
-            'operation_id': operation_id
+            "operation_type": operation_type,
+            "duration": duration,
+            "retries": retries,
+            "success": success,
+            "error_type": error_type,
+            "operation_id": operation_id,
         }
 
         async with self._get_async_lock():
             # deque with maxlen automatically discards oldest when full (O(1))
             self.operations.append(operation)
 
-    def record_operation(self, operation_type: str, duration: float,
-                         retries: int, success: bool, error_type: str = None,
-                         operation_id: str = None):
+    def record_operation(
+        self,
+        operation_type: str,
+        duration: float,
+        retries: int,
+        success: bool,
+        error_type: str = None,
+        operation_id: str = None,
+    ):
         """Record a single I/O operation.
 
         Args:
@@ -2628,12 +2681,12 @@ class IOMetrics:
             pass
 
         operation = {
-            'operation_type': operation_type,
-            'duration': duration,
-            'retries': retries,
-            'success': success,
-            'error_type': error_type,
-            'operation_id': operation_id
+            "operation_type": operation_type,
+            "duration": duration,
+            "retries": retries,
+            "success": success,
+            "error_type": error_type,
+            "operation_id": operation_id,
         }
 
         # Fix for Issue #1135: Use threading.Lock instead of asyncio.run()
@@ -2653,6 +2706,7 @@ class IOMetrics:
         Fix for Issue #1131: Handle case where called from within a running
         event loop (e.g., Jupyter Notebook, async web frameworks).
         """
+
         async def _get_count():
             async with self._get_async_lock():
                 return len(self.operations)
@@ -2661,7 +2715,6 @@ class IOMetrics:
         try:
             loop = asyncio.get_running_loop()
             # If we're here, there's a running loop, use create_task
-            import concurrent.futures
             import threading
 
             # Run in a new thread to avoid blocking the current loop
@@ -2707,10 +2760,11 @@ class IOMetrics:
         Fix for Issue #1101: This sync version creates a new event loop
         to access the async version, ensuring lock safety.
         """
+
         # For sync contexts, use asyncio.run to access the async version
         async def _get_duration():
             async with self._get_async_lock():
-                return sum(op['duration'] for op in self.operations)
+                return sum(op["duration"] for op in self.operations)
 
         return asyncio.run(_get_duration())
 
@@ -2721,7 +2775,7 @@ class IOMetrics:
         to ensure thread-safe access to self.operations.
         """
         async with self._get_async_lock():
-            return sum(op['duration'] for op in self.operations)
+            return sum(op["duration"] for op in self.operations)
 
     def log_summary(self):
         """Log a summary of metrics if FW_STORAGE_METRICS_LOG is enabled.
@@ -2739,7 +2793,7 @@ class IOMetrics:
         async locking mechanism without threading.Lock.
         Fix for Issue #1100: Release lock before I/O operations (logging) to prevent deadlock.
         """
-        if os.environ.get('FW_STORAGE_METRICS_LOG') != '1':
+        if os.environ.get("FW_STORAGE_METRICS_LOG") != "1":
             return
 
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
@@ -2752,20 +2806,20 @@ class IOMetrics:
                 else:
                     has_operations = True
                     total_ops = len(self.operations)
-                    total_dur = sum(op['duration'] for op in self.operations)
-                    total_retries = sum(op['retries'] for op in self.operations)
-                    successful_ops = sum(1 for op in self.operations if op['success'])
+                    total_dur = sum(op["duration"] for op in self.operations)
+                    total_retries = sum(op["retries"] for op in self.operations)
+                    successful_ops = sum(1 for op in self.operations if op["success"])
                     failed_ops = total_ops - successful_ops
 
                     # Group by operation type
                     by_type = {}
                     for op in self.operations:
-                        op_type = op['operation_type']
+                        op_type = op["operation_type"]
                         if op_type not in by_type:
-                            by_type[op_type] = {'count': 0, 'duration': 0, 'retries': 0}
-                        by_type[op_type]['count'] += 1
-                        by_type[op_type]['duration'] += op['duration']
-                        by_type[op_type]['retries'] += op['retries']
+                            by_type[op_type] = {"count": 0, "duration": 0, "retries": 0}
+                        by_type[op_type]["count"] += 1
+                        by_type[op_type]["duration"] += op["duration"]
+                        by_type[op_type]["retries"] += op["retries"]
 
             # Lock is now released - perform I/O operations outside the lock
             if not has_operations:
@@ -2783,7 +2837,7 @@ class IOMetrics:
             )
 
             for op_type, stats in sorted(by_type.items()):
-                avg_duration = stats['duration'] / stats['count'] if stats['count'] > 0 else 0
+                avg_duration = stats["duration"] / stats["count"] if stats["count"] > 0 else 0
                 logger.info(
                     f"  {op_type}: {stats['count']} ops, "
                     f"avg duration: {avg_duration:.3f}s, "
@@ -2856,21 +2910,22 @@ class IOMetrics:
             >>> data = metrics.export_to_dict()
             >>> json.dumps(data)  # Can be serialized to JSON
         """
+
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _export_with_lock():
             async with self._get_async_lock():
                 operations_list = list(self.operations)
-                successful_ops = sum(1 for op in operations_list if op['success'])
+                successful_ops = sum(1 for op in operations_list if op["success"])
                 failed_ops = len(operations_list) - successful_ops
-                total_retries = sum(op['retries'] for op in operations_list)
+                total_retries = sum(op["retries"] for op in operations_list)
                 total_dur = self.total_duration()
             return {
-                'operations': operations_list,
-                'total_operation_count': len(operations_list),
-                'total_duration': total_dur,
-                'successful_operations': successful_ops,
-                'failed_operations': failed_ops,
-                'total_retries': total_retries
+                "operations": operations_list,
+                "total_operation_count": len(operations_list),
+                "total_duration": total_dur,
+                "successful_operations": successful_ops,
+                "failed_operations": failed_ops,
+                "total_retries": total_retries,
             }
 
         return asyncio.run(_export_with_lock())
@@ -2927,11 +2982,11 @@ class IOMetrics:
 
         # Create temporary file in the same directory as the target
         # This ensures the rename operation is atomic (same filesystem)
-        temp_path = path.with_suffix(path.suffix + '.tmp')
+        temp_path = path.with_suffix(path.suffix + ".tmp")
 
         try:
             # Write data to temporary file
-            with open(temp_path, 'w') as f:
+            with open(temp_path, "w") as f:
                 json.dump(data, f, indent=2)
                 # Ensure data is written to disk before renaming
                 f.flush()
@@ -2972,6 +3027,7 @@ class IOMetrics:
             Fix for Issue #1124: Uses asyncio.Lock via asyncio.run() to ensure pure
             async locking mechanism without threading.Lock.
         """
+
         # Fix for Issue #1124: Use asyncio.run() to acquire asyncio.Lock in sync context
         async def _clear_with_lock():
             async with self._get_async_lock():
@@ -2986,7 +3042,7 @@ class IOMetrics:
         retries: int = 0,
         success: bool = True,
         error_type: str | None = None,
-        operation_id: str | None = None
+        operation_id: str | None = None,
     ) -> None:
         """Record an I/O operation metric (StorageMetrics protocol).
 
@@ -3014,7 +3070,7 @@ class IOMetrics:
             retries=retries,
             success=success,
             error_type=error_type,
-            operation_id=operation_id
+            operation_id=operation_id,
         )
 
     def record_lock_contention(self, wait_time: float) -> None:
@@ -3031,10 +3087,7 @@ class IOMetrics:
         # Record as a special operation type for tracking
         # This integrates with existing IOMetrics infrastructure
         self.record_operation(
-            operation_type='lock_contention',
-            duration=wait_time,
-            retries=0,
-            success=True
+            operation_type="lock_contention", duration=wait_time, retries=0, success=True
         )
 
     def record_lock_acquired(self, acquire_time: float) -> None:
@@ -3050,10 +3103,7 @@ class IOMetrics:
         """
         # Record as a special operation type for tracking
         self.record_operation(
-            operation_type='lock_acquired',
-            duration=acquire_time,
-            retries=0,
-            success=True
+            operation_type="lock_acquired", duration=acquire_time, retries=0, success=True
         )
 
 
@@ -3091,11 +3141,7 @@ class _IOMetricsContextManager:
 
         # Record the operation using async version to avoid deadlock (issue #1116)
         await self.metrics.record_operation_async(
-            self.operation_type,
-            duration,
-            self.retries,
-            self.success,
-            self.error_type
+            self.operation_type, duration, self.retries, self.success, self.error_type
         )
 
         # Don't suppress exceptions
@@ -3114,7 +3160,7 @@ async def _retry_io_operation(
     operation_type: str | None = None,
     metrics: IOMetrics = None,
     log_level: str | None = None,
-    **kwargs
+    **kwargs,
 ):
     """Retry I/O operations on transient errors with exponential backoff.
 
@@ -3165,19 +3211,21 @@ async def _retry_io_operation(
     # LoggerAdapter automatically adds extra dict to all log records
     extra_context = {}
     if path is not None:
-        extra_context['path'] = str(path)
+        extra_context["path"] = str(path)
     if operation_type is not None:
-        extra_context['operation'] = operation_type
+        extra_context["operation"] = operation_type
 
     # Create a logger adapter to add context to all log messages
     if extra_context:
+
         class ContextualLoggerAdapter(logging.LoggerAdapter):
             """Logger adapter that adds extra context as record attributes."""
+
             def process(self, msg, kwargs):
                 # Add extra context to kwargs, which adds them to the LogRecord
-                if 'extra' not in kwargs:
-                    kwargs['extra'] = {}
-                kwargs['extra'].update(self.extra)
+                if "extra" not in kwargs:
+                    kwargs["extra"] = {}
+                kwargs["extra"].update(self.extra)
                 return msg, kwargs
 
         retry_logger = ContextualLoggerAdapter(logger, extra_context)
@@ -3187,12 +3235,12 @@ async def _retry_io_operation(
     # Determine log level for retry operations (Issue #1072)
     # Check parameter first, then environment variable, default to WARNING
     if log_level is None:
-        log_level = os.environ.get('FW_LOG_LEVEL', 'WARNING').upper()
+        log_level = os.environ.get("FW_LOG_LEVEL", "WARNING").upper()
 
     # Create sampler for high-frequency debug logs (Issue #1773)
     # Get sampling rate from environment variable, default to 10% (0.1)
     # Set to 1.0 to log all messages, 0.0 to disable debug retry logging
-    debug_sample_rate = float(os.environ.get('FW_DEBUG_SAMPLE_RATE', '0.1'))
+    debug_sample_rate = float(os.environ.get("FW_DEBUG_SAMPLE_RATE", "0.1"))
     retry_debug_sampler = sample_debug_log(rate_limit=debug_sample_rate)
 
     # Import traceback here for stack trace logging in DEBUG mode
@@ -3200,7 +3248,7 @@ async def _retry_io_operation(
 
     # Check for bypass mode (Issue #1048)
     # When enabled, skip retry logic and timeout for debugging/testing
-    if os.environ.get('FW_STORAGE_BYPASS_RETRY') == '1':
+    if os.environ.get("FW_STORAGE_BYPASS_RETRY") == "1":
         retry_logger.warning(
             "I/O bypass mode enabled via FW_STORAGE_BYPASS_RETRY=1. "
             "Retry logic and timeout are disabled. Use only for debugging/testing."
@@ -3220,19 +3268,13 @@ async def _retry_io_operation(
             if metrics:
                 duration = time.time() - start_time
                 metrics.record_operation(
-                    operation_type or 'unknown',
-                    duration,
-                    retries=0,
-                    success=True
+                    operation_type or "unknown", duration, retries=0, success=True
                 )
                 # Fix for Issue #1638: Also call StorageMetrics protocol method
                 # if the metrics object implements it
-                if hasattr(metrics, 'record_io_operation'):
+                if hasattr(metrics, "record_io_operation"):
                     metrics.record_io_operation(
-                        operation_type or 'unknown',
-                        duration,
-                        retries=0,
-                        success=True
+                        operation_type or "unknown", duration, retries=0, success=True
                     )
             return result
         except Exception as e:
@@ -3240,24 +3282,24 @@ async def _retry_io_operation(
             if metrics:
                 duration = time.time() - start_time
                 error_type = None
-                if isinstance(e, IOError) and hasattr(e, 'errno'):
+                if isinstance(e, IOError) and hasattr(e, "errno"):
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
                 metrics.record_operation(
-                    operation_type or 'unknown',
+                    operation_type or "unknown",
                     duration,
                     retries=0,
                     success=False,
-                    error_type=error_type
+                    error_type=error_type,
                 )
                 # Fix for Issue #1638: Also call StorageMetrics protocol method
                 # if the metrics object implements it
-                if hasattr(metrics, 'record_io_operation'):
+                if hasattr(metrics, "record_io_operation"):
                     metrics.record_io_operation(
-                        operation_type or 'unknown',
+                        operation_type or "unknown",
                         duration,
                         retries=0,
                         success=False,
-                        error_type=error_type
+                        error_type=error_type,
                     )
             raise
 
@@ -3274,32 +3316,25 @@ async def _retry_io_operation(
             if timeout is not None:
                 if inspect.iscoroutinefunction(operation):
                     # Async function: await with timeout
-                    result = await asyncio.wait_for(
-                        operation(*args, **kwargs),
-                        timeout=timeout
-                    )
+                    result = await asyncio.wait_for(operation(*args, **kwargs), timeout=timeout)
                 else:
                     # Sync function: run in thread pool with timeout
                     result = await asyncio.wait_for(
-                        asyncio.to_thread(operation, *args, **kwargs),
-                        timeout=timeout
+                        asyncio.to_thread(operation, *args, **kwargs), timeout=timeout
                     )
                 # Record successful metrics
                 if metrics:
                     duration = time.time() - start_time
                     metrics.record_operation(
-                        operation_type or 'unknown',
-                        duration,
-                        retries=actual_retries,
-                        success=True
+                        operation_type or "unknown", duration, retries=actual_retries, success=True
                     )
                     # Fix for Issue #1638: Also call StorageMetrics protocol method
-                    if hasattr(metrics, 'record_io_operation'):
+                    if hasattr(metrics, "record_io_operation"):
                         metrics.record_io_operation(
-                            operation_type or 'unknown',
+                            operation_type or "unknown",
                             duration,
                             retries=actual_retries,
-                            success=True
+                            success=True,
                         )
                 return result
             else:
@@ -3314,51 +3349,46 @@ async def _retry_io_operation(
                 if metrics:
                     duration = time.time() - start_time
                     metrics.record_operation(
-                        operation_type or 'unknown',
-                        duration,
-                        retries=actual_retries,
-                        success=True
+                        operation_type or "unknown", duration, retries=actual_retries, success=True
                     )
                     # Fix for Issue #1638: Also call StorageMetrics protocol method
-                    if hasattr(metrics, 'record_io_operation'):
+                    if hasattr(metrics, "record_io_operation"):
                         metrics.record_io_operation(
-                            operation_type or 'unknown',
+                            operation_type or "unknown",
                             duration,
                             retries=actual_retries,
-                            success=True
+                            success=True,
                         )
                 return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Convert asyncio.TimeoutError to StorageTimeoutError (Issue #1043, #1045)
             # Record timeout metrics
             if metrics:
                 duration = time.time() - start_time
                 metrics.record_operation(
-                    operation_type or 'unknown',
+                    operation_type or "unknown",
                     duration,
                     retries=actual_retries,
                     success=False,
-                    error_type='TIMEOUT'
+                    error_type="TIMEOUT",
                 )
                 # Fix for Issue #1638: Also call StorageMetrics protocol method
-                if hasattr(metrics, 'record_io_operation'):
+                if hasattr(metrics, "record_io_operation"):
                     metrics.record_io_operation(
-                        operation_type or 'unknown',
+                        operation_type or "unknown",
                         duration,
                         retries=actual_retries,
                         success=False,
-                        error_type='TIMEOUT'
+                        error_type="TIMEOUT",
                     )
-            raise StorageTimeoutError(
-                f"I/O operation timed out after {timeout}s"
-            )
-        except IOError as e:
+            raise StorageTimeoutError(f"I/O operation timed out after {timeout}s")
+        except OSError as e:
             last_error = e
             # Check if this is a transient error that should be retried
             transient_errors = (
-                errno.EIO,      # I/O error (common on network mounts)
-                errno.EAGAIN,   # Resource temporarily unavailable
-                errno.EBUSY,    # Device or resource busy
+                errno.EIO,  # I/O error (common on network mounts)
+                errno.EAGAIN,  # Resource temporarily unavailable
+                errno.EBUSY,  # Device or resource busy
             )
 
             if e.errno not in transient_errors:
@@ -3367,41 +3397,41 @@ async def _retry_io_operation(
                     duration = time.time() - start_time
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
                     metrics.record_operation(
-                        operation_type or 'unknown',
+                        operation_type or "unknown",
                         duration,
                         retries=actual_retries,
                         success=False,
-                        error_type=error_type
+                        error_type=error_type,
                     )
                     # Fix for Issue #1638: Also call StorageMetrics protocol method
-                    if hasattr(metrics, 'record_io_operation'):
+                    if hasattr(metrics, "record_io_operation"):
                         metrics.record_io_operation(
-                            operation_type or 'unknown',
+                            operation_type or "unknown",
                             duration,
                             retries=actual_retries,
                             success=False,
-                            error_type=error_type
+                            error_type=error_type,
                         )
                 raise
 
             if attempt < max_attempts - 1:
                 # Calculate exponential backoff
-                backoff = initial_backoff * (2 ** attempt)
+                backoff = initial_backoff * (2**attempt)
                 actual_retries += 1
 
                 # Log retry with details based on configured log level (Issue #1072)
-                if log_level == 'DEBUG':
+                if log_level == "DEBUG":
                     # In DEBUG mode, include stack trace and detailed backoff information
                     # Apply sampling to reduce log volume in tight loops (Issue #1773)
-                    stack_trace = ''.join(traceback.format_stack())
+                    stack_trace = "".join(traceback.format_stack())
                     retry_debug_sampler(
                         retry_logger,
                         f"Transient I/O error (errno={e.errno}), "
                         f"retrying in {backoff:.1f}s "
                         f"(attempt {attempt + 1}/{max_attempts})\n"
-                        f"Stack trace:\n{stack_trace}"
+                        f"Stack trace:\n{stack_trace}",
                     )
-                elif log_level == 'INFO':
+                elif log_level == "INFO":
                     # In INFO mode, log retry with moderate detail
                     retry_logger.info(
                         f"Transient I/O error (errno={e.errno}), "
@@ -3417,24 +3447,22 @@ async def _retry_io_operation(
                     duration = time.time() - start_time
                     error_type = errno.errorcode.get(e.errno, str(e.errno))
                     metrics.record_operation(
-                        operation_type or 'unknown',
+                        operation_type or "unknown",
                         duration,
                         retries=actual_retries,
                         success=False,
-                        error_type=error_type
+                        error_type=error_type,
                     )
                     # Fix for Issue #1638: Also call StorageMetrics protocol method
-                    if hasattr(metrics, 'record_io_operation'):
+                    if hasattr(metrics, "record_io_operation"):
                         metrics.record_io_operation(
-                            operation_type or 'unknown',
+                            operation_type or "unknown",
                             duration,
                             retries=actual_retries,
                             success=False,
-                            error_type=error_type
+                            error_type=error_type,
                         )
-                retry_logger.warning(
-                    f"I/O operation failed after {max_attempts} attempts: {e}"
-                )
+                retry_logger.warning(f"I/O operation failed after {max_attempts} attempts: {e}")
                 raise
 
     # This should never be reached, but just in case
@@ -3443,23 +3471,23 @@ async def _retry_io_operation(
         if metrics:
             duration = time.time() - start_time
             error_type = None
-            if isinstance(last_error, IOError) and hasattr(last_error, 'errno'):
+            if isinstance(last_error, IOError) and hasattr(last_error, "errno"):
                 error_type = errno.errorcode.get(last_error.errno, str(last_error.errno))
             metrics.record_operation(
-                operation_type or 'unknown',
+                operation_type or "unknown",
                 duration,
                 retries=actual_retries,
                 success=False,
-                error_type=error_type
+                error_type=error_type,
             )
             # Fix for Issue #1638: Also call StorageMetrics protocol method
-            if hasattr(metrics, 'record_io_operation'):
+            if hasattr(metrics, "record_io_operation"):
                 metrics.record_io_operation(
-                    operation_type or 'unknown',
+                    operation_type or "unknown",
                     duration,
                     retries=actual_retries,
                     success=False,
-                    error_type=error_type
+                    error_type=error_type,
                 )
         raise last_error
 
@@ -3467,6 +3495,7 @@ async def _retry_io_operation(
 # Fallback async file operations for when aiofiles is not available (Issue #1032)
 # This ensures aiofiles is ALWAYS available, eliminating need for HAS_AIOFILES checks (Issue #1613)
 if not HAS_AIOFILES:
+
     class _AsyncFileContextManager:
         """Async context manager for file operations without aiofiles."""
 
@@ -3475,13 +3504,14 @@ if not HAS_AIOFILES:
             self.mode = mode
             self._file = None
             # Determine if this is binary mode (Issue #1036)
-            self._is_binary = 'b' in mode
+            self._is_binary = "b" in mode
 
         async def __aenter__(self):
             # Use asyncio.to_thread to run blocking I/O in a thread pool
             # with retry logic for transient errors (Issue #1038)
-            self._file = await _retry_io_operation(open, self.path, self.mode,
-                                                   path=self.path, operation_type='open')
+            self._file = await _retry_io_operation(
+                open, self.path, self.mode, path=self.path, operation_type="open"
+            )
             return self
 
         async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -3499,8 +3529,7 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.read,
-                                              path=self.path, operation_type='read')
+            return await _retry_io_operation(self._file.read, path=self.path, operation_type="read")
 
         async def write(self, data: str | bytes) -> int:
             """Write data to file asynchronously with retry logic.
@@ -3511,8 +3540,9 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.write, data,
-                                              path=self.path, operation_type='write')
+            return await _retry_io_operation(
+                self._file.write, data, path=self.path, operation_type="write"
+            )
 
         async def flush(self):
             """Flush file buffers asynchronously with retry logic.
@@ -3521,8 +3551,9 @@ if not HAS_AIOFILES:
             """
             if self._file is None:
                 raise ValueError("File not opened")
-            return await _retry_io_operation(self._file.flush,
-                                              path=self.path, operation_type='flush')
+            return await _retry_io_operation(
+                self._file.flush, path=self.path, operation_type="flush"
+            )
 
         def fileno(self) -> int:
             """Get file descriptor number."""
@@ -3540,7 +3571,7 @@ if not HAS_AIOFILES:
         """
 
         @staticmethod
-        def open(path: str, mode: str = 'rb') -> '_AsyncFileContextManager':
+        def open(path: str, mode: str = "rb") -> _AsyncFileContextManager:
             """Open a file asynchronously.
 
             Defaults to binary mode 'rb' to match aiofiles behavior (Issue #1036).
@@ -3553,7 +3584,7 @@ if not HAS_AIOFILES:
     aiofiles: _AiofilesProtocol = _AiofilesFallback()
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    pass
 
 
 # Storage latency metrics support (Issue #1003)
@@ -3562,8 +3593,8 @@ if TYPE_CHECKING:
 
 # Cache statsd configuration at module level to avoid repeated
 # environment variable lookups (Issue #1013)
-_statsd_host = os.environ.get('FW_STATSD_HOST')
-_statsd_port = os.environ.get('FW_STATSD_PORT', '8125')
+_statsd_host = os.environ.get("FW_STATSD_HOST")
+_statsd_port = os.environ.get("FW_STATSD_PORT", "8125")
 
 
 @functools.lru_cache(maxsize=1)
@@ -3590,13 +3621,9 @@ def get_statsd_client():
         if _statsd_host:
             # Create statsd client
             client = statsd.StatsClient(
-                host=_statsd_host,
-                port=int(_statsd_port),
-                prefix='flywheel.storage'
+                host=_statsd_host, port=int(_statsd_port), prefix="flywheel.storage"
             )
-            logger.debug(
-                f"Statsd client initialized: {_statsd_host}:{_statsd_port}"
-            )
+            logger.debug(f"Statsd client initialized: {_statsd_host}:{_statsd_port}")
             return client
         else:
             # No statsd configuration
@@ -3622,13 +3649,13 @@ def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
         or empty string if no context is available.
     """
     # Check kwargs first (keyword arguments take precedence)
-    if 'path' in kwargs:
-        path_value = kwargs['path']
+    if "path" in kwargs:
+        path_value = kwargs["path"]
         # Convert Path object to string if needed
         if isinstance(path_value, Path):
             path_value = str(path_value)
         return f" on {path_value}"
-    elif 'id' in kwargs:
+    elif "id" in kwargs:
         return f" on {kwargs['id']}"
 
     # Check positional arguments by inspecting function signature
@@ -3641,14 +3668,14 @@ def _extract_context(args: tuple, kwargs: dict, func: Callable) -> str:
             if i < len(param_names):
                 param_name = param_names[i]
                 # Skip 'self' and 'cls' parameters (Issue #1018)
-                if param_name in ('self', 'cls'):
+                if param_name in ("self", "cls"):
                     continue
-                if param_name == 'path':
+                if param_name == "path":
                     # Convert Path object to string if needed
                     if isinstance(arg_value, Path):
                         arg_value = str(arg_value)
                     return f" on {arg_value}"
-                elif param_name == 'id':
+                elif param_name == "id":
                     return f" on {arg_value}"
     except (ValueError, TypeError):
         # If signature inspection fails, just return empty context
@@ -3666,7 +3693,8 @@ def _get_slow_operation_threshold() -> int:
         Returns 1000 if the environment variable is invalid.
     """
     import os
-    threshold_str = os.environ.get('FW_STORAGE_SLOW_LOG_THRESHOLD', '1000')
+
+    threshold_str = os.environ.get("FW_STORAGE_SLOW_LOG_THRESHOLD", "1000")
     try:
         threshold = int(threshold_str)
         return threshold
@@ -3696,21 +3724,18 @@ def _record_metrics(operation_name: str, elapsed_ms: float, context: str) -> Non
         client.timing(metric_name, elapsed_ms)
 
         # Also emit histogram if supported
-        if hasattr(client, 'histogram'):
+        if hasattr(client, "histogram"):
             client.histogram(f"{operation_name}.latency.dist", elapsed_ms)
 
     # Log timing for debugging
     # Extract context (path/id) for better debugging (Issue #1007)
-    logger.debug(
-        f"{operation_name}{context} completed in {elapsed_ms:.3f}ms"
-    )
+    logger.debug(f"{operation_name}{context} completed in {elapsed_ms:.3f}ms")
 
     # Check if operation exceeded slow threshold (Issue #1023)
     threshold = _get_slow_operation_threshold()
     if threshold >= 0 and elapsed_ms > threshold:
         logger.warning(
-            f"{operation_name}{context} exceeded slow threshold: "
-            f"{elapsed_ms:.3f}ms > {threshold}ms"
+            f"{operation_name}{context} exceeded slow threshold: {elapsed_ms:.3f}ms > {threshold}ms"
         )
 
 
@@ -3758,6 +3783,7 @@ def measure_latency(operation_name: str):
         - Includes context (path/id) in log messages when available
         - Slow operations (exceeding threshold) trigger warning logs
     """
+
     def decorator(func: Callable) -> Callable:
         is_coroutine = inspect.iscoroutinefunction(func)
 
@@ -3782,7 +3808,7 @@ def measure_latency(operation_name: str):
                     if context and not str(e).count(context) > 0:
                         # Add context using add_note if available (Python 3.11+)
                         # This preserves the original exception and stack trace
-                        if hasattr(e, 'add_note'):
+                        if hasattr(e, "add_note"):
                             e.add_note(f"Context: {context}")
                         else:
                             # For older Python versions, modify args directly
@@ -3817,7 +3843,7 @@ def measure_latency(operation_name: str):
                     if context and not str(e).count(context) > 0:
                         # Add context using add_note if available (Python 3.11+)
                         # This preserves the original exception and stack trace
-                        if hasattr(e, 'add_note'):
+                        if hasattr(e, "add_note"):
                             e.add_note(f"Context: {context}")
                         else:
                             # For older Python versions, modify args directly
@@ -3833,6 +3859,7 @@ def measure_latency(operation_name: str):
             return sync_wrapper
 
     return decorator
+
 
 # Platform-specific file locking (Issue #268, #411, #451)
 # IMPORTANT: Windows file locking implementation
@@ -3854,7 +3881,7 @@ def measure_latency(operation_name: str):
 # The module will attempt to import pywin32 for optimal file locking behavior.
 # If pywin32 is not available, the module will fall back to a slower but
 # safe pure Python file lock implementation to maintain portability.
-if os.name == 'nt':  # Windows
+if os.name == "nt":  # Windows
     # Thread-safe module-level imports for Windows security (Issue #429, #674)
     # These imports happen once when the module is loaded, ensuring all threads
     # see consistent module availability and preventing race conditions.
@@ -3873,11 +3900,11 @@ if os.name == 'nt':  # Windows
     pywintypes = None
 
     try:
-        import win32security
-        import win32con
-        import win32api
-        import win32file
         import pywintypes
+        import win32api
+        import win32con
+        import win32file
+        import win32security
     except ImportError:
         # Issue #846: Use file-based lock instead of msvcrt.locking to prevent deadlock risk
         # When pywin32 is not available, use a file-based lock mechanism (.lock file)
@@ -3909,12 +3936,13 @@ if os.name == 'nt':  # Windows
         # and uses .lock files when pywin32 is not available. There is NO msvcrt.locking usage
         # anywhere in the codebase, eliminating deadlock risks mentioned in Issue #894.
         import warnings
+
         warnings.warn(
             "pywin32 is not installed. Using fallback file locking (.lock files). "
             "For optimal performance and safety on Windows, install pywin32: "
             "pip install pywin32",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 else:  # Unix-like systems
     # Security fix for Issue #679, #791: Handle missing fcntl gracefully
@@ -3935,13 +3963,14 @@ else:  # Unix-like systems
         # On Unix, fcntl is preferred for optimal file locking, but the module
         # will use a file-based fallback locking mechanism to maintain safety.
         import warnings
+
         warnings.warn(
             "fcntl is not available. Using fallback file-based locking (.lock files). "
             "This provides safety but may have reduced performance compared to fcntl. "
             "For optimal performance on Unix-like systems, ensure fcntl is available. "
             "If you are on Cygwin, consider using native Windows or a full Unix environment.",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
 
@@ -3981,7 +4010,7 @@ def _is_degraded_mode() -> bool:
         bool: True if in degraded mode (Windows without pywin32,
               or Unix without fcntl), False otherwise.
     """
-    if os.name == 'nt':
+    if os.name == "nt":
         # On Windows, check if pywin32 modules are available
         return win32file is None
     else:
@@ -3994,8 +4023,6 @@ def _is_degraded_mode() -> bool:
 # 'Lock timeout'). This retry mechanism makes the application more resilient against
 # temporary glitches without crashing.
 import functools
-import inspect
-
 
 # Issue #923: Configurable stale lock timeout via environment variable
 # The default stale lock timeout is 300 seconds (5 minutes)
@@ -4018,7 +4045,7 @@ def _get_stale_lock_timeout() -> int:
         # Set custom timeout of 10 minutes
         export FW_LOCK_STALE_SECONDS=600
     """
-    env_value = os.environ.get('FW_LOCK_STALE_SECONDS', '')
+    env_value = os.environ.get("FW_LOCK_STALE_SECONDS", "")
     if not env_value:
         return _STALE_LOCK_TIMEOUT_DEFAULT
 
@@ -4099,6 +4126,7 @@ def retry_transient_errors(
     Fix for Issue #897: Generic retry mechanism for transient failures.
     Fix for Issue #937: Add context to retry mechanism with custom logger.
     """
+
     def decorator(func):
         # Use custom logger if provided, otherwise use module-level logger
         _logger = logger if logger is not None else _module_logger
@@ -4114,7 +4142,7 @@ def retry_transient_errors(
                 while attempt < max_attempts:
                     try:
                         return await func(*args, **kwargs)
-                    except IOError as e:
+                    except OSError as e:
                         attempt += 1
 
                         # Check if this is a transient error
@@ -4122,12 +4150,12 @@ def retry_transient_errors(
                         transient_errors = (
                             errno.EAGAIN,  # Resource temporarily unavailable
                             errno.EACCES,  # Permission denied (may be transient)
-                            errno.EBUSY,   # Device or resource busy
+                            errno.EBUSY,  # Device or resource busy
                             errno.EWOULDBLOCK,  # Operation would block
                         )
 
                         # Check if error has an errno attribute
-                        error_code = getattr(e, 'errno', None)
+                        error_code = getattr(e, "errno", None)
 
                         # If it's a permanent error, fail immediately
                         if error_code in (
@@ -4136,16 +4164,12 @@ def retry_transient_errors(
                             errno.ENOTDIR,  # Not a directory
                         ):
                             # Permanent error - don't retry
-                            _logger.debug(
-                                f"Permanent I/O error in {func.__name__}: {e}"
-                            )
+                            _logger.debug(f"Permanent I/O error in {func.__name__}: {e}")
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            _logger.debug(
-                                f"Non-transient I/O error in {func.__name__}: {e}"
-                            )
+                            _logger.debug(f"Non-transient I/O error in {func.__name__}: {e}")
                             raise
 
                         # If we've exhausted all attempts, raise the last error
@@ -4161,16 +4185,16 @@ def retry_transient_errors(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
                             f"{e}. Retrying in {backoff:.2f}s...",
                             extra={
-                                'structured': True,
-                                'event': 'retry_attempt',
-                                'function': func.__name__,
-                                'attempt': attempt,
-                                'max_attempts': max_attempts,
-                                'backoff_seconds': backoff,
-                                'error_code': error_code,
-                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN'),
-                                'error_message': str(e)
-                            }
+                                "structured": True,
+                                "event": "retry_attempt",
+                                "function": func.__name__,
+                                "attempt": attempt,
+                                "max_attempts": max_attempts,
+                                "backoff_seconds": backoff,
+                                "error_code": error_code,
+                                "error_name": errno.errorcode.get(error_code, "UNKNOWN"),
+                                "error_message": str(e),
+                            },
                         )
                         await asyncio.sleep(backoff)
                         backoff *= exponential_base
@@ -4189,7 +4213,7 @@ def retry_transient_errors(
                 while attempt < max_attempts:
                     try:
                         return func(*args, **kwargs)
-                    except IOError as e:
+                    except OSError as e:
                         attempt += 1
 
                         # Check if this is a transient error
@@ -4197,12 +4221,12 @@ def retry_transient_errors(
                         transient_errors = (
                             errno.EAGAIN,  # Resource temporarily unavailable
                             errno.EACCES,  # Permission denied (may be transient)
-                            errno.EBUSY,   # Device or resource busy
+                            errno.EBUSY,  # Device or resource busy
                             errno.EWOULDBLOCK,  # Operation would block
                         )
 
                         # Check if error has an errno attribute
-                        error_code = getattr(e, 'errno', None)
+                        error_code = getattr(e, "errno", None)
 
                         # If it's a permanent error, fail immediately
                         if error_code in (
@@ -4211,16 +4235,12 @@ def retry_transient_errors(
                             errno.ENOTDIR,  # Not a directory
                         ):
                             # Permanent error - don't retry
-                            _logger.debug(
-                                f"Permanent I/O error in {func.__name__}: {e}"
-                            )
+                            _logger.debug(f"Permanent I/O error in {func.__name__}: {e}")
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            _logger.debug(
-                                f"Non-transient I/O error in {func.__name__}: {e}"
-                            )
+                            _logger.debug(f"Non-transient I/O error in {func.__name__}: {e}")
                             raise
 
                         # If we've exhausted all attempts, raise the last error
@@ -4236,16 +4256,16 @@ def retry_transient_errors(
                             f"Transient error in {func.__name__} (attempt {attempt}/{max_attempts}): "
                             f"{e}. Retrying in {backoff:.2f}s...",
                             extra={
-                                'structured': True,
-                                'event': 'retry_attempt',
-                                'function': func.__name__,
-                                'attempt': attempt,
-                                'max_attempts': max_attempts,
-                                'backoff_seconds': backoff,
-                                'error_code': error_code,
-                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN'),
-                                'error_message': str(e)
-                            }
+                                "structured": True,
+                                "event": "retry_attempt",
+                                "function": func.__name__,
+                                "attempt": attempt,
+                                "max_attempts": max_attempts,
+                                "backoff_seconds": backoff,
+                                "error_code": error_code,
+                                "error_name": errno.errorcode.get(error_code, "UNKNOWN"),
+                                "error_message": str(e),
+                            },
                         )
                         time.sleep(backoff)
                         backoff *= exponential_base
@@ -4301,6 +4321,7 @@ def retry_io(
 
     Fix for Issue #948: Configurable retry mechanism for transient I/O errors.
     """
+
     def decorator(func):
         is_coroutine = inspect.iscoroutinefunction(func)
 
@@ -4318,34 +4339,30 @@ def retry_io(
                         attempt += 1
 
                         # Check if error has an errno attribute
-                        error_code = getattr(e, 'errno', None)
+                        error_code = getattr(e, "errno", None)
 
                         # Transient errors that should trigger retry
                         transient_errors = (
-                            errno.EIO,      # I/O error (common on network mounts)
-                            errno.ENOSPC,   # No space left (may be transient)
-                            errno.EAGAIN,   # Resource temporarily unavailable
-                            errno.EBUSY,    # Device or resource busy
+                            errno.EIO,  # I/O error (common on network mounts)
+                            errno.ENOSPC,  # No space left (may be transient)
+                            errno.EAGAIN,  # Resource temporarily unavailable
+                            errno.EBUSY,  # Device or resource busy
                         )
 
                         # Permanent errors that should fail immediately
                         permanent_errors = (
-                            errno.ENOENT,   # No such file or directory
+                            errno.ENOENT,  # No such file or directory
                             errno.ENOTDIR,  # Not a directory
                         )
 
                         # If it's a permanent error, fail immediately
                         if error_code in permanent_errors:
-                            _module_logger.debug(
-                                f"Permanent I/O error in {func.__name__}: {e}"
-                            )
+                            _module_logger.debug(f"Permanent I/O error in {func.__name__}: {e}")
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            _module_logger.debug(
-                                f"Non-transient I/O error in {func.__name__}: {e}"
-                            )
+                            _module_logger.debug(f"Non-transient I/O error in {func.__name__}: {e}")
                             raise
 
                         # If we've exhausted all attempts, raise the last error
@@ -4382,34 +4399,30 @@ def retry_io(
                         attempt += 1
 
                         # Check if error has an errno attribute
-                        error_code = getattr(e, 'errno', None)
+                        error_code = getattr(e, "errno", None)
 
                         # Transient errors that should trigger retry
                         transient_errors = (
-                            errno.EIO,      # I/O error (common on network mounts)
-                            errno.ENOSPC,   # No space left (may be transient)
-                            errno.EAGAIN,   # Resource temporarily unavailable
-                            errno.EBUSY,    # Device or resource busy
+                            errno.EIO,  # I/O error (common on network mounts)
+                            errno.ENOSPC,  # No space left (may be transient)
+                            errno.EAGAIN,  # Resource temporarily unavailable
+                            errno.EBUSY,  # Device or resource busy
                         )
 
                         # Permanent errors that should fail immediately
                         permanent_errors = (
-                            errno.ENOENT,   # No such file or directory
+                            errno.ENOENT,  # No such file or directory
                             errno.ENOTDIR,  # Not a directory
                         )
 
                         # If it's a permanent error, fail immediately
                         if error_code in permanent_errors:
-                            _module_logger.debug(
-                                f"Permanent I/O error in {func.__name__}: {e}"
-                            )
+                            _module_logger.debug(f"Permanent I/O error in {func.__name__}: {e}")
                             raise
 
                         # If it's not a recognized transient error, don't retry
                         if error_code not in transient_errors:
-                            _module_logger.debug(
-                                f"Non-transient I/O error in {func.__name__}: {e}"
-                            )
+                            _module_logger.debug(f"Non-transient I/O error in {func.__name__}: {e}")
                             raise
 
                         # If we've exhausted all attempts, raise the last error
@@ -4941,7 +4954,17 @@ class AbstractStorage(abc.ABC):
 class FileStorage(AbstractStorage):
     """File-based todo storage implementation."""
 
-    def __init__(self, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float | None = None, lock_retry_interval: float = 0.1, dry_run: bool = False, metrics: StorageMetrics | None = None):
+    def __init__(
+        self,
+        path: str = "~/.flywheel/todos.json",
+        compression: bool = False,
+        backup_count: int = 0,
+        enable_cache: bool = False,
+        lock_timeout: float | None = None,
+        lock_retry_interval: float = 0.1,
+        dry_run: bool = False,
+        metrics: StorageMetrics | None = None,
+    ):
         """Initialize FileStorage.
 
         Args:
@@ -4977,7 +5000,7 @@ class FileStorage(AbstractStorage):
         default_timeout = 30.0
         if lock_timeout is None:
             # Read from environment variable if not explicitly provided
-            env_timeout = os.environ.get('FW_LOCK_TIMEOUT_SECONDS')
+            env_timeout = os.environ.get("FW_LOCK_TIMEOUT_SECONDS")
             if env_timeout is not None:
                 try:
                     lock_timeout = float(env_timeout)
@@ -5000,9 +5023,14 @@ class FileStorage(AbstractStorage):
         # When FLYWHEEL_STRICT_MODE=1 is set, raise an error if optimal
         # file locking is not available (fcntl on Unix, pywin32 on Windows).
         # This prevents data corruption risks in concurrent scenarios.
-        strict_mode = os.environ.get('FLYWHEEL_STRICT_MODE', '0').strip() in ('1', 'true', 'yes', 'on')
+        strict_mode = os.environ.get("FLYWHEEL_STRICT_MODE", "0").strip() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
         if strict_mode and _is_degraded_mode():
-            if os.name == 'nt':
+            if os.name == "nt":
                 raise RuntimeError(
                     "FLYWHEEL_STRICT_MODE is enabled but pywin32 is not available. "
                     "For optimal file locking on Windows, install pywin32: pip install pywin32. "
@@ -5023,8 +5051,8 @@ class FileStorage(AbstractStorage):
         self.dry_run = dry_run  # Issue #987: Dry run mode for safe diagnostics
         # Add .gz extension if compression is enabled and path doesn't already have it
         path_obj = Path(path).expanduser()
-        if compression and not str(path_obj).endswith('.gz'):
-            path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
+        if compression and not str(path_obj).endswith(".gz"):
+            path_obj = path_obj.with_suffix(path_obj.suffix + ".gz")
         self.path = path_obj
 
         # Issue #987: In dry run mode, skip directory creation and lock cleanup
@@ -5078,10 +5106,14 @@ class FileStorage(AbstractStorage):
         self._cache_enabled = enable_cache
         self._cache: dict[int, Todo] = {}  # Cache dictionary for O(1) lookups by ID
         self._cache_dirty = False  # Track if cache needs invalidation
-        self._cache_mtime: float | None = None  # Track file modification time for cache invalidation
+        self._cache_mtime: float | None = (
+            None  # Track file modification time for cache invalidation
+        )
         # LRU cache for metadata reads to reduce I/O on network filesystems (Issue #1073)
         # Stores recently loaded file contents with limited size to prevent memory bloat
-        self._metadata_cache: dict[str, tuple[list, int, float]] = {}  # path -> (todos, next_id, mtime)
+        self._metadata_cache: dict[
+            str, tuple[list, int, float]
+        ] = {}  # path -> (todos, next_id, mtime)
         self._metadata_cache_maxsize = 128  # Maximum number of entries in LRU cache
         self._metadata_cache_lock = threading.Lock()  # Thread-safe cache access
         # File lock timeout to prevent indefinite hangs (Issue #396, #777)
@@ -5128,8 +5160,7 @@ class FileStorage(AbstractStorage):
             # If we reach here, it means _load() didn't convert them properly,
             # which should not happen. Log and handle gracefully (Issue #556).
             logger.warning(
-                f"Failed to load todos from {self.path}: {e}. "
-                f"Starting with empty state."
+                f"Failed to load todos from {self.path}: {e}. Starting with empty state."
             )
             # Reset to empty state (already initialized above)
             self._todos = []
@@ -5149,8 +5180,7 @@ class FileStorage(AbstractStorage):
         except OSError as e:
             # Other OSErrors (PermissionError, IOError, etc.) should log warning (Issue #601)
             logger.warning(
-                f"Failed to load todos from {self.path}: {e}. "
-                f"Starting with empty state."
+                f"Failed to load todos from {self.path}: {e}. Starting with empty state."
             )
             # Reset to empty state (already initialized above)
             self._todos = []
@@ -5165,8 +5195,7 @@ class FileStorage(AbstractStorage):
             if "Backup saved to" in error_msg or "Backup created at" in error_msg:
                 # Backup was created successfully, we can recover gracefully
                 logger.warning(
-                    f"Data integrity issue in {self.path}: {e}. "
-                    f"Starting with empty state."
+                    f"Data integrity issue in {self.path}: {e}. Starting with empty state."
                 )
                 # Reset to empty state (already initialized above)
                 self._todos = []
@@ -5199,14 +5228,21 @@ class FileStorage(AbstractStorage):
                 # and automatically saves to disk to prevent data loss if the program crashes
                 self._auto_save_stop_event = threading.Event()
                 self._auto_save_thread = threading.Thread(
-                    target=self._auto_save_worker,
-                    daemon=True,
-                    name="FileStorage-auto-save"
+                    target=self._auto_save_worker, daemon=True, name="FileStorage-auto-save"
                 )
                 self._auto_save_thread.start()
 
     @classmethod
-    async def create(cls, path: str = "~/.flywheel/todos.json", compression: bool = False, backup_count: int = 0, enable_cache: bool = False, lock_timeout: float = 30.0, lock_retry_interval: float = 0.1, dry_run: bool = False) -> "FileStorage":
+    async def create(
+        cls,
+        path: str = "~/.flywheel/todos.json",
+        compression: bool = False,
+        backup_count: int = 0,
+        enable_cache: bool = False,
+        lock_timeout: float = 30.0,
+        lock_retry_interval: float = 0.1,
+        dry_run: bool = False,
+    ) -> FileStorage:
         """Asynchronously create a FileStorage instance without blocking the event loop.
 
         This is an async factory method that creates a FileStorage instance and runs
@@ -5257,8 +5293,8 @@ class FileStorage(AbstractStorage):
         instance.dry_run = dry_run  # Issue #987: Dry run mode
         # Add .gz extension if compression is enabled and path doesn't already have it
         path_obj = Path(path).expanduser()
-        if compression and not str(path_obj).endswith('.gz'):
-            path_obj = path_obj.with_suffix(path_obj.suffix + '.gz')
+        if compression and not str(path_obj).endswith(".gz"):
+            path_obj = path_obj.with_suffix(path_obj.suffix + ".gz")
         instance.path = path_obj
 
         # Issue #987: Skip directory initialization in dry run mode
@@ -5294,8 +5330,7 @@ class FileStorage(AbstractStorage):
         ) as e:
             # Catch specific exceptions during load to prevent data loss (Issue #570)
             logger.warning(
-                f"Failed to load todos from {instance.path}: {e}. "
-                f"Starting with empty state."
+                f"Failed to load todos from {instance.path}: {e}. Starting with empty state."
             )
             # Reset to empty state (already initialized above)
             instance._todos = []
@@ -5315,8 +5350,7 @@ class FileStorage(AbstractStorage):
         except OSError as e:
             # Other OSErrors (PermissionError, IOError, etc.) should log warning (Issue #601)
             logger.warning(
-                f"Failed to load todos from {instance.path}: {e}. "
-                f"Starting with empty state."
+                f"Failed to load todos from {instance.path}: {e}. Starting with empty state."
             )
             # Reset to empty state (already initialized above)
             instance._todos = []
@@ -5331,8 +5365,7 @@ class FileStorage(AbstractStorage):
             if "Backup saved to" in error_msg or "Backup created at" in error_msg:
                 # Backup was created successfully, we can recover gracefully
                 logger.warning(
-                    f"Data integrity issue in {instance.path}: {e}. "
-                    f"Starting with empty state."
+                    f"Data integrity issue in {instance.path}: {e}. Starting with empty state."
                 )
                 # Reset to empty state (already initialized above)
                 instance._todos = []
@@ -5362,9 +5395,7 @@ class FileStorage(AbstractStorage):
             # Start auto-save background thread (Issue #592)
             instance._auto_save_stop_event = threading.Event()
             instance._auto_save_thread = threading.Thread(
-                target=instance._auto_save_worker,
-                daemon=True,
-                name="FileStorage-auto-save"
+                target=instance._auto_save_worker, daemon=True, name="FileStorage-auto-save"
             )
             instance._auto_save_thread.start()
 
@@ -5407,7 +5438,7 @@ class FileStorage(AbstractStorage):
               acquisition and release
             - On Unix, fcntl.flock doesn't use lock ranges, so value is ignored
         """
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             # Security fix for Issue #375, #426, and #451: Use a fixed very large
             # lock range with win32file.LockFileEx for mandatory locking
             #
@@ -5511,13 +5542,13 @@ class FileStorage(AbstractStorage):
             logger.info(
                 f"Dry run mode: Would acquire file lock for {file_handle.name}",
                 extra={
-                    'structured': True,
-                    'event': 'dry_run_lock_skipped',
-                    'file_path': file_handle.name
-                }
+                    "structured": True,
+                    "event": "dry_run_lock_skipped",
+                    "file_path": file_handle.name,
+                },
             )
             return
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
                 # Issue #846: pywin32 is not available - use file-based lock (.lock file)
@@ -5565,12 +5596,12 @@ class FileStorage(AbstractStorage):
                     "Using fallback file locking (.lock files) in degraded mode. "
                     "For optimal performance, install pywin32.",
                     extra={
-                        'structured': True,
-                        'event': 'lock_mode_info',
-                        'mode': 'degraded',
-                        'lock_type': 'file_based',
-                        'reason': 'pywin32_not_available'
-                    }
+                        "structured": True,
+                        "event": "lock_mode_info",
+                        "mode": "degraded",
+                        "lock_type": "file_based",
+                        "reason": "pywin32_not_available",
+                    },
                 )
 
                 # Use file-based lock mechanism with automatic stale lock cleanup
@@ -5592,7 +5623,7 @@ class FileStorage(AbstractStorage):
                         # Issue #886: This 'x' mode provides atomicity - only one process
                         # can succeed even if multiple detected and removed a stale lock
                         # This will fail if the file already exists
-                        with open(lock_file_path, 'x') as lock_file:
+                        with open(lock_file_path, "x") as lock_file:
                             # Write lock metadata for debugging and stale lock detection
                             lock_file.write(f"pid={os.getpid()}\n")
                             lock_file.write(f"locked_at={time.time()}\n")
@@ -5603,29 +5634,29 @@ class FileStorage(AbstractStorage):
                         logger.debug(
                             f"File-based lock acquired: {lock_file_path}",
                             extra={
-                                'structured': True,
-                                'event': 'lock_acquired',
-                                'lock_type': 'file_based',
-                                'lock_file_path': lock_file_path,
-                                'acquisition_time_seconds': elapsed,
-                                'lock_wait_ms': elapsed * 1000,  # Issue #1618: Performance metric
-                                'pid': os.getpid()
-                            }
+                                "structured": True,
+                                "event": "lock_acquired",
+                                "lock_type": "file_based",
+                                "lock_file_path": lock_file_path,
+                                "acquisition_time_seconds": elapsed,
+                                "lock_wait_ms": elapsed * 1000,  # Issue #1618: Performance metric
+                                "pid": os.getpid(),
+                            },
                         )
                         return
 
                     except FileExistsError:
                         # Lock file already exists - check if it's stale
                         try:
-                            with open(lock_file_path, 'r') as lock_file:
+                            with open(lock_file_path) as lock_file:
                                 content = lock_file.read()
                                 locked_at = None
                                 locked_pid = None
-                                for line in content.split('\n'):
-                                    if line.startswith('locked_at='):
-                                        locked_at = float(line.split('=')[1])
-                                    elif line.startswith('pid='):
-                                        locked_pid = int(line.split('=')[1])
+                                for line in content.split("\n"):
+                                    if line.startswith("locked_at="):
+                                        locked_at = float(line.split("=")[1])
+                                    elif line.startswith("pid="):
+                                        locked_pid = int(line.split("=")[1])
 
                                 # Issue #874: Enhanced stale lock detection with PID checking
                                 # Check if the process that created the lock is still alive
@@ -5640,9 +5671,14 @@ class FileStorage(AbstractStorage):
                                         os.kill(locked_pid, 0)
                                         # Process exists, check if it's old enough to be stale
                                         stale_threshold = STALE_LOCK_TIMEOUT
-                                        if locked_at and (time.time() - locked_at) > stale_threshold:
+                                        if (
+                                            locked_at
+                                            and (time.time() - locked_at) > stale_threshold
+                                        ):
                                             is_stale = True
-                                            stale_reason = f"old lock (age: {time.time() - locked_at:.1f}s)"
+                                            stale_reason = (
+                                                f"old lock (age: {time.time() - locked_at:.1f}s)"
+                                            )
                                     except OSError:
                                         # Process doesn't exist - lock is stale
                                         is_stale = True
@@ -5659,14 +5695,16 @@ class FileStorage(AbstractStorage):
                                         f"Found stale lock file ({stale_reason}), "
                                         f"removing and retrying: {lock_file_path}",
                                         extra={
-                                            'structured': True,
-                                            'event': 'stale_lock_detected',
-                                            'lock_type': 'file_based',
-                                            'file_path': lock_file_path,
-                                            'reason': stale_reason,
-                                            'stale_pid': locked_pid,
-                                            'stale_age_seconds': time.time() - locked_at if locked_at else None
-                                        }
+                                            "structured": True,
+                                            "event": "stale_lock_detected",
+                                            "lock_type": "file_based",
+                                            "file_path": lock_file_path,
+                                            "reason": stale_reason,
+                                            "stale_pid": locked_pid,
+                                            "stale_age_seconds": time.time() - locked_at
+                                            if locked_at
+                                            else None,
+                                        },
                                     )
                                     # Issue #886: Fix TOCTOU race condition in stale lock removal
                                     # Use atomic unlink-and-retry pattern to prevent race condition
@@ -5677,7 +5715,9 @@ class FileStorage(AbstractStorage):
                                         os.unlink(lock_file_path)
                                     except FileNotFoundError:
                                         # Another process already removed the stale lock
-                                        logger.debug(f"Stale lock already removed by another process: {lock_file_path}")
+                                        logger.debug(
+                                            f"Stale lock already removed by another process: {lock_file_path}"
+                                        )
                                     except OSError as e:
                                         logger.warning(f"Failed to remove stale lock: {e}")
                                     # Immediately retry to acquire lock (no sleep needed)
@@ -5703,14 +5743,14 @@ class FileStorage(AbstractStorage):
                             f"File is locked by another process, waiting... "
                             f"(elapsed: {elapsed:.1f}s)",
                             extra={
-                                'structured': True,
-                                'event': 'lock_retry',
-                                'lock_type': 'file_based',
-                                'file_path': file_handle.name,
-                                'elapsed_seconds': elapsed,
-                                'retry_interval': self._lock_retry_interval,
-                                'lock_timeout': self._lock_timeout
-                            }
+                                "structured": True,
+                                "event": "lock_retry",
+                                "lock_type": "file_based",
+                                "file_path": file_handle.name,
+                                "elapsed_seconds": elapsed,
+                                "retry_interval": self._lock_retry_interval,
+                                "lock_timeout": self._lock_timeout,
+                            },
                         )
                         time.sleep(self._lock_retry_interval)
                     except OSError as e:
@@ -5783,22 +5823,22 @@ class FileStorage(AbstractStorage):
                             0,  # Reserved
                             lock_range_low,  # NumberOfBytesToLockLow (LENGTH, not offset)
                             lock_range_high,  # NumberOfBytesToLockHigh (LENGTH, not offset)
-                            overlapped  # Specifies offset (defaults to 0)
+                            overlapped,  # Specifies offset (defaults to 0)
                         )
                         # Lock acquired successfully - log with structured data (Issue #922)
                         elapsed = time.time() - start_time
                         logger.debug(
                             f"File lock acquired successfully for {file_handle.name}",
                             extra={
-                                'structured': True,
-                                'event': 'lock_acquired',
-                                'lock_type': 'windows_win32',
-                                'file_path': file_handle.name,
-                                'acquisition_time_seconds': elapsed,
-                                'lock_wait_ms': elapsed * 1000,  # Issue #1618: Performance metric
-                                'lock_range_low': lock_range_low,
-                                'lock_range_high': lock_range_high
-                            }
+                                "structured": True,
+                                "event": "lock_acquired",
+                                "lock_type": "windows_win32",
+                                "file_path": file_handle.name,
+                                "acquisition_time_seconds": elapsed,
+                                "lock_wait_ms": elapsed * 1000,  # Issue #1618: Performance metric
+                                "lock_range_low": lock_range_low,
+                                "lock_range_high": lock_range_high,
+                            },
                         )
                         break
                     except pywintypes.error as e:
@@ -5814,15 +5854,15 @@ class FileStorage(AbstractStorage):
                                 f"Windows lock held by another process, retrying... "
                                 f"(elapsed: {elapsed:.1f}s, error: {e.winerror})",
                                 extra={
-                                    'structured': True,
-                                    'event': 'lock_retry',
-                                    'lock_type': 'windows_win32',
-                                    'file_path': file_handle.name,
-                                    'elapsed_seconds': elapsed,
-                                    'retry_interval': self._lock_retry_interval,
-                                    'winerror_code': e.winerror,
-                                    'lock_timeout': self._lock_timeout
-                                }
+                                    "structured": True,
+                                    "event": "lock_retry",
+                                    "lock_type": "windows_win32",
+                                    "file_path": file_handle.name,
+                                    "elapsed_seconds": elapsed,
+                                    "retry_interval": self._lock_retry_interval,
+                                    "winerror_code": e.winerror,
+                                    "lock_timeout": self._lock_timeout,
+                                },
                             )
                             # Wait before retrying
                             time.sleep(self._lock_retry_interval)
@@ -5849,12 +5889,12 @@ class FileStorage(AbstractStorage):
                     "Using fallback file locking (lock file) in degraded mode. "
                     "For optimal performance, ensure fcntl is available.",
                     extra={
-                        'structured': True,
-                        'event': 'lock_mode_info',
-                        'mode': 'degraded',
-                        'lock_type': 'file_based_fallback',
-                        'reason': 'fcntl_not_available'
-                    }
+                        "structured": True,
+                        "event": "lock_mode_info",
+                        "mode": "degraded",
+                        "lock_type": "file_based_fallback",
+                        "reason": "fcntl_not_available",
+                    },
                 )
 
                 try:
@@ -5889,14 +5929,14 @@ class FileStorage(AbstractStorage):
                             logger.debug(
                                 f"Lock file fallback acquired for {file_handle.name}",
                                 extra={
-                                    'structured': True,
-                                    'event': 'lock_acquired',
-                                    'lock_type': 'file_based',
-                                    'file_path': file_handle.name,
-                                    'lock_dir': str(lock_dir),
-                                    'mode': 'degraded',
-                                    'acquisition_time_seconds': elapsed
-                                }
+                                    "structured": True,
+                                    "event": "lock_acquired",
+                                    "lock_type": "file_based",
+                                    "file_path": file_handle.name,
+                                    "lock_dir": str(lock_dir),
+                                    "mode": "degraded",
+                                    "acquisition_time_seconds": elapsed,
+                                },
                             )
                             return  # Lock acquired successfully
 
@@ -5917,19 +5957,19 @@ class FileStorage(AbstractStorage):
                                     logger.warning(
                                         f"Removing stale lock file from PID {pid}",
                                         extra={
-                                            'structured': True,
-                                            'event': 'stale_lock_detected',
-                                            'lock_type': 'file_based',
-                                            'file_path': str(lock_dir),
-                                            'stale_pid': pid,
-                                            'reason': f'process_{pid}_not_found'
-                                        }
+                                            "structured": True,
+                                            "event": "stale_lock_detected",
+                                            "lock_type": "file_based",
+                                            "file_path": str(lock_dir),
+                                            "stale_pid": pid,
+                                            "reason": f"process_{pid}_not_found",
+                                        },
                                     )
                                     # Remove the stale lock directory
                                     lock_pid_file.unlink(missing_ok=True)
                                     lock_dir.rmdir()
                                     # Continue to retry acquiring the lock
-                            except (ValueError, FileNotFoundError, OSError) as e:
+                            except (ValueError, FileNotFoundError, OSError):
                                 # Lock file is corrupted or unreadable
                                 # Wait and retry to avoid race conditions
                                 pass
@@ -5982,41 +6022,43 @@ class FileStorage(AbstractStorage):
                         logger.debug(
                             f"File lock acquired successfully for {file_handle.name}",
                             extra={
-                                'structured': True,
-                                'event': 'lock_acquired',
-                                'lock_type': 'unix_fcntl',
-                                'file_path': file_handle.name,
-                                'acquisition_time_seconds': elapsed,
-                                'lock_wait_ms': elapsed * 1000  # Issue #1618: Performance metric
-                            }
+                                "structured": True,
+                                "event": "lock_acquired",
+                                "lock_type": "unix_fcntl",
+                                "file_path": file_handle.name,
+                                "acquisition_time_seconds": elapsed,
+                                "lock_wait_ms": elapsed * 1000,  # Issue #1618: Performance metric
+                            },
                         )
                         break
-                    except IOError as e:
+                    except OSError as e:
                         # Lock is held by another process - log retry with structured data (Issue #922)
                         # Save error for potential reporting
                         last_error = e
                         elapsed = time.time() - start_time
-                        error_code = getattr(e, 'errno', None)
+                        error_code = getattr(e, "errno", None)
                         logger.debug(
                             f"Unix lock held by another process, retrying... "
                             f"(elapsed: {elapsed:.1f}s, errno: {error_code})",
                             extra={
-                                'structured': True,
-                                'event': 'lock_retry',
-                                'lock_type': 'unix_fcntl',
-                                'file_path': file_handle.name,
-                                'elapsed_seconds': elapsed,
-                                'retry_interval': self._lock_retry_interval,
-                                'error_code': error_code,
-                                'error_name': errno.errorcode.get(error_code, 'UNKNOWN') if error_code else None,
-                                'lock_timeout': self._lock_timeout
-                            }
+                                "structured": True,
+                                "event": "lock_retry",
+                                "lock_type": "unix_fcntl",
+                                "file_path": file_handle.name,
+                                "elapsed_seconds": elapsed,
+                                "retry_interval": self._lock_retry_interval,
+                                "error_code": error_code,
+                                "error_name": errno.errorcode.get(error_code, "UNKNOWN")
+                                if error_code
+                                else None,
+                                "lock_timeout": self._lock_timeout,
+                            },
                         )
                         # Wait before retrying
                         time.sleep(self._lock_retry_interval)
                         # Continue retry loop
 
-            except (IOError, RuntimeError) as e:
+            except (OSError, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
                     # Re-raise timeout errors as-is
                     logger.error(f"Failed to acquire Unix file lock: {e}")
@@ -6067,11 +6109,11 @@ class FileStorage(AbstractStorage):
             are re-raised to ensure lock release failures are not silently
             ignored (Issue #376).
         """
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             # Portability fix for Issue #671: Check if running in degraded mode
             if _is_degraded_mode():
                 # Issue #846: Release file-based lock
-                if hasattr(self, '_lock_range') and self._lock_range == "filelock":
+                if hasattr(self, "_lock_range") and self._lock_range == "filelock":
                     lock_file_path = file_handle.name + ".lock"
                     try:
                         # Remove the lock file to release the lock
@@ -6079,12 +6121,12 @@ class FileStorage(AbstractStorage):
                         logger.debug(
                             f"File-based lock released: {lock_file_path}",
                             extra={
-                                'structured': True,
-                                'event': 'lock_released',
-                                'lock_type': 'file_based',
-                                'file_path': lock_file_path,
-                                'mode': 'degraded'
-                            }
+                                "structured": True,
+                                "event": "lock_released",
+                                "lock_type": "file_based",
+                                "file_path": lock_file_path,
+                                "mode": "degraded",
+                            },
                         )
                         # Clear the tracked lock file path
                         self._lock_file_path = None
@@ -6140,18 +6182,18 @@ class FileStorage(AbstractStorage):
                 win32file.UnlockFile(
                     win_handle,
                     lock_range_low,  # NumberOfBytesToUnlockLow (LENGTH, must match lock)
-                    lock_range_high  # NumberOfBytesToUnlockHigh (LENGTH, must match lock)
+                    lock_range_high,  # NumberOfBytesToUnlockHigh (LENGTH, must match lock)
                 )
                 logger.debug(
                     f"File lock released successfully for {file_handle.name}",
                     extra={
-                        'structured': True,
-                        'event': 'lock_released',
-                        'lock_type': 'windows_win32',
-                        'file_path': file_handle.name,
-                        'lock_range_low': lock_range_low,
-                        'lock_range_high': lock_range_high
-                    }
+                        "structured": True,
+                        "event": "lock_released",
+                        "lock_type": "windows_win32",
+                        "file_path": file_handle.name,
+                        "lock_range_low": lock_range_low,
+                        "lock_range_high": lock_range_high,
+                    },
                 )
             except (pywintypes.error, RuntimeError) as e:
                 if isinstance(e, RuntimeError):
@@ -6164,7 +6206,7 @@ class FileStorage(AbstractStorage):
             # Portability fix for Issue #791: Check if running in degraded mode
             if _is_degraded_mode():
                 # Issue #829: Release file-based lock fallback
-                if hasattr(self, '_lock_range') and isinstance(self._lock_range, str):
+                if hasattr(self, "_lock_range") and isinstance(self._lock_range, str):
                     try:
                         lock_dir = Path(self._lock_range)
                         lock_pid_file = lock_dir / "pid"
@@ -6178,13 +6220,13 @@ class FileStorage(AbstractStorage):
                         logger.debug(
                             f"Lock file fallback released for {file_handle.name}",
                             extra={
-                                'structured': True,
-                                'event': 'lock_released',
-                                'lock_type': 'file_based',
-                                'file_path': file_handle.name,
-                                'lock_dir': str(lock_dir),
-                                'mode': 'degraded'
-                            }
+                                "structured": True,
+                                "event": "lock_released",
+                                "lock_type": "file_based",
+                                "file_path": file_handle.name,
+                                "lock_dir": str(lock_dir),
+                                "mode": "degraded",
+                            },
                         )
                         return
                     except Exception as e:
@@ -6200,13 +6242,13 @@ class FileStorage(AbstractStorage):
                 logger.debug(
                     f"File lock released successfully for {file_handle.name}",
                     extra={
-                        'structured': True,
-                        'event': 'lock_released',
-                        'lock_type': 'unix_fcntl',
-                        'file_path': file_handle.name
-                    }
+                        "structured": True,
+                        "event": "lock_released",
+                        "lock_type": "unix_fcntl",
+                        "file_path": file_handle.name,
+                    },
                 )
-            except IOError as e:
+            except OSError as e:
                 logger.error(f"Failed to release Unix file lock: {e}")
                 raise
 
@@ -6272,7 +6314,7 @@ class FileStorage(AbstractStorage):
             Security fix for Issue #514: In degraded mode without pywin32, directory
             security is skipped with a warning. This is UNSAFE for production use.
         """
-        if os.name != 'nt':  # Unix-like systems
+        if os.name != "nt":  # Unix-like systems
             try:
                 directory.chmod(0o700)
             except OSError as e:
@@ -6331,9 +6373,9 @@ class FileStorage(AbstractStorage):
                 # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
                 # This can happen in non-domain environments and causes
                 # LookupAccountName to fail
-                if '\\' in user:
+                if "\\" in user:
                     # Extract the part after the last backslash
-                    parts = user.rsplit('\\', 1)
+                    parts = user.rsplit("\\", 1)
                     if len(parts) == 2:
                         user = parts[1]
 
@@ -6347,14 +6389,14 @@ class FileStorage(AbstractStorage):
                         )
                     # Extract domain from the qualified DN
                     # Format: CN=user,OU=users,DC=domain,DC=com
-                    parts = name.split(',')
+                    parts = name.split(",")
                     # Build domain from all DC= parts (execute once, not in loop)
                     # Validate that split results have expected format (Issue #349)
                     dc_parts = []
                     for p in parts:
                         p = p.strip()
-                        if p.startswith('DC='):
-                            split_parts = p.split('=', 1)
+                        if p.startswith("DC="):
+                            split_parts = p.split("=", 1)
                             if len(split_parts) >= 2:
                                 dc_parts.append(split_parts[1])
                             else:
@@ -6364,7 +6406,7 @@ class FileStorage(AbstractStorage):
                                     f"Expected format 'DC=value', got '{p}'"
                                 )
                     if dc_parts:
-                        domain = '.'.join(dc_parts)
+                        domain = ".".join(dc_parts)
                     else:
                         # Fallback to local computer if no domain found
                         domain = win32api.GetComputerName()
@@ -6435,13 +6477,13 @@ class FileStorage(AbstractStorage):
                 dacl = win32security.ACL()
                 dacl.AddAccessAllowedAce(
                     win32security.ACL_REVISION,
-                    win32con.FILE_LIST_DIRECTORY |
-                    win32con.FILE_ADD_FILE |
-                    win32con.FILE_READ_ATTRIBUTES |
-                    win32con.FILE_WRITE_ATTRIBUTES |
-                    win32con.DELETE |
-                    win32con.SYNCHRONIZE,
-                    sid
+                    win32con.FILE_LIST_DIRECTORY
+                    | win32con.FILE_ADD_FILE
+                    | win32con.FILE_READ_ATTRIBUTES
+                    | win32con.FILE_WRITE_ATTRIBUTES
+                    | win32con.DELETE
+                    | win32con.SYNCHRONIZE,
+                    sid,
                 )
 
                 security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
@@ -6455,24 +6497,18 @@ class FileStorage(AbstractStorage):
 
                 # Fix Issue #256: Explicitly set DACL protection to prevent inheritance
                 # This ensures PROTECTED_DACL_SECURITY_INFORMATION flag takes effect
-                security_descriptor.SetSecurityDescriptorControl(
-                    win32security.SE_DACL_PROTECTED, 1
-                )
+                security_descriptor.SetSecurityDescriptorControl(win32security.SE_DACL_PROTECTED, 1)
 
                 # Apply the security descriptor to the directory
                 # Include OWNER_SECURITY_INFORMATION to ensure owner info is applied (Issue #264)
                 # Include SACL_SECURITY_INFORMATION to ensure SACL is applied (Issue #277)
                 security_info = (
-                    win32security.DACL_SECURITY_INFORMATION |
-                    win32security.PROTECTED_DACL_SECURITY_INFORMATION |
-                    win32security.OWNER_SECURITY_INFORMATION |
-                    win32security.SACL_SECURITY_INFORMATION
+                    win32security.DACL_SECURITY_INFORMATION
+                    | win32security.PROTECTED_DACL_SECURITY_INFORMATION
+                    | win32security.OWNER_SECURITY_INFORMATION
+                    | win32security.SACL_SECURITY_INFORMATION
                 )
-                win32security.SetFileSecurity(
-                    str(directory),
-                    security_info,
-                    security_descriptor
-                )
+                win32security.SetFileSecurity(str(directory), security_info, security_descriptor)
                 logger.debug(f"Applied restrictive ACLs to {directory}")
                 win32_success = True
 
@@ -6543,6 +6579,7 @@ class FileStorage(AbstractStorage):
 
         # Create and secure each directory with retry mechanism (Issue #409)
         import time
+
         max_retries = 5
         base_delay = 0.01  # 10ms starting delay
 
@@ -6553,7 +6590,7 @@ class FileStorage(AbstractStorage):
 
             for attempt in range(max_retries):
                 try:
-                    if os.name == 'nt':  # Windows - use atomic directory creation (Issue #400)
+                    if os.name == "nt":  # Windows - use atomic directory creation (Issue #400)
                         if not directory.exists():
                             # Portability fix for Issue #671: Check if running in degraded mode
                             if _is_degraded_mode():
@@ -6578,8 +6615,8 @@ class FileStorage(AbstractStorage):
 
                                 # Fix Issue #251: Extract pure username if GetUserName returns
                                 # 'COMPUTERNAME\\username' or 'DOMAIN\\username' format
-                                if '\\' in user:
-                                    parts = user.rsplit('\\', 1)
+                                if "\\" in user:
+                                    parts = user.rsplit("\\", 1)
                                     if len(parts) == 2:
                                         user = parts[1]
 
@@ -6591,28 +6628,30 @@ class FileStorage(AbstractStorage):
                                             f"GetUserNameEx returned non-string value: {type(name).__name__}"
                                         )
                                     # Extract domain from the qualified DN
-                                    parts = name.split(',')
+                                    parts = name.split(",")
                                     dc_parts = []
                                     for p in parts:
                                         p = p.strip()
-                                        if p.startswith('DC='):
-                                            split_parts = p.split('=', 1)
+                                        if p.startswith("DC="):
+                                            split_parts = p.split("=", 1)
                                             if len(split_parts) >= 2:
                                                 dc_parts.append(split_parts[1])
                                     if dc_parts:
-                                        domain = '.'.join(dc_parts)
+                                        domain = ".".join(dc_parts)
                                     else:
                                         domain = win32api.GetComputerName()
                                 except (TypeError, ValueError):
                                     raise RuntimeError(
-                                        f"Cannot set Windows security: GetUserNameEx returned invalid data. "
-                                        f"Install pywin32: pip install pywin32"
+                                        "Cannot set Windows security: GetUserNameEx returned invalid data. "
+                                        "Install pywin32: pip install pywin32"
                                     )
                                 except Exception:
                                     domain = win32api.GetComputerName()
 
                                 # Validate domain
-                                if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                                if domain is None or (
+                                    isinstance(domain, str) and len(domain.strip()) == 0
+                                ):
                                     raise RuntimeError(
                                         "Cannot set Windows security: Unable to determine domain. "
                                         "Install pywin32: pip install pywin32"
@@ -6641,13 +6680,13 @@ class FileStorage(AbstractStorage):
                                 dacl = win32security.ACL()
                                 dacl.AddAccessAllowedAce(
                                     win32security.ACL_REVISION,
-                                    win32con.FILE_LIST_DIRECTORY |
-                                    win32con.FILE_ADD_FILE |
-                                    win32con.FILE_READ_ATTRIBUTES |
-                                    win32con.FILE_WRITE_ATTRIBUTES |
-                                    win32con.DELETE |
-                                    win32con.SYNCHRONIZE,
-                                    sid
+                                    win32con.FILE_LIST_DIRECTORY
+                                    | win32con.FILE_ADD_FILE
+                                    | win32con.FILE_READ_ATTRIBUTES
+                                    | win32con.FILE_WRITE_ATTRIBUTES
+                                    | win32con.DELETE
+                                    | win32con.SYNCHRONIZE,
+                                    sid,
                                 )
 
                                 security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
@@ -6665,10 +6704,7 @@ class FileStorage(AbstractStorage):
                                 # win32file.CreateDirectory creates the directory with the specified
                                 # security attributes atomically - there's no time window where
                                 # the directory exists with insecure permissions.
-                                win32file.CreateDirectory(
-                                    str(directory),
-                                    security_descriptor
-                                )
+                                win32file.CreateDirectory(str(directory), security_descriptor)
 
                     else:  # Unix-like systems
                         # On Unix, create the directory and immediately secure it
@@ -6762,7 +6798,7 @@ class FileStorage(AbstractStorage):
 
                     # Exponential backoff before retry
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         time.sleep(delay)
 
                 except Exception as e:
@@ -6824,7 +6860,7 @@ class FileStorage(AbstractStorage):
                     os.close(fd)
 
                 # Lock acquired - store the lock path for cleanup
-                if not hasattr(self, '_directory_locks'):
+                if not hasattr(self, "_directory_locks"):
                     self._directory_locks = []
                 self._directory_locks.append(lock_path)
 
@@ -6834,7 +6870,7 @@ class FileStorage(AbstractStorage):
                 # Lock file exists - check if it's stale (from a crashed process)
                 try:
                     # Try to read the lock file
-                    with open(lock_path, 'r') as f:
+                    with open(lock_path) as f:
                         pid_str = f.read().strip()
 
                     # Check if the process is still running
@@ -6845,7 +6881,7 @@ class FileStorage(AbstractStorage):
                         # Process is still running - lock is valid
                         # Wait and retry
                         if attempt < max_retries - 1:
-                            delay = base_delay * (2 ** attempt)
+                            delay = base_delay * (2**attempt)
                             time.sleep(delay)
                             continue
                         else:
@@ -6864,7 +6900,7 @@ class FileStorage(AbstractStorage):
                             # Someone else removed it or we can't remove it
                             # Just retry
                             if attempt < max_retries - 1:
-                                delay = base_delay * (2 ** attempt)
+                                delay = base_delay * (2**attempt)
                                 time.sleep(delay)
                                 continue
                             else:
@@ -6873,10 +6909,10 @@ class FileStorage(AbstractStorage):
                                     f"after {max_retries} attempts"
                                 )
 
-                except (OSError, IOError) as e:
+                except OSError as e:
                     # Can't read lock file - treat as locked and retry
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         time.sleep(delay)
                         continue
                     else:
@@ -6887,13 +6923,11 @@ class FileStorage(AbstractStorage):
             except OSError as e:
                 # Other error creating lock file
                 if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
+                    delay = base_delay * (2**attempt)
                     time.sleep(delay)
                     continue
                 else:
-                    raise RuntimeError(
-                        f"Failed to create lock file for {directory}: {e}"
-                    ) from e
+                    raise RuntimeError(f"Failed to create lock file for {directory}: {e}") from e
 
         # Should not reach here
         raise RuntimeError(
@@ -6919,7 +6953,7 @@ class FileStorage(AbstractStorage):
                 os.remove(lock_path)
 
             # Remove from our tracking list
-            if hasattr(self, '_directory_locks') and lock_path in self._directory_locks:
+            if hasattr(self, "_directory_locks") and lock_path in self._directory_locks:
                 self._directory_locks.remove(lock_path)
 
         except OSError:
@@ -6966,21 +7000,21 @@ class FileStorage(AbstractStorage):
             for lock_file in directory.glob("*.lock"):
                 try:
                     # Read lock file content
-                    with open(lock_file, 'r') as f:
+                    with open(lock_file) as f:
                         content = f.read()
 
                     # Extract PID and timestamp
                     locked_pid = None
                     locked_at = None
-                    for line in content.split('\n'):
-                        if line.startswith('pid='):
+                    for line in content.split("\n"):
+                        if line.startswith("pid="):
                             try:
-                                locked_pid = int(line.split('=')[1])
+                                locked_pid = int(line.split("=")[1])
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('locked_at='):
+                        elif line.startswith("locked_at="):
                             try:
-                                locked_at = float(line.split('=')[1])
+                                locked_at = float(line.split("=")[1])
                             except (ValueError, IndexError):
                                 pass
 
@@ -7008,23 +7042,24 @@ class FileStorage(AbstractStorage):
                     # Remove stale lock files
                     if is_stale:
                         logger.warning(
-                            f"Found stale lock file ({stale_reason}), "
-                            f"removing: {lock_file}",
+                            f"Found stale lock file ({stale_reason}), removing: {lock_file}",
                             extra={
-                                'structured': True,
-                                'event': 'stale_lock_cleanup',
-                                'lock_type': 'file_based',
-                                'file_path': str(lock_file),
-                                'reason': stale_reason,
-                                'stale_pid': locked_pid
-                            }
+                                "structured": True,
+                                "event": "stale_lock_cleanup",
+                                "lock_type": "file_based",
+                                "file_path": str(lock_file),
+                                "reason": stale_reason,
+                                "stale_pid": locked_pid,
+                            },
                         )
                         try:
                             os.unlink(lock_file)
                             logger.debug(f"Stale lock file removed: {lock_file}")
                         except FileNotFoundError:
                             # Another process already removed the stale lock
-                            logger.debug(f"Stale lock already removed by another process: {lock_file}")
+                            logger.debug(
+                                f"Stale lock already removed by another process: {lock_file}"
+                            )
                         except OSError as e:
                             logger.warning(f"Failed to remove stale lock: {e}")
 
@@ -7074,21 +7109,21 @@ class FileStorage(AbstractStorage):
             for lock_file in directory.glob("*.lock"):
                 try:
                     # Read lock file content
-                    with open(lock_file, 'r') as f:
+                    with open(lock_file) as f:
                         content = f.read()
 
                     # Extract PID and timestamp
                     locked_pid = None
                     locked_at = None
-                    for line in content.split('\n'):
-                        if line.startswith('pid='):
+                    for line in content.split("\n"):
+                        if line.startswith("pid="):
                             try:
-                                locked_pid = int(line.split('=')[1])
+                                locked_pid = int(line.split("=")[1])
                             except (ValueError, IndexError):
                                 pass
-                        elif line.startswith('locked_at='):
+                        elif line.startswith("locked_at="):
                             try:
-                                locked_at = float(line.split('=')[1])
+                                locked_at = float(line.split("=")[1])
                             except (ValueError, IndexError):
                                 pass
 
@@ -7116,23 +7151,24 @@ class FileStorage(AbstractStorage):
                     # Remove stale lock files
                     if is_stale:
                         logger.warning(
-                            f"Found stale lock file ({stale_reason}), "
-                            f"removing: {lock_file}",
+                            f"Found stale lock file ({stale_reason}), removing: {lock_file}",
                             extra={
-                                'structured': True,
-                                'event': 'stale_lock_cleanup',
-                                'lock_type': 'file_based',
-                                'file_path': str(lock_file),
-                                'reason': stale_reason,
-                                'stale_pid': locked_pid
-                            }
+                                "structured": True,
+                                "event": "stale_lock_cleanup",
+                                "lock_type": "file_based",
+                                "file_path": str(lock_file),
+                                "reason": stale_reason,
+                                "stale_pid": locked_pid,
+                            },
                         )
                         try:
                             os.unlink(lock_file)
                             logger.debug(f"Stale lock file removed: {lock_file}")
                         except FileNotFoundError:
                             # Another process already removed the stale lock
-                            logger.debug(f"Stale lock already removed by another process: {lock_file}")
+                            logger.debug(
+                                f"Stale lock already removed by another process: {lock_file}"
+                            )
                         except OSError as e:
                             logger.warning(f"Failed to remove stale lock: {e}")
 
@@ -7228,7 +7264,7 @@ class FileStorage(AbstractStorage):
         # lock-based approach.
         # On Windows: Use the existing loop-based approach with win32file.CreateDirectory
         # for atomic directory creation with proper ACLs.
-        if os.name != 'nt':  # Unix-like systems
+        if os.name != "nt":  # Unix-like systems
             # Security fix for Issue #561: Use os.makedirs with controlled umask
             # This is simpler and more atomic than the lock-based approach.
             # os.makedirs with exist_ok=True handles race conditions where multiple
@@ -7268,7 +7304,7 @@ class FileStorage(AbstractStorage):
                     # If directory doesn't exist yet, retry
                     last_error = f"FileExistsError but directory not found: {directory}"
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)  # Exponential backoff
+                        delay = base_delay * (2**attempt)  # Exponential backoff
                         logger.debug(
                             f"Retry {attempt + 1}/{max_retries} after {delay:.3f}s: {last_error}"
                         )
@@ -7276,7 +7312,7 @@ class FileStorage(AbstractStorage):
                 except OSError as e:
                     # Handle other OS-level errors (e.g., EEXIST on some systems)
                     # errno 17 is EEXIST on Unix systems
-                    if e.errno == 17 or hasattr(e, 'winerror') and e.winerror == 183:
+                    if e.errno == 17 or (hasattr(e, "winerror") and e.winerror == 183):
                         # Directory already exists - verify and continue
                         if directory.exists() and directory.is_dir():
                             logger.debug(
@@ -7287,7 +7323,7 @@ class FileStorage(AbstractStorage):
                     # For other errors, retry or raise
                     last_error = str(e)
                     if attempt < max_retries - 1:
-                        delay = base_delay * (2 ** attempt)
+                        delay = base_delay * (2**attempt)
                         logger.debug(
                             f"Retry {attempt + 1}/{max_retries} after {delay:.3f}s: {last_error}"
                         )
@@ -7336,7 +7372,9 @@ class FileStorage(AbstractStorage):
                             self._secure_directory(parent_dir)
                             continue
                         except Exception as secure_error:
-                            logger.warning(f"Failed to secure directory {parent_dir}: {secure_error}")
+                            logger.warning(
+                                f"Failed to secure directory {parent_dir}: {secure_error}"
+                            )
                             continue
                     else:
                         # Directory doesn't exist and we can't create it
@@ -7345,6 +7383,7 @@ class FileStorage(AbstractStorage):
 
                 # Retry loop for handling race conditions (Issue #409, #486)
                 import time
+
                 max_retries = 5
                 base_delay = 0.01  # 10ms starting delay
                 success = False
@@ -7375,8 +7414,8 @@ class FileStorage(AbstractStorage):
                                     user = win32api.GetUserName()
 
                                     # Fix Issue #251: Extract pure username
-                                    if '\\' in user:
-                                        parts = user.rsplit('\\', 1)
+                                    if "\\" in user:
+                                        parts = user.rsplit("\\", 1)
                                         if len(parts) == 2:
                                             user = parts[1]
 
@@ -7387,35 +7426,41 @@ class FileStorage(AbstractStorage):
                                             raise TypeError(
                                                 f"GetUserNameEx returned non-string value: {type(name).__name__}"
                                             )
-                                        parts = name.split(',')
+                                        parts = name.split(",")
                                         dc_parts = []
                                         for p in parts:
                                             p = p.strip()
-                                            if p.startswith('DC='):
-                                                split_parts = p.split('=', 1)
+                                            if p.startswith("DC="):
+                                                split_parts = p.split("=", 1)
                                                 if len(split_parts) >= 2:
                                                     dc_parts.append(split_parts[1])
                                         if dc_parts:
-                                            domain = '.'.join(dc_parts)
+                                            domain = ".".join(dc_parts)
                                         else:
                                             domain = win32api.GetComputerName()
                                     except (TypeError, ValueError):
                                         raise RuntimeError(
-                                            f"Cannot set Windows security: GetUserNameEx returned invalid data. "
-                                            f"Install pywin32: pip install pywin32"
+                                            "Cannot set Windows security: GetUserNameEx returned invalid data. "
+                                            "Install pywin32: pip install pywin32"
                                         )
                                     except Exception:
                                         domain = win32api.GetComputerName()
 
                                     # Validate domain
-                                    if domain is None or (isinstance(domain, str) and len(domain.strip()) == 0):
+                                    if domain is None or (
+                                        isinstance(domain, str) and len(domain.strip()) == 0
+                                    ):
                                         raise RuntimeError(
                                             "Cannot set Windows security: Unable to determine domain. "
                                             "Install pywin32: pip install pywin32"
                                         )
 
                                     # Validate user
-                                    if not user or not isinstance(user, str) or len(user.strip()) == 0:
+                                    if (
+                                        not user
+                                        or not isinstance(user, str)
+                                        or len(user.strip()) == 0
+                                    ):
                                         raise ValueError(
                                             f"Invalid user name '{user}': Cannot set Windows security."
                                         )
@@ -7437,13 +7482,13 @@ class FileStorage(AbstractStorage):
                                     dacl = win32security.ACL()
                                     dacl.AddAccessAllowedAce(
                                         win32security.ACL_REVISION,
-                                        win32con.FILE_LIST_DIRECTORY |
-                                        win32con.FILE_ADD_FILE |
-                                        win32con.FILE_READ_ATTRIBUTES |
-                                        win32con.FILE_WRITE_ATTRIBUTES |
-                                        win32con.DELETE |
-                                        win32con.SYNCHRONIZE,
-                                        sid
+                                        win32con.FILE_LIST_DIRECTORY
+                                        | win32con.FILE_ADD_FILE
+                                        | win32con.FILE_READ_ATTRIBUTES
+                                        | win32con.FILE_WRITE_ATTRIBUTES
+                                        | win32con.DELETE
+                                        | win32con.SYNCHRONIZE,
+                                        sid,
                                     )
 
                                     security_descriptor.SetSecurityDescriptorDacl(1, dacl, 0)
@@ -7458,10 +7503,7 @@ class FileStorage(AbstractStorage):
                                     )
 
                                     # Create directory atomically with security descriptor
-                                    win32file.CreateDirectory(
-                                        str(parent_dir),
-                                        security_descriptor
-                                    )
+                                    win32file.CreateDirectory(str(parent_dir), security_descriptor)
 
                             # Always secure the directory (Issue #481, #486)
                             # Even if we just created it, call _secure_directory to ensure consistency
@@ -7483,13 +7525,15 @@ class FileStorage(AbstractStorage):
                                 except Exception as verify_error:
                                     last_error = verify_error
                                     if attempt < max_retries - 1:
-                                        delay = base_delay * (2 ** attempt)
+                                        delay = base_delay * (2**attempt)
                                         time.sleep(delay)
                             else:
                                 # Directory doesn't exist but we got FileExistsError
-                                last_error = Exception("Got FileExistsError but directory doesn't exist")
+                                last_error = Exception(
+                                    "Got FileExistsError but directory doesn't exist"
+                                )
                                 if attempt < max_retries - 1:
-                                    delay = base_delay * (2 ** attempt)
+                                    delay = base_delay * (2**attempt)
                                     time.sleep(delay)
 
                         except PermissionError as e:
@@ -7513,37 +7557,35 @@ class FileStorage(AbstractStorage):
                             last_error = e
                             break
 
-                # After all retries, check if we succeeded
-                if not success:
-                    # Security fix for Issue #434: Check if the error is permission-related
-                    # If so, log a warning and continue instead of crashing
-                    error_is_permission_related = (
-                        isinstance(last_error, PermissionError) or
-                        (isinstance(last_error, RuntimeError) and
-                         ("Permission denied" in str(last_error) or
-                          "Cannot continue without secure directory permissions" in str(last_error)))
-                    )
-
-                    if error_is_permission_related:
-                        # Log a warning and continue
-                        logger.warning(
-                            f"Cannot secure directory {parent_dir}: {last_error}. "
-                            f"This may be due to insufficient permissions. The application will "
-                            f"continue, but this directory may have less restrictive permissions."
+                    # After all retries, check if we succeeded
+                    if not success:
+                        # Security fix for Issue #434: Check if the error is permission-related
+                        # If so, log a warning and continue instead of crashing
+                        error_is_permission_related = isinstance(last_error, PermissionError) or (
+                            isinstance(last_error, RuntimeError)
+                            and (
+                                "Permission denied" in str(last_error)
+                                or "Cannot continue without secure directory permissions"
+                                in str(last_error)
+                            )
                         )
-                        # Continue to next directory instead of raising
-                        continue
-                    else:
-                        # For other errors, still raise to prevent running with insecure state
-                        raise RuntimeError(
-                            f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
-                            f"Last error: {last_error}. "
-                            f"Cannot continue without secure directory permissions."
-                        ) from last_error
 
-                except BaseException:
-                    # Re-raise any exceptions
-                    raise
+                        if error_is_permission_related:
+                            # Log a warning and continue
+                            logger.warning(
+                                f"Cannot secure directory {parent_dir}: {last_error}. "
+                                f"This may be due to insufficient permissions. The application will "
+                                f"continue, but this directory may have less restrictive permissions."
+                            )
+                            # Continue to next directory instead of raising
+                            continue
+                        else:
+                            # For other errors, still raise to prevent running with insecure state
+                            raise RuntimeError(
+                                f"Failed to create and secure directory {parent_dir} after {max_retries} attempts. "
+                                f"Last error: {last_error}. "
+                                f"Cannot continue without secure directory permissions."
+                            ) from last_error
                 finally:
                     # Security fix for Issue #521: Always release the lock, even if an error occurred
                     if lock_acquired:
@@ -7628,7 +7670,7 @@ class FileStorage(AbstractStorage):
         stale locks from blocking future processes.
         """
         # Skip cleanup if already closed (Issue #688)
-        if hasattr(self, '_closed') and self._closed:
+        if hasattr(self, "_closed") and self._closed:
             return
 
         if self._dirty:
@@ -7653,9 +7695,11 @@ class FileStorage(AbstractStorage):
         # Issue #874: Clean up lock file in degraded mode
         # This ensures locks are released even on abnormal termination
         # when __del__ might not be called or close() was not invoked
-        if (hasattr(self, '_lock_file_path') and
-            self._lock_file_path is not None and
-            os.path.exists(self._lock_file_path)):
+        if (
+            hasattr(self, "_lock_file_path")
+            and self._lock_file_path is not None
+            and os.path.exists(self._lock_file_path)
+        ):
             try:
                 os.unlink(self._lock_file_path)
                 logger.info(f"Cleaned up lock file on exit: {self._lock_file_path}")
@@ -7693,7 +7737,11 @@ class FileStorage(AbstractStorage):
 
         # Rotate existing backups: .bak.N-1 -> .bak.N
         for i in range(self.backup_count - 1, 0, -1):
-            old_backup = self.path.parent / f"{self.path.name}.bak.{i - 1}" if i > 1 else self.path.parent / f"{self.path.name}.bak"
+            old_backup = (
+                self.path.parent / f"{self.path.name}.bak.{i - 1}"
+                if i > 1
+                else self.path.parent / f"{self.path.name}.bak"
+            )
             new_backup = self.path.parent / f"{self.path.name}.bak.{i}"
 
             if old_backup.exists():
@@ -7703,7 +7751,7 @@ class FileStorage(AbstractStorage):
                     # 2. Sync to disk (flush)
                     # 3. Atomically rename to target path
                     # This prevents data loss if the process crashes during write
-                    temp_backup = new_backup.with_suffix(new_backup.suffix + '.tmp')
+                    temp_backup = new_backup.with_suffix(new_backup.suffix + ".tmp")
 
                     # Copy to temporary file first
                     shutil.copy2(old_backup, temp_backup)
@@ -7722,7 +7770,7 @@ class FileStorage(AbstractStorage):
             # 2. Sync to disk (flush)
             # 3. Atomically rename to target path
             # This prevents data loss if the process crashes during write
-            temp_backup = backup_path.with_suffix(backup_path.suffix + '.tmp')
+            temp_backup = backup_path.with_suffix(backup_path.suffix + ".tmp")
 
             # Copy to temporary file first
             shutil.copy2(self.path, temp_backup)
@@ -7766,7 +7814,11 @@ class FileStorage(AbstractStorage):
 
         # Rotate existing backups: .bak.N-1 -> .bak.N
         for i in range(self.backup_count - 1, 0, -1):
-            old_backup = self.path.parent / f"{self.path.name}.bak.{i - 1}" if i > 1 else self.path.parent / f"{self.path.name}.bak"
+            old_backup = (
+                self.path.parent / f"{self.path.name}.bak.{i - 1}"
+                if i > 1
+                else self.path.parent / f"{self.path.name}.bak"
+            )
             new_backup = self.path.parent / f"{self.path.name}.bak.{i}"
 
             if old_backup.exists():
@@ -7776,14 +7828,14 @@ class FileStorage(AbstractStorage):
                     # 2. Sync to disk (flush)
                     # 3. Atomically rename to target path
                     # This prevents data loss if the process crashes during write
-                    temp_backup = new_backup.with_suffix(new_backup.suffix + '.tmp')
+                    temp_backup = new_backup.with_suffix(new_backup.suffix + ".tmp")
 
                     # Use async file copy for non-blocking I/O
-                    async with aiofiles.open(old_backup, 'rb') as src_file:
+                    async with aiofiles.open(old_backup, "rb") as src_file:
                         data = await src_file.read()
 
                     # Write to temporary file
-                    async with aiofiles.open(temp_backup, 'wb') as dst_file:
+                    async with aiofiles.open(temp_backup, "wb") as dst_file:
                         await dst_file.write(data)
                         await dst_file.flush()
                         os.fsync(dst_file.fileno())
@@ -7805,14 +7857,14 @@ class FileStorage(AbstractStorage):
             # 2. Sync to disk (flush)
             # 3. Atomically rename to target path
             # This prevents data loss if the process crashes during write
-            temp_backup = backup_path.with_suffix(backup_path.suffix + '.tmp')
+            temp_backup = backup_path.with_suffix(backup_path.suffix + ".tmp")
 
             # Use async file copy for non-blocking I/O
-            async with aiofiles.open(self.path, 'rb') as src_file:
+            async with aiofiles.open(self.path, "rb") as src_file:
                 data = await src_file.read()
 
             # Write to temporary file
-            async with aiofiles.open(temp_backup, 'wb') as dst_file:
+            async with aiofiles.open(temp_backup, "wb") as dst_file:
                 await dst_file.write(data)
                 await dst_file.flush()
                 os.fsync(dst_file.fileno())
@@ -7837,7 +7889,7 @@ class FileStorage(AbstractStorage):
         """
         # Serialize todos to JSON for hashing
         todos_json = json.dumps([t.to_dict() for t in todos], sort_keys=True)
-        return hashlib.sha256(todos_json.encode('utf-8')).hexdigest()
+        return hashlib.sha256(todos_json.encode("utf-8")).hexdigest()
 
     def _validate_storage_schema(self, data: dict | list) -> None:
         """Validate the storage data schema for security (Issue #7).
@@ -7871,10 +7923,10 @@ class FileStorage(AbstractStorage):
                         f"Invalid schema: 'metadata' must be a dict, got {type(data['metadata']).__name__}"
                     )
                 # Checksum is optional but must be a string if present
-                if "checksum" in data["metadata"] and not isinstance(data["metadata"]["checksum"], str):
-                    raise RuntimeError(
-                        f"Invalid schema: 'metadata.checksum' must be a string"
-                    )
+                if "checksum" in data["metadata"] and not isinstance(
+                    data["metadata"]["checksum"], str
+                ):
+                    raise RuntimeError("Invalid schema: 'metadata.checksum' must be a string")
 
             # Validate 'todos' field
             if "todos" in data:
@@ -7890,7 +7942,9 @@ class FileStorage(AbstractStorage):
                         f"Invalid schema: 'next_id' must be an int, got {type(data['next_id']).__name__}"
                     )
                 if data["next_id"] < 1:
-                    raise RuntimeError(f"Invalid schema: 'next_id' must be >= 1, got {data['next_id']}")
+                    raise RuntimeError(
+                        f"Invalid schema: 'next_id' must be >= 1, got {data['next_id']}"
+                    )
 
         elif isinstance(data, list):
             # Old format - list of todos
@@ -7942,8 +7996,7 @@ class FileStorage(AbstractStorage):
             # Validate basic field types
             if not isinstance(todo.title, str):
                 logger.warning(
-                    f"Skipping todo {todo.id} with invalid title type: "
-                    f"{type(todo.title).__name__}"
+                    f"Skipping todo {todo.id} with invalid title type: {type(todo.title).__name__}"
                 )
                 continue
 
@@ -7978,6 +8031,7 @@ class FileStorage(AbstractStorage):
         Uses aiofiles for non-blocking async I/O (Issue #582).
         """
         import time
+
         start_time = time.time()
         logger.debug(f"Loading todos from {self.path}")
 
@@ -8004,34 +8058,40 @@ class FileStorage(AbstractStorage):
                 # This allows us to detect file truncation or corruption
                 # Use aiofiles for async non-blocking I/O (Issue #582)
                 logger.debug(f"Reading file {self.path}")
-                async with aiofiles.open(self.path, 'rb') as f:
+                async with aiofiles.open(self.path, "rb") as f:
                     logger.debug("Acquiring file lock for read operation")
                     self._acquire_file_lock(f)
                     try:
                         file_bytes = await f.read()
-                        bytes_read = len(file_bytes)  # Track bytes for performance logging (Issue #758)
+                        bytes_read = len(
+                            file_bytes
+                        )  # Track bytes for performance logging (Issue #758)
                     finally:
                         self._release_file_lock(f)
 
                 # Extract and verify integrity hash from end of file (Issue #588)
                 # Format: \n##INTEGRITY:<hash>##\n
-                file_str = file_bytes.decode('utf-8')
-                integrity_marker = '##INTEGRITY:'
+                file_str = file_bytes.decode("utf-8")
+                integrity_marker = "##INTEGRITY:"
                 marker_start = file_str.rfind(integrity_marker)
 
                 if marker_start != -1:
                     # Found integrity marker - extract and verify hash
-                    marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                    marker_end = file_str.find("##", marker_start + len(integrity_marker))
                     if marker_end != -1:
-                        stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+                        stored_hash = file_str[marker_start + len(integrity_marker) : marker_end]
 
                         # Calculate hash of the data before the integrity marker
                         # Find the newline before the marker
-                        data_end = file_str.rfind('\n', 0, marker_start)
+                        data_end = file_str.rfind("\n", 0, marker_start)
                         if data_end == -1:
                             data_end = 0  # No newline found, use entire content before marker
 
-                        actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                        actual_data = (
+                            file_bytes[:data_end]
+                            if data_end > 0
+                            else file_bytes[: marker_start - 1]
+                        )
                         calculated_hash = hashlib.sha256(actual_data).hexdigest()
 
                         if calculated_hash != stored_hash:
@@ -8046,14 +8106,16 @@ class FileStorage(AbstractStorage):
                             )
 
                         # Remove integrity marker from data for JSON parsing
-                        file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
-                        file_bytes = file_str.encode('utf-8')
+                        file_str = (
+                            file_str[:data_end] if data_end > 0 else file_str[: marker_start - 1]
+                        )
+                        file_bytes = file_str.encode("utf-8")
 
                 # Decompress if needed
                 if is_compressed:
                     file_bytes = gzip.decompress(file_bytes)
 
-                raw_data = json.loads(file_bytes.decode('utf-8'))
+                raw_data = json.loads(file_bytes.decode("utf-8"))
 
                 # Validate schema before deserializing (Issue #7)
                 # This prevents injection attacks and malformed data from causing crashes
@@ -8140,7 +8202,11 @@ class FileStorage(AbstractStorage):
                 elapsed = time.time() - start_time
                 logger.debug(
                     f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
-                    extra={'duration_ms': elapsed * 1000, 'operation': 'load', 'bytes_read': bytes_read}
+                    extra={
+                        "duration_ms": elapsed * 1000,
+                        "operation": "load",
+                        "bytes_read": bytes_read,
+                    },
                 )
             except json.JSONDecodeError as e:
                 # Create backup before raising exception to prevent data loss
@@ -8151,7 +8217,7 @@ class FileStorage(AbstractStorage):
                     f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
                     f"Backup saved to {backup_path}"
                 ) from e
-            except RuntimeError as e:
+            except RuntimeError:
                 # Re-raise RuntimeError without creating backup
                 # This handles format validation errors that should not trigger backup
                 raise
@@ -8176,6 +8242,7 @@ class FileStorage(AbstractStorage):
         detect changes and automatically invalidate stale entries.
         """
         import time
+
         start_time = time.time()
         logger.debug(f"Loading todos from {self.path} (synchronously)")
 
@@ -8200,7 +8267,11 @@ class FileStorage(AbstractStorage):
                     elapsed = time.time() - start_time
                     logger.debug(
                         f"Load completed in {elapsed:.3f}s (cached, {len(cached_todos)} todos)",
-                        extra={'duration_ms': elapsed * 1000, 'operation': 'load_cached', 'todos_count': len(cached_todos)}
+                        extra={
+                            "duration_ms": elapsed * 1000,
+                            "operation": "load_cached",
+                            "todos_count": len(cached_todos),
+                        },
                     )
                     return
 
@@ -8216,7 +8287,7 @@ class FileStorage(AbstractStorage):
             # Read file as bytes first to verify integrity hash (Issue #588)
             # This allows us to detect file truncation or corruption
             # Use standard file I/O for synchronous loading
-            with open(self.path, 'rb') as f:
+            with open(self.path, "rb") as f:
                 self._acquire_file_lock(f)
                 try:
                     file_bytes = f.read()
@@ -8226,23 +8297,25 @@ class FileStorage(AbstractStorage):
 
             # Extract and verify integrity hash from end of file (Issue #588)
             # Format: \n##INTEGRITY:<hash>##\n
-            file_str = file_bytes.decode('utf-8')
-            integrity_marker = '##INTEGRITY:'
+            file_str = file_bytes.decode("utf-8")
+            integrity_marker = "##INTEGRITY:"
             marker_start = file_str.rfind(integrity_marker)
 
             if marker_start != -1:
                 # Found integrity marker - extract and verify hash
-                marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                marker_end = file_str.find("##", marker_start + len(integrity_marker))
                 if marker_end != -1:
-                    stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+                    stored_hash = file_str[marker_start + len(integrity_marker) : marker_end]
 
                     # Calculate hash of the data before the integrity marker
                     # Find the newline before the marker
-                    data_end = file_str.rfind('\n', 0, marker_start)
+                    data_end = file_str.rfind("\n", 0, marker_start)
                     if data_end == -1:
                         data_end = 0  # No newline found, use entire content before marker
 
-                    actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                    actual_data = (
+                        file_bytes[:data_end] if data_end > 0 else file_bytes[: marker_start - 1]
+                    )
                     calculated_hash = hashlib.sha256(actual_data).hexdigest()
 
                     if calculated_hash != stored_hash:
@@ -8257,14 +8330,14 @@ class FileStorage(AbstractStorage):
                         )
 
                     # Remove integrity marker from data for JSON parsing
-                    file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
-                    file_bytes = file_str.encode('utf-8')
+                    file_str = file_str[:data_end] if data_end > 0 else file_str[: marker_start - 1]
+                    file_bytes = file_str.encode("utf-8")
 
             # Decompress if needed
             if is_compressed:
                 file_bytes = gzip.decompress(file_bytes)
 
-            raw_data = json.loads(file_bytes.decode('utf-8'))
+            raw_data = json.loads(file_bytes.decode("utf-8"))
 
             # Validate schema before deserializing (Issue #7)
             # This prevents injection attacks and malformed data from causing crashes
@@ -8368,7 +8441,11 @@ class FileStorage(AbstractStorage):
             elapsed = time.time() - start_time
             logger.debug(
                 f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
-                extra={'duration_ms': elapsed * 1000, 'operation': 'load_sync', 'bytes_read': bytes_read}
+                extra={
+                    "duration_ms": elapsed * 1000,
+                    "operation": "load_sync",
+                    "bytes_read": bytes_read,
+                },
             )
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
@@ -8379,7 +8456,7 @@ class FileStorage(AbstractStorage):
                 f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
                 f"Backup saved to {backup_path}"
             ) from e
-        except RuntimeError as e:
+        except RuntimeError:
             # Re-raise RuntimeError without creating backup
             # This handles format validation errors that should not trigger backup
             raise
@@ -8399,11 +8476,12 @@ class FileStorage(AbstractStorage):
         updating internal state.
         """
         import time
+
         start_time = time.time()
         # Fix for Issue #1502: Use structured logging for monitoring
         logger.debug(
             f"Loading todos from {self.path} (asynchronously)",
-            extra={'component': 'storage', 'op': 'load_async'}
+            extra={"component": "storage", "op": "load_async"},
         )
 
         if not self.path.exists():
@@ -8418,7 +8496,7 @@ class FileStorage(AbstractStorage):
 
             # Read file asynchronously using aiofiles (Issue #747)
             # This prevents blocking the event loop during file I/O
-            async with aiofiles.open(self.path, 'rb') as f:
+            async with aiofiles.open(self.path, "rb") as f:
                 # Acquire file lock for multi-process safety (Issue #268)
                 self._acquire_file_lock(f)
                 try:
@@ -8429,23 +8507,25 @@ class FileStorage(AbstractStorage):
 
             # Extract and verify integrity hash from end of file (Issue #588)
             # Format: \n##INTEGRITY:<hash>##\n
-            file_str = file_bytes.decode('utf-8')
-            integrity_marker = '##INTEGRITY:'
+            file_str = file_bytes.decode("utf-8")
+            integrity_marker = "##INTEGRITY:"
             marker_start = file_str.rfind(integrity_marker)
 
             if marker_start != -1:
                 # Found integrity marker - extract and verify hash
-                marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                marker_end = file_str.find("##", marker_start + len(integrity_marker))
                 if marker_end != -1:
-                    stored_hash = file_str[marker_start + len(integrity_marker):marker_end]
+                    stored_hash = file_str[marker_start + len(integrity_marker) : marker_end]
 
                     # Calculate hash of the data before the integrity marker
                     # Find the newline before the marker
-                    data_end = file_str.rfind('\n', 0, marker_start)
+                    data_end = file_str.rfind("\n", 0, marker_start)
                     if data_end == -1:
                         data_end = 0  # No newline found, use entire content before marker
 
-                    actual_data = file_bytes[:data_end] if data_end > 0 else file_bytes[:marker_start-1]
+                    actual_data = (
+                        file_bytes[:data_end] if data_end > 0 else file_bytes[: marker_start - 1]
+                    )
                     calculated_hash = hashlib.sha256(actual_data).hexdigest()
 
                     if calculated_hash != stored_hash:
@@ -8460,14 +8540,14 @@ class FileStorage(AbstractStorage):
                         )
 
                     # Remove integrity marker from data for JSON parsing
-                    file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
-                    file_bytes = file_str.encode('utf-8')
+                    file_str = file_str[:data_end] if data_end > 0 else file_str[: marker_start - 1]
+                    file_bytes = file_str.encode("utf-8")
 
             # Decompress if needed
             if is_compressed:
                 file_bytes = gzip.decompress(file_bytes)
 
-            raw_data = json.loads(file_bytes.decode('utf-8'))
+            raw_data = json.loads(file_bytes.decode("utf-8"))
 
             # Validate schema before deserializing (Issue #7)
             # This prevents injection attacks and malformed data from causing crashes
@@ -8560,7 +8640,11 @@ class FileStorage(AbstractStorage):
             elapsed = time.time() - start_time
             logger.debug(
                 f"Load completed in {elapsed:.3f}s ({len(todos)} todos loaded, {bytes_read} bytes read)",
-                extra={'duration_ms': elapsed * 1000, 'operation': 'load_sync', 'bytes_read': bytes_read}
+                extra={
+                    "duration_ms": elapsed * 1000,
+                    "operation": "load_sync",
+                    "bytes_read": bytes_read,
+                },
             )
         except json.JSONDecodeError as e:
             # Create backup before raising exception to prevent data loss
@@ -8571,7 +8655,7 @@ class FileStorage(AbstractStorage):
                 f"Invalid JSON in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}. "
                 f"Backup saved to {backup_path}"
             ) from e
-        except RuntimeError as e:
+        except RuntimeError:
             # Re-raise RuntimeError without creating backup
             # This handles format validation errors that should not trigger backup
             raise
@@ -8606,7 +8690,6 @@ class FileStorage(AbstractStorage):
         Dry run mode (Issue #987):
         When dry_run is True, skips actual file writes but logs what would have happened.
         """
-        import tempfile
         import copy
         import time
 
@@ -8615,11 +8698,11 @@ class FileStorage(AbstractStorage):
             logger.info(
                 f"Dry run mode: Would save {len(self._todos)} todos to {self.path}",
                 extra={
-                    'structured': True,
-                    'event': 'dry_run_save_skipped',
-                    'file_path': str(self.path),
-                    'todo_count': len(self._todos)
-                }
+                    "structured": True,
+                    "event": "dry_run_save_skipped",
+                    "file_path": str(self.path),
+                    "todo_count": len(self._todos),
+                },
             )
             # Mark as saved to prevent dirty flag from persisting
             self._dirty = False
@@ -8638,19 +8721,20 @@ class FileStorage(AbstractStorage):
         # Save with metadata for efficient ID generation and data integrity (Issue #223)
         # Calculate checksum of todos data
         checksum = self._calculate_checksum(todos_copy)
-        data = json.dumps({
-            "todos": [t.to_dict() for t in todos_copy],
-            "next_id": next_id_copy,
-            "metadata": {
-                "checksum": checksum
-            }
-        }, indent=2)
+        data = json.dumps(
+            {
+                "todos": [t.to_dict() for t in todos_copy],
+                "next_id": next_id_copy,
+                "metadata": {"checksum": checksum},
+            },
+            indent=2,
+        )
 
         # Use compression setting from initialization (Issue #652)
         is_compressed = self.compression
 
         # Encode data to bytes
-        data_bytes = data.encode('utf-8')
+        data_bytes = data.encode("utf-8")
 
         # Compress data if compression is enabled
         if is_compressed:
@@ -8660,7 +8744,7 @@ class FileStorage(AbstractStorage):
         # This helps detect silent data corruption or JSON truncation
         file_hash = hashlib.sha256(data_bytes).hexdigest()
         # Use a special delimiter that won't appear in JSON
-        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode()
         data_bytes_with_hash = data_bytes + hash_footer
 
         # Write to temporary file first
@@ -8679,7 +8763,7 @@ class FileStorage(AbstractStorage):
                 raise
 
             # Write data asynchronously using aiofiles (Issue #582)
-            async with aiofiles.open(temp_path, 'wb') as f:
+            async with aiofiles.open(temp_path, "wb") as f:
                 await f.write(data_bytes_with_hash)
                 await f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
@@ -8691,12 +8775,20 @@ class FileStorage(AbstractStorage):
                 read_back_data = await f.read()
 
                 # Separate the hash footer from the actual data
-                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                hash_footer_start = read_back_data.find(b"##INTEGRITY:")
                 if hash_footer_start != -1:
-                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    hash_footer_end = read_back_data.find(
+                        b"##", hash_footer_start + len(b"##INTEGRITY:")
+                    )
                     if hash_footer_end != -1:
                         # Extract the stored hash
-                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+                        stored_hash = (
+                            read_back_data[
+                                hash_footer_start + len(b"##INTEGRITY:") : hash_footer_end
+                            ]
+                            .decode("utf-8")
+                            .strip()
+                        )
 
                         # Calculate hash of the actual data (before footer)
                         actual_data = read_back_data[:hash_footer_start]
@@ -8709,37 +8801,37 @@ class FileStorage(AbstractStorage):
                                 f"expected {stored_hash}, calculated {calculated_hash}. "
                                 f"This indicates silent data corruption! Data may be lost.",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_failed',
-                                    'file_path': str(temp_path),
-                                    'expected_hash': stored_hash,
-                                    'calculated_hash': calculated_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_failed",
+                                    "file_path": str(temp_path),
+                                    "expected_hash": stored_hash,
+                                    "calculated_hash": calculated_hash,
+                                },
                             )
                         else:
                             logger.debug(
                                 f"SHA256 integrity verification passed for {temp_path}",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_passed',
-                                    'file_path': str(temp_path),
-                                    'hash': stored_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_passed",
+                                    "file_path": str(temp_path),
+                                    "hash": stored_hash,
+                                },
                             )
 
             # Close is handled by the context manager
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
-            # Use async backup rotation to avoid blocking event loop (Issue #747)
+            # Sync path should use sync backup rotation.
             if self.backup_count > 0 and self.path.exists():
-                await self._rotate_backups_async()
+                self._rotate_backups()
 
             # Atomically replace the original file using os.replace (Issue #227)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
             # Use aiofiles for async file operations to avoid blocking event loop (Issue #747)
             if self.path.exists():
-                async with aiofiles.open(self.path, 'r') as target_file:
+                async with aiofiles.open(self.path, "r") as target_file:
                     self._acquire_file_lock(target_file)
                     try:
                         os.replace(temp_path, self.path)
@@ -8758,10 +8850,16 @@ class FileStorage(AbstractStorage):
 
             # Log successful save completion
             elapsed = time.time() - start_time
-            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            bytes_written = len(
+                data_bytes_with_hash
+            )  # Track bytes for performance logging (Issue #758)
             logger.debug(
                 f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
-                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+                extra={
+                    "duration_ms": elapsed * 1000,
+                    "operation": "save",
+                    "bytes_written": bytes_written,
+                },
             )
         except Exception:
             # Clean up temp file on error
@@ -8801,7 +8899,6 @@ class FileStorage(AbstractStorage):
             - This ensures the old file remains intact until the new one is fully ready
         """
         import copy
-        import tempfile
         import time
 
         start_time = time.time()
@@ -8826,19 +8923,20 @@ class FileStorage(AbstractStorage):
         # Save with metadata for efficient ID generation and data integrity (Issue #223)
         # Calculate checksum of todos data
         checksum = self._calculate_checksum(todos_copy)
-        data = json.dumps({
-            "todos": [t.to_dict() for t in todos_copy],
-            "next_id": next_id_copy,
-            "metadata": {
-                "checksum": checksum
-            }
-        }, indent=2)
+        data = json.dumps(
+            {
+                "todos": [t.to_dict() for t in todos_copy],
+                "next_id": next_id_copy,
+                "metadata": {"checksum": checksum},
+            },
+            indent=2,
+        )
 
         # Use compression setting from initialization (Issue #652)
         is_compressed = self.compression
 
         # Encode data to bytes
-        data_bytes = data.encode('utf-8')
+        data_bytes = data.encode("utf-8")
 
         # Compress data if compression is enabled
         if is_compressed:
@@ -8848,7 +8946,7 @@ class FileStorage(AbstractStorage):
         # This helps detect silent data corruption or JSON truncation
         file_hash = hashlib.sha256(data_bytes).hexdigest()
         # Use a special delimiter that won't appear in JSON
-        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode()
         data_bytes_with_hash = data_bytes + hash_footer
 
         # Write to temporary file first (Issue #748: Transaction support)
@@ -8867,7 +8965,7 @@ class FileStorage(AbstractStorage):
                 raise
 
             # Write data synchronously (Issue #748: uses temp file for transaction safety)
-            with temp_path.open('wb') as f:
+            with temp_path.open("wb") as f:
                 f.write(data_bytes_with_hash)
                 f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
@@ -8879,12 +8977,20 @@ class FileStorage(AbstractStorage):
                 read_back_data = f.read()
 
                 # Separate the hash footer from the actual data
-                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                hash_footer_start = read_back_data.find(b"##INTEGRITY:")
                 if hash_footer_start != -1:
-                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    hash_footer_end = read_back_data.find(
+                        b"##", hash_footer_start + len(b"##INTEGRITY:")
+                    )
                     if hash_footer_end != -1:
                         # Extract the stored hash
-                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+                        stored_hash = (
+                            read_back_data[
+                                hash_footer_start + len(b"##INTEGRITY:") : hash_footer_end
+                            ]
+                            .decode("utf-8")
+                            .strip()
+                        )
 
                         # Calculate hash of the actual data (before footer)
                         actual_data = read_back_data[:hash_footer_start]
@@ -8897,35 +9003,35 @@ class FileStorage(AbstractStorage):
                                 f"expected {stored_hash}, calculated {calculated_hash}. "
                                 f"This indicates silent data corruption! Data may be lost.",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_failed',
-                                    'file_path': str(temp_path),
-                                    'expected_hash': stored_hash,
-                                    'calculated_hash': calculated_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_failed",
+                                    "file_path": str(temp_path),
+                                    "expected_hash": stored_hash,
+                                    "calculated_hash": calculated_hash,
+                                },
                             )
                         else:
                             logger.debug(
                                 f"SHA256 integrity verification passed for {temp_path}",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_passed',
-                                    'file_path': str(temp_path),
-                                    'hash': stored_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_passed",
+                                    "file_path": str(temp_path),
+                                    "hash": stored_hash,
+                                },
                             )
 
             # Create backup before replacing if backup_count > 0 (Issue #693)
-            # Use async backup rotation to avoid blocking event loop (Issue #747)
+            # Sync path should use sync backup rotation.
             if self.backup_count > 0 and self.path.exists():
-                await self._rotate_backups_async()
+                self._rotate_backups()
 
             # Atomically replace the original file using os.replace (Issue #227, #748)
             # os.replace is atomic on POSIX systems and handles target file existence on Windows
             # This provides transaction support: either all data is written or none (Issue #748)
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
             if self.path.exists():
-                with self.path.open('r') as target_file:
+                with self.path.open("r") as target_file:
                     self._acquire_file_lock(target_file)
                     try:
                         os.replace(temp_path, self.path)
@@ -8951,7 +9057,9 @@ class FileStorage(AbstractStorage):
                 # Recalculate _next_id to maintain consistency (fixes Issue #101)
                 # If the new todos contain higher IDs than current _next_id, update it
                 if todos:
-                    max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
+                    max_id = max(
+                        (t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0
+                    )
                     if max_id >= self._next_id:
                         self._next_id = max_id + 1
                 # Mark as clean after successful save (Issue #203)
@@ -8961,10 +9069,16 @@ class FileStorage(AbstractStorage):
 
             # Log successful save completion
             elapsed = time.time() - start_time
-            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            bytes_written = len(
+                data_bytes_with_hash
+            )  # Track bytes for performance logging (Issue #758)
             logger.debug(
                 f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
-                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+                extra={
+                    "duration_ms": elapsed * 1000,
+                    "operation": "save",
+                    "bytes_written": bytes_written,
+                },
             )
         except Exception:
             # Clean up temp file on error (Issue #748: ensure no partial writes remain)
@@ -9018,19 +9132,20 @@ class FileStorage(AbstractStorage):
         # Save with metadata for efficient ID generation and data integrity (Issue #223)
         # Calculate checksum of todos data
         checksum = self._calculate_checksum(todos_copy)
-        data = json.dumps({
-            "todos": [t.to_dict() for t in todos_copy],
-            "next_id": next_id_copy,
-            "metadata": {
-                "checksum": checksum
-            }
-        }, indent=2)
+        data = json.dumps(
+            {
+                "todos": [t.to_dict() for t in todos_copy],
+                "next_id": next_id_copy,
+                "metadata": {"checksum": checksum},
+            },
+            indent=2,
+        )
 
         # Use compression setting from initialization (Issue #652)
         is_compressed = self.compression
 
         # Encode data to bytes
-        data_bytes = data.encode('utf-8')
+        data_bytes = data.encode("utf-8")
 
         # Compress data if compression is enabled
         if is_compressed:
@@ -9040,7 +9155,7 @@ class FileStorage(AbstractStorage):
         # This helps detect silent data corruption or JSON truncation
         file_hash = hashlib.sha256(data_bytes).hexdigest()
         # Use a special delimiter that won't appear in JSON
-        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode('utf-8')
+        hash_footer = f"\n##INTEGRITY:{file_hash}##\n".encode()
         data_bytes_with_hash = data_bytes + hash_footer
 
         # Write to temporary file first
@@ -9059,7 +9174,7 @@ class FileStorage(AbstractStorage):
                 raise
 
             # Write data asynchronously using aiofiles (Issue #582)
-            async with aiofiles.open(temp_path, 'wb') as f:
+            async with aiofiles.open(temp_path, "wb") as f:
                 await f.write(data_bytes_with_hash)
                 await f.flush()
                 os.fsync(f.fileno())  # Ensure data is written to disk
@@ -9071,12 +9186,20 @@ class FileStorage(AbstractStorage):
                 read_back_data = await f.read()
 
                 # Separate the hash footer from the actual data
-                hash_footer_start = read_back_data.find(b'##INTEGRITY:')
+                hash_footer_start = read_back_data.find(b"##INTEGRITY:")
                 if hash_footer_start != -1:
-                    hash_footer_end = read_back_data.find(b'##', hash_footer_start + len(b'##INTEGRITY:'))
+                    hash_footer_end = read_back_data.find(
+                        b"##", hash_footer_start + len(b"##INTEGRITY:")
+                    )
                     if hash_footer_end != -1:
                         # Extract the stored hash
-                        stored_hash = read_back_data[hash_footer_start + len(b'##INTEGRITY:'):hash_footer_end].decode('utf-8').strip()
+                        stored_hash = (
+                            read_back_data[
+                                hash_footer_start + len(b"##INTEGRITY:") : hash_footer_end
+                            ]
+                            .decode("utf-8")
+                            .strip()
+                        )
 
                         # Calculate hash of the actual data (before footer)
                         actual_data = read_back_data[:hash_footer_start]
@@ -9089,22 +9212,22 @@ class FileStorage(AbstractStorage):
                                 f"expected {stored_hash}, calculated {calculated_hash}. "
                                 f"This indicates silent data corruption! Data may be lost.",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_failed',
-                                    'file_path': str(temp_path),
-                                    'expected_hash': stored_hash,
-                                    'calculated_hash': calculated_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_failed",
+                                    "file_path": str(temp_path),
+                                    "expected_hash": stored_hash,
+                                    "calculated_hash": calculated_hash,
+                                },
                             )
                         else:
                             logger.debug(
                                 f"SHA256 integrity verification passed for {temp_path}",
                                 extra={
-                                    'structured': True,
-                                    'event': 'integrity_verification_passed',
-                                    'file_path': str(temp_path),
-                                    'hash': stored_hash
-                                }
+                                    "structured": True,
+                                    "event": "integrity_verification_passed",
+                                    "file_path": str(temp_path),
+                                    "hash": stored_hash,
+                                },
                             )
 
             # Close is handled by the context manager
@@ -9119,7 +9242,7 @@ class FileStorage(AbstractStorage):
             # Acquire file lock on target file before replacement for multi-process safety (Issue #268)
             # Use aiofiles for async file operations to avoid blocking event loop (Issue #747)
             if self.path.exists():
-                async with aiofiles.open(self.path, 'r') as target_file:
+                async with aiofiles.open(self.path, "r") as target_file:
                     self._acquire_file_lock(target_file)
                     try:
                         os.replace(temp_path, self.path)
@@ -9142,11 +9265,14 @@ class FileStorage(AbstractStorage):
                 # Use the original todos parameter to update internal state (fixes Issue #150)
                 # Deep copy to prevent external modifications from affecting internal state
                 import copy
+
                 self._todos = copy.deepcopy(todos)
                 # Recalculate _next_id to maintain consistency (fixes Issue #101)
                 # If the new todos contain higher IDs than current _next_id, update it
                 if todos:
-                    max_id = max((t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0)
+                    max_id = max(
+                        (t.id for t in todos if isinstance(t.id, int) and t.id > 0), default=0
+                    )
                     if max_id >= self._next_id:
                         self._next_id = max_id + 1
                 # Mark as clean after successful save (Issue #203)
@@ -9156,10 +9282,16 @@ class FileStorage(AbstractStorage):
 
             # Log successful save completion
             elapsed = time.time() - start_time
-            bytes_written = len(data_bytes_with_hash)  # Track bytes for performance logging (Issue #758)
+            bytes_written = len(
+                data_bytes_with_hash
+            )  # Track bytes for performance logging (Issue #758)
             logger.debug(
                 f"Save completed in {elapsed:.3f}s ({bytes_written} bytes written)",
-                extra={'duration_ms': elapsed * 1000, 'operation': 'save', 'bytes_written': bytes_written}
+                extra={
+                    "duration_ms": elapsed * 1000,
+                    "operation": "save",
+                    "bytes_written": bytes_written,
+                },
             )
         except Exception:
             # Clean up temp file on error
@@ -9202,7 +9334,9 @@ class FileStorage(AbstractStorage):
                     if existing_todo.id == todo_id:
                         # Todo with this ID already exists - raise an error
                         # The caller should use update() instead for existing todos
-                        raise ValueError(f"Todo with ID {todo_id} already exists. Use update() instead.")
+                        raise ValueError(
+                            f"Todo with ID {todo_id} already exists. Use update() instead."
+                        )
 
             # If todo doesn't have an ID, generate one atomically
             # Inline the ID generation logic to ensure atomicity with insertion
@@ -9267,6 +9401,23 @@ class FileStorage(AbstractStorage):
                     return todo
             return None
 
+    # Backward-compatible file-style APIs (Issue #1019 compatibility expectations)
+    def read(self) -> list[Todo]:
+        """Read all todos (alias for list)."""
+        return self.list()
+
+    def write(self, todos: list[Todo]) -> None:
+        """Write all todos at once (alias for _save_with_todos_sync)."""
+        self._save_with_todos_sync(todos)
+
+    def exists(self) -> bool:
+        """Check whether the storage file exists."""
+        return self.path.exists()
+
+    def list_files(self) -> list[str]:
+        """Return the storage file path as a single-item list."""
+        return [str(self.path)]
+
     def update(self, todo: Todo, dry_run: bool = False) -> Todo | None:
         """Update a todo.
 
@@ -9313,7 +9464,7 @@ class FileStorage(AbstractStorage):
                     via DRY_RUN_STORAGE=1 environment variable (Issue #1628).
         """
         # Check environment variable for global dry_run mode (Issue #1628)
-        env_dry_run = os.environ.get('DRY_RUN_STORAGE', '0').strip() in ('1', 'true', 'yes', 'on')
+        env_dry_run = os.environ.get("DRY_RUN_STORAGE", "0").strip() in ("1", "true", "yes", "on")
         effective_dry_run = dry_run or env_dry_run
 
         with self._lock:
@@ -9326,7 +9477,7 @@ class FileStorage(AbstractStorage):
             for i, t in enumerate(self._todos):
                 if t.id == todo_id:
                     # Create a copy of todos list without the deleted todo
-                    new_todos = self._todos[:i] + self._todos[i+1:]
+                    new_todos = self._todos[:i] + self._todos[i + 1 :]
                     # Mark as dirty since we're modifying the data (Issue #203)
                     self._dirty = True
                     # Mark cache as dirty when data changes (Issue #703)
@@ -9501,7 +9652,7 @@ class FileStorage(AbstractStorage):
             return []
 
         # Check environment variable for global dry_run mode (Issue #1628)
-        env_dry_run = os.environ.get('DRY_RUN_STORAGE', '0').strip() in ('1', 'true', 'yes', 'on')
+        env_dry_run = os.environ.get("DRY_RUN_STORAGE", "0").strip() in ("1", "true", "yes", "on")
         effective_dry_run = dry_run or env_dry_run
 
         with self._lock:
@@ -9710,7 +9861,7 @@ class FileStorage(AbstractStorage):
             for i, t in enumerate(self._todos):
                 if t.id == todo_id:
                     # Create a copy of todos list without the deleted todo
-                    new_todos = self._todos[:i] + self._todos[i+1:]
+                    new_todos = self._todos[:i] + self._todos[i + 1 :]
                     # Mark as dirty since we're modifying the data (Issue #203)
                     self._dirty = True
                     # Mark cache as dirty when data changes (Issue #703)
@@ -10014,7 +10165,7 @@ class FileStorage(AbstractStorage):
             current_mtime = os.path.getmtime(self.path)
             if current_mtime != self._cache_mtime:
                 # File was modified externally, mark cache as dirty
-                logger.debug(f"Cache invalidated due to external file modification")
+                logger.debug("Cache invalidated due to external file modification")
                 self._cache_dirty = True
 
         # Rebuild cache if dirty or empty
@@ -10051,8 +10202,8 @@ class FileStorage(AbstractStorage):
             >>> if storage.health_check():
             ...     print("Storage is healthy")
         """
-        import tempfile
         import shutil
+        import tempfile
 
         writable = False
         file_lock = False
@@ -10085,15 +10236,13 @@ class FileStorage(AbstractStorage):
         try:
             # Create a test temporary file in the storage directory
             fd, temp_path = tempfile.mkstemp(
-                dir=self.path.parent,
-                prefix=".health_check_",
-                suffix=".tmp"
+                dir=self.path.parent, prefix=".health_check_", suffix=".tmp"
             )
 
             try:
                 # Try to acquire a file lock on the temp file
                 # This tests both write permissions and locking mechanism
-                file_obj = os.fdopen(fd, 'r')
+                file_obj = os.fdopen(fd, "r")
                 self._acquire_file_lock(file_obj)
 
                 # If we got here, we can write and lock successfully
@@ -10113,7 +10262,7 @@ class FileStorage(AbstractStorage):
                 # Lock acquisition failed - clean up
                 file_lock = False
                 try:
-                    os.fdopen(fd, 'r').close()
+                    os.fdopen(fd, "r").close()
                 except:
                     pass
                 try:
@@ -10122,7 +10271,7 @@ class FileStorage(AbstractStorage):
                 except:
                     pass
 
-        except (OSError, IOError, PermissionError):
+        except (OSError, PermissionError):
             # Cannot create temp file - directory doesn't exist or isn't writable
             file_lock = False
             writable = False
@@ -10139,7 +10288,7 @@ class FileStorage(AbstractStorage):
                 is_compressed = self.compression
 
                 # Read file as bytes
-                with open(self.path, 'rb') as f:
+                with open(self.path, "rb") as f:
                     file_bytes = f.read()
 
                 # Check if file is empty
@@ -10149,22 +10298,27 @@ class FileStorage(AbstractStorage):
                     # Decompress if needed
                     if is_compressed:
                         import gzip
+
                         file_bytes = gzip.decompress(file_bytes)
 
                     # Parse JSON to verify integrity
-                    file_str = file_bytes.decode('utf-8')
+                    file_str = file_bytes.decode("utf-8")
 
                     # Handle integrity marker if present
-                    integrity_marker = '##INTEGRITY:'
+                    integrity_marker = "##INTEGRITY:"
                     marker_start = file_str.rfind(integrity_marker)
                     if marker_start != -1:
-                        marker_end = file_str.find('##', marker_start + len(integrity_marker))
+                        marker_end = file_str.find("##", marker_start + len(integrity_marker))
                         if marker_end != -1:
                             # Find the newline before the marker
-                            data_end = file_str.rfind('\n', 0, marker_start)
+                            data_end = file_str.rfind("\n", 0, marker_start)
                             if data_end == -1:
                                 data_end = 0
-                            file_str = file_str[:data_end] if data_end > 0 else file_str[:marker_start-1]
+                            file_str = (
+                                file_str[:data_end]
+                                if data_end > 0
+                                else file_str[: marker_start - 1]
+                            )
 
                     # Parse and validate JSON structure
                     data = json.loads(file_str)
@@ -10244,7 +10398,7 @@ class FileStorage(AbstractStorage):
             >>> storage.close()
         """
         # Idempotency check - only close once
-        if hasattr(self, '_closed') and self._closed:
+        if hasattr(self, "_closed") and self._closed:
             return
 
         # Save any pending changes before closing
@@ -10257,11 +10411,11 @@ class FileStorage(AbstractStorage):
                 logger.error(f"Failed to save pending changes on close: {e}")
 
         # Stop the auto-save background thread
-        if hasattr(self, '_auto_save_stop_event'):
+        if hasattr(self, "_auto_save_stop_event"):
             self._auto_save_stop_event.set()
 
         # Wait for the auto-save thread to finish (with timeout)
-        if hasattr(self, '_auto_save_thread') and self._auto_save_thread.is_alive():
+        if hasattr(self, "_auto_save_thread") and self._auto_save_thread.is_alive():
             # Give thread up to 2 seconds to finish gracefully
             self._auto_save_thread.join(timeout=2.0)
             if self._auto_save_thread.is_alive():
@@ -10269,9 +10423,11 @@ class FileStorage(AbstractStorage):
 
         # Issue #846: Clean up lock file if we're using file-based lock
         # This ensures locks are released even if the program crashes
-        if (hasattr(self, '_lock_file_path') and
-            self._lock_file_path is not None and
-            os.path.exists(self._lock_file_path)):
+        if (
+            hasattr(self, "_lock_file_path")
+            and self._lock_file_path is not None
+            and os.path.exists(self._lock_file_path)
+        ):
             try:
                 os.unlink(self._lock_file_path)
                 logger.info(f"Cleaned up lock file on close: {self._lock_file_path}")
@@ -10397,6 +10553,7 @@ class FileStorage(AbstractStorage):
             # The atexit handler will handle proper cleanup
             pass
 
+
 # Backward compatibility alias (issue #568)
 # Storage is now an alias to FileStorage to maintain backward compatibility
 Storage = FileStorage
@@ -10427,8 +10584,9 @@ def _get_global_metrics() -> IOMetrics:
         _global_io_metrics = IOMetrics()
 
         # Register atexit handler to dump metrics if FW_STORAGE_METRICS_FILE is set
-        metrics_file = os.environ.get('FW_STORAGE_METRICS_FILE')
+        metrics_file = os.environ.get("FW_STORAGE_METRICS_FILE")
         if metrics_file:
+
             def _dump_metrics_on_exit():
                 """Dump metrics to file on program exit (Issue #1068)."""
                 if _global_io_metrics:

@@ -1,82 +1,167 @@
-name: Auto Fix
+name: Auto Fix Candidates
 
 on:
   schedule:
-    - cron: '30 * * * *'  # Every hour at minute 30 (30min after scan)
+    - cron: "30 * * * *"
   workflow_dispatch:
-
-# Temporarily disabled
-if: false
+    inputs:
+      issue_number:
+        description: "Optional: fix a specific issue number"
+        required: false
+        type: string
 
 permissions:
   contents: write
+  pull-requests: write
   issues: write
+  actions: read
+  id-token: write
+
+concurrency:
+  group: auto-fix-candidates
+  cancel-in-progress: false
 
 jobs:
-  fix:
+  select-issue:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.pick.outputs.should_run }}
+      issue_number: ${{ steps.pick.outputs.issue_number }}
+      issue_title: ${{ steps.pick.outputs.issue_title }}
+      issue_url: ${{ steps.pick.outputs.issue_url }}
+    steps:
+      - name: Select next issue
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_ISSUE_NUMBER:-}" ]; then
+            ISSUE_JSON="$(gh issue view "$INPUT_ISSUE_NUMBER" --json number,title,url,state,labels)"
+            STATE="$(echo "$ISSUE_JSON" | jq -r '.state')"
+            HAS_FROZEN="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "frozen")')"
+            HAS_FAILED="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "auto-fix-failed")')"
+            if [ "$STATE" != "OPEN" ] || [ "$HAS_FROZEN" = "true" ] || [ "$HAS_FAILED" = "true" ]; then
+              echo "Specified issue is not eligible for auto-fix."
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "issue_number=$(echo "$ISSUE_JSON" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+            echo "issue_title=$(echo "$ISSUE_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
+            echo "issue_url=$(echo "$ISSUE_JSON" | jq -r '.url')" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          OPEN_PR_ISSUES_JSON="$(
+            gh pr list --state open --limit 200 --json title \
+            | jq -c '
+                map(
+                  .title
+                  | capture("^\\[AUTOFIX\\]\\[ISSUE-(?<id>[0-9]+)\\]")?
+                  | .id?
+                  | select(. != null)
+                  | tonumber
+                )
+                | unique
+              '
+          )"
+
+          ISSUES_JSON="$(gh issue list --state open --limit 100 --json number,title,url,labels)"
+
+          BEST="$(echo "$ISSUES_JSON" | jq -r '
+            map(
+              .label_names = [.labels[].name]
+              | .priority = (
+                  if (.label_names | index("p0")) then 0
+                  elif (.label_names | index("p1")) then 1
+                  elif (.label_names | index("p2")) then 2
+                  elif (.label_names | index("p3")) then 3
+                  else 99
+                  end
+                )
+            )
+            | map(select((.label_names | index("frozen")) | not))
+            | map(select((.label_names | index("auto-fix-failed")) | not))
+            | map(select((.number as $n | $busy | index($n)) | not))
+            | sort_by(.priority, .number)
+            | .[0] // empty
+          ' --argjson busy "$OPEN_PR_ISSUES_JSON")"
+
+          if [ -z "$BEST" ]; then
+            echo "No eligible issue found."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$(echo "$BEST" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+          echo "issue_title=$(echo "$BEST" | jq -r '.title')" >> "$GITHUB_OUTPUT"
+          echo "issue_url=$(echo "$BEST" | jq -r '.url')" >> "$GITHUB_OUTPUT"
+
+  generate-candidates:
+    needs: select-issue
+    if: needs.select-issue.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
+    strategy:
+      fail-fast: false
+      matrix:
+        candidate_id: [1, 2, 3]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          fetch-depth: 0
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          source $HOME/.cargo/env
+      - name: Generate candidate PR with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            You are candidate #${{ matrix.candidate_id }} for fixing issue #${{ needs.select-issue.outputs.issue_number }}.
 
-      - name: Install dependencies
-        run: uv sync
+            Issue:
+            - Number: #${{ needs.select-issue.outputs.issue_number }}
+            - Title: ${{ needs.select-issue.outputs.issue_title }}
+            - URL: ${{ needs.select-issue.outputs.issue_url }}
 
-      - name: Install Claude CLI
-        shell: bash
-        run: |
-          CLAUDE_CODE_VERSION="2.0.76"
-          echo "Installing Claude Code v${CLAUDE_CODE_VERSION}..."
-          for attempt in 1 2 3; do
-            echo "Installation attempt $attempt..."
-            if command -v timeout &> /dev/null; then
-              timeout 120 bash -c "curl -fsSL https://claude.ai/install.sh | bash -s -- $CLAUDE_CODE_VERSION" && break
-            else
-              curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_CODE_VERSION" && break
-            fi
-            if [ $attempt -eq 3 ]; then
-              echo "Failed to install Claude Code after 3 attempts"
-              exit 1
-            fi
-            echo "Installation failed, retrying..."
-            sleep 5
-          done
-          echo "Claude Code installed successfully"
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            Required output:
+            1. Implement a focused fix using TDD:
+               - Add or update a failing regression test first.
+               - Implement minimal fix.
+               - Run `uv run pytest ...` and `uv run ruff check ...` on changed scope.
+            2. Create a branch with EXACT name:
+               `claude/issue-${{ needs.select-issue.outputs.issue_number }}-candidate-${{ matrix.candidate_id }}-${{ github.run_id }}`
+            3. Commit using conventional commits and include issue number.
+            4. Create ONE PR to `master` with EXACT title prefix:
+               `[AUTOFIX][ISSUE-${{ needs.select-issue.outputs.issue_number }}][CANDIDATE-${{ matrix.candidate_id }}]`
+               followed by a short summary.
+            5. PR body must include:
+               - Summary of change
+               - Tests run
+               - Risks/limitations
+               - `Closes #${{ needs.select-issue.outputs.issue_number }}`
+            6. Never push directly to master.
+            7. If blocked, comment on the issue with reason and add label `auto-fix-failed` if label exists.
 
-      - name: Configure git
-        run: |
-          git config --global user.name "AI Flywheel"
-          git config --global user.email "ai-flywheel@github.com"
+            Constraints:
+            - Keep diff small and reviewable.
+            - Do not modify workflows or secrets.
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
 
-      - name: Run auto fixer
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_FIXES: "3"
-          CI_TIMEOUT: "1800"
-          LOG_LEVEL: "INFO"
-        run: |
-          uv run python scripts/fix_simple.py
-
-      - name: Summary
+      - name: Candidate summary
         if: always()
         run: |
-          echo "### Fix Results" >> $GITHUB_STEP_SUMMARY
-          echo "Check git log for details:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          git log --author="AI Flywheel" --oneline -5 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "### Candidate Run" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Issue: #${{ needs.select-issue.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Candidate: ${{ matrix.candidate_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Title: ${{ needs.select-issue.outputs.issue_title }}" >> "$GITHUB_STEP_SUMMARY"

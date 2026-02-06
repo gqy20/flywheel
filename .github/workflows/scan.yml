@@ -2,15 +2,27 @@ name: Scan Issues
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour at minute 0
+    - cron: "0 * * * *" # Every hour at minute 0
   workflow_dispatch:
-
-# Temporarily disabled
-if: false
+    inputs:
+      max_issues:
+        description: "Max issues to create in one run"
+        required: false
+        default: "5"
+        type: string
+      target_dir:
+        description: "Directory to scan"
+        required: false
+        default: "src"
+        type: string
 
 permissions:
   contents: read
   issues: write
+
+concurrency:
+  group: scan-issues
+  cancel-in-progress: false
 
 jobs:
   scan:
@@ -39,13 +51,16 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_ISSUES: "5"
-          TARGET_DIR: "src"
+          MAX_ISSUES: ${{ inputs.max_issues || '5' }}
+          TARGET_DIR: ${{ inputs.target_dir || 'src' }}
           LOG_LEVEL: "INFO"
         run: |
           uv run python scripts/scan.py
 
       - name: Summary
+        env:
+          GH_PAGER: cat
+          PAGER: cat
         run: |
           echo "### Scan Results" >> $GITHUB_STEP_SUMMARY
           echo "- Issues created: $(gh issue list --state open --json number | jq 'length')" >> $GITHUB_STEP_SUMMARY

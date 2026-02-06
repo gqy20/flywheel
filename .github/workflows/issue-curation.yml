@@ -1,0 +1,90 @@
+name: Issue Curation
+
+on:
+  schedule:
+    - cron: "50 * * * *"
+  workflow_dispatch:
+    inputs:
+      max_open_issues:
+        description: "Target max number of open issues"
+        required: false
+        default: "20"
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: issue-curation
+  cancel-in-progress: false
+
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Curate issue pool
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAX_OPEN_ISSUES: ${{ inputs.max_open_issues || '20' }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issues_json="$(gh issue list --state open --limit 200 --json number,title,updatedAt,labels,url)"
+          total_open="$(echo "$issues_json" | jq 'length')"
+
+          echo "Total open issues: $total_open"
+          echo "Target max open issues: $MAX_OPEN_ISSUES"
+
+          if [ "$total_open" -le "$MAX_OPEN_ISSUES" ]; then
+            echo "Issue count is within limit; no action needed."
+            exit 0
+          fi
+
+          to_close_count=$(( total_open - MAX_OPEN_ISSUES ))
+          echo "Need to close $to_close_count issue(s)."
+
+          # Close lower-priority, older issues first. Keep frozen issues untouched.
+          close_numbers="$(
+            echo "$issues_json" | jq -r --argjson n "$to_close_count" '
+              map(
+                .label_names = [.labels[].name]
+                | .priority = (
+                    if (.label_names | index("p0")) then 0
+                    elif (.label_names | index("p1")) then 1
+                    elif (.label_names | index("p2")) then 2
+                    elif (.label_names | index("p3")) then 3
+                    else 4
+                    end
+                  )
+              )
+              | map(select((.label_names | index("frozen")) | not))
+              | sort_by(-.priority, .updatedAt)
+              | .[:$n]
+              | .[].number
+            '
+          )"
+
+          closed=0
+          for num in $close_numbers; do
+            echo "Closing issue #$num"
+            gh issue close "$num" \
+              --comment "Auto-curation: issue pool is capped at $MAX_OPEN_ISSUES open issues. Closing lower-priority backlog item; reopen if needed." \
+              || true
+            closed=$((closed + 1))
+          done
+
+          echo "Closed $closed issue(s)."
+
+      - name: Summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAGER: cat
+          PAGER: cat
+        run: |
+          echo "### Issue Curation" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Open issues after curation: $(gh issue list --state open --json number | jq 'length')" >> "$GITHUB_STEP_SUMMARY"
