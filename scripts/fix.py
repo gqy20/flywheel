@@ -52,6 +52,14 @@ class FixContext:
         )
 
 
+@dataclass(frozen=True)
+class RuntimeConfig:
+    max_turns: int
+    stage_max_retries: int
+    token_budget_chars: int
+    stage_turn_overrides: dict[str, int]
+
+
 def _required_env(name: str) -> str:
     value = os.environ.get(name, "").strip()
     if not value:
@@ -73,6 +81,30 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     state["updated_at"] = datetime.now(UTC).isoformat()
     path.write_text(json.dumps(state, indent=2, ensure_ascii=True) + "\n")
+
+
+def _parse_runtime_config() -> RuntimeConfig:
+    max_turns = int(os.environ.get("CLAUDE_MAX_TURNS", "20"))
+    stage_max_retries = int(os.environ.get("CLAUDE_STAGE_MAX_RETRIES", "1"))
+    token_budget_chars = int(os.environ.get("CLAUDE_TOKEN_BUDGET_CHARS", "120000"))
+    stage_turn_overrides: dict[str, int] = {}
+    raw_overrides = os.environ.get("CLAUDE_STAGE_MAX_TURNS_JSON", "").strip()
+
+    if raw_overrides:
+        try:
+            payload = cast(dict[str, Any], json.loads(raw_overrides))
+            for key, value in payload.items():
+                if key in STAGES and isinstance(value, int) and value > 0:
+                    stage_turn_overrides[key] = value
+        except json.JSONDecodeError:
+            logger.warning("Invalid CLAUDE_STAGE_MAX_TURNS_JSON, ignore override")
+
+    return RuntimeConfig(
+        max_turns=max_turns,
+        stage_max_retries=max(stage_max_retries, 0),
+        token_budget_chars=max(token_budget_chars, 1000),
+        stage_turn_overrides=stage_turn_overrides,
+    )
 
 
 def _build_stage_prompt(context: FixContext, stage: str) -> str:
@@ -233,9 +265,12 @@ def _comment_issue_failure(issue_number: str, candidate_id: str, run_id: str, re
         logger.warning("Failed to comment issue #%s: %s", issue_number, exc)
 
 
-def _run_stages(client: AgentSDKClient, context: FixContext, max_turns: int) -> dict[str, Any]:
+def _run_stages(
+    client: AgentSDKClient, context: FixContext, config: RuntimeConfig
+) -> dict[str, Any]:
     state = _load_state(context.state_file)
     completed = set(state.get("completed", []))
+    total_response_chars = int(state.get("total_response_chars", 0))
 
     allowed_tools = ["Bash", "Edit", "MultiEdit", "Write", "Read", "Glob", "Grep", "LS", "Skill"]
 
@@ -249,17 +284,73 @@ def _run_stages(client: AgentSDKClient, context: FixContext, max_turns: int) -> 
             )
             continue
 
-        prompt = _build_stage_prompt(context, stage)
-        response = client.chat(prompt=prompt, max_turns=max_turns, allowed_tools=allowed_tools)
+        stage_turns = config.stage_turn_overrides.get(stage, config.max_turns)
+        max_attempts = config.stage_max_retries + 1
+        stage_response = ""
+        stage_failed = True
+        stage_error = ""
+        stage_attempt_count = 0
+
+        for attempt in range(1, max_attempts + 1):
+            stage_attempt_count = attempt
+            if total_response_chars >= config.token_budget_chars:
+                raise RuntimeError(
+                    "Token budget exhausted by response char budget: "
+                    f"{total_response_chars}/{config.token_budget_chars}"
+                )
+
+            logger.info(
+                "Running stage issue=%s candidate=%s stage=%s attempt=%s/%s turns=%s budget=%s/%s",
+                context.issue_number,
+                context.candidate_id,
+                stage,
+                attempt,
+                max_attempts,
+                stage_turns,
+                total_response_chars,
+                config.token_budget_chars,
+            )
+
+            prompt = _build_stage_prompt(context, stage)
+            try:
+                stage_response = client.chat(
+                    prompt=prompt,
+                    max_turns=stage_turns,
+                    allowed_tools=allowed_tools,
+                )
+                stage_failed = False
+                break
+            except Exception as exc:
+                stage_error = str(exc)
+                logger.warning(
+                    "Stage failed issue=%s candidate=%s stage=%s attempt=%s/%s error=%s",
+                    context.issue_number,
+                    context.candidate_id,
+                    stage,
+                    attempt,
+                    max_attempts,
+                    stage_error[:240],
+                )
+
+        if stage_failed:
+            state.setdefault("errors", {})[stage] = stage_error or "unknown_error"
+            _save_state(context.state_file, state)
+            raise RuntimeError(
+                f"Stage {stage} failed after {max_attempts} attempts: {stage_error or 'unknown_error'}"
+            )
+
         logger.info(
             "Stage complete issue=%s candidate=%s stage=%s response_chars=%s",
             context.issue_number,
             context.candidate_id,
             stage,
-            len(response),
+            len(stage_response),
         )
 
-        state.setdefault("responses", {})[stage] = response[-4000:]
+        total_response_chars += len(stage_response)
+        state["total_response_chars"] = total_response_chars
+        state.setdefault("responses", {})[stage] = stage_response[-4000:]
+        state.setdefault("attempts", {})[stage] = stage_attempt_count
         state.setdefault("completed", []).append(stage)
         _save_state(context.state_file, state)
 
@@ -283,10 +374,20 @@ def main() -> int:
     )
 
     client = AgentSDKClient(model=os.environ.get("ANTHROPIC_MODEL", "").strip() or None)
+    config = _parse_runtime_config()
+    logger.info(
+        "Runtime config issue=%s candidate=%s max_turns=%s stage_max_retries=%s token_budget_chars=%s stage_turn_overrides=%s",
+        context.issue_number,
+        context.candidate_id,
+        config.max_turns,
+        config.stage_max_retries,
+        config.token_budget_chars,
+        config.stage_turn_overrides,
+    )
     stage_state = _run_stages(
         client=client,
         context=context,
-        max_turns=int(os.environ.get("CLAUDE_MAX_TURNS", "20")),
+        config=config,
     )
 
     pr_ref = _find_open_pr_for_branch(context.branch_name)

@@ -29,6 +29,21 @@ on:
         required: false
         default: "3"
         type: string
+      stage_max_retries:
+        description: "Per-stage retry count for staged fix execution"
+        required: false
+        default: "1"
+        type: string
+      token_budget_chars:
+        description: "Response character budget per candidate run"
+        required: false
+        default: "120000"
+        type: string
+      stage_max_turns_json:
+        description: "Optional JSON stage turn overrides, e.g. {\"triage\":15,\"verify\":35}"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -244,6 +259,9 @@ jobs:
           CANDIDATE_ID: ${{ matrix.candidate_id }}
           RUN_ID: ${{ github.run_id }}
           CLAUDE_MAX_TURNS: "20"
+          CLAUDE_STAGE_MAX_RETRIES: ${{ inputs.stage_max_retries || '1' }}
+          CLAUDE_TOKEN_BUDGET_CHARS: ${{ inputs.token_budget_chars || '120000' }}
+          CLAUDE_STAGE_MAX_TURNS_JSON: ${{ inputs.stage_max_turns_json || '' }}
         run: timeout 25m uv run python scripts/fix.py
 
       - name: Quality gate candidate PR
