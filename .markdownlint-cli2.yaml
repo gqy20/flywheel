@@ -1,0 +1,14 @@
+config:
+  MD013: false
+  MD031: false
+  MD040: false
+  MD046: false
+  MD024: false
+  MD036: false
+  MD060: false
+
+globs:
+  - README.md
+  - AGENTS.md
+  - .github/FLYWHEEL.md
+  - docs/**/*.md

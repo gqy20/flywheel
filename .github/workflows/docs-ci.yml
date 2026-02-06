@@ -40,11 +40,7 @@ jobs:
       - name: Markdown lint
         uses: DavidAnson/markdownlint-cli2-action@v20
         with:
-          globs: |
-            README.md
-            AGENTS.md
-            .github/FLYWHEEL.md
-            docs/**/*.md
+          config: .markdownlint-cli2.yaml
 
   docs-change-policy:
     if: github.event_name == 'pull_request'

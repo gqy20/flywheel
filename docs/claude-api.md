@@ -239,17 +239,22 @@ def main():
             title = f"[{issue['type'].upper()}]: {issue['description'][:50]}"
 
             body = f"""
+
 ## 问题描述
+
 {issue['description']}
 
 ## 位置
+
 - 文件: {file_path}
 - 行号: {issue['line']}
 
 ## 修复建议
+
 {issue['suggestion']}
 
 ## 优先级
+
 {issue['severity']}
 
 ---
@@ -258,7 +263,7 @@ def main():
 
             create_github_issue(title, body, [issue['severity']])
 
-if __name__ == "__main__":
+if **name** == "**main**":
     main()
 ```
 
@@ -653,24 +658,30 @@ class ClaudeScanner:
         title = f"[{issue['type'].upper()}]: {issue['description'][:60]}"
 
         body = f"""
+
 ## 问题描述
+
 {issue['description']}
 
 ## 位置
+
 - **文件**: `{filepath}`
 - **行号**: {issue.get('line', 'N/A')}
 
 ## 代码片段
+
 ```python
 {issue.get('code', 'N/A')}
 ```
 
 ## 修复建议
+
 待 AI 生成
 
 ---
 
 **AI 元数据**
+
 - 生成时间: {datetime.now().isoformat()}
 - 扫描器: Claude Sonnet 4.5
 - 置信度: 中等
@@ -721,7 +732,7 @@ class ClaudeScanner:
                         self.create_issue(issue, full_path)
                         created += 1
 
-if __name__ == "__main__":
+if **name** == "**main**":
     scanner = ClaudeScanner()
     scanner.run()
 ```

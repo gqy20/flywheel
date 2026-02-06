@@ -15,22 +15,27 @@
 ## 可直接调用能力清单
 
 1. 评论触发（`@claude`）
+
 - 触发源：`issue_comment`、`pull_request_review_comment`、`pull_request_review`、`issues`
 - 适合：开发者在具体上下文中让 Claude 执行修复、补测试、解释代码。
 
-2. 手动触发（`workflow_dispatch`）
+1. 手动触发（`workflow_dispatch`）
+
 - 触发源：GitHub UI 手动输入 `prompt`
 - 适合：一次性批处理任务、紧急修复、仓库级分析。
 
-3. 自动 PR Review
+1. 自动 PR Review
+
 - 触发源：`pull_request`（opened/synchronize/...）
 - 可选：`track_progress: true` 跟踪进度评论。
 
-4. CI 失败自动修复
+1. CI 失败自动修复
+
 - 触发源：`workflow_run`（上游 CI 失败）
 - 模式：收集失败日志后将上下文注入 `prompt`，让 Claude 自动修复并推分支。
 
-5. Issue 分流/打标
+1. Issue 分流/打标
+
 - 触发源：`issues: opened`
 - 模式：用 prompt 调仓库内 slash command（如 `/label-issue`）执行分类。
 
@@ -54,21 +59,24 @@
 ## 与当前仓库的接入建议
 
 1. 已新增 `.github/workflows/claude-code.yml`
+
 - 支持 `@claude` 交互触发
 - 支持 `workflow_dispatch` 直接输入 prompt 运行
 - 默认工具白名单限制为本仓库常用命令（`git/gh/pytest/ruff`）
 
-2. 建议短期策略
+1. 建议短期策略
+
 - 把 `scan/evaluate/fix` 先保留为计划内批处理链路
 - 把高价值修复迁移到 `claude-code-action` 驱动（可观测、可复现、触发灵活）
 
-3. 建议中期策略
+1. 建议中期策略
+
 - 将 issue 选择/排序逻辑从脚本层收敛到 workflow 编排层
 - 统一由 Action 驱动修复执行，统一权限模型与运行日志格式
 
 ## 来源
 
-- https://github.com/anthropics/claude-code-action
-- https://github.com/anthropics/claude-code-action/blob/main/action.yml
-- https://github.com/anthropics/claude-code-action/tree/main/examples
-- https://github.com/anthropics/claude-code-base-action
+- <https://github.com/anthropics/claude-code-action>
+- <https://github.com/anthropics/claude-code-action/blob/main/action.yml>
+- <https://github.com/anthropics/claude-code-action/tree/main/examples>
+- <https://github.com/anthropics/claude-code-base-action>
