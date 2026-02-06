@@ -84,9 +84,9 @@ def _save_state(path: Path, state: dict[str, Any]) -> None:
 
 
 def _parse_runtime_config() -> RuntimeConfig:
-    max_turns = int(os.environ.get("CLAUDE_MAX_TURNS", "20"))
-    stage_max_retries = int(os.environ.get("CLAUDE_STAGE_MAX_RETRIES", "1"))
-    token_budget_chars = int(os.environ.get("CLAUDE_TOKEN_BUDGET_CHARS", "120000"))
+    max_turns = int(os.environ.get("CLAUDE_MAX_TURNS", "60"))
+    stage_max_retries = int(os.environ.get("CLAUDE_STAGE_MAX_RETRIES", "4"))
+    token_budget_chars = int(os.environ.get("CLAUDE_TOKEN_BUDGET_CHARS", "1500000"))
     stage_turn_overrides: dict[str, int] = {}
     raw_overrides = os.environ.get("CLAUDE_STAGE_MAX_TURNS_JSON", "").strip()
 

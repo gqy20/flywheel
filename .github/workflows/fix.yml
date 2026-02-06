@@ -32,17 +32,17 @@ on:
       stage_max_retries:
         description: "Per-stage retry count for staged fix execution"
         required: false
-        default: "1"
+        default: "4"
         type: string
       token_budget_chars:
         description: "Response character budget per candidate run"
         required: false
-        default: "120000"
+        default: "1500000"
         type: string
       stage_max_turns_json:
         description: "Optional JSON stage turn overrides, e.g. {\"triage\":15,\"verify\":35}"
         required: false
-        default: ""
+        default: '{"triage":40,"plan":50,"implement":90,"verify":110,"finalize":45}'
         type: string
 
 permissions:
@@ -258,11 +258,11 @@ jobs:
           ISSUE_URL: ${{ needs.select-issue.outputs.issue_url }}
           CANDIDATE_ID: ${{ matrix.candidate_id }}
           RUN_ID: ${{ github.run_id }}
-          CLAUDE_MAX_TURNS: "20"
-          CLAUDE_STAGE_MAX_RETRIES: ${{ inputs.stage_max_retries || '1' }}
-          CLAUDE_TOKEN_BUDGET_CHARS: ${{ inputs.token_budget_chars || '120000' }}
-          CLAUDE_STAGE_MAX_TURNS_JSON: ${{ inputs.stage_max_turns_json || '' }}
-        run: timeout 25m uv run python scripts/fix.py
+          CLAUDE_MAX_TURNS: "60"
+          CLAUDE_STAGE_MAX_RETRIES: ${{ inputs.stage_max_retries || '4' }}
+          CLAUDE_TOKEN_BUDGET_CHARS: ${{ inputs.token_budget_chars || '1500000' }}
+          CLAUDE_STAGE_MAX_TURNS_JSON: ${{ inputs.stage_max_turns_json || '{"triage":40,"plan":50,"implement":90,"verify":110,"finalize":45}' }}
+        run: timeout 55m uv run python scripts/fix.py
 
       - name: Quality gate candidate PR
         id: quality_gate
