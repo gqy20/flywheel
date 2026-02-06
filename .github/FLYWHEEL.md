@@ -57,6 +57,22 @@
 - 自动汇总失败 job 上下文并触发 Claude 修复
 - 产出独立修复候选 PR，不直接改主分支
 
+### 5) Claude Skills 显式接入
+
+- 本仓库将技能定义放在 `.claude/skills/`
+- `scan.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-scan-issues/SKILL.md`
+- `evaluate.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-priority-evaluate/SKILL.md`
+- `issue-curation.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-issue-curation/SKILL.md`
+- `fix.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-candidate-fix/SKILL.md`
+- `merge-pr.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-merge-arbiter/SKILL.md`
+- `ci-failure-auto-fix.yml` 在 prompt 中显式加载：
+  - `.claude/skills/flywheel-ci-failure-autofix/SKILL.md`
+
 ## 人工触发命令
 
 ```bash

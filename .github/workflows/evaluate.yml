@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
   issues: write
+  id-token: write
 
 concurrency:
   group: evaluate-priorities
@@ -18,33 +19,30 @@ concurrency:
 jobs:
   evaluate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Re-evaluate priorities with Claude
+        uses: anthropics/claude-code-action@v1
         with:
-          python-version: '3.13'
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Re-evaluate open issue priorities for this repository.
+            First, load and follow `.claude/skills/flywheel-priority-evaluate/SKILL.md`.
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          source $HOME/.cargo/env
-
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Run evaluator
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LOG_LEVEL: "INFO"
-        run: |
-          uv run python scripts/evaluate.py
+            Required behavior:
+            1. Fetch open issues with title/body/labels.
+            2. Re-score each issue as exactly one of `p0|p1|p2|p3` based on impact and urgency.
+            3. Normalize labels so each issue has exactly one priority label.
+            4. Keep all non-priority labels unchanged.
+            5. Summarize changed issues and final priority distribution.
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(git:*)"
 
       - name: Event summary
         if: github.event_name == 'issues'

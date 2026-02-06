@@ -139,6 +139,7 @@ jobs:
             actions: read
           prompt: |
             You are fixing a failed CI run for PR #${{ needs.select-target.outputs.pr_number }}.
+            First, load and follow the local skill at `.claude/skills/flywheel-ci-failure-autofix/SKILL.md`.
 
             Context:
             - PR: #${{ needs.select-target.outputs.pr_number }}

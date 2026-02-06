@@ -14,6 +14,8 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: read
+  id-token: write
 
 concurrency:
   group: issue-curation
@@ -22,63 +24,34 @@ concurrency:
 jobs:
   curate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - name: Curate issue pool
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_OPEN_ISSUES: ${{ inputs.max_open_issues || '20' }}
-          GH_PAGER: cat
-          PAGER: cat
-        shell: bash
-        run: |
-          set -euo pipefail
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-          issues_json="$(gh issue list --state open --limit 200 --json number,title,updatedAt,labels,url)"
-          total_open="$(echo "$issues_json" | jq 'length')"
+      - name: Curate issue pool with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Curate open issues for this repository.
+            First, load and follow `.claude/skills/flywheel-issue-curation/SKILL.md`.
 
-          echo "Total open issues: $total_open"
-          echo "Target max open issues: $MAX_OPEN_ISSUES"
+            Runtime config:
+            - Max open issues allowed: ${{ inputs.max_open_issues || '20' }}
 
-          if [ "$total_open" -le "$MAX_OPEN_ISSUES" ]; then
-            echo "Issue count is within limit; no action needed."
-            exit 0
-          fi
-
-          to_close_count=$(( total_open - MAX_OPEN_ISSUES ))
-          echo "Need to close $to_close_count issue(s)."
-
-          # Close lower-priority, older issues first. Keep frozen issues untouched.
-          close_numbers="$(
-            echo "$issues_json" | jq -r --argjson n "$to_close_count" '
-              map(
-                .label_names = [.labels[].name]
-                | .priority = (
-                    if (.label_names | index("p0")) then 0
-                    elif (.label_names | index("p1")) then 1
-                    elif (.label_names | index("p2")) then 2
-                    elif (.label_names | index("p3")) then 3
-                    else 4
-                    end
-                  )
-              )
-              | map(select((.label_names | index("frozen")) | not))
-              | sort_by(-.priority, .updatedAt)
-              | .[:$n]
-              | .[].number
-            '
-          )"
-
-          closed=0
-          for num in $close_numbers; do
-            echo "Closing issue #$num"
-            gh issue close "$num" \
-              --comment "Auto-curation: issue pool is capped at $MAX_OPEN_ISSUES open issues. Closing lower-priority backlog item; reopen if needed." \
-              || true
-            closed=$((closed + 1))
-          done
-
-          echo "Closed $closed issue(s)."
+            Required behavior:
+            1. List current open issues with labels and timestamps.
+            2. If open issues are within the limit, do nothing and summarize.
+            3. If above limit, close only the required number of issues to reach limit.
+            4. Close lower-priority and older issues first.
+            5. Never close issues labeled `frozen`.
+            6. Add a brief close comment with policy rationale and reopen path.
+            7. Post a concise summary comment in workflow output.
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(git:*)"
 
       - name: Summary
         env:

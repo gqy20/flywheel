@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
   issues: write
+  id-token: write
 
 concurrency:
   group: scan-issues
@@ -33,29 +34,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Run scan with Claude
+        uses: anthropics/claude-code-action@v1
         with:
-          python-version: '3.13'
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: |
+            Scan repository code and create actionable issues.
+            First, load and follow `.claude/skills/flywheel-scan-issues/SKILL.md`.
 
-      - name: Install uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          source $HOME/.cargo/env
+            Runtime config:
+            - MAX_ISSUES: ${{ inputs.max_issues || '5' }}
+            - TARGET_DIR: ${{ inputs.target_dir || 'src' }}
 
-      - name: Install dependencies
-        run: uv sync
-
-      - name: Run scanner
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MAX_ISSUES: ${{ inputs.max_issues || '5' }}
-          TARGET_DIR: ${{ inputs.target_dir || 'src' }}
-          LOG_LEVEL: "INFO"
-        run: |
-          uv run python scripts/scan.py
+            Required behavior:
+            1. Scan only files under TARGET_DIR.
+            2. Find high-signal problems/opportunities suitable for tracked issues.
+            3. Deduplicate against existing open issues by intent/title.
+            4. Create at most MAX_ISSUES new issues for this run.
+            5. Apply one priority label (`p0`/`p1`/`p2`/`p3`) and one type label when possible.
+            6. Keep issue body concise: problem, location, impact, expected fix direction.
+          claude_args: |
+            --max-turns 25
+            --allowedTools "Read,Glob,Grep,LS,Bash(rg:*),Bash(find:*),Bash(gh issue:*),Bash(git:*)"
 
       - name: Summary
         env:
