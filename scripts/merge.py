@@ -57,7 +57,7 @@ def main() -> int:
     logger.info("Starting merge arbiter issue=%s eligible=%s", issue_number, eligible_csv)
 
     prompt = build_prompt(issue_number, eligible_csv)
-    allowed_tools = ["Read", "Glob", "Grep", "LS", "Bash(gh *)", "Bash(git *)"]
+    allowed_tools = ["Bash", "Read", "Glob", "Grep", "LS"]
 
     client = AgentSDKClient(model=os.environ.get("ANTHROPIC_MODEL", "").strip() or None)
     response = client.chat(
