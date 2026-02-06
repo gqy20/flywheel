@@ -24,6 +24,11 @@ on:
         required: false
         default: "120"
         type: string
+      min_fixable_issues:
+        description: "Minimum number of fixable open issues required before auto-fix runs"
+        required: false
+        default: "3"
+        type: string
 
 permissions:
   contents: write
@@ -115,6 +120,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
+          MIN_FIXABLE_ISSUES: ${{ inputs.min_fixable_issues || '3' }}
           GH_PAGER: cat
           PAGER: cat
         shell: bash
@@ -126,7 +132,11 @@ jobs:
             STATE="$(echo "$ISSUE_JSON" | jq -r '.state')"
             HAS_FROZEN="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "frozen")')"
             HAS_FAILED="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "auto-fix-failed")')"
-            if [ "$STATE" != "OPEN" ] || [ "$HAS_FROZEN" = "true" ] || [ "$HAS_FAILED" = "true" ]; then
+            HAS_WONTFIX="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "wontfix")')"
+            HAS_INVALID="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "invalid")')"
+            HAS_QUESTION="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "question")')"
+            HAS_DUPLICATE="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "duplicate")')"
+            if [ "$STATE" != "OPEN" ] || [ "$HAS_FROZEN" = "true" ] || [ "$HAS_FAILED" = "true" ] || [ "$HAS_WONTFIX" = "true" ] || [ "$HAS_INVALID" = "true" ] || [ "$HAS_QUESTION" = "true" ] || [ "$HAS_DUPLICATE" = "true" ]; then
               echo "Specified issue is not eligible for auto-fix."
               echo "should_run=false" >> "$GITHUB_OUTPUT"
               exit 0
@@ -154,7 +164,7 @@ jobs:
 
           ISSUES_JSON="$(gh issue list --state open --limit 100 --json number,title,url,labels)"
 
-          BEST="$(echo "$ISSUES_JSON" | jq -r '
+          ELIGIBLE_JSON="$(echo "$ISSUES_JSON" | jq -c '
             map(
               .label_names = [.labels[].name]
               | .priority = (
@@ -168,10 +178,22 @@ jobs:
             )
             | map(select((.label_names | index("frozen")) | not))
             | map(select((.label_names | index("auto-fix-failed")) | not))
+            | map(select((.label_names | index("wontfix")) | not))
+            | map(select((.label_names | index("invalid")) | not))
+            | map(select((.label_names | index("question")) | not))
+            | map(select((.label_names | index("duplicate")) | not))
             | map(select((.number as $n | $busy | index($n)) | not))
             | sort_by(.priority, .number)
-            | .[0] // empty
           ' --argjson busy "$OPEN_PR_ISSUES_JSON")"
+
+          ELIGIBLE_COUNT="$(echo "$ELIGIBLE_JSON" | jq 'length')"
+          if [ "$ELIGIBLE_COUNT" -lt "$MIN_FIXABLE_ISSUES" ]; then
+            echo "Fixable issue pool too small: eligible=${ELIGIBLE_COUNT}, required=${MIN_FIXABLE_ISSUES}"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BEST="$(echo "$ELIGIBLE_JSON" | jq -r '.[0] // empty')"
 
           if [ -z "$BEST" ]; then
             echo "No eligible issue found."
