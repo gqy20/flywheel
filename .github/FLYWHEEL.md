@@ -1,6 +1,6 @@
 # Flywheel Automation
 
-本文件描述仓库自动化飞轮（GitHub Actions + Claude Code Action）的运行策略。
+本文件描述仓库自动化飞轮（GitHub Actions + Claude Agent SDK）的运行策略。
 
 ## 目标
 

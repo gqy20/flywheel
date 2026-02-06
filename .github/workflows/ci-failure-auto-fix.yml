@@ -174,6 +174,15 @@ jobs:
           ref: ${{ needs.select-target.outputs.head_branch }}
           fetch-depth: 0
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
       - name: Collect failed job summaries
         id: failure
         env:
@@ -204,40 +213,22 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Generate CI-fix candidate PR with Claude
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          show_full_output: true
-          additional_permissions: |
-            actions: read
-          prompt: |
-            You are fixing a failed CI run for PR #${{ needs.select-target.outputs.pr_number }}.
-            First, load and follow the local skill at `.claude/skills/flywheel-ci-failure-autofix/SKILL.md`.
-
-            Context:
-            - PR: #${{ needs.select-target.outputs.pr_number }}
-            - Branch: ${{ needs.select-target.outputs.head_branch }}
-            - CI run URL: ${{ needs.select-target.outputs.run_url }}
-            - Failed jobs:
-            ${{ steps.failure.outputs.failure_summary }}
-
-            Required behavior:
-            1. Diagnose likely failure root cause from failing jobs/check context.
-            2. Implement minimal fix and run targeted verification (`uv run pytest ...`, `uv run ruff check ...`).
-            3. Create branch: `claude/ci-fix-pr-${{ needs.select-target.outputs.pr_number }}-${{ github.run_id }}`.
-            4. Open one PR to `master` with title prefix:
-               `[AUTOFIX][CI-FAIL][PR-${{ needs.select-target.outputs.pr_number }}]`
-            5. PR body must include cause analysis, fix summary, tests run, and risks.
-            6. Do not push to master directly.
-
-            Constraints:
-            - Keep diff minimal.
-            - Do not modify workflows or secrets.
-          claude_args: |
-            --max-turns 20
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"
+      - name: Generate CI-fix candidate PR via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          TARGET_PR_NUMBER: ${{ needs.select-target.outputs.pr_number }}
+          TARGET_HEAD_BRANCH: ${{ needs.select-target.outputs.head_branch }}
+          TARGET_RUN_ID: ${{ needs.select-target.outputs.run_id }}
+          TARGET_RUN_URL: ${{ needs.select-target.outputs.run_url }}
+          FAILURE_SUMMARY: ${{ steps.failure.outputs.failure_summary }}
+          RUN_ID: ${{ github.run_id }}
+          CLAUDE_MAX_TURNS: "20"
+          CLAUDE_BACKEND: agent_sdk
+        run: timeout 25m uv run python scripts/ci_failure_fix.py
 
       - name: Summary
         if: always()
