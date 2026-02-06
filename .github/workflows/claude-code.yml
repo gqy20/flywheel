@@ -42,7 +42,6 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          setting_sources: "user"
           settings: |
             {"enableAllProjectMcpServers":false}
           # Keep tool scope tight; expand only when needed.
@@ -65,7 +64,6 @@ jobs:
           claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ inputs.prompt }}
-          setting_sources: "user"
           settings: |
             {"enableAllProjectMcpServers":false}
           claude_args: |
