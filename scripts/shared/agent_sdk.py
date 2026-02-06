@@ -49,6 +49,13 @@ class AgentSDKClient:
             "true",
             "on",
         }
+        self.heartbeat_seconds = max(5, int(os.environ.get("CLAUDE_SDK_HEARTBEAT_SECONDS", "30")))
+        self.idle_timeout_seconds = max(
+            30, int(os.environ.get("CLAUDE_SDK_IDLE_TIMEOUT_SECONDS", "240"))
+        )
+        self.total_timeout_seconds = max(
+            0, int(os.environ.get("CLAUDE_SDK_TOTAL_TIMEOUT_SECONDS", "0"))
+        )
         self._request_counter = itertools.count(1)
 
     def _build_env(self) -> dict[str, str]:
@@ -93,7 +100,41 @@ class AgentSDKClient:
         other_events = 0
         suppressed_other_events = 0
         other_event_sample_limit = 3
-        async for message in query(prompt=prompt, options=options):
+        started = time.monotonic()
+        last_event = started
+        last_heartbeat = started
+        stream = query(prompt=prompt, options=options).__aiter__()
+
+        while True:
+            try:
+                with anyio.fail_after(self.idle_timeout_seconds):
+                    message = await stream.__anext__()
+            except StopAsyncIteration:
+                break
+            except TimeoutError as exc:
+                raise TimeoutError(
+                    f"Claude Agent SDK idle timeout after {self.idle_timeout_seconds}s "
+                    f"without events (request={request_id})"
+                ) from exc
+
+            now = time.monotonic()
+            if self.total_timeout_seconds > 0 and (now - started) > self.total_timeout_seconds:
+                raise TimeoutError(
+                    f"Claude Agent SDK total timeout {self.total_timeout_seconds}s exceeded "
+                    f"(request={request_id})"
+                )
+            if self.trace_enabled and (now - last_heartbeat) >= self.heartbeat_seconds:
+                logger.info(
+                    "[%s] heartbeat elapsed=%.1fs assistant=%s result=%s other=%s",
+                    request_id,
+                    now - started,
+                    assistant_events,
+                    result_events,
+                    other_events,
+                )
+                last_heartbeat = now
+            last_event = now
+
             message_type = str(getattr(message, "type", "") or "")
             message_subtype = str(getattr(message, "subtype", "") or "")
 
@@ -189,6 +230,18 @@ class AgentSDKClient:
                 "[%s] sdk other events suppressed count=%s (set CLAUDE_SDK_VERBOSE_EVENTS=1 to expand)",
                 request_id,
                 suppressed_other_events,
+            )
+        if self.trace_enabled:
+            elapsed = time.monotonic() - started
+            idle_for = time.monotonic() - last_event
+            logger.info(
+                "[%s] stream closed elapsed=%.1fs assistant=%s result=%s other=%s idle_for=%.1fs",
+                request_id,
+                elapsed,
+                assistant_events,
+                result_events,
+                other_events,
+                idle_for,
             )
 
         return "".join(chunks).strip()

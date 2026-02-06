@@ -17,6 +17,11 @@ on:
         required: false
         default: "90"
         type: string
+      debug_logs:
+        description: "Enable verbose SDK logs for troubleshooting"
+        required: false
+        default: "false"
+        type: boolean
 
 permissions:
   contents: write
@@ -155,6 +160,12 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           CLAUDE_MAX_TURNS: "20"
           CLAUDE_BACKEND: agent_sdk
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: timeout 25m uv run python scripts/ci_failure_fix.py
 
       - name: Summary

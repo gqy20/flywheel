@@ -60,6 +60,11 @@ on:
         required: false
         default: "120"
         type: string
+      debug_logs:
+        description: "Enable verbose SDK logs for troubleshooting"
+        required: false
+        default: "false"
+        type: boolean
 
 permissions:
   contents: write
@@ -122,6 +127,12 @@ jobs:
           MAX_ISSUES: ${{ inputs.max_issues || '5' }}
           TARGET_DIR: ${{ inputs.target_dir || 'src' }}
           CLAUDE_BACKEND: agent_sdk
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: uv run python scripts/scan.py
 
       - name: Deduplicate fingerprinted issues
@@ -200,6 +211,12 @@ jobs:
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           CLAUDE_BACKEND: agent_sdk
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: uv run python scripts/evaluate.py
 
   select-issue:
@@ -264,6 +281,12 @@ jobs:
           CLAUDE_STAGE_MAX_RETRIES: ${{ inputs.stage_max_retries || '4' }}
           CLAUDE_TOKEN_BUDGET_CHARS: ${{ inputs.token_budget_chars || '1500000' }}
           CLAUDE_STAGE_MAX_TURNS_JSON: ${{ inputs.stage_max_turns_json || '{"triage":40,"plan":50,"implement":90,"verify":110,"finalize":45}' }}
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "300"
         run: timeout 55m uv run python scripts/fix.py
 
       - name: Quality gate candidate PR
@@ -416,6 +439,12 @@ jobs:
           ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
           CLAUDE_MAX_TURNS: "25"
           CLAUDE_REQUIRE_SCORECARD: ${{ inputs.require_scorecard || true }}
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: timeout 25m uv run python scripts/merge.py
 
       - name: Validate structured scorecard
@@ -497,6 +526,12 @@ jobs:
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           MAX_OPEN_ISSUES: ${{ inputs.max_open_issues || '20' }}
           CLAUDE_BACKEND: agent_sdk
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: uv run python scripts/curate.py
 
   summary:

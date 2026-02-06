@@ -2,6 +2,12 @@ name: Docs Auto Maintenance
 
 on:
   workflow_dispatch:
+    inputs:
+      debug_logs:
+        description: "Enable verbose SDK logs for troubleshooting"
+        required: false
+        default: "false"
+        type: boolean
 
 permissions:
   contents: write
@@ -39,6 +45,12 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           TRIGGER_EVENT: ${{ github.event_name }}
           CLAUDE_MAX_TURNS: "30"
+          LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_SDK_VERBOSE_EVENTS: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_LOG_PROMPT: ${{ inputs.debug_logs && '1' || '0' }}
+          CLAUDE_SDK_HEARTBEAT_SECONDS: ${{ inputs.debug_logs && '10' || '30' }}
+          CLAUDE_SDK_IDLE_TIMEOUT_SECONDS: "240"
         run: timeout 30m uv run python scripts/docs_autofix.py
 
       - name: Summary
