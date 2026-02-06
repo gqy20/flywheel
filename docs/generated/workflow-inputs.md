@@ -23,6 +23,12 @@ Run `uv run python scripts/check_docs_sync.py --generate` after workflow changes
 |---|---|---|---|---|
 | `prompt` | `true` | `` | `string` | Prompt for manual Claude run |
 
+## `docs-auto-maintenance.yml`
+
+| Input | Required | Default | Type | Description |
+|---|---|---|---|---|
+| `target_ref` | `false` | `` | `string` | Optional git ref to checkout before fixing docs |
+
 ## `evaluate.yml`
 
 | Input | Required | Default | Type | Description |

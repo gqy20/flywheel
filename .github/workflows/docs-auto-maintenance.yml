@@ -1,0 +1,85 @@
+name: Docs Auto Maintenance
+
+on:
+  workflow_run:
+    workflows: ["Docs CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: "Optional git ref to checkout before fixing docs"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  id-token: write
+
+jobs:
+  autofix-docs:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Resolve target ref
+        id: ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.target_ref }}" ]; then
+            echo "value=${{ inputs.target_ref }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "value=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=master" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.ref.outputs.value }}
+          fetch-depth: 0
+
+      - name: Run Claude docs maintenance
+        uses: anthropics/claude-code-action@v1.0.30
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
+          prompt: |
+            You are maintaining documentation quality after Docs CI failure.
+
+            Goals:
+            1. Run markdown checks and docs sync checks.
+            2. Fix markdown issues and docs sync drift with minimal edits.
+            3. Regenerate workflow input docs when needed.
+            4. Create a branch and open exactly one PR to `master` with prefix:
+               `[DOCS-AUTOFIX]`
+            5. Include root cause and checks run in PR body.
+
+            Required checks:
+            - `uv run python scripts/check_docs_sync.py --check`
+            - `npx --yes markdownlint-cli2 --config .markdownlint-cli2.yaml`
+
+            If checks fail:
+            - Fix docs and rerun checks until they pass.
+
+            Constraints:
+            - Do not modify application logic or workflows unrelated to docs maintenance.
+            - Keep changes focused and reviewable.
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run python scripts/check_docs_sync.py *),Bash(npx --yes markdownlint-cli2 *)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Docs Auto Maintenance" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trigger: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "- Source run: ${{ github.event.workflow_run.html_url }}" >> "$GITHUB_STEP_SUMMARY"
+          fi

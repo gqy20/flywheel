@@ -240,11 +240,11 @@ def main():
 
             body = f"""
 
-## 问题描述
+## 问题描述（Issue 模板）
 
 {issue['description']}
 
-## 位置
+## 位置（Issue 模板）
 
 - 文件: {file_path}
 - 行号: {issue['line']}
@@ -668,19 +668,19 @@ class ClaudeScanner:
 - **文件**: `{filepath}`
 - **行号**: {issue.get('line', 'N/A')}
 
-## 代码片段
+## 代码片段（Issue 模板）
 
 ```python
 {issue.get('code', 'N/A')}
 ```
 
-## 修复建议
+## 修复建议（Issue 模板）
 
 待 AI 生成
 
 ---
 
-**AI 元数据**
+### AI 元数据
 
 - 生成时间: {datetime.now().isoformat()}
 - 扫描器: Claude Sonnet 4.5

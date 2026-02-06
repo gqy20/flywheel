@@ -92,6 +92,7 @@ flywheel/
 飞轮（Issue 整理、并行修复候选、PR 仲裁合并）文档在：
 
 - `.github/FLYWHEEL.md`
+- 文档门禁与自动维护 workflow：`docs-ci.yml`、`docs-auto-maintenance.yml`
 
 ## 文档
 

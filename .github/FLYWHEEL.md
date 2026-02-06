@@ -21,6 +21,7 @@
 | `ci-failure-auto-fix.yml` | CI 失败时 / 手动 | 针对失败 CI 自动生成修复候选 PR |
 | `automation-metrics.yml` | 每日 / 手动 | 汇总自动化健康指标并写入 dashboard issue |
 | `docs-ci.yml` | push / PR / 手动 | 文档质量门禁（Markdown lint、文档-Workflow 同步、文档更新策略） |
+| `docs-auto-maintenance.yml` | docs-ci 失败 / 手动 | 使用 Claude 自动修复文档门禁失败并生成 PR |
 | `claude-code.yml` | 评论/手动 | 交互式 @claude 能力 |
 | `ci.yml` | push / PR | lint + test + coverage |
 
@@ -145,6 +146,9 @@ gh workflow run automation-metrics.yml
 
 # 触发文档质量门禁
 gh workflow run docs-ci.yml
+
+# 手动触发文档自动维护
+gh workflow run docs-auto-maintenance.yml
 ```
 
 ## 必要 Secrets
