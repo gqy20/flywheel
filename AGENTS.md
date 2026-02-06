@@ -16,11 +16,10 @@
 - `uv run pytest --cov=src`: run tests with coverage.
 - `uv run ruff check .`: lint the codebase.
 - `uv run ruff format .`: apply formatting.
-- `gh workflow run scan.yml`: manual Claude scan run.
-- `gh workflow run evaluate.yml`: manual Claude priority evaluation run.
-- `gh workflow run issue-curation.yml`: manual Claude curation run.
-- `gh workflow run fix.yml`: manual candidate-fix run (3 parallel candidates).
-- `gh workflow run merge-pr.yml`: manual merge-arbiter run.
+- `gh workflow run flywheel-orchestrator.yml`: manual unified flywheel pipeline run (scan/evaluate/fix/merge/curation).
+- `gh workflow run ci-failure-auto-fix.yml`: manual CI failure autofix run.
+- `gh workflow run docs-ci.yml`: manual docs gate run.
+- `gh workflow run docs-auto-maintenance.yml`: manual docs autofix run.
 - `gh workflow run automation-metrics.yml`: manual automation metrics snapshot run.
 
 ## Coding Style & Naming Conventions
