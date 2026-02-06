@@ -6,7 +6,7 @@ import itertools
 import logging
 import os
 import time
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import anyio
 from claude_agent_sdk import ClaudeAgentOptions, TextBlock, query
@@ -16,6 +16,14 @@ logger = logging.getLogger(__name__)
 
 class AgentSDKClient:
     """Small wrapper around claude-agent-sdk query API."""
+
+    DEFAULT_ALLOWED_TOOLS: ClassVar[list[str]] = [
+        "Read",
+        "Grep",
+        "Glob",
+        "LS",
+        "Skill",
+    ]
 
     def __init__(self, model: str | None = None):
         token = os.environ.get("ANTHROPIC_AUTH_TOKEN", "").strip()
@@ -64,6 +72,7 @@ class AgentSDKClient:
         allowed_tools: list[str] | None,
         request_id: str,
     ) -> str:
+        normalized_tools = self._normalize_allowed_tools(allowed_tools)
         extra_args: dict[str, Any] = {"max-turns": str(max_turns)}
         if self.model:
             extra_args["model"] = self.model
@@ -75,7 +84,7 @@ class AgentSDKClient:
             env=self._build_env(),
             extra_args=extra_args,
             permission_mode="bypassPermissions",
-            allowed_tools=allowed_tools or [],
+            allowed_tools=normalized_tools,
         )
 
         chunks: list[str] = []
@@ -163,6 +172,12 @@ class AgentSDKClient:
 
         return "".join(chunks).strip()
 
+    def _normalize_allowed_tools(self, allowed_tools: list[str] | None) -> list[str]:
+        tools = list(allowed_tools or self.DEFAULT_ALLOWED_TOOLS)
+        if "Skill" not in tools:
+            tools.append("Skill")
+        return tools
+
     def chat(
         self,
         prompt: str,
@@ -185,7 +200,7 @@ class AgentSDKClient:
             request_id,
             self.model or "default",
             turns,
-            ",".join(allowed_tools or []) or "none",
+            ",".join(self._normalize_allowed_tools(allowed_tools)),
             len(prompt),
         )
         if self.log_prompt:
