@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import subprocess
 
 from shared.agent_sdk import AgentSDKClient
 from shared.utils import run_gh_command
@@ -79,6 +80,25 @@ def _find_open_pr_for_branch(branch_name: str) -> tuple[str, str] | None:
     return str(pr.get("number", "")), str(pr.get("url", ""))
 
 
+def _run_check(cmd: list[str]) -> bool:
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        logger.warning(
+            "Check failed cmd=%s stdout=%s stderr=%s",
+            " ".join(cmd),
+            (result.stdout or "").strip()[:500],
+            (result.stderr or "").strip()[:500],
+        )
+        return False
+    return True
+
+
+def _docs_checks_pass() -> bool:
+    return _run_check(
+        ["uv", "run", "python", "scripts/check_docs_sync.py", "--check"]
+    ) and _run_check(["npx", "--yes", "markdownlint-cli2", "--config", ".markdownlint-cli2.yaml"])
+
+
 def main() -> int:
     run_id = _required_env("RUN_ID")
     trigger_event = (
@@ -110,8 +130,14 @@ def main() -> int:
 
     pr_ref = _find_open_pr_for_branch(branch_name)
     if not pr_ref:
+        if _docs_checks_pass():
+            logger.info(
+                "Docs are already healthy and no PR was needed for branch=%s",
+                branch_name,
+            )
+            return 0
         raise RuntimeError(
-            f"Docs autofix run completed without creating expected PR for branch `{branch_name}`"
+            f"Docs checks still failing and no PR was created for branch `{branch_name}`"
         )
 
     pr_number, pr_url = pr_ref
