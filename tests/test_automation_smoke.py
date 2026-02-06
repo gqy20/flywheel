@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 def test_scripts_entrypoints_exist() -> None:
-    for name in ["scan.py", "evaluate.py", "curate.py", "ci_failure_fix.py"]:
+    for name in ["scan.py", "evaluate.py", "curate.py", "ci_failure_fix.py", "analyze_metrics.py"]:
         assert (Path("scripts") / name).exists(), f"missing scripts/{name}"
 
 

@@ -27,6 +27,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
       - name: Build metrics snapshot
         id: metrics
         env:
@@ -111,11 +123,43 @@ jobs:
             alerts="$(echo -e "$alerts" | sed '/^$/d')"
           fi
 
-          markdown="$(
-            cat <<EOF
-          ## 飞轮每日报告 - ${today_utc}
+          metrics_json="$(
+            jq -cn \
+              --arg now_utc "$now_utc" \
+              --arg cutoff_date "$cutoff" \
+              --argjson window_days "$WINDOW_DAYS" \
+              --argjson max_issue_cap "$max_issue_cap" \
+              --argjson open_issues "$open_issues" \
+              --argjson p0 "$p0" \
+              --argjson p1 "$p1" \
+              --argjson p2 "$p2" \
+              --argjson p3 "$p3" \
+              --argjson open_candidate_prs "$open_candidate_prs" \
+              --argjson merged_recent "$merged_recent" \
+              --argjson closed_unmerged_recent "$closed_unmerged_recent" \
+              --argjson ci_recent_total "$ci_recent_total" \
+              --argjson ci_recent_failed "$ci_recent_failed" \
+              --arg ci_fail_rate "$ci_fail_rate" \
+              '{
+                window_days: $window_days,
+                now_utc: $now_utc,
+                cutoff_date: $cutoff_date,
+                max_issue_cap: $max_issue_cap,
+                open_issues: $open_issues,
+                p0: $p0, p1: $p1, p2: $p2, p3: $p3,
+                open_candidate_prs: $open_candidate_prs,
+                merged_recent: $merged_recent,
+                closed_unmerged_recent: $closed_unmerged_recent,
+                ci_recent_total: $ci_recent_total,
+                ci_recent_failed: $ci_recent_failed,
+                ci_fail_rate: ($ci_fail_rate | tonumber)
+              }'
+          )"
 
-          - 状态: **${health}**
+          facts_md="$(
+            cat <<EOF
+          ### 指标快照
+          - 基线状态: **${health}**
           - 生成时间: \`${now_utc}\`
           - 统计窗口: \`${WINDOW_DAYS}d\`（起始 \`${cutoff}\`）
 
@@ -129,15 +173,60 @@ jobs:
           | CI 运行次数（${WINDOW_DAYS}d） | ${ci_recent_total} |
           | CI 失败次数（${WINDOW_DAYS}d） | ${ci_recent_failed} |
           | CI 失败率 | ${ci_fail_rate}% |
+          EOF
+          )"
 
-          ### 告警
-          ${alerts}
+          {
+            echo "today_utc=$today_utc"
+            echo "metrics_json<<EOF"
+            echo "$metrics_json"
+            echo "EOF"
+            echo "facts_md<<EOF"
+            echo "$facts_md"
+            echo "EOF"
+            echo "alerts_md<<EOF"
+            echo "### 告警"
+            echo "$alerts"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Analyze metrics via SDK (with rule fallback)
+        id: analysis
+        env:
+          METRICS_JSON: ${{ steps.metrics.outputs.metrics_json }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_SDK_TRACE: "1"
+          CLAUDE_METRICS_MAX_TURNS: "8"
+        run: uv run python scripts/analyze_metrics.py
+
+      - name: Compose final report
+        id: compose
+        env:
+          TODAY_UTC: ${{ steps.metrics.outputs.today_utc }}
+          ANALYSIS_MD: ${{ steps.analysis.outputs.analysis_md }}
+          FACTS_MD: ${{ steps.metrics.outputs.facts_md }}
+          ALERTS_MD: ${{ steps.metrics.outputs.alerts_md }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          report="$(
+            cat <<EOF
+          ## 飞轮每日报告 - ${TODAY_UTC}
+
+          ${ANALYSIS_MD}
+
+          ${FACTS_MD}
+
+          ${ALERTS_MD}
           EOF
           )"
 
           {
             echo "report<<EOF"
-            echo "$markdown"
+            echo "$report"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
@@ -145,7 +234,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          REPORT: ${{ steps.metrics.outputs.report }}
+          REPORT: ${{ steps.compose.outputs.report }}
           GH_PAGER: cat
           PAGER: cat
         shell: bash
@@ -267,4 +356,4 @@ jobs:
       - name: Summary
         run: |
           echo "### 自动化指标看板" >> "$GITHUB_STEP_SUMMARY"
-          echo "${{ steps.metrics.outputs.report }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.compose.outputs.report }}" >> "$GITHUB_STEP_SUMMARY"

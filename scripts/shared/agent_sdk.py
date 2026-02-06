@@ -101,7 +101,15 @@ class AgentSDKClient:
                 # SDK event objects can be model instances; best-effort fallback.
                 message_type = message.__class__.__name__
 
-            if message_type == "system":
+            normalized_type = message_type.strip().lower()
+            if normalized_type == "systemmessage":
+                normalized_type = "system"
+            elif normalized_type == "assistantmessage":
+                normalized_type = "assistant"
+            elif normalized_type == "resultmessage":
+                normalized_type = "result"
+
+            if normalized_type == "system":
                 # Keep init/system traces concise and stable.
                 if self.trace_enabled:
                     logger.info(
@@ -111,20 +119,33 @@ class AgentSDKClient:
                     )
                 continue
 
-            if message_type == "assistant":
+            if normalized_type == "assistant":
                 assistant_events += 1
                 msg = getattr(message, "message", None)
-                if msg is None:
-                    if self.trace_enabled:
-                        logger.info("[%s] assistant event with empty message payload", request_id)
-                    continue
                 text_blocks = 0
                 text_chars = 0
-                for block in getattr(msg, "content", []) or []:
-                    if isinstance(block, TextBlock):
-                        chunks.append(block.text)
-                        text_blocks += 1
-                        text_chars += len(block.text)
+                containers = [msg] if msg is not None else [message]
+                for container in containers:
+                    for block in getattr(container, "content", []) or []:
+                        if isinstance(block, TextBlock):
+                            chunks.append(block.text)
+                            text_blocks += 1
+                            text_chars += len(block.text)
+                        elif isinstance(block, dict):
+                            if str(block.get("type", "")) == "text":
+                                text = str(block.get("text", ""))
+                                if text:
+                                    chunks.append(text)
+                                    text_blocks += 1
+                                    text_chars += len(text)
+                        else:
+                            text = getattr(block, "text", "")
+                            if text:
+                                chunks.append(str(text))
+                                text_blocks += 1
+                                text_chars += len(str(text))
+                if text_blocks == 0 and self.trace_enabled:
+                    logger.info("[%s] assistant event had no text blocks", request_id)
                 if self.trace_enabled:
                     logger.info(
                         "[%s] assistant event=%s text_blocks=%s text_chars=%s",
@@ -133,7 +154,7 @@ class AgentSDKClient:
                         text_blocks,
                         text_chars,
                     )
-            elif message_type == "result":
+            elif normalized_type == "result":
                 result_events += 1
                 # bubble up explicit error result to caller for better diagnostics
                 if getattr(message, "is_error", False):
