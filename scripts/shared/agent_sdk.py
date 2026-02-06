@@ -6,12 +6,19 @@ import itertools
 import logging
 import os
 import time
+from contextlib import suppress
+from dataclasses import dataclass
 from typing import Any, ClassVar, cast
 
 import anyio
 from claude_agent_sdk import ClaudeAgentOptions, TextBlock, query
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _StreamEnd:
+    pass
 
 
 class AgentSDKClient:
@@ -94,6 +101,17 @@ class AgentSDKClient:
             allowed_tools=normalized_tools,
         )
 
+        send_stream, recv_stream = anyio.create_memory_object_stream[Any](128)
+
+        async def _produce_messages() -> None:
+            try:
+                async with send_stream:
+                    async for message in query(prompt=prompt, options=options):
+                        await send_stream.send(message)
+            finally:
+                with suppress(Exception):
+                    await send_stream.send(_StreamEnd())
+
         chunks: list[str] = []
         assistant_events = 0
         result_events = 0
@@ -103,127 +121,126 @@ class AgentSDKClient:
         started = time.monotonic()
         last_event = started
         last_heartbeat = started
-        stream = query(prompt=prompt, options=options).__aiter__()
-
-        while True:
-            try:
-                with anyio.fail_after(self.idle_timeout_seconds):
-                    message = await stream.__anext__()
-            except StopAsyncIteration:
-                break
-            except TimeoutError as exc:
-                raise TimeoutError(
-                    f"Claude Agent SDK idle timeout after {self.idle_timeout_seconds}s "
-                    f"without events (request={request_id})"
-                ) from exc
-
-            now = time.monotonic()
-            if self.total_timeout_seconds > 0 and (now - started) > self.total_timeout_seconds:
-                raise TimeoutError(
-                    f"Claude Agent SDK total timeout {self.total_timeout_seconds}s exceeded "
-                    f"(request={request_id})"
-                )
-            if self.trace_enabled and (now - last_heartbeat) >= self.heartbeat_seconds:
-                logger.info(
-                    "[%s] heartbeat elapsed=%.1fs assistant=%s result=%s other=%s",
-                    request_id,
-                    now - started,
-                    assistant_events,
-                    result_events,
-                    other_events,
-                )
-                last_heartbeat = now
-            last_event = now
-
-            message_type = str(getattr(message, "type", "") or "")
-            message_subtype = str(getattr(message, "subtype", "") or "")
-
-            if not message_type:
-                # SDK event objects can be model instances; best-effort fallback.
-                message_type = message.__class__.__name__
-
-            normalized_type = message_type.strip().lower()
-            if normalized_type == "systemmessage":
-                normalized_type = "system"
-            elif normalized_type == "assistantmessage":
-                normalized_type = "assistant"
-            elif normalized_type == "resultmessage":
-                normalized_type = "result"
-
-            if normalized_type == "system":
-                # Keep init/system traces concise and stable.
-                if self.trace_enabled:
-                    logger.info(
-                        "[%s] system event subtype=%s",
-                        request_id,
-                        message_subtype or "none",
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(_produce_messages)
+            while True:
+                with anyio.move_on_after(self.idle_timeout_seconds) as idle_scope:
+                    message = await recv_stream.receive()
+                if idle_scope.cancel_called:
+                    raise TimeoutError(
+                        f"Claude Agent SDK idle timeout after {self.idle_timeout_seconds}s "
+                        f"without events (request={request_id})"
                     )
-                continue
+                if isinstance(message, _StreamEnd):
+                    break
 
-            if normalized_type == "assistant":
-                assistant_events += 1
-                msg = getattr(message, "message", None)
-                text_blocks = 0
-                text_chars = 0
-                containers = [msg] if msg is not None else [message]
-                for container in containers:
-                    for block in getattr(container, "content", []) or []:
-                        if isinstance(block, TextBlock):
-                            chunks.append(block.text)
-                            text_blocks += 1
-                            text_chars += len(block.text)
-                        elif isinstance(block, dict):
-                            if str(block.get("type", "")) == "text":
-                                text = str(block.get("text", ""))
-                                if text:
-                                    chunks.append(text)
-                                    text_blocks += 1
-                                    text_chars += len(text)
-                        else:
-                            text = getattr(block, "text", "")
-                            if text:
-                                chunks.append(str(text))
-                                text_blocks += 1
-                                text_chars += len(str(text))
-                if text_blocks == 0 and self.trace_enabled:
-                    logger.info("[%s] assistant event had no text blocks", request_id)
-                if self.trace_enabled:
+                now = time.monotonic()
+                if self.total_timeout_seconds > 0 and (now - started) > self.total_timeout_seconds:
+                    raise TimeoutError(
+                        f"Claude Agent SDK total timeout {self.total_timeout_seconds}s exceeded "
+                        f"(request={request_id})"
+                    )
+                if self.trace_enabled and (now - last_heartbeat) >= self.heartbeat_seconds:
                     logger.info(
-                        "[%s] assistant event=%s text_blocks=%s text_chars=%s",
+                        "[%s] heartbeat elapsed=%.1fs assistant=%s result=%s other=%s",
                         request_id,
+                        now - started,
                         assistant_events,
-                        text_blocks,
-                        text_chars,
-                    )
-            elif normalized_type == "result":
-                result_events += 1
-                # bubble up explicit error result to caller for better diagnostics
-                if getattr(message, "is_error", False):
-                    result_text = getattr(message, "result", "")
-                    logger.error(
-                        "[%s] sdk result is_error=true event=%s detail=%s",
-                        request_id,
                         result_events,
-                        (str(result_text)[:400] if result_text else "empty"),
+                        other_events,
                     )
-                    raise RuntimeError(result_text or "Claude Agent SDK returned error")
-                if self.trace_enabled:
-                    logger.info(
-                        "[%s] sdk result event=%s is_error=false", request_id, result_events
-                    )
-            else:
-                other_events += 1
-                if self.trace_enabled and (
-                    self.verbose_events or other_events <= other_event_sample_limit
-                ):
-                    logger.info(
-                        "[%s] sdk other event type=%s subtype=%s",
-                        request_id,
-                        message_type,
-                        message_subtype or "none",
-                    )
-                elif self.trace_enabled:
-                    suppressed_other_events += 1
+                    last_heartbeat = now
+                last_event = now
+
+                message_type = str(getattr(message, "type", "") or "")
+                message_subtype = str(getattr(message, "subtype", "") or "")
+
+                if not message_type:
+                    # SDK event objects can be model instances; best-effort fallback.
+                    message_type = message.__class__.__name__
+
+                normalized_type = message_type.strip().lower()
+                if normalized_type == "systemmessage":
+                    normalized_type = "system"
+                elif normalized_type == "assistantmessage":
+                    normalized_type = "assistant"
+                elif normalized_type == "resultmessage":
+                    normalized_type = "result"
+
+                if normalized_type == "system":
+                    # Keep init/system traces concise and stable.
+                    if self.trace_enabled:
+                        logger.info(
+                            "[%s] system event subtype=%s",
+                            request_id,
+                            message_subtype or "none",
+                        )
+                    continue
+
+                if normalized_type == "assistant":
+                    assistant_events += 1
+                    msg = getattr(message, "message", None)
+                    text_blocks = 0
+                    text_chars = 0
+                    containers = [msg] if msg is not None else [message]
+                    for container in containers:
+                        for block in getattr(container, "content", []) or []:
+                            if isinstance(block, TextBlock):
+                                chunks.append(block.text)
+                                text_blocks += 1
+                                text_chars += len(block.text)
+                            elif isinstance(block, dict):
+                                if str(block.get("type", "")) == "text":
+                                    text = str(block.get("text", ""))
+                                    if text:
+                                        chunks.append(text)
+                                        text_blocks += 1
+                                        text_chars += len(text)
+                            else:
+                                text = getattr(block, "text", "")
+                                if text:
+                                    chunks.append(str(text))
+                                    text_blocks += 1
+                                    text_chars += len(str(text))
+                    if text_blocks == 0 and self.trace_enabled:
+                        logger.info("[%s] assistant event had no text blocks", request_id)
+                    if self.trace_enabled:
+                        logger.info(
+                            "[%s] assistant event=%s text_blocks=%s text_chars=%s",
+                            request_id,
+                            assistant_events,
+                            text_blocks,
+                            text_chars,
+                        )
+                elif normalized_type == "result":
+                    result_events += 1
+                    # bubble up explicit error result to caller for better diagnostics
+                    if getattr(message, "is_error", False):
+                        result_text = getattr(message, "result", "")
+                        logger.error(
+                            "[%s] sdk result is_error=true event=%s detail=%s",
+                            request_id,
+                            result_events,
+                            (str(result_text)[:400] if result_text else "empty"),
+                        )
+                        raise RuntimeError(result_text or "Claude Agent SDK returned error")
+                    if self.trace_enabled:
+                        logger.info(
+                            "[%s] sdk result event=%s is_error=false", request_id, result_events
+                        )
+                else:
+                    other_events += 1
+                    if self.trace_enabled and (
+                        self.verbose_events or other_events <= other_event_sample_limit
+                    ):
+                        logger.info(
+                            "[%s] sdk other event type=%s subtype=%s",
+                            request_id,
+                            message_type,
+                            message_subtype or "none",
+                        )
+                    elif self.trace_enabled:
+                        suppressed_other_events += 1
 
         if self.trace_enabled and suppressed_other_events > 0:
             logger.info(
