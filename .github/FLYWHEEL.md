@@ -136,7 +136,7 @@ gh workflow run automation-metrics.yml
 
 ## 必要 Secrets
 
-- `ANTHROPIC_API_KEY`
+- `ANTHROPIC_AUTH_TOKEN`
 - `GITHUB_TOKEN`（Actions 默认注入）
 
 ## 保护建议

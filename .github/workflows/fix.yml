@@ -202,7 +202,7 @@ jobs:
       - name: Generate candidate PR with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are candidate #${{ matrix.candidate_id }} for fixing issue #${{ needs.select-issue.outputs.issue_number }}.
