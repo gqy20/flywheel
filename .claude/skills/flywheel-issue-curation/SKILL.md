@@ -1,7 +1,7 @@
 ---
 name: flywheel-issue-curation
 description: Curate GitHub issues for this repository. Use when user asks to control open issue count, clean backlog, enforce p0-p3/frozen priority strategy, or batch-close low-priority stale issues.
-allowed-tools: Read,Grep,Glob,LS,Bash(gh:*),Bash(git:*)
+allowed-tools: Read,Grep,Glob,LS,Bash(gh *),Bash(git *)
 ---
 
 # Flywheel Issue Curation

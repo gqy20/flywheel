@@ -1,7 +1,7 @@
 ---
 name: flywheel-candidate-fix
 description: Generate candidate fix PRs for one issue in this repository. Use when working on the 3-candidate fix model, TDD fix flow, and strict branch/PR naming conventions.
-allowed-tools: Read,Grep,Glob,LS,Edit,MultiEdit,Write,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)
+allowed-tools: Read,Grep,Glob,LS,Edit,MultiEdit,Write,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)
 ---
 
 # Flywheel Candidate Fix

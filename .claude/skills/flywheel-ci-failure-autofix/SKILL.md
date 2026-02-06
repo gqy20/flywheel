@@ -1,7 +1,7 @@
 ---
 name: flywheel-ci-failure-autofix
 description: Investigate failed CI runs and create a dedicated fix PR. Use when CI workflow fails, when user asks to auto-fix failing checks, or when analyzing job logs for minimal corrective changes.
-allowed-tools: Read,Grep,Glob,LS,Edit,MultiEdit,Write,Bash(gh:*),Bash(git:*),Bash(uv run pytest:*),Bash(uv run ruff:*)
+allowed-tools: Read,Grep,Glob,LS,Edit,MultiEdit,Write,Bash(gh *),Bash(git *),Bash(uv run pytest *),Bash(uv run ruff *)
 ---
 
 # Flywheel CI Failure Autofix

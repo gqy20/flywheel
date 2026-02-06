@@ -259,7 +259,7 @@ jobs:
           claude_args: |
             --max-turns 25
             --model "${{ secrets.ANTHROPIC_MODEL }}"
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh:*),Bash(git:*)"
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh *),Bash(git *)"
 
       - name: Summary
         if: always()

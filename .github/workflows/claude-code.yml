@@ -47,7 +47,7 @@ jobs:
           # Keep tool scope tight; expand only when needed.
           claude_args: |
             --model "${{ secrets.ANTHROPIC_MODEL }}"
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"
 
   manual:
     if: github.event_name == 'workflow_dispatch'
@@ -68,4 +68,4 @@ jobs:
             {"enableAllProjectMcpServers":false}
           claude_args: |
             --model "${{ secrets.ANTHROPIC_MODEL }}"
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"

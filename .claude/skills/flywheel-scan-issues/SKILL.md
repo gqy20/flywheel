@@ -1,7 +1,7 @@
 ---
 name: flywheel-scan-issues
 description: Scan repository source files and create high-value GitHub issues with bounded volume and deduplication.
-allowed-tools: Read,Grep,Glob,LS,Bash(rg:*),Bash(find:*),Bash(gh:*),Bash(git:*)
+allowed-tools: Read,Grep,Glob,LS,Bash(rg *),Bash(find *),Bash(gh *),Bash(git *)
 ---
 
 # Flywheel Scan Issues
