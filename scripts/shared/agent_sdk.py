@@ -36,6 +36,11 @@ class AgentSDKClient:
             "true",
             "on",
         }
+        self.verbose_events = os.environ.get("CLAUDE_SDK_VERBOSE_EVENTS", "0").lower() in {
+            "1",
+            "true",
+            "on",
+        }
         self._request_counter = itertools.count(1)
 
     def _build_env(self) -> dict[str, str]:
@@ -76,8 +81,27 @@ class AgentSDKClient:
         chunks: list[str] = []
         assistant_events = 0
         result_events = 0
+        other_events = 0
+        suppressed_other_events = 0
+        other_event_sample_limit = 3
         async for message in query(prompt=prompt, options=options):
-            message_type = str(getattr(message, "type", "unknown"))
+            message_type = str(getattr(message, "type", "") or "")
+            message_subtype = str(getattr(message, "subtype", "") or "")
+
+            if not message_type:
+                # SDK event objects can be model instances; best-effort fallback.
+                message_type = message.__class__.__name__
+
+            if message_type == "system":
+                # Keep init/system traces concise and stable.
+                if self.trace_enabled:
+                    logger.info(
+                        "[%s] system event subtype=%s",
+                        request_id,
+                        message_subtype or "none",
+                    )
+                continue
+
             if message_type == "assistant":
                 assistant_events += 1
                 msg = getattr(message, "message", None)
@@ -116,8 +140,26 @@ class AgentSDKClient:
                     logger.info(
                         "[%s] sdk result event=%s is_error=false", request_id, result_events
                     )
-            elif self.trace_enabled:
-                logger.info("[%s] sdk message type=%s", request_id, message_type)
+            else:
+                other_events += 1
+                if self.trace_enabled and (
+                    self.verbose_events or other_events <= other_event_sample_limit
+                ):
+                    logger.info(
+                        "[%s] sdk other event type=%s subtype=%s",
+                        request_id,
+                        message_type,
+                        message_subtype or "none",
+                    )
+                elif self.trace_enabled:
+                    suppressed_other_events += 1
+
+        if self.trace_enabled and suppressed_other_events > 0:
+            logger.info(
+                "[%s] sdk other events suppressed count=%s (set CLAUDE_SDK_VERBOSE_EVENTS=1 to expand)",
+                request_id,
+                suppressed_other_events,
+            )
 
         return "".join(chunks).strip()
 
