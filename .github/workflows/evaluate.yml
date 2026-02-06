@@ -118,7 +118,7 @@ jobs:
             5. Summarize changed issues and final priority distribution.
           claude_args: |
             --max-turns 20
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(git:*)"
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh:*),Bash(git:*)"
 
       - name: Event summary
         if: github.event_name == 'issues'

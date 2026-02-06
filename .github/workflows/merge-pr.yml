@@ -107,6 +107,7 @@ jobs:
         id: pick
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
           GH_PAGER: cat
           PAGER: cat
@@ -257,7 +258,7 @@ jobs:
             - Do not modify workflows or repository settings.
           claude_args: |
             --max-turns 25
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh pr:*),Bash(gh issue:*),Bash(git:*)"
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh:*),Bash(git:*)"
 
       - name: Summary
         if: always()

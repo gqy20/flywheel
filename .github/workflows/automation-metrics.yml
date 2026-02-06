@@ -30,6 +30,7 @@ jobs:
         id: metrics
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           WINDOW_DAYS: ${{ inputs.window_days || '7' }}
           GH_PAGER: cat
           PAGER: cat
@@ -116,6 +117,7 @@ jobs:
       - name: Upsert dashboard issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           REPORT: ${{ steps.metrics.outputs.report }}
           GH_PAGER: cat
           PAGER: cat

@@ -113,6 +113,7 @@ jobs:
         id: pick
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
           GH_PAGER: cat
           PAGER: cat

@@ -126,7 +126,7 @@ jobs:
             7. Post a concise summary comment in workflow output.
           claude_args: |
             --max-turns 20
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh issue:*),Bash(git:*)"
+            --allowedTools "Read,Glob,Grep,LS,Bash(gh:*),Bash(git:*)"
 
       - name: Summary
         env:
