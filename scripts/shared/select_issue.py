@@ -151,6 +151,7 @@ def main() -> int:
     token = os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN")
     output_file = os.getenv("GITHUB_OUTPUT", "")
     min_fixable_issues = int(os.getenv("MIN_FIXABLE_ISSUES", "3"))
+    issue_batch_size = max(1, int(os.getenv("ISSUE_BATCH_SIZE", "1")))
 
     if not repo or not token or not output_file:
         print("missing GH_REPO/GH_TOKEN/GITHUB_OUTPUT", file=sys.stderr)
@@ -165,15 +166,34 @@ def main() -> int:
         print(
             f"Fixable issue pool too small: eligible={len(eligible)}, required={min_fixable_issues}"
         )
-        _write_output(Path(output_file), {"should_run": "false"})
+        _write_output(
+            Path(output_file),
+            {"should_run": "false", "issues_json": "[]", "selected_count": "0"},
+        )
         return 0
 
     if not eligible:
         print("No eligible issue found.")
-        _write_output(Path(output_file), {"should_run": "false"})
+        _write_output(
+            Path(output_file),
+            {"should_run": "false", "issues_json": "[]", "selected_count": "0"},
+        )
         return 0
 
-    best = eligible[0]
+    selected = eligible[:issue_batch_size]
+    best = selected[0]
+    issues_json = json.dumps(
+        [
+            {
+                "number": str(item.number),
+                "title": item.title,
+                "url": item.url,
+            }
+            for item in selected
+        ],
+        ensure_ascii=True,
+    )
+
     _write_output(
         Path(output_file),
         {
@@ -181,6 +201,8 @@ def main() -> int:
             "issue_number": str(best.number),
             "issue_title": best.title,
             "issue_url": best.url,
+            "issues_json": issues_json,
+            "selected_count": str(len(selected)),
         },
     )
     return 0

@@ -25,6 +25,11 @@ on:
         required: false
         default: "3"
         type: string
+      issue_batch_size:
+        description: "Number of highest-priority issues to process per run"
+        required: false
+        default: "3"
+        type: string
       max_open_issues:
         description: "Target max number of open issues for curation"
         required: false
@@ -228,6 +233,8 @@ jobs:
       issue_number: ${{ steps.pick.outputs.issue_number }}
       issue_title: ${{ steps.pick.outputs.issue_title }}
       issue_url: ${{ steps.pick.outputs.issue_url }}
+      issues_json: ${{ steps.pick.outputs.issues_json }}
+      selected_count: ${{ steps.pick.outputs.selected_count }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -238,6 +245,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           MIN_FIXABLE_ISSUES: ${{ inputs.min_fixable_issues || '3' }}
+          ISSUE_BATCH_SIZE: ${{ inputs.issue_batch_size || '3' }}
         run: python scripts/shared/select_issue.py
 
   generate-candidates:
@@ -248,6 +256,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        issue: ${{ fromJson(needs.select-issue.outputs.issues_json) }}
         candidate_id: [1, 2, 3]
     steps:
       - name: Checkout code
@@ -272,9 +281,9 @@ jobs:
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           CLAUDE_BACKEND: agent_sdk
-          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
-          ISSUE_TITLE: ${{ needs.select-issue.outputs.issue_title }}
-          ISSUE_URL: ${{ needs.select-issue.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
+          ISSUE_TITLE: ${{ matrix.issue.title }}
+          ISSUE_URL: ${{ matrix.issue.url }}
           CANDIDATE_ID: ${{ matrix.candidate_id }}
           RUN_ID: ${{ github.run_id }}
           CLAUDE_MAX_TURNS: "60"
@@ -293,7 +302,7 @@ jobs:
         id: quality_gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
           CANDIDATE_ID: ${{ matrix.candidate_id }}
           RUN_ID: ${{ github.run_id }}
           MIN_SCORE: ${{ inputs.candidate_quality_min_score || '70' }}
@@ -403,6 +412,10 @@ jobs:
     if: always() && needs.circuit-breaker.outputs.should_run == 'true' && needs.select-issue.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        issue: ${{ fromJson(needs.select-issue.outputs.issues_json) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -422,7 +435,7 @@ jobs:
         id: eligible
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
           RUN_ID: ${{ github.run_id }}
         run: python scripts/shared/select_merge_eligible.py
 
@@ -435,7 +448,7 @@ jobs:
           ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           CLAUDE_BACKEND: agent_sdk
-          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
           ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
           CLAUDE_MAX_TURNS: "25"
           CLAUDE_REQUIRE_SCORECARD: ${{ inputs.require_scorecard || true }}
@@ -451,7 +464,7 @@ jobs:
         if: always() && steps.eligible.outputs.should_merge == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ISSUE_NUMBER: ${{ matrix.issue.number }}
           ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
           GH_PAGER: cat
           PAGER: cat
