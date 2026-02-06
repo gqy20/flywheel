@@ -177,6 +177,15 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
       - name: Filter merge-eligible candidate PRs
         id: eligible
         env:
@@ -224,42 +233,19 @@ jobs:
           echo "should_merge=true" >> "$GITHUB_OUTPUT"
           echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
 
-      - name: Decide best candidate and merge
+      - name: Decide best candidate and merge via SDK
         if: steps.eligible.outputs.should_merge == 'true'
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          show_full_output: true
-          prompt: |
-            You are the dedicated merge arbiter for auto-fix candidates.
-            First, load and follow the local skill at `.claude/skills/flywheel-merge-arbiter/SKILL.md`.
-
-            Target issue: #${{ needs.select-group.outputs.issue_number }}
-            Eligible candidate PRs (CSV): ${{ steps.eligible.outputs.eligible_csv }}
-
-            Required workflow:
-            1. Compare only the eligible candidates (all checks already green, non-draft, mergeable).
-            2. Score each candidate using this weighted rubric (0-10 each dimension):
-               - Correctness and issue coverage (weight 0.45)
-               - Regression risk (weight 0.30, lower risk means higher score)
-               - Simplicity and maintainability (weight 0.15)
-               - Test quality and verification evidence (weight 0.10)
-            3. Compute total score = weighted sum and rank all candidates.
-            4. Publish a machine-readable scorecard comment on the winner PR before merge, exactly:
-               <!-- arbiter-scorecard -->
-               {"issue":<issue_number>,"winner_pr":<pr_number>,"scores":[{"pr":<number>,"correctness":<0-10>,"risk":<0-10>,"maintainability":<0-10>,"tests":<0-10>,"total":<0-10>,"verdict":"winner|rejected","reason":"..."}]}
-            5. Merge exactly one winner to `master` using squash merge.
-            6. Comment and close non-winner candidate PRs with brief reasons and score deltas.
-            7. If no candidate is safe after deep review, do not merge and comment on issue #${{ needs.select-group.outputs.issue_number }}.
-
-            Constraints:
-            - Never merge more than one PR.
-            - Use GitHub CLI for PR/issue operations.
-            - Do not modify workflows or repository settings.
-          claude_args: |
-            --max-turns 25
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh *),Bash(git *)"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_BACKEND: agent_sdk
+          ISSUE_NUMBER: ${{ needs.select-group.outputs.issue_number }}
+          ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
+          CLAUDE_MAX_TURNS: "25"
+        run: uv run python scripts/merge.py
 
       - name: Summary
         if: always()

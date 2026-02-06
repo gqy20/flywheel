@@ -199,46 +199,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Generate candidate PR with Claude
-        uses: anthropics/claude-code-action@v1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          show_full_output: true
-          prompt: |
-            You are candidate #${{ matrix.candidate_id }} for fixing issue #${{ needs.select-issue.outputs.issue_number }}.
-            First, load and follow the local skill at `.claude/skills/flywheel-candidate-fix/SKILL.md`.
+          python-version: "3.13"
+          enable-cache: true
 
-            Issue:
-            - Number: #${{ needs.select-issue.outputs.issue_number }}
-            - Title: ${{ needs.select-issue.outputs.issue_title }}
-            - URL: ${{ needs.select-issue.outputs.issue_url }}
+      - name: Install dependencies
+        run: uv sync
 
-            Required output:
-            1. Implement a focused fix using TDD:
-               - Add or update a failing regression test first.
-               - Implement minimal fix.
-               - Run `uv run pytest ...` and `uv run ruff check ...` on changed scope.
-            2. Create a branch with EXACT name:
-               `claude/issue-${{ needs.select-issue.outputs.issue_number }}-candidate-${{ matrix.candidate_id }}-${{ github.run_id }}`
-            3. Commit using conventional commits and include issue number.
-            4. Create ONE PR to `master` with EXACT title prefix:
-               `[AUTOFIX][ISSUE-${{ needs.select-issue.outputs.issue_number }}][CANDIDATE-${{ matrix.candidate_id }}]`
-               followed by a short summary.
-            5. PR body must include:
-               - Summary of change
-               - Tests run
-               - Risks/limitations
-               - `Closes #${{ needs.select-issue.outputs.issue_number }}`
-            6. Never push directly to master.
-            7. If blocked, comment on the issue with reason and add label `auto-fix-failed` if label exists.
-
-            Constraints:
-            - Keep diff small and reviewable.
-            - Do not modify workflows or secrets.
-          claude_args: |
-            --max-turns 20
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"
+      - name: Generate candidate PR via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_BACKEND: agent_sdk
+          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ISSUE_TITLE: ${{ needs.select-issue.outputs.issue_title }}
+          ISSUE_URL: ${{ needs.select-issue.outputs.issue_url }}
+          CANDIDATE_ID: ${{ matrix.candidate_id }}
+          RUN_ID: ${{ github.run_id }}
+          CLAUDE_MAX_TURNS: "20"
+        run: uv run python scripts/fix.py
 
       - name: Quality gate candidate PR
         id: quality_gate
