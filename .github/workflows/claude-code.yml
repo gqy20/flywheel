@@ -40,13 +40,14 @@ jobs:
       - name: Run Claude Code Action
         uses: anthropics/claude-code-action@v1.0.30
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
+          track_progress: true
           settings: |
             {"enableAllProjectMcpServers":false}
           # Keep tool scope tight; expand only when needed.
           claude_args: |
-            --model "${{ secrets.ANTHROPIC_MODEL }}"
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"
 
   manual:
@@ -61,11 +62,12 @@ jobs:
       - name: Run Claude Code Action (Manual Prompt)
         uses: anthropics/claude-code-action@v1.0.30
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ inputs.prompt }}
+          show_full_output: true
+          track_progress: true
           settings: |
             {"enableAllProjectMcpServers":false}
           claude_args: |
-            --model "${{ secrets.ANTHROPIC_MODEL }}"
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"

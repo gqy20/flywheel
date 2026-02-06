@@ -207,8 +207,10 @@ jobs:
       - name: Generate CI-fix candidate PR with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          show_full_output: true
+          track_progress: true
           additional_permissions: |
             actions: read
           prompt: |
@@ -236,7 +238,6 @@ jobs:
             - Do not modify workflows or secrets.
           claude_args: |
             --max-turns 20
-            --model "${{ secrets.ANTHROPIC_MODEL }}"
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git *),Bash(gh *),Bash(uv run pytest *),Bash(uv run ruff *)"
 
       - name: Summary
