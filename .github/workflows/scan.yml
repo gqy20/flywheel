@@ -133,8 +133,6 @@ jobs:
             7. Keep issue body concise: problem, location, impact, expected fix direction.
           claude_args: |
             --max-turns 25
-            --model "${{ secrets.ANTHROPIC_MODEL }}"
-            --allowedTools "Read,Glob,Grep,LS,Bash(rg *),Bash(find *),Bash(gh *),Bash(git *)"
 
       - name: Deduplicate fingerprinted issues
         env:
