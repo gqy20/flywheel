@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, cast
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -61,7 +61,7 @@ class PriorityEvaluator:
 **只返回优先级标签（p0/p1/p2/p3），不要其他内容**。"""
 
         try:
-            response = self.client.chat(prompt, temperature=0.1, max_tokens=10)
+            response = cast(str, self.client.chat(prompt, temperature=0.1, max_tokens=10))
             # 清理响应，提取优先级标签
             priority = response.strip().lower()
             # 验证返回值是否有效

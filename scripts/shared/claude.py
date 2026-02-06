@@ -66,11 +66,14 @@ class ClaudeClient:
         payload = prompt if not system_prompt else f"{system_prompt}\n\n{prompt}"
         for attempt in range(self.max_retries):
             try:
-                return self.sdk_client.chat(
-                    payload,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    allowed_tools=self.readonly_tools,
+                return cast(
+                    str,
+                    self.sdk_client.chat(
+                        payload,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        allowed_tools=self.readonly_tools,
+                    ),
                 )
             except Exception as e:
                 if attempt >= self.max_retries - 1:

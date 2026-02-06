@@ -6,7 +6,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -79,7 +79,7 @@ class Scanner:
 
         logger.info(f"Scanning {filepath}")
 
-        issues = self.client.analyze_code(filepath)
+        issues = cast(list[IssueData], self.client.analyze_code(filepath))
         logger.info(f"Found {len(issues)} issues in {filepath}")
 
         # Add filepath to each issue
@@ -103,7 +103,7 @@ class Scanner:
 
         logger.info(f"Scanning opportunities in {filepath}")
 
-        opportunities = self.client.analyze_opportunities(filepath)
+        opportunities = cast(list[IssueData], self.client.analyze_opportunities(filepath))
         logger.info(f"Found {len(opportunities)} opportunities in {filepath}")
 
         # Add filepath to each opportunity
@@ -408,7 +408,7 @@ class Scanner:
 """
 
         labels = [priority]
-        return create_issue(title, body, labels)
+        return cast(int, create_issue(title, body, labels))
 
     def run(self, directory: str = ".") -> None:
         """Run the scanner.
