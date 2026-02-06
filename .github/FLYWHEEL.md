@@ -19,6 +19,7 @@
 | `fix.yml` | 每小时 / 手动 | 选择一个 issue，启动 3 路并行候选修复并提交 PR |
 | `merge-pr.yml` | 每小时 / 手动 | 对同一 issue 的候选 PR 做硬性 checks 过滤后仲裁合并 |
 | `ci-failure-auto-fix.yml` | CI 失败时 / 手动 | 针对失败 CI 自动生成修复候选 PR |
+| `automation-metrics.yml` | 每日 / 手动 | 汇总自动化健康指标并写入 dashboard issue |
 | `claude-code.yml` | 评论/手动 | 交互式 @claude 能力 |
 | `ci.yml` | push / PR | lint + test + coverage |
 
@@ -120,6 +121,9 @@ gh workflow run merge-pr.yml -f issue_number=123
 
 # 触发 CI 失败自动修复
 gh workflow run ci-failure-auto-fix.yml
+
+# 触发自动化指标汇总
+gh workflow run automation-metrics.yml
 ```
 
 ## 必要 Secrets

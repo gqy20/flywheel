@@ -1,0 +1,146 @@
+name: Automation Metrics Dashboard
+
+on:
+  schedule:
+    - cron: "5 1 * * *"
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: "Lookback window (days)"
+        required: false
+        default: "7"
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  actions: read
+
+concurrency:
+  group: automation-metrics
+  cancel-in-progress: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Build metrics snapshot
+        id: metrics
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOW_DAYS: ${{ inputs.window_days || '7' }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cutoff="$(date -u -d "${WINDOW_DAYS} days ago" +%Y-%m-%d)"
+          now_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          open_issues="$(gh issue list --state open --limit 200 --json number | jq 'length')"
+
+          priority_json="$(gh issue list --state open --limit 200 --json labels)"
+          p0="$(echo "$priority_json" | jq '[.[] | [.labels[].name] | any(. == "p0")] | map(select(.)) | length')"
+          p1="$(echo "$priority_json" | jq '[.[] | [.labels[].name] | any(. == "p1")] | map(select(.)) | length')"
+          p2="$(echo "$priority_json" | jq '[.[] | [.labels[].name] | any(. == "p2")] | map(select(.)) | length')"
+          p3="$(echo "$priority_json" | jq '[.[] | [.labels[].name] | any(. == "p3")] | map(select(.)) | length')"
+
+          open_candidate_prs="$(
+            gh pr list --state open --limit 200 --json title \
+              | jq '[.[] | select(.title | test("^\\[AUTOFIX\\]\\[ISSUE-[0-9]+\\]\\[CANDIDATE-[0-9]+\\]"))] | length'
+          )"
+
+          merged_recent="$(
+            gh pr list --state merged --search "[AUTOFIX] merged:>=$cutoff" --limit 200 --json number \
+              | jq 'length'
+          )"
+
+          closed_unmerged_recent="$(
+            gh pr list --state closed --search "[AUTOFIX] is:unmerged closed:>=$cutoff" --limit 200 --json number \
+              | jq 'length'
+          )"
+
+          ci_runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs?per_page=100")"
+          ci_recent_total="$(
+            echo "$ci_runs_json" | jq --arg cutoff "${cutoff}T00:00:00Z" '
+              [.workflow_runs[] | select(.created_at >= $cutoff)] | length
+            '
+          )"
+          ci_recent_failed="$(
+            echo "$ci_runs_json" | jq --arg cutoff "${cutoff}T00:00:00Z" '
+              [.workflow_runs[] | select(.created_at >= $cutoff and .conclusion == "failure")] | length
+            '
+          )"
+
+          if [ "$ci_recent_total" -gt 0 ]; then
+            ci_fail_rate="$(awk "BEGIN { printf \"%.2f\", ($ci_recent_failed/$ci_recent_total)*100 }")"
+          else
+            ci_fail_rate="0.00"
+          fi
+
+          markdown="$(
+            cat <<EOF
+          ## Automation Metrics Snapshot
+
+          - Generated at (UTC): \`$now_utc\`
+          - Window: last \`$WINDOW_DAYS\` day(s), since \`$cutoff\`
+
+          ### Issue Pool
+
+          - Open issues: **$open_issues**
+          - Priority split: \`p0=$p0\` \`p1=$p1\` \`p2=$p2\` \`p3=$p3\`
+
+          ### Autofix Pipeline
+
+          - Open candidate PRs: **$open_candidate_prs**
+          - Merged AUTOFIX PRs (window): **$merged_recent**
+          - Closed unmerged AUTOFIX PRs (window): **$closed_unmerged_recent**
+
+          ### CI Health
+
+          - CI runs (window): **$ci_recent_total**
+          - CI failed runs (window): **$ci_recent_failed**
+          - CI failure rate: **$ci_fail_rate%**
+          EOF
+          )"
+
+          {
+            echo "report<<EOF"
+            echo "$markdown"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upsert dashboard issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPORT: ${{ steps.metrics.outputs.report }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          title="[METRICS] Automation Health Dashboard"
+          issue_number="$(
+            gh issue list --state open --search "in:title \"$title\"" --limit 20 --json number,title \
+              | jq -r --arg title "$title" '.[] | select(.title == $title) | .number' \
+              | head -n 1
+          )"
+
+          if [ -z "${issue_number:-}" ]; then
+            gh issue create \
+              --title "$title" \
+              --body "This issue is used by automation to post periodic flywheel metrics snapshots." \
+              >/tmp/new_issue_url.txt
+            issue_number="$(awk -F'/' '{print $NF}' /tmp/new_issue_url.txt)"
+          fi
+
+          gh issue comment "$issue_number" --body "$REPORT"
+
+      - name: Summary
+        run: |
+          echo "### Automation Metrics Dashboard" >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.metrics.outputs.report }}" >> "$GITHUB_STEP_SUMMARY"

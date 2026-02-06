@@ -19,6 +19,7 @@
 - `gh workflow run issue-curation.yml`: manual Claude curation run.
 - `gh workflow run fix.yml`: manual candidate-fix run (3 parallel candidates).
 - `gh workflow run merge-pr.yml`: manual merge-arbiter run.
+- `gh workflow run automation-metrics.yml`: manual automation metrics snapshot run.
 
 ## Coding Style & Naming Conventions
 - Python 3.13+, 4-space indentation, line length 100.
