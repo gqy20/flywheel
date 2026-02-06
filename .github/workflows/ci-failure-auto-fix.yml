@@ -207,7 +207,7 @@ jobs:
       - name: Generate CI-fix candidate PR with Claude
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           additional_permissions: |
             actions: read

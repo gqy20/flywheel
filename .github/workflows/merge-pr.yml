@@ -228,7 +228,7 @@ jobs:
         if: steps.eligible.outputs.should_merge == 'true'
         uses: anthropics/claude-code-action@v1
         with:
-          claude_code_oauth_token: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             You are the dedicated merge arbiter for auto-fix candidates.
