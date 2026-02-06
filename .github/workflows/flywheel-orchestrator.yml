@@ -212,75 +212,16 @@ jobs:
       issue_title: ${{ steps.pick.outputs.issue_title }}
       issue_url: ${{ steps.pick.outputs.issue_url }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Select next issue
         id: pick
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           MIN_FIXABLE_ISSUES: ${{ inputs.min_fixable_issues || '3' }}
-          GH_PAGER: cat
-          PAGER: cat
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          OPEN_PR_ISSUES_JSON="$(
-            gh pr list --state open --limit 200 --json title \
-            | jq -c '
-                map(
-                  .title
-                  | capture("^\\[AUTOFIX\\]\\[ISSUE-(?<id>[0-9]+)\\]")?
-                  | .id?
-                  | select(. != null)
-                  | tonumber
-                )
-                | unique
-              '
-          ))"
-
-          ISSUES_JSON="$(gh issue list --state open --limit 100 --json number,title,url,labels)"
-
-          ELIGIBLE_JSON="$(echo "$ISSUES_JSON" | jq -c '
-            map(
-              .label_names = [.labels[].name]
-              | .priority = (
-                  if (.label_names | index("p0")) then 0
-                  elif (.label_names | index("p1")) then 1
-                  elif (.label_names | index("p2")) then 2
-                  elif (.label_names | index("p3")) then 3
-                  else 99
-                  end
-                )
-            )
-            | map(select((.label_names | index("frozen")) | not))
-            | map(select((.label_names | index("auto-fix-failed")) | not))
-            | map(select((.label_names | index("wontfix")) | not))
-            | map(select((.label_names | index("invalid")) | not))
-            | map(select((.label_names | index("question")) | not))
-            | map(select((.label_names | index("duplicate")) | not))
-            | map(select((.number as $n | $busy | index($n)) | not))
-            | sort_by(.priority, .number)
-          ' --argjson busy "$OPEN_PR_ISSUES_JSON")"
-
-          ELIGIBLE_COUNT="$(echo "$ELIGIBLE_JSON" | jq 'length')"
-          if [ "$ELIGIBLE_COUNT" -lt "$MIN_FIXABLE_ISSUES" ]; then
-            echo "Fixable issue pool too small: eligible=${ELIGIBLE_COUNT}, required=${MIN_FIXABLE_ISSUES}"
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          BEST="$(echo "$ELIGIBLE_JSON" | jq -r '.[0] // empty')"
-
-          if [ -z "$BEST" ]; then
-            echo "No eligible issue found."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "should_run=true" >> "$GITHUB_OUTPUT"
-          echo "issue_number=$(echo "$BEST" | jq -r '.number')" >> "$GITHUB_OUTPUT"
-          echo "issue_title=$(echo "$BEST" | jq -r '.title')" >> "$GITHUB_OUTPUT"
-          echo "issue_url=$(echo "$BEST" | jq -r '.url')" >> "$GITHUB_OUTPUT"
+        run: python scripts/shared/select_issue.py
 
   generate-candidates:
     needs: [circuit-breaker, select-issue]
@@ -460,51 +401,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
           RUN_ID: ${{ github.run_id }}
-          GH_PAGER: cat
-          PAGER: cat
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          eligible=""
-          for cid in 1 2 3; do
-            branch="claude/issue-${ISSUE_NUMBER}-candidate-${cid}-${RUN_ID}"
-            pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
-            [ -z "$pr" ] && continue
-
-            pr_json="$(gh pr view "$pr" --json number,isDraft,mergeStateStatus,statusCheckRollup)"
-            draft="$(echo "$pr_json" | jq -r '.isDraft')"
-            merge_state="$(echo "$pr_json" | jq -r '.mergeStateStatus')"
-            checks_ok="$(echo "$pr_json" | jq -r '
-              ([.statusCheckRollup[]?
-                | if has("conclusion") then .conclusion
-                  elif has("state") then .state
-                  else "SUCCESS" end
-              ]
-              | all(. == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED"))
-            ')"
-
-            if [ "$draft" = "false" ] && [ "$checks_ok" = "true" ] && [ "$merge_state" != "DIRTY" ]; then
-              eligible="${eligible},${pr}"
-            fi
-          done
-
-          eligible="${eligible#,}"
-          if [ -z "$eligible" ]; then
-            echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            echo "eligible_csv=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          count="$(echo "$eligible" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
-          if [ "$count" -lt 2 ]; then
-            echo "should_merge=false" >> "$GITHUB_OUTPUT"
-            echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "should_merge=true" >> "$GITHUB_OUTPUT"
-          echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
+        run: python scripts/shared/select_merge_eligible.py
 
       - name: Decide best candidate and merge via SDK
         if: steps.eligible.outputs.should_merge == 'true'

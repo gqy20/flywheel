@@ -7,6 +7,7 @@ This runbook describes how to operate and recover Flywheel automation safely.
 - Workflows: `flywheel-orchestrator.yml`, `ci-failure-auto-fix.yml`, `automation-metrics.yml`, `docs-ci.yml`, `docs-auto-maintenance.yml`
 - Main policy doc: `.github/FLYWHEEL.md`
 - Generated workflow input reference: `docs/generated/workflow-inputs.md`
+- Shared gate/selection scripts: `scripts/shared/circuit_breaker.py`, `scripts/shared/select_issue.py`, `scripts/shared/select_merge_eligible.py`
 
 ## Daily Checks
 

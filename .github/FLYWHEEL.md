@@ -36,6 +36,10 @@
   - `curation`
   - `summary`
 - 每阶段使用 `needs` 显式依赖，避免跨 workflow 状态漂移。
+- 关键门控与选择逻辑由共享脚本承载，避免 YAML 内嵌大段 shell：
+  - `scripts/shared/circuit_breaker.py`
+  - `scripts/shared/select_issue.py`
+  - `scripts/shared/select_merge_eligible.py`
 
 ### 2) Scan 去重指纹
 
