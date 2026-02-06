@@ -1,15 +1,7 @@
 name: Docs Auto Maintenance
 
 on:
-  workflow_run:
-    workflows: ["Docs CI"]
-    types: [completed]
   workflow_dispatch:
-    inputs:
-      target_ref:
-        description: "Optional git ref to checkout before fixing docs"
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -19,29 +11,13 @@ permissions:
 
 jobs:
   autofix-docs:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Resolve target ref
-        id: ref
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.target_ref }}" ]; then
-            echo "value=${{ inputs.target_ref }}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "value=${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=master" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.ref.outputs.value }}
+          ref: master
           fetch-depth: 0
 
       - name: Setup uv
@@ -62,7 +38,6 @@ jobs:
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           RUN_ID: ${{ github.run_id }}
           TRIGGER_EVENT: ${{ github.event_name }}
-          SOURCE_RUN_URL: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.html_url || '' }}
           CLAUDE_MAX_TURNS: "30"
         run: timeout 30m uv run python scripts/docs_autofix.py
 
@@ -71,6 +46,3 @@ jobs:
         run: |
           echo "### Docs Auto Maintenance" >> "$GITHUB_STEP_SUMMARY"
           echo "- Trigger: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            echo "- Source run: ${{ github.event.workflow_run.html_url }}" >> "$GITHUB_STEP_SUMMARY"
-          fi

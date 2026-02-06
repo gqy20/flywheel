@@ -15,19 +15,13 @@ Run `uv run python scripts/check_docs_sync.py --generate` after workflow changes
 |---|---|---|---|---|
 | `circuit_cooldown_minutes` | `false` | `90` | `string` | Circuit breaker cooldown window (minutes) |
 | `circuit_failure_threshold` | `false` | `3` | `string` | Circuit breaker consecutive failure threshold |
-| `pr_number` | `false` | `` | `string` | Optional: specific PR number to auto-fix |
+| `pr_number` | `true` | `` | `string` | Specific PR number to auto-fix |
 
 ## `claude-code.yml`
 
 | Input | Required | Default | Type | Description |
 |---|---|---|---|---|
 | `prompt` | `true` | `` | `string` | Prompt for manual Claude run |
-
-## `docs-auto-maintenance.yml`
-
-| Input | Required | Default | Type | Description |
-|---|---|---|---|---|
-| `target_ref` | `false` | `` | `string` | Optional git ref to checkout before fixing docs |
 
 ## `flywheel-orchestrator.yml`
 

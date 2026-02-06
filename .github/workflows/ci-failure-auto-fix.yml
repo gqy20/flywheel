@@ -1,14 +1,11 @@
 name: CI Failure Auto Fix
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "Optional: specific PR number to auto-fix"
-        required: false
+        description: "Specific PR number to auto-fix"
+        required: true
         type: string
       circuit_failure_threshold:
         description: "Circuit breaker consecutive failure threshold"
@@ -34,11 +31,6 @@ concurrency:
 
 jobs:
   circuit-breaker:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'failure' &&
-       github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.gate.outputs.should_run }}
@@ -60,14 +52,7 @@ jobs:
 
   select-target:
     needs: circuit-breaker
-    if: |
-      needs.circuit-breaker.outputs.should_run == 'true' &&
-      (
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'workflow_run' &&
-         github.event.workflow_run.conclusion == 'failure' &&
-         github.event.workflow_run.event == 'pull_request')
-      )
+    if: needs.circuit-breaker.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.pick.outputs.should_run }}
@@ -87,38 +72,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -n "${INPUT_PR:-}" ]; then
-            pr_json="$(gh pr view "$INPUT_PR" --json number,headRefName,url)"
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "pr_number=$(echo "$pr_json" | jq -r '.number')" >> "$GITHUB_OUTPUT"
-            echo "head_branch=$(echo "$pr_json" | jq -r '.headRefName')" >> "$GITHUB_OUTPUT"
-            echo "run_id=manual" >> "$GITHUB_OUTPUT"
-            echo "run_url=$(echo "$pr_json" | jq -r '.url')" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event_name }}" != "workflow_run" ]; then
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${{ github.event.workflow_run.conclusion }}" != "failure" ]; then
-            echo "No failed CI run, skip."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          pr_count='${{ github.event.workflow_run.pull_requests[0].number }}'
-          if [ -z "$pr_count" ] || [ "$pr_count" = "null" ]; then
-            echo "Failed workflow is not linked to a PR."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          pr_number='${{ github.event.workflow_run.pull_requests[0].number }}'
-          head_branch='${{ github.event.workflow_run.head_branch }}'
-          run_id='${{ github.event.workflow_run.id }}'
-          run_url='${{ github.event.workflow_run.html_url }}'
+          pr_json="$(gh pr view "$INPUT_PR" --json number,headRefName,url)"
+          pr_number="$(echo "$pr_json" | jq -r '.number')"
+          head_branch="$(echo "$pr_json" | jq -r '.headRefName')"
+          run_url="$(echo "$pr_json" | jq -r '.url')"
 
           if [[ "$head_branch" == claude/* ]] || [[ "$head_branch" == *"candidate"* ]]; then
             echo "Skip auto-fixing candidate/claude branch to avoid loops."
@@ -129,7 +86,7 @@ jobs:
           echo "should_run=true" >> "$GITHUB_OUTPUT"
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "head_branch=$head_branch" >> "$GITHUB_OUTPUT"
-          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "run_id=manual" >> "$GITHUB_OUTPUT"
           echo "run_url=$run_url" >> "$GITHUB_OUTPUT"
 
   autofix:
@@ -202,9 +159,14 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          CB_REASON: ${{ needs.circuit-breaker.outputs.reason }}
+          PR_NUMBER: ${{ needs.select-target.outputs.pr_number }}
+          HEAD_BRANCH: ${{ needs.select-target.outputs.head_branch }}
+          RUN_URL: ${{ needs.select-target.outputs.run_url }}
         run: |
           echo "### CI Failure Auto Fix" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Circuit breaker: ${{ needs.circuit-breaker.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- PR: #${{ needs.select-target.outputs.pr_number }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Branch: ${{ needs.select-target.outputs.head_branch }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Run URL: ${{ needs.select-target.outputs.run_url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Circuit breaker: ${CB_REASON}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PR: #${PR_NUMBER}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch: ${HEAD_BRANCH}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run URL: ${RUN_URL}" >> "$GITHUB_STEP_SUMMARY"
