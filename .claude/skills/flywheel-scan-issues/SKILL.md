@@ -19,9 +19,12 @@ Find meaningful engineering issues from source code and create a bounded number 
    - brittle logic
    - obvious test gaps
 3. Read open issues first and skip duplicates by title/intent.
-4. Create at most `MAX_ISSUES` issues for this run.
-5. Apply one priority label (`p0`/`p1`/`p2`/`p3`) and one type label when available.
-6. Keep issue body concise and reproducible (location, risk, expected outcome).
+4. Generate a stable dedup fingerprint per issue and include it in issue body:
+   - Format: `[fingerprint:<value>]`
+   - Value should be derived from file path + issue type + normalized symptom key.
+5. Create at most `MAX_ISSUES` issues for this run.
+6. Apply one priority label (`p0`/`p1`/`p2`/`p3`) and one type label when available.
+7. Keep issue body concise and reproducible (location, risk, expected outcome).
 
 ## Safety Rules
 

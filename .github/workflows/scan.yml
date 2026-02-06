@@ -126,12 +126,64 @@ jobs:
             1. Scan only files under TARGET_DIR.
             2. Find high-signal problems/opportunities suitable for tracked issues.
             3. Deduplicate against existing open issues by intent/title.
-            4. Create at most MAX_ISSUES new issues for this run.
-            5. Apply one priority label (`p0`/`p1`/`p2`/`p3`) and one type label when possible.
-            6. Keep issue body concise: problem, location, impact, expected fix direction.
+            4. Each created issue must include a stable fingerprint line in body:
+               `[fingerprint:<value>]` where value is derived from file + type + normalized symptom.
+            5. Create at most MAX_ISSUES new issues for this run.
+            6. Apply one priority label (`p0`/`p1`/`p2`/`p3`) and one type label when possible.
+            7. Keep issue body concise: problem, location, impact, expected fix direction.
           claude_args: |
             --max-turns 25
             --allowedTools "Read,Glob,Grep,LS,Bash(rg:*),Bash(find:*),Bash(gh issue:*),Bash(git:*)"
+
+      - name: Deduplicate fingerprinted issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issues_json="$(gh issue list --state open --limit 200 --json number,title,body,createdAt,url)"
+          plan="$(
+            echo "$issues_json" | jq -r '
+              map(
+                .fingerprint = (
+                  .body
+                  | capture("\\[fingerprint:(?<fp>[A-Za-z0-9._-]+)\\]")?
+                  | .fp?
+                )
+              )
+              | map(select(.fingerprint != null))
+              | sort_by(.fingerprint, .createdAt)
+              | group_by(.fingerprint)
+              | map(select(length > 1))
+              | map({
+                  fingerprint: .[0].fingerprint,
+                  keep: .[0].number,
+                  close: (.[1:] | map(.number))
+                })
+              | map(select((.close | length) > 0))
+              | .[]
+              | [.fingerprint, (.keep|tostring), (.close | map(tostring) | join(","))]
+              | @tsv
+            '
+          )"
+
+          if [ -z "$plan" ]; then
+            echo "No duplicate fingerprints detected."
+            exit 0
+          fi
+
+          while IFS=$'\t' read -r fp keep close_csv; do
+            [ -z "${close_csv:-}" ] && continue
+            for num in $(echo "$close_csv" | tr ',' ' '); do
+              [ -z "$num" ] && continue
+              gh issue close "$num" \
+                --comment "Auto-dedup: duplicate fingerprint \`$fp\`; keeping oldest issue #$keep as canonical." \
+                || true
+            done
+          done <<< "$plan"
 
       - name: Summary
         env:

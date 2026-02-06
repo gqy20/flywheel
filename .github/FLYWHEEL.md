@@ -31,6 +31,13 @@
 - 当 open issue 超过阈值时，优先关闭：低优先级且更旧的问题
 - `frozen` 标签问题不参与自动关闭
 
+### 1.5) Scan 去重指纹
+
+- `scan.yml` 生成 issue 时要求包含稳定指纹：`[fingerprint:<value>]`
+- 扫描后会自动对 open issues 做指纹去重：
+  - 保留最早 issue 作为 canonical
+  - 自动关闭重复项并附注释
+
 ### 2) 并行候选修复
 
 - `fix.yml` 每次只选择 1 个待处理 issue
