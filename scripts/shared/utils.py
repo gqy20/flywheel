@@ -83,7 +83,7 @@ def get_issues(
         "issue",
         "list",
         "--json",
-        "number,title,labels,body,state",
+        "number,title,labels,body,state,createdAt,updatedAt,url",
         "--limit",
         str(limit),
         "--state",

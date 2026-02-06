@@ -1,11 +1,11 @@
-"""Claude API client wrapper."""
+"""Claude client wrapper backed by claude-agent-sdk."""
 
 import logging
 import os
 import time
 from typing import Any, cast
 
-from anthropic import Anthropic, APIError, RateLimitError
+from shared.agent_sdk import AgentSDKClient
 
 logger = logging.getLogger(__name__)
 
@@ -32,22 +32,13 @@ PRIORITY_LABELS = {
 
 
 class ClaudeClient:
-    """Claude API wrapper with retry logic."""
+    """Claude wrapper with retry logic using Agent SDK only."""
 
     def __init__(self, api_key: str | None = None, model: str = DEFAULT_MODEL):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        if not self.api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is required")
-
-        # 支持自定义 base_url
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            self.client = Anthropic(api_key=self.api_key, base_url=base_url)
-        else:
-            self.client = Anthropic(api_key=self.api_key)
-
+        _ = api_key  # compatibility
         self.model = model
         self.max_retries = 3
+        self.sdk_client = AgentSDKClient(model=model)
 
     def _calculate_priority(self, title: str) -> str:
         """Calculate priority from issue title."""
@@ -56,31 +47,7 @@ class ClaudeClient:
                 for (min_score, max_score), label in PRIORITY_LABELS.items():
                     if min_score <= score <= max_score:
                         return label
-        return "p2"  # default
-
-    def _should_retry(self, error: Exception, attempt: int) -> bool:
-        """Determine if we should retry the request."""
-        if attempt >= self.max_retries:
-            return False
-
-        if isinstance(error, RateLimitError):
-            return True
-
-        if (
-            isinstance(error, APIError)
-            and hasattr(error, "status_code")
-            and 500 <= error.status_code < 600
-        ):
-            # Retry on server errors (5xx)
-            return True
-
-        return False
-
-    def _wait_with_backoff(self, attempt: int):
-        """Exponential backoff wait."""
-        wait_time = 2**attempt
-        logger.warning(f"Retry attempt {attempt + 1}/{self.max_retries}, waiting {wait_time}s")
-        time.sleep(wait_time)
+        return "p2"
 
     def chat(
         self,
@@ -89,60 +56,22 @@ class ClaudeClient:
         temperature: float = 0.2,
         system_prompt: str | None = None,
     ) -> str:
-        """Send a chat prompt to Claude.
-
-        Args:
-            prompt: User prompt
-            max_tokens: Maximum tokens to generate
-            temperature: Sampling temperature (0-1)
-            system_prompt: Optional system prompt
-
-        Returns:
-            Response text
-        """
+        payload = prompt if not system_prompt else f"{system_prompt}\n\n{prompt}"
         for attempt in range(self.max_retries):
             try:
-                messages = [{"role": "user", "content": prompt}]
-
-                kwargs = {
-                    "model": self.model,
-                    "max_tokens": max_tokens,
-                    "messages": messages,
-                    "temperature": temperature,
-                }
-
-                if system_prompt:
-                    kwargs["system"] = system_prompt
-
-                response = self.client.messages.create(**kwargs)
-
-                # Log usage
-                usage = response.usage
-                logger.info(
-                    f"Claude API call: "
-                    f"{usage.input_tokens} input + {usage.output_tokens} output tokens"
+                return self.sdk_client.chat(
+                    payload,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
                 )
-
-                return cast(str, response.content[0].text)
-
-            except (RateLimitError, APIError) as e:
-                if self._should_retry(e, attempt):
-                    self._wait_with_backoff(attempt)
-                    continue
-                raise
-
-        raise Exception("Max retries exceeded")
+            except Exception as e:
+                if attempt >= self.max_retries - 1:
+                    raise
+                logger.warning("Agent SDK call failed (attempt %s): %s", attempt + 1, e)
+                time.sleep(2**attempt)
+        raise RuntimeError("Max retries exceeded")
 
     def analyze_code(self, code: str, filepath: str) -> list[dict]:
-        """Analyze code and return list of issues.
-
-        Args:
-            code: Code content
-            filepath: File path for context
-
-        Returns:
-            List of issue dictionaries
-        """
         prompt = f"""
 扫描以下 Python 代码，找出潜在问题：
 
@@ -169,7 +98,6 @@ class ClaudeClient:
 
         response = self.chat(prompt, temperature=0.1)
 
-        # Parse JSON from response
         import json
         import re
 
@@ -185,15 +113,6 @@ class ClaudeClient:
         return []
 
     def analyze_opportunities(self, code: str, filepath: str) -> list[dict]:
-        """Analyze code for enhancement opportunities and feature ideas.
-
-        Args:
-            code: Code content
-            filepath: File path for context
-
-        Returns:
-            List of opportunity dictionaries
-        """
         prompt = f"""
 分析以下 Python 代码，发现功能增强和改进机会：
 
@@ -230,7 +149,6 @@ class ClaudeClient:
 
         response = self.chat(prompt, temperature=0.3)
 
-        # Parse JSON from response
         import json
         import re
 
@@ -239,7 +157,6 @@ class ClaudeClient:
             try:
                 result = cast(dict[str, Any], json.loads(json_match.group()))
                 opportunities = cast(list[dict], result.get("issues", []))
-                # Add filepath if not present
                 for opp in opportunities:
                     if not opp.get("file"):
                         opp["file"] = filepath
@@ -251,15 +168,6 @@ class ClaudeClient:
         return []
 
     def generate_fix(self, issue: dict, file_content: str) -> dict:
-        """Generate fix for an issue.
-
-        Args:
-            issue: Issue dictionary
-            file_content: Current file content
-
-        Returns:
-            Fix dictionary with content and line numbers
-        """
         prompt = f"""
 修复以下问题：
 
@@ -288,7 +196,6 @@ class ClaudeClient:
 
         response = self.chat(prompt, temperature=0.2)
 
-        # Parse JSON
         import json
         import re
 
@@ -302,15 +209,6 @@ class ClaudeClient:
         return {"fixed_code": "", "confidence": 0}
 
     def generate_test(self, code: str, function_name: str) -> str:
-        """Generate unit test for code.
-
-        Args:
-            code: Code to test
-            function_name: Function name
-
-        Returns:
-            Test code
-        """
         prompt = f"""
 为以下代码生成单元测试：
 
@@ -327,5 +225,4 @@ class ClaudeClient:
         return self.chat(prompt, temperature=0.2)
 
     def estimate_tokens(self, text: str) -> int:
-        """Rough token estimation (approximately 4 chars per token)."""
         return len(text) // 4

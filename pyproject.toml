@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A self-improving Todo CLI powered by AI"
 requires-python = ">=3.13"
 dependencies = [
-    "anthropic>=0.75.0",
+    "claude-agent-sdk>=0.1.29",
     "pygithub>=2.5.0",
     "pyyaml>=6.0.2",
     "requests>=2.32.0",

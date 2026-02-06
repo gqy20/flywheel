@@ -101,40 +101,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate Claude OAuth token
-        env:
-          CLAUDE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${CLAUDE_OAUTH_TOKEN:-}" ]; then
-            echo "::error::Missing Claude OAuth token. Set CLAUDE_CODE_OAUTH_TOKEN (preferred) or ANTHROPIC_AUTH_TOKEN."
-            exit 1
-          fi
-          if [[ "${CLAUDE_OAUTH_TOKEN}" == sk-ant-* ]]; then
-            echo "::error::Configured token looks like an API key (sk-ant-*). claude_code_oauth_token requires a Claude Code OAuth bearer token."
-            exit 1
-          fi
-
-      - name: Re-evaluate priorities with Claude
-        uses: anthropics/claude-code-action@v1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN || secrets.ANTHROPIC_AUTH_TOKEN }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            Re-evaluate open issue priorities for this repository.
-            First, load and follow `.claude/skills/flywheel-priority-evaluate/SKILL.md`.
+          python-version: "3.13"
+          enable-cache: true
 
-            Required behavior:
-            1. Fetch open issues with title/body/labels.
-            2. Re-score each issue as exactly one of `p0|p1|p2|p3` based on impact and urgency.
-            3. Normalize labels so each issue has exactly one priority label.
-            4. Keep all non-priority labels unchanged.
-            5. Summarize changed issues and final priority distribution.
-          claude_args: |
-            --max-turns 20
-            --model "${{ secrets.ANTHROPIC_MODEL }}"
-            --allowedTools "Read,Glob,Grep,LS,Bash(gh *),Bash(git *)"
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Re-evaluate priorities via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_BACKEND: agent_sdk
+        run: uv run python scripts/evaluate.py
 
       - name: Event summary
         if: github.event_name == 'issues'
