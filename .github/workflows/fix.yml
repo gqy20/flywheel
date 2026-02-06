@@ -205,7 +205,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
-          track_progress: true
           prompt: |
             You are candidate #${{ matrix.candidate_id }} for fixing issue #${{ needs.select-issue.outputs.issue_number }}.
             First, load and follow the local skill at `.claude/skills/flywheel-candidate-fix/SKILL.md`.

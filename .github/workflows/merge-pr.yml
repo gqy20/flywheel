@@ -231,7 +231,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
-          track_progress: true
           prompt: |
             You are the dedicated merge arbiter for auto-fix candidates.
             First, load and follow the local skill at `.claude/skills/flywheel-merge-arbiter/SKILL.md`.

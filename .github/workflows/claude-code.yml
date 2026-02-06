@@ -43,7 +43,6 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           show_full_output: true
-          track_progress: true
           settings: |
             {"enableAllProjectMcpServers":false}
           # Keep tool scope tight; expand only when needed.
@@ -66,7 +65,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: ${{ inputs.prompt }}
           show_full_output: true
-          track_progress: true
           settings: |
             {"enableAllProjectMcpServers":false}
           claude_args: |
