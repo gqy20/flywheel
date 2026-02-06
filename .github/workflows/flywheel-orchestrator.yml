@@ -1,33 +1,34 @@
-name: Auto Fix Candidates
+name: Flywheel Orchestrator
 
 on:
   schedule:
-    - cron: "30 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
     inputs:
-      issue_number:
-        description: "Optional: fix a specific issue number"
+      max_issues:
+        description: "Max issues to create in one run"
         required: false
+        default: "5"
+        type: string
+      target_dir:
+        description: "Directory to scan"
+        required: false
+        default: "src"
         type: string
       candidate_quality_min_score:
         description: "Minimum quality score required for candidate PR (0-100)"
         required: false
         default: "70"
         type: string
-      circuit_failure_threshold:
-        description: "Circuit breaker consecutive failure threshold"
-        required: false
-        default: "3"
-        type: string
-      circuit_cooldown_minutes:
-        description: "Circuit breaker cooldown window (minutes)"
-        required: false
-        default: "120"
-        type: string
       min_fixable_issues:
         description: "Minimum number of fixable open issues required before auto-fix runs"
         required: false
         default: "3"
+        type: string
+      max_open_issues:
+        description: "Target max number of open issues for curation"
+        required: false
+        default: "20"
         type: string
       stage_max_retries:
         description: "Per-stage retry count for staged fix execution"
@@ -44,16 +45,32 @@ on:
         required: false
         default: '{"triage":40,"plan":50,"implement":90,"verify":110,"finalize":45}'
         type: string
+      require_scorecard:
+        description: "Require structured candidate scorecard files before arbitration"
+        required: false
+        default: "true"
+        type: boolean
+      circuit_failure_threshold:
+        description: "Circuit breaker consecutive failure threshold"
+        required: false
+        default: "3"
+        type: string
+      circuit_cooldown_minutes:
+        description: "Circuit breaker cooldown window (minutes)"
+        required: false
+        default: "120"
+        type: string
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
+  discussions: write
   actions: read
   id-token: write
 
 concurrency:
-  group: auto-fix-candidates
+  group: flywheel-orchestrator
   cancel-in-progress: false
 
 jobs:
@@ -119,9 +136,117 @@ jobs:
           echo "should_run=true" >> "$GITHUB_OUTPUT"
           echo "reason=gate_open" >> "$GITHUB_OUTPUT"
 
-  select-issue:
+  scan:
     needs: circuit-breaker
     if: needs.circuit-breaker.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run scan via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          MAX_ISSUES: ${{ inputs.max_issues || '5' }}
+          TARGET_DIR: ${{ inputs.target_dir || 'src' }}
+          CLAUDE_BACKEND: agent_sdk
+        run: uv run python scripts/scan.py
+
+      - name: Deduplicate fingerprinted issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          issues_json="$(gh issue list --state open --limit 200 --json number,title,body,createdAt,url)"
+          plan="$(
+            echo "$issues_json" | jq -r '
+              map(
+                .fingerprint = (
+                  .body
+                  | capture("\\[fingerprint:(?<fp>[A-Za-z0-9._-]+)\\]")?
+                  | .fp?
+                )
+              )
+              | map(select(.fingerprint != null))
+              | sort_by(.fingerprint, .createdAt)
+              | group_by(.fingerprint)
+              | map(select(length > 1))
+              | map({
+                  fingerprint: .[0].fingerprint,
+                  keep: .[0].number,
+                  close: (.[1:] | map(.number))
+                })
+              | map(select((.close | length) > 0))
+              | .[]
+              | [.fingerprint, (.keep|tostring), (.close | map(tostring) | join(","))]
+              | @tsv
+            '
+          ))"
+
+          if [ -z "$plan" ]; then
+            echo "No duplicate fingerprints detected."
+            exit 0
+          fi
+
+          while IFS=$'\t' read -r fp keep close_csv; do
+            [ -z "${close_csv:-}" ] && continue
+            for num in $(echo "$close_csv" | tr ',' ' '); do
+              [ -z "$num" ] && continue
+              gh issue close "$num" \
+                --comment "Auto-dedup: duplicate fingerprint \`$fp\`; keeping oldest issue #$keep as canonical." \
+                || true
+            done
+          done <<< "$plan"
+
+  evaluate:
+    needs: [circuit-breaker, scan]
+    if: needs.circuit-breaker.outputs.should_run == 'true' && needs.scan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Re-evaluate priorities via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_BACKEND: agent_sdk
+        run: uv run python scripts/evaluate.py
+
+  select-issue:
+    needs: [circuit-breaker, evaluate]
+    if: needs.circuit-breaker.outputs.should_run == 'true' && needs.evaluate.result == 'success'
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.pick.outputs.should_run }}
@@ -134,34 +259,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          INPUT_ISSUE_NUMBER: ${{ inputs.issue_number }}
           MIN_FIXABLE_ISSUES: ${{ inputs.min_fixable_issues || '3' }}
           GH_PAGER: cat
           PAGER: cat
         shell: bash
         run: |
           set -euo pipefail
-
-          if [ -n "${INPUT_ISSUE_NUMBER:-}" ]; then
-            ISSUE_JSON="$(gh issue view "$INPUT_ISSUE_NUMBER" --json number,title,url,state,labels)"
-            STATE="$(echo "$ISSUE_JSON" | jq -r '.state')"
-            HAS_FROZEN="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "frozen")')"
-            HAS_FAILED="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "auto-fix-failed")')"
-            HAS_WONTFIX="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "wontfix")')"
-            HAS_INVALID="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "invalid")')"
-            HAS_QUESTION="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "question")')"
-            HAS_DUPLICATE="$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | any(. == "duplicate")')"
-            if [ "$STATE" != "OPEN" ] || [ "$HAS_FROZEN" = "true" ] || [ "$HAS_FAILED" = "true" ] || [ "$HAS_WONTFIX" = "true" ] || [ "$HAS_INVALID" = "true" ] || [ "$HAS_QUESTION" = "true" ] || [ "$HAS_DUPLICATE" = "true" ]; then
-              echo "Specified issue is not eligible for auto-fix."
-              echo "should_run=false" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            echo "issue_number=$(echo "$ISSUE_JSON" | jq -r '.number')" >> "$GITHUB_OUTPUT"
-            echo "issue_title=$(echo "$ISSUE_JSON" | jq -r '.title')" >> "$GITHUB_OUTPUT"
-            echo "issue_url=$(echo "$ISSUE_JSON" | jq -r '.url')" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
 
           OPEN_PR_ISSUES_JSON="$(
             gh pr list --state open --limit 200 --json title \
@@ -175,7 +278,7 @@ jobs:
                 )
                 | unique
               '
-          )"
+          ))"
 
           ISSUES_JSON="$(gh issue list --state open --limit 100 --json number,title,url,labels)"
 
@@ -223,7 +326,7 @@ jobs:
 
   generate-candidates:
     needs: [circuit-breaker, select-issue]
-    if: needs.select-issue.outputs.should_run == 'true'
+    if: needs.circuit-breaker.outputs.should_run == 'true' && needs.select-issue.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -373,15 +476,188 @@ jobs:
           echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
           echo "pr_url=$(echo "$pr_json" | jq -r '.url')" >> "$GITHUB_OUTPUT"
 
-      - name: Candidate summary
-        if: always()
+  merge:
+    needs: [circuit-breaker, select-issue, generate-candidates]
+    if: always() && needs.circuit-breaker.outputs.should_run == 'true' && needs.select-issue.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Resolve merge-eligible candidates for this run
+        id: eligible
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          RUN_ID: ${{ github.run_id }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
         run: |
-          echo "### Candidate Run" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Circuit breaker: ${{ needs.circuit-breaker.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Issue: #${{ needs.select-issue.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Candidate: ${{ matrix.candidate_id }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Title: ${{ needs.select-issue.outputs.issue_title }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Quality gate status: ${{ steps.quality_gate.outputs.status }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Quality gate score: ${{ steps.quality_gate.outputs.score }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Quality gate reason: ${{ steps.quality_gate.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Candidate PR: #${{ steps.quality_gate.outputs.pr_number }} ${{ steps.quality_gate.outputs.pr_url }}" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+
+          eligible=""
+          for cid in 1 2 3; do
+            branch="claude/issue-${ISSUE_NUMBER}-candidate-${cid}-${RUN_ID}"
+            pr="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+            [ -z "$pr" ] && continue
+
+            pr_json="$(gh pr view "$pr" --json number,isDraft,mergeStateStatus,statusCheckRollup)"
+            draft="$(echo "$pr_json" | jq -r '.isDraft')"
+            merge_state="$(echo "$pr_json" | jq -r '.mergeStateStatus')"
+            checks_ok="$(echo "$pr_json" | jq -r '
+              ([.statusCheckRollup[]?
+                | if has("conclusion") then .conclusion
+                  elif has("state") then .state
+                  else "SUCCESS" end
+              ]
+              | all(. == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED"))
+            ')"
+
+            if [ "$draft" = "false" ] && [ "$checks_ok" = "true" ] && [ "$merge_state" != "DIRTY" ]; then
+              eligible="${eligible},${pr}"
+            fi
+          done
+
+          eligible="${eligible#,}"
+          if [ -z "$eligible" ]; then
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            echo "eligible_csv=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          count="$(echo "$eligible" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [ "$count" -lt 2 ]; then
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
+
+      - name: Decide best candidate and merge via SDK
+        if: steps.eligible.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          CLAUDE_BACKEND: agent_sdk
+          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
+          CLAUDE_MAX_TURNS: "25"
+          CLAUDE_REQUIRE_SCORECARD: ${{ inputs.require_scorecard || true }}
+        run: timeout 25m uv run python scripts/merge.py
+
+      - name: Validate structured scorecard
+        if: always() && steps.eligible.outputs.should_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ needs.select-issue.outputs.issue_number }}
+          ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          winner=""
+          merged_count=0
+          for pr in $(echo "$ELIGIBLE_CSV" | tr ',' ' '); do
+            [ -z "$pr" ] && continue
+            merged_at="$(gh pr view "$pr" --json mergedAt --jq '.mergedAt // empty')"
+            if [ -n "$merged_at" ]; then
+              winner="$pr"
+              merged_count=$((merged_count + 1))
+            fi
+          done
+
+          if [ "$merged_count" -eq 0 ]; then
+            echo "No eligible winner merged; skip scorecard validation."
+            exit 0
+          fi
+          if [ "$merged_count" -gt 1 ]; then
+            echo "Unexpected: multiple merged winners among eligible candidates."
+            exit 1
+          fi
+
+          body="$(gh pr view "$winner" --json comments --jq '[.comments[].body | select(test("<!-- arbiter-scorecard -->"))][-1] // empty')"
+          if [ -z "$body" ]; then
+            echo "Missing structured scorecard marker on winner PR #$winner."
+            exit 1
+          fi
+
+          payload="$(printf '%s\n' "$body" | awk '/<!-- arbiter-scorecard -->/{getline; print; exit}')"
+          if [ -z "$payload" ]; then
+            echo "Missing JSON payload after scorecard marker on winner PR #$winner."
+            exit 1
+          fi
+
+          echo "$payload" | jq -e --argjson issue "$ISSUE_NUMBER" --argjson winner "$winner" '
+            (.issue == $issue)
+            and (.winner_pr == $winner)
+            and (.scores | type == "array")
+            and ((.scores | length) >= 2)
+            and ([.scores[] | has("pr") and has("correctness") and has("risk") and has("maintainability") and has("tests") and has("total") and has("verdict") and has("reason")] | all)
+          ' >/dev/null
+
+  curation:
+    needs: [circuit-breaker, merge]
+    if: always() && needs.circuit-breaker.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Curate issue pool via SDK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          MAX_OPEN_ISSUES: ${{ inputs.max_open_issues || '20' }}
+          CLAUDE_BACKEND: agent_sdk
+        run: uv run python scripts/curate.py
+
+  summary:
+    needs: [circuit-breaker, scan, evaluate, select-issue, generate-candidates, merge, curation]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pipeline summary
+        run: |
+          {
+            echo "### Flywheel Orchestrator"
+            echo "- Circuit breaker: ${{ needs.circuit-breaker.outputs.reason || 'unknown' }}"
+            echo "- scan: ${{ needs.scan.result }}"
+            echo "- evaluate: ${{ needs.evaluate.result }}"
+            echo "- select-issue: ${{ needs.select-issue.result }}"
+            echo "- generate-candidates: ${{ needs.generate-candidates.result }}"
+            echo "- merge: ${{ needs.merge.result }}"
+            echo "- curation: ${{ needs.curation.result }}"
+          } >> "$GITHUB_STEP_SUMMARY"

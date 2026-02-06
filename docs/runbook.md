@@ -4,7 +4,7 @@ This runbook describes how to operate and recover Flywheel automation safely.
 
 ## Scope
 
-- Workflows: `scan.yml`, `evaluate.yml`, `issue-curation.yml`, `fix.yml`, `merge-pr.yml`, `ci-failure-auto-fix.yml`, `automation-metrics.yml`, `docs-ci.yml`
+- Workflows: `flywheel-orchestrator.yml`, `ci-failure-auto-fix.yml`, `automation-metrics.yml`, `docs-ci.yml`, `docs-auto-maintenance.yml`
 - Main policy doc: `.github/FLYWHEEL.md`
 - Generated workflow input reference: `docs/generated/workflow-inputs.md`
 
@@ -14,8 +14,9 @@ This runbook describes how to operate and recover Flywheel automation safely.
    ```bash
    gh run list --limit 20
    ```
-2. Check CI and docs gates:
+2. Check orchestrator, CI, and docs gates:
    ```bash
+   gh run list --workflow flywheel-orchestrator.yml --limit 5
    gh run list --workflow ci.yml --limit 5
    gh run list --workflow docs-ci.yml --limit 5
    ```
@@ -26,50 +27,50 @@ This runbook describes how to operate and recover Flywheel automation safely.
 
 ## Incident Triage
 
-### 1) Workflow repeatedly failing
+### 1) Orchestrator repeatedly failing
 
 1. Inspect latest failed run:
    ```bash
-   gh run list --workflow <workflow-file> --limit 5
+   gh run list --workflow flywheel-orchestrator.yml --limit 5
    gh run view <run-id> --log
    ```
-2. If failures are consecutive, confirm circuit breaker behavior in run summary.
-3. If the root cause is external/transient, wait for cooldown window.
+2. Check the circuit-breaker reason in workflow summary.
+3. If root cause is external/transient, wait for cooldown window.
 4. If root cause is code/config, fix and push to `master`.
 
 ### 2) Candidate PR quality degraded
 
 1. Raise quality threshold temporarily:
    ```bash
-   gh workflow run fix.yml -f candidate_quality_min_score=80
+   gh workflow run flywheel-orchestrator.yml -f candidate_quality_min_score=80
    ```
 2. Require strict scorecards for arbitration:
    ```bash
-   gh workflow run merge-pr.yml -f require_scorecard=true
+   gh workflow run flywheel-orchestrator.yml -f require_scorecard=true
    ```
 3. Inspect candidate scorecard artifacts in candidate branches:
    - `.flywheel/scorecards/issue-<id>/candidate-<id>-<run>.json`
 
 ### 3) Token spend too high / too low
 
-1. Override fix runtime budget on dispatch:
+1. Override runtime budget on dispatch:
    ```bash
-   gh workflow run fix.yml \
+   gh workflow run flywheel-orchestrator.yml \
      -f stage_max_retries=4 \
      -f token_budget_chars=1500000 \
      -f stage_max_turns_json='{"triage":40,"plan":50,"implement":90,"verify":110,"finalize":45}'
    ```
-2. Track impact using automation metrics issue snapshots.
+2. Track impact using automation metrics snapshots.
 
 ## Recovery Procedures
 
 ### Pause auto-fix quickly
 
-1. Add restrictive `min_fixable_issues` for manual run:
+1. Use restrictive issue pool on manual run:
    ```bash
-   gh workflow run fix.yml -f min_fixable_issues=999
+   gh workflow run flywheel-orchestrator.yml -f min_fixable_issues=999
    ```
-2. Optionally disable schedule in workflow file via PR if sustained pause is needed.
+2. Optionally disable schedule in `.github/workflows/flywheel-orchestrator.yml` via PR if sustained pause is needed.
 
 ### Manual merge path
 
