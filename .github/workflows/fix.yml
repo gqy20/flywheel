@@ -222,7 +222,7 @@ jobs:
           CANDIDATE_ID: ${{ matrix.candidate_id }}
           RUN_ID: ${{ github.run_id }}
           CLAUDE_MAX_TURNS: "20"
-        run: uv run python scripts/fix.py
+        run: timeout 25m uv run python scripts/fix.py
 
       - name: Quality gate candidate PR
         id: quality_gate

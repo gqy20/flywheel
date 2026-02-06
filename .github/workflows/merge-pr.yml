@@ -245,7 +245,7 @@ jobs:
           ISSUE_NUMBER: ${{ needs.select-group.outputs.issue_number }}
           ELIGIBLE_CSV: ${{ steps.eligible.outputs.eligible_csv }}
           CLAUDE_MAX_TURNS: "25"
-        run: uv run python scripts/merge.py
+        run: timeout 25m uv run python scripts/merge.py
 
       - name: Summary
         if: always()
