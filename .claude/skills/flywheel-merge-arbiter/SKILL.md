@@ -18,13 +18,15 @@ Choose and merge exactly one best candidate PR per issue after hard gates pass.
    - checks green
    - merge state not dirty
 3. Compare eligible candidates on:
-   - correctness and issue coverage
-   - regression risk
-   - complexity and maintainability
-4. Merge exactly one winner (prefer squash).
-5. Comment winner rationale.
-6. Comment and close non-winners.
-7. If no safe winner, do not merge and comment issue with blockers.
+   - correctness and issue coverage (weight 0.45)
+   - regression risk (weight 0.30)
+   - complexity and maintainability (weight 0.15)
+   - test quality and verification evidence (weight 0.10)
+4. Compute weighted total score and rank candidates.
+5. Post score table and rationale before merge.
+6. Merge exactly one winner (prefer squash).
+7. Comment and close non-winners.
+8. If no safe winner, do not merge and comment issue with blockers.
 
 ## Safety Rules
 

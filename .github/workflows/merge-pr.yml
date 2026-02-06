@@ -22,7 +22,71 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  circuit-breaker:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - name: Circuit breaker gate
+        id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILURE_THRESHOLD: "3"
+          COOLDOWN_MINUTES: "120"
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          wf_file="$(basename "${GITHUB_WORKFLOW_REF%%@*}")"
+          runs_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf_file}/runs?per_page=30")"
+
+          read -r consecutive last_failed_at <<EOF
+          $(echo "$runs_json" | jq -r --argjson current "$GITHUB_RUN_ID" '
+            reduce (
+              [ .workflow_runs[]
+                | select(.id != $current)
+                | select(.status == "completed")
+              ][]
+            ) as $r (
+              {"count":0,"last_failed_at":null,"stopped":false};
+              if .stopped then .
+              elif ($r.conclusion == "failure") then
+                {
+                  "count": (.count + 1),
+                  "last_failed_at": (.last_failed_at // $r.updated_at),
+                  "stopped": false
+                }
+              else
+                {
+                  "count": .count,
+                  "last_failed_at": .last_failed_at,
+                  "stopped": true
+                }
+              end
+            ) | "\(.count) \(.last_failed_at // "none")"
+          ')
+          EOF
+
+          if [ "$consecutive" -ge "$FAILURE_THRESHOLD" ] && [ "$last_failed_at" != "none" ]; then
+            now_epoch="$(date -u +%s)"
+            fail_epoch="$(date -u -d "$last_failed_at" +%s)"
+            elapsed_min="$(( (now_epoch - fail_epoch) / 60 ))"
+            if [ "$elapsed_min" -lt "$COOLDOWN_MINUTES" ]; then
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              echo "reason=cooldown_active_${elapsed_min}m_after_${consecutive}_failures" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "reason=gate_open" >> "$GITHUB_OUTPUT"
+
   select-group:
+    needs: circuit-breaker
+    if: needs.circuit-breaker.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.pick.outputs.should_run }}
@@ -92,7 +156,7 @@ jobs:
           echo "pr_numbers_csv=$pr_numbers_csv" >> "$GITHUB_OUTPUT"
 
   merge:
-    needs: select-group
+    needs: [circuit-breaker, select-group]
     if: needs.select-group.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -164,14 +228,16 @@ jobs:
 
             Required workflow:
             1. Compare only the eligible candidates (all checks already green, non-draft, mergeable).
-            2. Choose exactly one winner by:
-               - Correctness and issue coverage
-               - Minimal regression risk
-               - Simplicity and maintainability
-            3. Merge exactly one winner to `master` using squash merge.
-            4. Comment on winner PR with the rationale.
-            5. Comment and close non-winner candidate PRs with brief reasons.
-            6. If no candidate is safe after deep review, do not merge and comment on issue #${{ needs.select-group.outputs.issue_number }}.
+            2. Score each candidate using this weighted rubric (0-10 each dimension):
+               - Correctness and issue coverage (weight 0.45)
+               - Regression risk (weight 0.30, lower risk means higher score)
+               - Simplicity and maintainability (weight 0.15)
+               - Test quality and verification evidence (weight 0.10)
+            3. Compute total score = weighted sum and rank all candidates.
+            4. Publish the score table in a comment on the winner PR before merge.
+            5. Merge exactly one winner to `master` using squash merge.
+            6. Comment and close non-winner candidate PRs with brief reasons and score deltas.
+            7. If no candidate is safe after deep review, do not merge and comment on issue #${{ needs.select-group.outputs.issue_number }}.
 
             Constraints:
             - Never merge more than one PR.
@@ -185,6 +251,7 @@ jobs:
         if: always()
         run: |
           echo "### Merge Arbiter Run" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Circuit breaker: ${{ needs.circuit-breaker.outputs.reason }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Issue: #${{ needs.select-group.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Candidate PRs: ${{ needs.select-group.outputs.pr_numbers_csv }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Eligible PRs: ${{ steps.eligible.outputs.eligible_csv }}" >> "$GITHUB_STEP_SUMMARY"
