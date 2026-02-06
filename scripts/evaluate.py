@@ -39,6 +39,12 @@ class PriorityEvaluator:
         """
         title = issue.get("title", "")
         body = issue.get("body", "")
+        issue_number = issue.get("number", "?")
+        logger.info(
+            "AI priority evaluation start issue=#%s title=%s",
+            issue_number,
+            title[:80].replace("\n", " "),
+        )
 
         prompt = f"""分析以下 GitHub issue 的优先级，返回 p0/p1/p2/p3 中的一个。
 
@@ -60,6 +66,9 @@ class PriorityEvaluator:
             priority = response.strip().lower()
             # 验证返回值是否有效
             if priority in ["p0", "p1", "p2", "p3"]:
+                logger.info(
+                    "AI priority evaluation done issue=#%s priority=%s", issue_number, priority
+                )
                 return priority
             else:
                 logger.warning(f"AI returned invalid priority: {priority}, defaulting to p2")
@@ -74,6 +83,7 @@ class PriorityEvaluator:
         This ensures labels are based on actual issue content, not existing labels.
         """
         issues = get_issues(state="open")
+        logger.info("Loaded %s open issues for priority evaluation", len(issues))
 
         for issue in issues:
             # Use AI to evaluate priority based on content
