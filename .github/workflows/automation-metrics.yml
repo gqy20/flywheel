@@ -89,48 +89,48 @@ jobs:
           alerts=""
           if [ "$open_issues" -gt "$max_issue_cap" ]; then
             health="WARN"
-            alerts="${alerts}\n- Open issues exceed cap (${open_issues}/${max_issue_cap})."
+            alerts="${alerts}\n- Open Issue 超过上限（${open_issues}/${max_issue_cap}）。"
           fi
           ci_fail_rate_int="$(printf '%.0f' "$ci_fail_rate")"
           if [ "$ci_fail_rate_int" -ge 30 ]; then
             health="WARN"
-            alerts="${alerts}\n- CI failure rate is high (${ci_fail_rate}%)."
+            alerts="${alerts}\n- CI 失败率偏高（${ci_fail_rate}%）。"
           fi
           if [ "$open_candidate_prs" -ge 8 ]; then
             health="WARN"
-            alerts="${alerts}\n- Candidate PR backlog is high (${open_candidate_prs})."
+            alerts="${alerts}\n- 候选 PR 积压偏高（${open_candidate_prs}）。"
           fi
           if [ "$merged_recent" -eq 0 ] && [ "$open_issues" -gt 0 ]; then
             health="WARN"
-            alerts="${alerts}\n- No AUTOFIX PR merged in this window."
+            alerts="${alerts}\n- 当前窗口内没有 AUTOFIX PR 合并。"
           fi
 
           if [ -z "${alerts}" ]; then
-            alerts="- None"
+            alerts="- 无"
           else
             alerts="$(echo -e "$alerts" | sed '/^$/d')"
           fi
 
           markdown="$(
             cat <<EOF
-          ## Flywheel Daily Report - ${today_utc}
+          ## 飞轮每日报告 - ${today_utc}
 
-          - Status: **${health}**
-          - Generated at: \`${now_utc}\`
-          - Window: \`${WINDOW_DAYS}d\` (since \`${cutoff}\`)
+          - 状态: **${health}**
+          - 生成时间: \`${now_utc}\`
+          - 统计窗口: \`${WINDOW_DAYS}d\`（起始 \`${cutoff}\`）
 
-          | Metric | Value |
+          | 指标 | 数值 |
           |---|---:|
-          | Open issues | ${open_issues} |
-          | Priority split | p0=${p0}, p1=${p1}, p2=${p2}, p3=${p3} |
-          | Open candidate PRs | ${open_candidate_prs} |
-          | Merged AUTOFIX PRs (${WINDOW_DAYS}d) | ${merged_recent} |
-          | Closed unmerged AUTOFIX PRs (${WINDOW_DAYS}d) | ${closed_unmerged_recent} |
-          | CI runs (${WINDOW_DAYS}d) | ${ci_recent_total} |
-          | CI failed runs (${WINDOW_DAYS}d) | ${ci_recent_failed} |
-          | CI failure rate | ${ci_fail_rate}% |
+          | Open Issue 数 | ${open_issues} |
+          | 优先级分布 | p0=${p0}, p1=${p1}, p2=${p2}, p3=${p3} |
+          | 候选 PR（进行中） | ${open_candidate_prs} |
+          | 已合并 AUTOFIX PR（${WINDOW_DAYS}d） | ${merged_recent} |
+          | 已关闭未合并 AUTOFIX PR（${WINDOW_DAYS}d） | ${closed_unmerged_recent} |
+          | CI 运行次数（${WINDOW_DAYS}d） | ${ci_recent_total} |
+          | CI 失败次数（${WINDOW_DAYS}d） | ${ci_recent_failed} |
+          | CI 失败率 | ${ci_fail_rate}% |
 
-          ### Alerts
+          ### 告警
           ${alerts}
           EOF
           )"
@@ -141,7 +141,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upsert dashboard discussion
+      - name: Upsert 中文 dashboard discussion
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -154,8 +154,8 @@ jobs:
 
           owner="${GH_REPO%/*}"
           repo="${GH_REPO#*/}"
-          title="[FLYWHEEL] Daily Health Dashboard"
-          fallback_issue_title="[METRICS] Automation Health Dashboard"
+          title="[飞轮] 自动化健康每日报告"
+          fallback_issue_title="[指标] 自动化健康看板"
 
           post_issue_fallback() {
             issue_number="$(
@@ -166,7 +166,7 @@ jobs:
             if [ -z "${issue_number:-}" ]; then
               gh issue create \
                 --title "$fallback_issue_title" \
-                --body "This issue is used by automation to post periodic flywheel metrics snapshots." \
+                --body "该 Issue 用于在 Discussion 不可用时，回退发布飞轮自动化指标快照。" \
                 >/tmp/new_issue_url.txt
               issue_number="$(awk -F'/' '{print $NF}' /tmp/new_issue_url.txt)"
             fi
@@ -194,7 +194,7 @@ jobs:
 
           repo_id="$(echo "$repo_data" | jq -r '.data.repository.id // empty')"
           if [ -z "$repo_id" ]; then
-            echo "Repository discussion metadata unavailable; fallback to metrics issue."
+            echo "Discussion 元数据不可用，回退到指标 Issue。"
             post_issue_fallback
             exit 0
           fi
@@ -210,7 +210,7 @@ jobs:
             category_id="$(echo "$repo_data" | jq -r '.data.repository.discussionCategories.nodes[0].id // empty')"
           fi
           if [ -z "$category_id" ]; then
-            echo "No discussion category found; fallback to metrics issue."
+            echo "未找到可用 Discussion 分类，回退到指标 Issue。"
             post_issue_fallback
             exit 0
           fi
@@ -227,7 +227,7 @@ jobs:
                 -f repo_id="$repo_id" \
                 -f category_id="$category_id" \
                 -f title="$title" \
-                -f body="Flywheel automated daily health reports are appended in comments." \
+                -f body="飞轮自动化每日健康报告会由工作流定时追加在本讨论串评论中。" \
                 -f query='
                   mutation($repo_id:ID!, $category_id:ID!, $title:String!, $body:String!) {
                     createDiscussion(input:{
@@ -245,7 +245,7 @@ jobs:
           fi
 
           if [ -z "${discussion_id:-}" ]; then
-            echo "Unable to create/find discussion; fallback to metrics issue."
+            echo "无法创建或定位讨论串，回退到指标 Issue。"
             post_issue_fallback
             exit 0
           fi
@@ -266,5 +266,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### Automation Metrics Dashboard" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 自动化指标看板" >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.metrics.outputs.report }}" >> "$GITHUB_STEP_SUMMARY"
