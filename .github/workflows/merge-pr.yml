@@ -102,7 +102,55 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Filter merge-eligible candidate PRs
+        id: eligible
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSV: ${{ needs.select-group.outputs.pr_numbers_csv }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          eligible=""
+          for pr in $(echo "$CSV" | tr ',' ' '); do
+            [ -z "$pr" ] && continue
+            pr_json="$(gh pr view "$pr" --json number,title,mergeStateStatus,isDraft,statusCheckRollup,url)"
+            draft="$(echo "$pr_json" | jq -r '.isDraft')"
+            merge_state="$(echo "$pr_json" | jq -r '.mergeStateStatus')"
+            checks_ok="$(echo "$pr_json" | jq -r '
+              ([.statusCheckRollup[]?
+                | if has("conclusion") then .conclusion
+                  elif has("state") then .state
+                  else "SUCCESS" end
+              ]
+              | all(. == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED"))
+            ')"
+
+            if [ "$draft" = "false" ] && [ "$checks_ok" = "true" ] && [ "$merge_state" != "DIRTY" ]; then
+              eligible="${eligible},${pr}"
+            fi
+          done
+
+          eligible="${eligible#,}"
+          if [ -z "$eligible" ]; then
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          count="$(echo "$eligible" | tr ',' '\n' | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [ "$count" -lt 2 ]; then
+            echo "should_merge=false" >> "$GITHUB_OUTPUT"
+            echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_merge=true" >> "$GITHUB_OUTPUT"
+          echo "eligible_csv=$eligible" >> "$GITHUB_OUTPUT"
+
       - name: Decide best candidate and merge
+        if: steps.eligible.outputs.should_merge == 'true'
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -111,26 +159,22 @@ jobs:
             You are the dedicated merge arbiter for auto-fix candidates.
 
             Target issue: #${{ needs.select-group.outputs.issue_number }}
-            Candidate PRs (CSV): ${{ needs.select-group.outputs.pr_numbers_csv }}
+            Eligible candidate PRs (CSV): ${{ steps.eligible.outputs.eligible_csv }}
 
             Required workflow:
-            1. Inspect each candidate PR (diff, checks, conversation, risk).
-            2. Rank candidates by:
-               - CI/check status must be green
+            1. Compare only the eligible candidates (all checks already green, non-draft, mergeable).
+            2. Choose exactly one winner by:
                - Correctness and issue coverage
                - Minimal regression risk
                - Simplicity and maintainability
-            3. If no candidate is safe, do NOT merge:
-               - Comment on the issue with reasons.
-               - Keep PRs open.
-            4. If one candidate is clearly best and checks are green:
-               - Merge that PR into `master` (prefer squash merge).
-               - Comment on merged PR explaining why it won.
-               - Comment on non-winning PRs with reason and close them.
-            5. Never merge more than one candidate for the same issue in one run.
+            3. Merge exactly one winner to `master` using squash merge.
+            4. Comment on winner PR with the rationale.
+            5. Comment and close non-winner candidate PRs with brief reasons.
+            6. If no candidate is safe after deep review, do not merge and comment on issue #${{ needs.select-group.outputs.issue_number }}.
 
             Constraints:
-            - Use GitHub CLI for PR/issue actions.
+            - Never merge more than one PR.
+            - Use GitHub CLI for PR/issue operations.
             - Do not modify workflows or repository settings.
           claude_args: |
             --max-turns 25
@@ -142,3 +186,4 @@ jobs:
           echo "### Merge Arbiter Run" >> "$GITHUB_STEP_SUMMARY"
           echo "- Issue: #${{ needs.select-group.outputs.issue_number }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Candidate PRs: ${{ needs.select-group.outputs.pr_numbers_csv }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Eligible PRs: ${{ steps.eligible.outputs.eligible_csv }}" >> "$GITHUB_STEP_SUMMARY"

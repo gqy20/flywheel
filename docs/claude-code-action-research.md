@@ -63,8 +63,8 @@
 - 把高价值修复迁移到 `claude-code-action` 驱动（可观测、可复现、触发灵活）
 
 3. 建议中期策略
-- 将 `fix_simple.py` 的 issue 选择/排序逻辑保留
-- 把实际修复执行从 `subprocess claude -p` 替换为 Action 驱动，统一权限模型与运行日志格式
+- 将 issue 选择/排序逻辑从脚本层收敛到 workflow 编排层
+- 统一由 Action 驱动修复执行，统一权限模型与运行日志格式
 
 ## 来源
 

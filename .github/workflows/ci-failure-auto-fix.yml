@@ -1,0 +1,172 @@
+name: CI Failure Auto Fix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Optional: specific PR number to auto-fix"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  issues: write
+  id-token: write
+
+concurrency:
+  group: ci-failure-auto-fix
+  cancel-in-progress: false
+
+jobs:
+  select-target:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.pick.outputs.should_run }}
+      pr_number: ${{ steps.pick.outputs.pr_number }}
+      head_branch: ${{ steps.pick.outputs.head_branch }}
+      run_id: ${{ steps.pick.outputs.run_id }}
+      run_url: ${{ steps.pick.outputs.run_url }}
+    steps:
+      - name: Pick failed CI target
+        id: pick
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_PR: ${{ inputs.pr_number }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_PR:-}" ]; then
+            pr_json="$(gh pr view "$INPUT_PR" --json number,headRefName,url)"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$(echo "$pr_json" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+            echo "head_branch=$(echo "$pr_json" | jq -r '.headRefName')" >> "$GITHUB_OUTPUT"
+            echo "run_id=manual" >> "$GITHUB_OUTPUT"
+            echo "run_url=$(echo "$pr_json" | jq -r '.url')" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event_name }}" != "workflow_run" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${{ github.event.workflow_run.conclusion }}" != "failure" ]; then
+            echo "No failed CI run, skip."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr_count='${{ github.event.workflow_run.pull_requests[0].number }}'
+          if [ -z "$pr_count" ] || [ "$pr_count" = "null" ]; then
+            echo "Failed workflow is not linked to a PR."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          pr_number='${{ github.event.workflow_run.pull_requests[0].number }}'
+          head_branch='${{ github.event.workflow_run.head_branch }}'
+          run_id='${{ github.event.workflow_run.id }}'
+          run_url='${{ github.event.workflow_run.html_url }}'
+
+          if [[ "$head_branch" == claude/* ]] || [[ "$head_branch" == *"candidate"* ]]; then
+            echo "Skip auto-fixing candidate/claude branch to avoid loops."
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          echo "head_branch=$head_branch" >> "$GITHUB_OUTPUT"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "run_url=$run_url" >> "$GITHUB_OUTPUT"
+
+  autofix:
+    needs: select-target
+    if: needs.select-target.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.select-target.outputs.head_branch }}
+          fetch-depth: 0
+
+      - name: Collect failed job summaries
+        id: failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_RUN_ID: ${{ needs.select-target.outputs.run_id }}
+          GH_PAGER: cat
+          PAGER: cat
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "$TARGET_RUN_ID" = "manual" ]; then
+            echo "failure_summary=Manual mode: no workflow_run logs provided." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          jobs_json="$(gh api repos/${{ github.repository }}/actions/runs/$TARGET_RUN_ID/jobs)"
+          summary="$(echo "$jobs_json" | jq -r '
+            .jobs
+            | map(select(.conclusion == "failure"))
+            | map("- " + .name + " (" + (.html_url // "") + ")")
+            | if length == 0 then "- No failed jobs found" else .[] end
+          ')"
+
+          {
+            echo "failure_summary<<EOF"
+            echo "$summary"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate CI-fix candidate PR with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          additional_permissions: |
+            actions: read
+          prompt: |
+            You are fixing a failed CI run for PR #${{ needs.select-target.outputs.pr_number }}.
+
+            Context:
+            - PR: #${{ needs.select-target.outputs.pr_number }}
+            - Branch: ${{ needs.select-target.outputs.head_branch }}
+            - CI run URL: ${{ needs.select-target.outputs.run_url }}
+            - Failed jobs:
+            ${{ steps.failure.outputs.failure_summary }}
+
+            Required behavior:
+            1. Diagnose likely failure root cause from failing jobs/check context.
+            2. Implement minimal fix and run targeted verification (`uv run pytest ...`, `uv run ruff check ...`).
+            3. Create branch: `claude/ci-fix-pr-${{ needs.select-target.outputs.pr_number }}-${{ github.run_id }}`.
+            4. Open one PR to `master` with title prefix:
+               `[AUTOFIX][CI-FAIL][PR-${{ needs.select-target.outputs.pr_number }}]`
+            5. PR body must include cause analysis, fix summary, tests run, and risks.
+            6. Do not push to master directly.
+
+            Constraints:
+            - Keep diff minimal.
+            - Do not modify workflows or secrets.
+          claude_args: |
+            --max-turns 20
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv run pytest:*),Bash(uv run ruff:*)"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### CI Failure Auto Fix" >> "$GITHUB_STEP_SUMMARY"
+          echo "- PR: #${{ needs.select-target.outputs.pr_number }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch: ${{ needs.select-target.outputs.head_branch }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Run URL: ${{ needs.select-target.outputs.run_url }}" >> "$GITHUB_STEP_SUMMARY"

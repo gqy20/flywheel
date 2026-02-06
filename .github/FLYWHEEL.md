@@ -17,7 +17,8 @@
 | `evaluate.yml` | 每小时 + issue 事件 | 重算优先级标签 |
 | `issue-curation.yml` | 每小时 / 手动 | 将 open issue 控制在阈值内（默认 20） |
 | `fix.yml` | 每小时 / 手动 | 选择一个 issue，启动 3 路并行候选修复并提交 PR |
-| `merge-pr.yml` | 每小时 / 手动 | 对同一 issue 的候选 PR 做仲裁并执行合并 |
+| `merge-pr.yml` | 每小时 / 手动 | 对同一 issue 的候选 PR 做硬性 checks 过滤后仲裁合并 |
+| `ci-failure-auto-fix.yml` | CI 失败时 / 手动 | 针对失败 CI 自动生成修复候选 PR |
 | `claude-code.yml` | 评论/手动 | 交互式 @claude 能力 |
 | `ci.yml` | push / PR | lint + test + coverage |
 
@@ -42,13 +43,19 @@
 ### 3) 独立 PR 仲裁与合并
 
 - `merge-pr.yml` 按 issue 聚合候选 PR
-- 默认至少 2 个候选时触发仲裁
+- 默认至少 2 个候选且通过 checks 才触发仲裁
 - 仲裁维度：
   - CI 结果
   - 修复完整性
   - 回归风险
   - 变更复杂度
 - 只合并 1 个最佳候选；其余候选关闭并给出原因
+
+### 4) CI 失败自愈
+
+- 监听 `CI` workflow 失败事件
+- 自动汇总失败 job 上下文并触发 Claude 修复
+- 产出独立修复候选 PR，不直接改主分支
 
 ## 人工触发命令
 
@@ -73,6 +80,9 @@ gh workflow run merge-pr.yml
 
 # 指定 issue 触发仲裁合并
 gh workflow run merge-pr.yml -f issue_number=123
+
+# 触发 CI 失败自动修复
+gh workflow run ci-failure-auto-fix.yml
 ```
 
 ## 必要 Secrets
