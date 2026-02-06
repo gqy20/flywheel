@@ -1,6 +1,9 @@
 name: Docs Auto Maintenance
 
 on:
+  workflow_run:
+    workflows: ["Docs CI"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       debug_logs:
@@ -17,13 +20,33 @@ permissions:
 
 jobs:
   autofix-docs:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'failure' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
+      - name: Resolve target ref
+        id: ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "value=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=master" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: master
+          ref: ${{ steps.ref.outputs.value }}
           fetch-depth: 0
 
       - name: Setup uv
@@ -44,6 +67,7 @@ jobs:
           ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
           RUN_ID: ${{ github.run_id }}
           TRIGGER_EVENT: ${{ github.event_name }}
+          SOURCE_RUN_URL: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.html_url || '' }}
           CLAUDE_MAX_TURNS: "30"
           LOG_LEVEL: ${{ inputs.debug_logs && 'DEBUG' || 'INFO' }}
           CLAUDE_SDK_TRACE: "1"
@@ -58,3 +82,8 @@ jobs:
         run: |
           echo "### Docs Auto Maintenance" >> "$GITHUB_STEP_SUMMARY"
           echo "- Trigger: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            echo "- Source run: ${{ github.event.workflow_run.html_url }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Source event: ${{ github.event.workflow_run.event }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Source branch: ${{ github.event.workflow_run.head_branch }}" >> "$GITHUB_STEP_SUMMARY"
+          fi

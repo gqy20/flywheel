@@ -38,6 +38,7 @@ Run `uv run python scripts/check_docs_sync.py --generate` after workflow changes
 | `circuit_cooldown_minutes` | `false` | `120` | `string` | Circuit breaker cooldown window (minutes) |
 | `circuit_failure_threshold` | `false` | `3` | `string` | Circuit breaker consecutive failure threshold |
 | `debug_logs` | `false` | `false` | `boolean` | Enable verbose SDK logs for troubleshooting |
+| `issue_batch_size` | `false` | `3` | `string` | Number of highest-priority issues to process per run |
 | `max_issues` | `false` | `5` | `string` | Max issues to create in one run |
 | `max_open_issues` | `false` | `20` | `string` | Target max number of open issues for curation |
 | `min_fixable_issues` | `false` | `3` | `string` | Minimum number of fixable open issues required before auto-fix runs |
