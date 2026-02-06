@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   issues: write
+  discussions: write
   pull-requests: read
   actions: read
 
@@ -40,6 +41,8 @@ jobs:
 
           cutoff="$(date -u -d "${WINDOW_DAYS} days ago" +%Y-%m-%d)"
           now_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          today_utc="$(date -u +%Y-%m-%d)"
+          max_issue_cap=20
 
           open_issues="$(gh issue list --state open --limit 200 --json number | jq 'length')"
 
@@ -82,29 +85,53 @@ jobs:
             ci_fail_rate="0.00"
           fi
 
+          health="OK"
+          alerts=""
+          if [ "$open_issues" -gt "$max_issue_cap" ]; then
+            health="WARN"
+            alerts="${alerts}\n- Open issues exceed cap (${open_issues}/${max_issue_cap})."
+          fi
+          ci_fail_rate_int="$(printf '%.0f' "$ci_fail_rate")"
+          if [ "$ci_fail_rate_int" -ge 30 ]; then
+            health="WARN"
+            alerts="${alerts}\n- CI failure rate is high (${ci_fail_rate}%)."
+          fi
+          if [ "$open_candidate_prs" -ge 8 ]; then
+            health="WARN"
+            alerts="${alerts}\n- Candidate PR backlog is high (${open_candidate_prs})."
+          fi
+          if [ "$merged_recent" -eq 0 ] && [ "$open_issues" -gt 0 ]; then
+            health="WARN"
+            alerts="${alerts}\n- No AUTOFIX PR merged in this window."
+          fi
+
+          if [ -z "${alerts}" ]; then
+            alerts="- None"
+          else
+            alerts="$(echo -e "$alerts" | sed '/^$/d')"
+          fi
+
           markdown="$(
             cat <<EOF
-          ## Automation Metrics Snapshot
+          ## Flywheel Daily Report - ${today_utc}
 
-          - Generated at (UTC): \`$now_utc\`
-          - Window: last \`$WINDOW_DAYS\` day(s), since \`$cutoff\`
+          - Status: **${health}**
+          - Generated at: \`${now_utc}\`
+          - Window: \`${WINDOW_DAYS}d\` (since \`${cutoff}\`)
 
-          ### Issue Pool
+          | Metric | Value |
+          |---|---:|
+          | Open issues | ${open_issues} |
+          | Priority split | p0=${p0}, p1=${p1}, p2=${p2}, p3=${p3} |
+          | Open candidate PRs | ${open_candidate_prs} |
+          | Merged AUTOFIX PRs (${WINDOW_DAYS}d) | ${merged_recent} |
+          | Closed unmerged AUTOFIX PRs (${WINDOW_DAYS}d) | ${closed_unmerged_recent} |
+          | CI runs (${WINDOW_DAYS}d) | ${ci_recent_total} |
+          | CI failed runs (${WINDOW_DAYS}d) | ${ci_recent_failed} |
+          | CI failure rate | ${ci_fail_rate}% |
 
-          - Open issues: **$open_issues**
-          - Priority split: \`p0=$p0\` \`p1=$p1\` \`p2=$p2\` \`p3=$p3\`
-
-          ### Autofix Pipeline
-
-          - Open candidate PRs: **$open_candidate_prs**
-          - Merged AUTOFIX PRs (window): **$merged_recent**
-          - Closed unmerged AUTOFIX PRs (window): **$closed_unmerged_recent**
-
-          ### CI Health
-
-          - CI runs (window): **$ci_recent_total**
-          - CI failed runs (window): **$ci_recent_failed**
-          - CI failure rate: **$ci_fail_rate%**
+          ### Alerts
+          ${alerts}
           EOF
           )"
 
@@ -114,7 +141,7 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Upsert dashboard issue
+      - name: Upsert dashboard discussion
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
@@ -125,22 +152,117 @@ jobs:
         run: |
           set -euo pipefail
 
-          title="[METRICS] Automation Health Dashboard"
-          issue_number="$(
-            gh issue list --state open --search "in:title \"$title\"" --limit 20 --json number,title \
-              | jq -r --arg title "$title" '.[] | select(.title == $title) | .number' \
+          owner="${GH_REPO%/*}"
+          repo="${GH_REPO#*/}"
+          title="[FLYWHEEL] Daily Health Dashboard"
+          fallback_issue_title="[METRICS] Automation Health Dashboard"
+
+          post_issue_fallback() {
+            issue_number="$(
+              gh issue list --state open --search "in:title \"$fallback_issue_title\"" --limit 20 --json number,title \
+                | jq -r --arg title "$fallback_issue_title" '.[] | select(.title == $title) | .number' \
+                | head -n 1
+            )"
+            if [ -z "${issue_number:-}" ]; then
+              gh issue create \
+                --title "$fallback_issue_title" \
+                --body "This issue is used by automation to post periodic flywheel metrics snapshots." \
+                >/tmp/new_issue_url.txt
+              issue_number="$(awk -F'/' '{print $NF}' /tmp/new_issue_url.txt)"
+            fi
+            gh issue comment "$issue_number" --body "$REPORT"
+          }
+
+          repo_data="$(
+            gh api graphql \
+              -f owner="$owner" \
+              -f name="$repo" \
+              -f query='
+                query($owner:String!, $name:String!) {
+                  repository(owner:$owner, name:$name) {
+                    id
+                    discussionCategories(first:25) {
+                      nodes { id slug name }
+                    }
+                    discussions(first:100, orderBy:{field:UPDATED_AT,direction:DESC}) {
+                      nodes { id title number }
+                    }
+                  }
+                }
+              '
+          )"
+
+          repo_id="$(echo "$repo_data" | jq -r '.data.repository.id // empty')"
+          if [ -z "$repo_id" ]; then
+            echo "Repository discussion metadata unavailable; fallback to metrics issue."
+            post_issue_fallback
+            exit 0
+          fi
+
+          category_id="$(
+            echo "$repo_data" | jq -r '
+              .data.repository.discussionCategories.nodes
+              | map(select((.slug == "announcements") or (.slug == "general")))
+              | .[0].id // empty
+            '
+          )"
+          if [ -z "$category_id" ]; then
+            category_id="$(echo "$repo_data" | jq -r '.data.repository.discussionCategories.nodes[0].id // empty')"
+          fi
+          if [ -z "$category_id" ]; then
+            echo "No discussion category found; fallback to metrics issue."
+            post_issue_fallback
+            exit 0
+          fi
+
+          discussion_id="$(
+            echo "$repo_data" \
+              | jq -r --arg title "$title" '.data.repository.discussions.nodes[] | select(.title == $title) | .id' \
               | head -n 1
           )"
 
-          if [ -z "${issue_number:-}" ]; then
-            gh issue create \
-              --title "$title" \
-              --body "This issue is used by automation to post periodic flywheel metrics snapshots." \
-              >/tmp/new_issue_url.txt
-            issue_number="$(awk -F'/' '{print $NF}' /tmp/new_issue_url.txt)"
+          if [ -z "${discussion_id:-}" ]; then
+            created="$(
+              gh api graphql \
+                -f repo_id="$repo_id" \
+                -f category_id="$category_id" \
+                -f title="$title" \
+                -f body="Flywheel automated daily health reports are appended in comments." \
+                -f query='
+                  mutation($repo_id:ID!, $category_id:ID!, $title:String!, $body:String!) {
+                    createDiscussion(input:{
+                      repositoryId:$repo_id,
+                      categoryId:$category_id,
+                      title:$title,
+                      body:$body
+                    }) {
+                      discussion { id number }
+                    }
+                  }
+                '
+            )"
+            discussion_id="$(echo "$created" | jq -r '.data.createDiscussion.discussion.id // empty')"
           fi
 
-          gh issue comment "$issue_number" --body "$REPORT"
+          if [ -z "${discussion_id:-}" ]; then
+            echo "Unable to create/find discussion; fallback to metrics issue."
+            post_issue_fallback
+            exit 0
+          fi
+
+          gh api graphql \
+            -f discussion_id="$discussion_id" \
+            -f body="$REPORT" \
+            -f query='
+              mutation($discussion_id:ID!, $body:String!) {
+                addDiscussionComment(input:{
+                  discussionId:$discussion_id,
+                  body:$body
+                }) {
+                  comment { id }
+                }
+              }
+            ' >/dev/null
 
       - name: Summary
         run: |
