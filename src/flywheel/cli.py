@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 from .formatter import TodoFormatter
 from .storage import TodoStorage
@@ -127,9 +126,6 @@ def run_command(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-
-    # Ensure db parent directory exists.
-    Path(args.db).parent.mkdir(parents=True, exist_ok=True)
     return run_command(args)
 
 
