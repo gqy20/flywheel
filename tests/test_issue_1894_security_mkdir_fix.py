@@ -33,9 +33,9 @@ def test_cli_fails_when_parent_is_file_not_directory(tmp_path, capsys) -> None:
     result = run_command(args)
     assert result != 0, "Should fail when parent path is a file"
 
-    # Error message should indicate the path problem
+    # Error message should indicate the path problem (now in stderr)
     captured = capsys.readouterr()
-    assert "Error:" in captured.out or "error" in captured.out.lower()
+    assert "Error:" in captured.out or "Error:" in captured.err or "error" in captured.out.lower() or "error" in captured.err.lower()
 
 
 def test_cli_fails_when_immediate_parent_is_file(tmp_path, capsys) -> None:

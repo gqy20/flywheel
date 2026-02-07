@@ -71,8 +71,8 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
 
     args = parser.parse_args(["--db", db, "done", "99"])
     assert run_command(args) == 1
-    out = capsys.readouterr().out
-    assert "not found" in out
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
 
 
 def test_storage_load_rejects_oversized_json(tmp_path) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from .formatter import TodoFormatter
 from .storage import TodoStorage
@@ -118,8 +119,8 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except ValueError as exc:
-        print(f"Error: {exc}")
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
         return 1
 
 
