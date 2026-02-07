@@ -1,0 +1,52 @@
+{
+  "issue_number": 2097,
+  "candidate_number": 3,
+  "run_id": "21788518975",
+  "stage": "FINALIZE",
+  "status": "COMPLETE",
+  "plan": {
+    "title": "Fix escape sequence collision by escaping backslash before control characters",
+    "files_to_touch": [
+      "tests/test_issue_2097_backslash_escape_collision.py",
+      "src/flywheel/formatter.py"
+    ],
+    "test_plan": [
+      "Add test asserting _sanitize_text('\\x01') != _sanitize_text(r'\\x01')",
+      "Add test asserting _sanitize_text('\\\\') == r'\\\\'",
+      "Add test for mixed content with backslashes and control chars",
+      "Add test for normal text with backslashes"
+    ],
+    "implementation_sequence": [
+      "Create test file with failing tests (RED)",
+      "Add ('\\\\', '\\\\\\\\') as first replacement in _sanitize_text()",
+      "Verify all tests pass (GREEN)",
+      "Run full test suite for regressions"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2097_backslash_escape_collision.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2057_c1_control_sanitization.py -v",
+      "uv run pytest",
+      "uv run ruff check src/flywheel/formatter.py tests/test_issue_2097_backslash_escape_collision.py"
+    ]
+  },
+  "execution": {
+    "red_phase": {
+      "created_test_file": "tests/test_issue_2097_backslash_escape_collision.py",
+      "failing_tests": 11,
+      "status": "RED_PHASE_COMPLETE"
+    },
+    "green_phase": {
+      "modified_file": "src/flywheel/formatter.py",
+      "change_summary": "Added backslash escaping as first step in _sanitize_text() to prevent collision with control character escape sequences",
+      "new_tests_passing": 11,
+      "existing_tests_passing": 76,
+      "status": "GREEN_PHASE_COMPLETE"
+    },
+    "verification": {
+      "total_tests_run": 87,
+      "total_tests_passed": 87,
+      "linter_status": "PASS",
+      "coverage": "100% for formatter.py"
+    }
+  }
+}
