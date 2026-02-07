@@ -1,0 +1,7 @@
+{
+  "issue_number": 1925,
+  "candidate": 2,
+  "run_id": "21782974709",
+  "approach": "file_locking_with_fcntl",
+  "status": "in_progress"
+}
