@@ -71,3 +71,61 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_rejects_path_traversal_attacks(tmp_path) -> None:
+    """Test that TodoStorage rejects paths containing '..' to prevent directory traversal."""
+    import pytest
+
+    # Test various path traversal attempts
+    traversal_paths = [
+        "../../../tmp/evil.json",
+        "../../sensitive.json",
+        "../etc/passwd",
+        "./../../escape.json",
+        "normal/../../../escape.json",
+    ]
+
+    for malicious_path in traversal_paths:
+        with pytest.raises(ValueError, match=r"\.\..*directory traversal"):
+            TodoStorage(malicious_path)
+
+    # Test that paths with absolute paths but containing '..' are also rejected
+    with pytest.raises(ValueError, match=r"\.\..*directory traversal"):
+        TodoStorage("/tmp/../etc/passwd")
+
+
+def test_storage_allows_safe_paths_within_cwd(tmp_path) -> None:
+    """Test that TodoStorage allows safe relative paths within current directory."""
+    import os
+
+    # Save original CWD
+    original_cwd = os.getcwd()
+
+    try:
+        # Change to tmp_path for testing
+        os.chdir(tmp_path)
+
+        # These should all be allowed
+        safe_paths = [
+            "todo.json",
+            "./todo.json",
+            "subdir/todo.json",
+            "./subdir/todo.json",
+        ]
+
+        for safe_path in safe_paths:
+            storage = TodoStorage(safe_path)
+            assert storage.path is not None
+
+        # Test that actual save/load works for safe paths
+        storage = TodoStorage("safe.json")
+        todos = [Todo(id=1, text="test")]
+        storage.save(todos)
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test"
+
+    finally:
+        # Restore original CWD
+        os.chdir(original_cwd)
