@@ -55,12 +55,14 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     def failing_write_text(self, content, encoding="utf-8", **kwargs):
         # Only fail on temp files, allow initial setup to succeed
         if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            raise IOError("Simulated write failure")
+            raise OSError("Simulated write failure")
         return original_write_text(self, content, encoding=encoding, **kwargs)
 
-    with patch.object(Path, "write_text", failing_write_text):
-        with pytest.raises(IOError, match="Simulated write failure"):
-            storage.save([Todo(id=3, text="new")])
+    with (
+        patch.object(Path, "write_text", failing_write_text),
+        pytest.raises(OSError, match="Simulated write failure"),
+    ):
+        storage.save([Todo(id=3, text="new")])
 
     # Verify original file is unchanged
     assert db.read_text(encoding="utf-8") == original_content
