@@ -8,6 +8,36 @@ from pathlib import Path
 
 from .todo import Todo
 
+
+def _get_temp_path(target_path: Path) -> Path:
+    """Generate a unique temp file path for atomic writes.
+
+    Includes process ID to avoid cross-process collisions that could
+    cause data loss when multiple processes write to the same file.
+    """
+    pid = os.getpid()
+    return target_path.with_name(f".{target_path.name}.{pid}.tmp")
+
+
+def _cleanup_stale_temp_files(target_path: Path) -> None:
+    """Clean up stale temp files from previous crashed processes.
+
+    Removes any temp files matching the pattern .{target_path.name}.*.tmp
+    that may have been left by crashed processes.
+
+    Security: This prevents accumulation of orphaned temp files and ensures
+    we don't collide with temp files from previous runs.
+    """
+    from contextlib import suppress
+
+    parent = target_path.parent
+    pattern = f".{target_path.name}.*.tmp"
+
+    # Find and remove any stale temp files matching the pattern
+    for stale_temp in parent.glob(pattern):
+        with suppress(OSError):
+            stale_temp.unlink()
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -77,6 +107,9 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security: Uses process-unique temp filename and cleans up stale
+        temp files to prevent cross-process collisions.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -84,14 +117,21 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Clean up stale temp files from previous crashed processes
+        _cleanup_stale_temp_files(self.path)
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        # Create process-unique temp file to avoid cross-process collision
+        temp_path = _get_temp_path(self.path)
 
-        # Atomic rename (os.replace is atomic on both Unix and Windows)
-        os.replace(temp_path, self.path)
+        try:
+            # Write to temp file first
+            temp_path.write_text(content, encoding="utf-8")
+
+            # Atomic rename (os.replace is atomic on both Unix and Windows)
+            os.replace(temp_path, self.path)
+        finally:
+            # Clean up temp file if os.replace fails
+            temp_path.unlink(missing_ok=True)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
