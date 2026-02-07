@@ -1,0 +1,12 @@
+{
+  "issue_number": 1868,
+  "candidate_number": 2,
+  "run_id": "21779745669",
+  "stage": "IMPLEMENT",
+  "status": "in_progress",
+  "tests_added": [],
+  "files_modified": [],
+  "tests_passed": false,
+  "lint_passed": false,
+  "committed": false
+}

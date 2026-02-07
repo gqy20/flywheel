@@ -71,3 +71,37 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_rejects_files_exceeding_10mb_limit(tmp_path) -> None:
+    """Test that files larger than 10MB are rejected to prevent DoS attacks (issue #1868)."""
+    import json
+
+    db = tmp_path / "large.json"
+    storage = TodoStorage(str(db))
+
+    # Create a 11MB JSON payload (exceeds 10MB limit)
+    large_payload = [{"id": i, "text": "x" * 100} for i in range(110000)]
+    db.write_text(json.dumps(large_payload), encoding="utf-8")
+
+    # Should raise ValueError for files exceeding 10MB
+    import pytest
+    with pytest.raises(ValueError, match="exceeds maximum allowed size"):
+        storage.load()
+
+
+def test_storage_accepts_files_within_10mb_limit(tmp_path) -> None:
+    """Test that files within 10MB limit are accepted (issue #1868)."""
+    import json
+
+    db = tmp_path / "normal.json"
+    storage = TodoStorage(str(db))
+
+    # Create a small 1KB JSON payload (well within 10MB limit)
+    small_payload = [{"id": 1, "text": "normal todo"}]
+    db.write_text(json.dumps(small_payload), encoding="utf-8")
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "normal todo"

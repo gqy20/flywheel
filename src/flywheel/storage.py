@@ -7,6 +7,9 @@ from pathlib import Path
 
 from .todo import Todo
 
+# Maximum file size limit to prevent DoS attacks (10MB)
+_MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB in bytes
+
 
 class TodoStorage:
     """Persistent storage for todos."""
@@ -17,6 +20,14 @@ class TodoStorage:
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
+
+        # Check file size before loading to prevent DoS attacks (issue #1868)
+        file_size = self.path.stat().st_size
+        if file_size > _MAX_FILE_SIZE:
+            raise ValueError(
+                f"File size ({file_size} bytes) exceeds maximum allowed size "
+                f"({_MAX_FILE_SIZE} bytes = 10MB)"
+            )
 
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
