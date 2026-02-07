@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
@@ -112,3 +113,33 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_storage_rejects_path_traversal(tmp_path) -> None:
+    """Path traversal: paths with '..' should be rejected to prevent writes outside working directory."""
+    import pytest
+
+    # Test parent directory traversal from current directory
+    with pytest.raises(ValueError, match="Invalid path"):
+        TodoStorage("../outside.json")
+
+    # Test nested parent directory traversal
+    with pytest.raises(ValueError, match="Invalid path"):
+        TodoStorage("../../etc/passwd")
+
+    # Test path traversal with subdirectory prefix
+    with pytest.raises(ValueError, match="Invalid path"):
+        TodoStorage("subdir/../../evil.json")
+
+    # Valid relative paths within cwd should still work
+    storage = TodoStorage(".todo-test.json")
+    assert storage.path == Path(".todo-test.json")
+
+
+def test_storage_resolves_path_within_boundary(tmp_path) -> None:
+    """Resolved paths must be within the expected working directory boundary."""
+    import pytest
+
+    # Test with nested parent directory
+    with pytest.raises(ValueError, match="Invalid path"):
+        TodoStorage("../../../tmp/evil.json")
