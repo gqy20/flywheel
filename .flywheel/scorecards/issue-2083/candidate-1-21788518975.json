@@ -1,0 +1,18 @@
+{
+  "issue_number": 2083,
+  "candidate_number": 1,
+  "run_id": "21788518975",
+  "title": "[Security] CLI outputs user-supplied todo.text without sanitization in success messages",
+  "assessment": {
+    "status": "already_fixed",
+    "duplicate_of": 2084,
+    "fix_commit": "eee53c0",
+    "summary": "Issue #2083 describes the same vulnerability as #2084 (CLI outputting unsanitized todo.text). The fix was already applied in commit eee53c0 which added _sanitize_text() calls to all three CLI success messages (add, done, undone commands at lines 98, 108, 113 in cli.py).",
+    "files_changed": [],
+    "tests_added": [],
+    "commands_run": [
+      "uv run pytest tests/test_issue_2084_cli_output_sanitization.py -v"
+    ],
+    "test_results": "All 11 tests pass - the sanitization is working correctly"
+  }
+}
