@@ -5,7 +5,9 @@
   "run_id": "21782168521",
   "branch_name": "claude/issue-1918-candidate-1-21782168521",
   "status": "complete",
-  "stage": "implement",
+  "stage": "finalize",
+  "pr_number": 1993,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/1993",
   "findings": {
     "already_fixed": true,
     "fix_commit": "10fa25d",
