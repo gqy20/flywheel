@@ -109,7 +109,7 @@ class TodoStorage:
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRWXU)  # 0o700 initially, we'll tighten to 0o600
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control

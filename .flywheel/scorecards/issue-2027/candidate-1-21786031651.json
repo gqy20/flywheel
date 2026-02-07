@@ -1,0 +1,25 @@
+{
+  "issue": 2027,
+  "candidate": 1,
+  "run_id": "21786031651",
+  "branch": "claude/issue-2027-candidate-1-21786031651",
+  "summary": "Fix file permissions discrepancy - change S_IRWXU (0o700) to S_IRUSR|S_IWUSR (0o600) and update comment",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_2027_file_permissions.py"],
+    "lines_changed": 1
+  },
+  "tests": {
+    "new_tests_added": 4,
+    "new_tests_passing": true,
+    "existing_tests_passing": true
+  },
+  "risks": [
+    "None - minimal change that fixes the permission mismatch without affecting functionality"
+  ],
+  "acceptance_criteria_met": [
+    "Temp file has exactly 0o600 (rw-------) permissions",
+    "No execute bit set on temp file",
+    "Comment matches actual implementation"
+  ]
+}
