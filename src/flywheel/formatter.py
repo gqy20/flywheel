@@ -11,7 +11,13 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes literal backslashes to prevent ambiguity with escaped
+    control characters (e.g., literal '\n' vs actual newline).
     """
+    # First escape literal backslashes to avoid collision with escape sequences
+    text = text.replace("\\", "\\\\")
+
     # Common control characters - replace with readable escapes
     replacements = [
         ("\n", "\\n"),
