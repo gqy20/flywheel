@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from .todo import Todo
@@ -77,6 +78,9 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security: Uses tempfile.mkstemp to create unpredictable temp file names
+        with restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -84,11 +88,29 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Create temp file with unpredictable name and restrictive permissions
+        # - dir: same directory as target for atomic rename
+        # - prefix/suffix: descriptive but with random chars inserted by mkstemp
+        # - mkstemp uses O_EXCL, providing protection against symlink attacks
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+        )
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        try:
+            # Set restrictive permissions (0o600) immediately after creation
+            # This prevents other users from reading partial data
+            os.chmod(temp_path, 0o600)
+
+            # Write content to the temp file using the file descriptor
+            # This is more secure than write_text as it uses the descriptor from mkstemp
+            os.write(fd, content.encode("utf-8"))
+            # Ensure data is written to disk before rename
+            os.fsync(fd)
+        finally:
+            # Always close the file descriptor
+            os.close(fd)
 
         # Atomic rename (os.replace is atomic on both Unix and Windows)
         os.replace(temp_path, self.path)

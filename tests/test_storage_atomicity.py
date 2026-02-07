@@ -39,6 +39,7 @@ def test_save_is_atomic_with_os_replace(tmp_path) -> None:
 
 def test_write_failure_preserves_original_file(tmp_path) -> None:
     """Test that if write fails, original file remains intact."""
+    import os as os_module
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
 
@@ -49,17 +50,17 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     # Get the original file content
     original_content = db.read_text(encoding="utf-8")
 
-    # Simulate write failure by making temp file write fail
-    original_write_text = Path.write_text
+    # Simulate write failure by making os.write fail
+    original_os_write = os_module.write
 
-    def failing_write_text(self, content, encoding="utf-8", **kwargs):
-        # Only fail on temp files, allow initial setup to succeed
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
+    def failing_os_write(fd, data):
+        # Fail on write operations with enough data (the actual content write)
+        if len(data) > 100:  # Our actual JSON content will be larger than this
             raise OSError("Simulated write failure")
-        return original_write_text(self, content, encoding=encoding, **kwargs)
+        return original_os_write(fd, data)
 
     with (
-        patch.object(Path, "write_text", failing_write_text),
+        patch("flywheel.storage.os.write", failing_os_write),
         pytest.raises(OSError, match="Simulated write failure"),
     ):
         storage.save([Todo(id=3, text="new")])
@@ -76,21 +77,24 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
 
 def test_temp_file_created_in_same_directory(tmp_path) -> None:
     """Test that temp file is created in same directory as target for atomic rename."""
+    import tempfile
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
 
     todos = [Todo(id=1, text="test")]
 
-    # Track temp file creation
+    # Track temp file creation by mocking tempfile.mkstemp
     temp_files_created = []
-    original_write_text = Path.write_text
+    original_mkstemp = tempfile.mkstemp
 
-    def tracking_write_text(self, content, encoding="utf-8"):
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            temp_files_created.append(self)
-        return original_write_text(self, content, encoding=encoding)
+    def tracking_mkstemp(*args, **kwargs):
+        # Call original to get actual fd and path
+        result = original_mkstemp(*args, **kwargs)
+        _fd, path = result
+        temp_files_created.append(Path(path))
+        return result
 
-    with patch.object(Path, "write_text", tracking_write_text):
+    with patch("flywheel.storage.tempfile.mkstemp", tracking_mkstemp):
         storage.save(todos)
 
     # Verify temp file was created in same directory
