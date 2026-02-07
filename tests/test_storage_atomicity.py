@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
+
+if TYPE_CHECKING:
+    import multiprocessing
 
 
 def test_save_is_atomic_with_os_replace(tmp_path) -> None:
@@ -240,7 +244,9 @@ def test_temp_file_cleaned_on_replace_failure(tmp_path) -> None:
     )
 
 
-def _multiprocess_worker(db_path_str: str, pid: int, result_queue: "mp.Queue") -> None:
+def _multiprocess_worker(
+    db_path_str: str, pid: int, result_queue: multiprocessing.Queue
+) -> None:
     """Worker function that writes to shared todo file.
 
     Defined at module level to be picklable for multiprocessing.
