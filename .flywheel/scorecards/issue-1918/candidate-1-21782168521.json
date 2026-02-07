@@ -1,0 +1,37 @@
+{
+  "issue_number": 1918,
+  "issue_title": "[Security] load()未限制文件大小，可能导致内存耗尽（DoS）",
+  "candidate_number": 1,
+  "run_id": "21782168521",
+  "branch_name": "claude/issue-1918-candidate-1-21782168521",
+  "status": "complete",
+  "stage": "implement",
+  "findings": {
+    "already_fixed": true,
+    "fix_commit": "10fa25d",
+    "fix_summary": "10MB JSON file size limit added to prevent DoS attacks",
+    "test_coverage_exists": true,
+    "test_file": "tests/test_minimal_framework.py",
+    "test_functions": [
+      "test_storage_load_rejects_oversized_json",
+      "test_storage_load_accepts_normal_sized_json"
+    ],
+    "source_file": "src/flywheel/storage.py",
+    "implementation_lines": "11-33",
+    "verification_passed": true
+  },
+  "verification_results": {
+    "pytest": "2 passed",
+    "ruff": "All checks passed",
+    "coverage": "90% for storage.py"
+  },
+  "plan": {
+    "description": "Issue already fixed - verification only. No code changes needed.",
+    "files_to_touch": [],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py::test_storage_load_rejects_oversized_json tests/test_minimal_framework.py::test_storage_load_accepts_normal_sized_json -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "created_at": "2026-02-07T15:29:00Z"
+}
