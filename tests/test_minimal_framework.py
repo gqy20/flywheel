@@ -112,3 +112,60 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_storage_load_handles_invalid_json(tmp_path) -> None:
+    """Invalid JSON should raise ValueError with helpful context (not JSONDecodeError)."""
+    db = tmp_path / "invalid.json"
+    storage = TodoStorage(str(db))
+
+    # Create an invalid JSON file
+    db.write_text("{", encoding="utf-8")
+
+    # Should raise ValueError (not JSONDecodeError) with file context
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for invalid JSON file")
+    except ValueError as e:
+        # Error message should mention JSON/parsing and include file context
+        error_msg = str(e).lower()
+        assert "json" in error_msg or "parse" in error_msg or "invalid" in error_msg
+    except json.JSONDecodeError:
+        raise AssertionError("JSONDecodeError should be caught and re-raised as ValueError") from None
+
+
+def test_storage_load_handles_malformed_json(tmp_path) -> None:
+    """Malformed JSON (not valid JSON syntax) should raise ValueError."""
+    db = tmp_path / "malformed.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with malformed JSON
+    db.write_text("not json at all", encoding="utf-8")
+
+    # Should raise ValueError (not JSONDecodeError)
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for malformed JSON file")
+    except ValueError as e:
+        # Error message should mention JSON/parsing
+        error_msg = str(e).lower()
+        assert "json" in error_msg or "parse" in error_msg or "invalid" in error_msg
+    except json.JSONDecodeError:
+        raise AssertionError("JSONDecodeError should be caught and re-raised as ValueError") from None
+
+
+def test_cli_handles_invalid_json_database(tmp_path, capsys) -> None:
+    """CLI should handle invalid JSON database gracefully with exit code 1."""
+    db = tmp_path / "corrupt.json"
+    parser = build_parser()
+
+    # Create an invalid JSON database file
+    db.write_text('{"incomplete": ', encoding="utf-8")
+
+    # Try to list todos - should exit with 1 and print error
+    args = parser.parse_args(["--db", str(db), "list"])
+    exit_code = run_command(args)
+
+    assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "error:" in out.lower()
