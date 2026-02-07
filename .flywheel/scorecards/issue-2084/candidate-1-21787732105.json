@@ -1,0 +1,18 @@
+{
+  "issue_number": 2084,
+  "issue_title": "[Security] CLI 命令直接输出未清洗的 todo.text 到 stdout，存在终端控制字符注入风险",
+  "candidate_number": 1,
+  "run_id": "21787732105",
+  "branch_name": "claude/issue-2084-candidate-1-21787732105",
+  "test_file": "tests/test_issue_2084_cli_output_sanitization.py",
+  "source_files_modified": [
+    "src/flywheel/cli.py"
+  ],
+  "summary": "Fixed terminal control character injection vulnerability in CLI commands (add, done, undone) by sanitizing todo.text output using existing _sanitize_text() function from formatter.py.",
+  "tests_run": "11 tests in test_issue_2084_cli_output_sanitization.py - all passed",
+  "tests_passing": true,
+  "ruff_check": "passed",
+  "implementation": "Added import of _sanitize_text from formatter module and applied it to todo.text in print statements for add, done, and undone commands (lines 98, 108, 113)",
+  "risks_or_limitations": "None - minimal change reusing existing sanitization function that already handles all control characters (0x00-0x1f, 0x7f, 0x80-0x9f)",
+  "security_impact": "Prevents terminal control character injection attacks that could be used to fake todo items or manipulate terminal output"
+}
