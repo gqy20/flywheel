@@ -86,6 +86,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_repair = sub.add_parser("repair", help="Repair corrupted JSON database")
+    p_repair.add_argument("--backup", help="Backup file path (default: <db>.recovered.json)")
+
     return parser
 
 
@@ -116,6 +119,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "repair":
+            recovered = app.storage.repair(backup_path=getattr(args, "backup", None))
+            print(f"Recovered {len(recovered)} todo(s)")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")

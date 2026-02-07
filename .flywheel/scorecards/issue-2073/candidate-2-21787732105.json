@@ -1,0 +1,21 @@
+{
+  "candidate_id": "candidate-2-21787732105",
+  "issue_number": 2073,
+  "issue_title": "[Feature] Add file validation and repair method for corrupted JSON",
+  "branch": "claude/issue-2073-candidate-2-21787732105",
+  "tests_added": [
+    "tests/test_issue_2073_json_repair.py"
+  ],
+  "source_files_modified": [
+    "src/flywheel/storage.py",
+    "src/flywheel/cli.py"
+  ],
+  "acceptance_criteria_met": [
+    "validate() method returns (is_valid: bool, error_message: str | None)",
+    "repair() method attempts to extract valid JSON objects from corrupted file",
+    "CLI command 'todo repair --db=path' available via cli.py",
+    "repair() creates .recovered.json backup before attempting repairs"
+  ],
+  "tests_pass": true,
+  "ruff_checks_pass": true
+}
