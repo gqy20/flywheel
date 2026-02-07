@@ -43,9 +43,23 @@ class Todo:
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
+        # Validate and extract 'id' field
+        if "id" not in data:
+            raise ValueError("Todo is missing required field 'id'")
+        try:
+            todo_id = int(data["id"])
+        except (TypeError, ValueError):
+            raise ValueError(f"Todo field 'id' must be an integer, got {type(data['id']).__name__}") from None
+
+        # Validate and extract 'text' field
+        if "text" not in data:
+            raise ValueError("Todo is missing required field 'text'")
+        if not isinstance(data["text"], str):
+            raise ValueError(f"Todo field 'text' must be a string, got {type(data['text']).__name__}")
+
         return cls(
-            id=int(data["id"]),
-            text=str(data["text"]),
+            id=todo_id,
+            text=data["text"],
             done=bool(data.get("done", False)),
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
