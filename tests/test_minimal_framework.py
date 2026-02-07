@@ -112,3 +112,61 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_todo_rename_rejects_empty_string() -> None:
+    """Todo.rename() should reject empty strings after strip."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Empty string should raise ValueError
+    try:
+        todo.rename("")
+        raise AssertionError("Expected ValueError when renaming to empty string")
+    except ValueError as e:
+        assert "empty" in str(e).lower()
+
+    # Verify state unchanged - text and updated_at should not be modified
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_rename_rejects_whitespace_only() -> None:
+    """Todo.rename() should reject whitespace-only strings."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Single space should raise ValueError
+    try:
+        todo.rename(" ")
+        raise AssertionError("Expected ValueError when renaming to whitespace")
+    except ValueError as e:
+        assert "empty" in str(e).lower()
+
+    # Verify state unchanged
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+    # Multiple spaces/tabs/newlines should also raise ValueError
+    try:
+        todo.rename("  \t\n  ")
+        raise AssertionError("Expected ValueError for mixed whitespace")
+    except ValueError as e:
+        assert "empty" in str(e).lower()
+
+    assert todo.text == "original"
+
+
+def test_todo_rename_accepts_valid_text() -> None:
+    """Todo.rename() should work normally for valid non-empty text."""
+    todo = Todo(id=1, text="original")
+    created = todo.created_at
+
+    # Valid rename should work
+    todo.rename("new text")
+    assert todo.text == "new text"
+    assert todo.updated_at >= created
+
+    # Renaming with leading/trailing whitespace should strip and work
+    todo.rename("  another text  ")
+    assert todo.text == "another text"

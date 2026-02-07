@@ -35,7 +35,10 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        self.text = text.strip()
+        stripped = text.strip()
+        if not stripped:
+            raise ValueError("Todo text cannot be empty")
+        self.text = stripped
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
