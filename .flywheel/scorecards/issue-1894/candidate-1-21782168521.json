@@ -34,5 +34,6 @@
   "limitations": [
     "Does not address symlink-based TOCTOU (would require more complex handling)",
     "Permission denied errors may still occur if directory permissions change after creation"
-  ]
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/1998"
 }
