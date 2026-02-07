@@ -1,0 +1,26 @@
+{
+  "issue_number": 2056,
+  "candidate_number": 2,
+  "run_id": "21787732105",
+  "title": "[Security] DEL character (0x7f) not sanitized despite being ASCII control character",
+  "status": "already_resolved",
+  "findings": {
+    "issue_already_fixed": true,
+    "fix_commit": "77ad8bd",
+    "fix_pr": "#2028",
+    "enhanced_by_commit": "a497564",
+    "enhanced_by_pr": "#2057"
+  },
+  "tests": {
+    "file": "tests/test_issue_2028_del_char_sanitization.py",
+    "count": 5,
+    "all_pass": true
+  },
+  "files_touched": [],
+  "changes_required": false,
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2028_del_char_sanitization.py -v",
+    "uv run ruff check src/flywheel/formatter.py tests/test_issue_2028_del_char_sanitization.py"
+  ],
+  "notes": "Issue #2056 is already fixed in the codebase. The DEL character (0x7f) is properly escaped in _sanitize_text() function at line 29 of formatter.py using the condition '0x7f <= code <= 0x9f'. This was originally fixed in PR #2028 (commit 77ad8bd) and later enhanced in PR #2057 (commit a497564) to also cover C1 control characters."
+}
