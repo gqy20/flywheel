@@ -1,19 +1,23 @@
 {
-  "issue_number": 1863,
-  "candidate_id": "candidate-1-21779745669",
-  "summary": "Fix atomic file write in storage.py to prevent data loss on process crash",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_minimal_framework.py"
+  "issue": 1863,
+  "candidate": 1,
+  "run_id": "21779745669",
+  "branch": "claude/issue-1863-candidate-1-21779745669",
+  "pr_number": 1965,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/1965",
+  "generated_at": "2026-02-07T14:28:39.706548+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_storage_save_preserves_original_on_failure",
-    "test_storage_save_is_idempotent"
-  ],
-  "fix_approach": "write-then-rename",
-  "risks": [],
-  "limitations": [],
-  "tests_run": "pytest -v (12 passed)",
-  "linter_checks": "ruff check (all passed)",
-  "status": "ready"
+  "stage_response_sizes": {
+    "triage": 1475,
+    "plan": 2957,
+    "implement": 2988,
+    "verify": 872,
+    "finalize": 846
+  }
 }
