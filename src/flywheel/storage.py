@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -77,6 +78,11 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security (issue #1986):
+        - Temp file includes process ID to avoid cross-process collisions
+        - Stale temp files from previous crashes are cleaned up before write
+        - Temp file is cleaned up in finally block if os.replace fails
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -84,14 +90,26 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Create process-unique temp file to avoid cross-process collisions
+        # Issue #1986: Include PID to prevent temp file collisions
+        temp_path = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        # Clean up stale temp file from previous crash if it exists
+        # Issue #1986: Remove any leftover temp files with our PID
+        with contextlib.suppress(OSError):
+            temp_path.unlink(missing_ok=True)
 
-        # Atomic rename (os.replace is atomic on both Unix and Windows)
-        os.replace(temp_path, self.path)
+        try:
+            # Write to temp file first
+            temp_path.write_text(content, encoding="utf-8")
+
+            # Atomic rename (os.replace is atomic on both Unix and Windows)
+            os.replace(temp_path, self.path)
+        finally:
+            # Clean up temp file if os.replace failed or left it behind
+            # Issue #1986: Ensure temp file doesn't leak on failure path
+            with contextlib.suppress(OSError):
+                temp_path.unlink(missing_ok=True)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
