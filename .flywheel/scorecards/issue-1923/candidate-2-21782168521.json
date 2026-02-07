@@ -1,53 +1,23 @@
 {
-  "issue_number": 1923,
-  "candidate_number": 2,
+  "issue": 1923,
+  "candidate": 2,
   "run_id": "21782168521",
-  "status": "verified",
   "branch": "claude/issue-1923-candidate-2-21782168521",
-  "summary": "Security vulnerability in JSON deserialization - lack of schema validation allows malformed data injection",
-  "triage": {
-    "root_cause": "TodoStorage.load() at src/flywheel/storage.py:35-38 only validates that raw JSON is a list, but does not validate individual item structure before passing to Todo.from_dict()",
-    "risk_points": [
-      "No validation that list items contain required fields 'id' and 'text'",
-      "No validation of field types (e.g., id as string instead of int)",
-      "Todo.from_dict() uses direct dict access with data['id'] which raises KeyError instead of clean validation error",
-      "Malicious or malformed JSON can cause unhandled exceptions or data corruption"
-    ],
-    "verification_targets": [
-      "Test load() with non-list root (already covered - raises ValueError)",
-      "Test load() with list items missing 'id' or 'text' fields",
-      "Test load() with incorrect field types (id as string, done as non-bool)",
-      "Test load() with extra unknown fields (should warn or ignore gracefully)",
-      "Ensure clear, actionable error messages for each validation failure"
-    ]
-  },
-  "changes": [
-    "Added _validate_todo_item() helper function in src/flywheel/storage.py",
-    "Modified TodoStorage.load() to validate each item before deserialization",
-    "Added comprehensive test suite in tests/test_storage_schema_validation.py (17 tests)"
+  "pr_number": 1997,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/1997",
+  "generated_at": "2026-02-07T15:37:40.695601+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verify": {
-    "commands_run": [
-      "uv run pytest tests/test_storage_schema_validation.py -v",
-      "uv run pytest tests/test_storage*.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_storage_schema_validation.py"
-    ],
-    "results": {
-      "tests/test_storage_schema_validation.py": "17 passed",
-      "tests/test_storage*.py": "22 passed (17 schema validation + 5 atomicity)",
-      "ruff linting": "All checks passed",
-      "coverage": "87% for storage.py"
-    },
-    "outcome": "All tests pass, no regressions, linting clean"
-  },
-  "tests_result": "passed",
-  "linting_result": "passed",
-  "implementation_complete": true,
-  "verified": true,
-  "notes": [
-    "_validate_todo_item() checks: item is dict, has required 'id' and 'text', correct types for id/text/done",
-    "Error messages include item index for debugging",
-    "Extra unknown fields are silently ignored (forward compatibility)",
-    "Commit: d8425ea"
-  ]
+  "stage_response_sizes": {
+    "triage": 2446,
+    "plan": 4000,
+    "implement": 2181,
+    "verify": 2126,
+    "finalize": 641
+  }
 }
