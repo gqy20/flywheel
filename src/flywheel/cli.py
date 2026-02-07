@@ -119,7 +119,12 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except Exception as exc:
+    except (ValueError, OSError) as exc:
+        # Catch specific exceptions only - allow critical errors to propagate
+        # ValueError: business logic errors, JSON decode errors, validation errors
+        # OSError: file system errors, permission errors, I/O errors
+        # NOTE: KeyboardInterrupt and SystemExit are BaseException subclasses,
+        # NOT Exception subclasses, so they will propagate correctly.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
