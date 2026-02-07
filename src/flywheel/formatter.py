@@ -5,13 +5,41 @@ from __future__ import annotations
 from .todo import Todo
 
 
+def _sanitize_text(text: str) -> str:
+    """Escape control characters to prevent terminal output manipulation.
+
+    Replaces ASCII control characters (0x00-0x1f) with their escaped
+    representations to prevent injection attacks via todo text.
+    """
+    # Common control characters - replace with readable escapes
+    replacements = [
+        ("\n", "\\n"),
+        ("\r", "\\r"),
+        ("\t", "\\t"),
+    ]
+    for char, escaped in replacements:
+        text = text.replace(char, escaped)
+
+    # Other control characters (0x00-0x1f excluding \n, \r, \t)
+    # Replace with \\xNN escape sequences
+    result = []
+    for char in text:
+        code = ord(char)
+        if 0 <= code <= 0x1f and char not in ("\n", "\r", "\t"):
+            result.append(f"\\x{code:02x}")
+        else:
+            result.append(char)
+    return "".join(result)
+
+
 class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
-        return f"[{status}] {todo.id:>3} {todo.text}"
+        safe_text = _sanitize_text(todo.text)
+        return f"[{status}] {todo.id:>3} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
