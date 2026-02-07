@@ -50,19 +50,21 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     original_content = db.read_text(encoding="utf-8")
 
     # Simulate write failure by making temp file write fail
-    original_write_text = Path.write_text
+    def failing_mkstemp(*args, **kwargs):
+        # Fail on any temp file creation
+        raise OSError("Simulated write failure")
 
-    def failing_write_text(self, content, encoding="utf-8", **kwargs):
-        # Only fail on temp files, allow initial setup to succeed
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            raise OSError("Simulated write failure")
-        return original_write_text(self, content, encoding=encoding, **kwargs)
+    import tempfile
+    original = tempfile.mkstemp
 
     with (
-        patch.object(Path, "write_text", failing_write_text),
+        patch.object(tempfile, "mkstemp", failing_mkstemp),
         pytest.raises(OSError, match="Simulated write failure"),
     ):
         storage.save([Todo(id=3, text="new")])
+
+    # Restore original
+    tempfile.mkstemp = original
 
     # Verify original file is unchanged
     assert db.read_text(encoding="utf-8") == original_content
@@ -81,22 +83,29 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
 
     todos = [Todo(id=1, text="test")]
 
-    # Track temp file creation
+    # Track temp file creation via mkstemp
     temp_files_created = []
-    original_write_text = Path.write_text
+    original_mkstemp = __import__("tempfile").mkstemp
 
-    def tracking_write_text(self, content, encoding="utf-8"):
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            temp_files_created.append(self)
-        return original_write_text(self, content, encoding=encoding)
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
 
-    with patch.object(Path, "write_text", tracking_write_text):
+    import tempfile
+    original = tempfile.mkstemp
+
+    with patch.object(tempfile, "mkstemp", tracking_mkstemp):
         storage.save(todos)
+
+    # Restore original
+    tempfile.mkstemp = original
 
     # Verify temp file was created in same directory
     assert len(temp_files_created) >= 1
     assert temp_files_created[0].parent == db.parent
-    assert temp_files_created[0].name.startswith(".todo.json")
+    # Temp file should start with the base filename
+    assert temp_files_created[0].name.startswith(".todo.json.")
 
 
 def test_atomic_write_produces_valid_json(tmp_path) -> None:

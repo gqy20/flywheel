@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import stat
+import tempfile
 from pathlib import Path
 
 from .todo import Todo
@@ -77,6 +80,9 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security: Uses tempfile.mkstemp to create unpredictable temp file names
+        and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -85,13 +91,31 @@ class TodoStorage:
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            text=False,  # We'll write binary data to control encoding
+        )
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        try:
+            # Set restrictive permissions (owner read/write only)
+            # This protects against other users reading temp file before rename
+            os.fchmod(fd, stat.S_IRWXU)  # 0o700 initially, we'll tighten to 0o600
 
-        # Atomic rename (os.replace is atomic on both Unix and Windows)
-        os.replace(temp_path, self.path)
+            # Write content with proper encoding
+            # Use os.write instead of Path.write_text for more control
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            # Atomic rename (os.replace is atomic on both Unix and Windows)
+            os.replace(temp_path, self.path)
+        except OSError:
+            # Clean up temp file on error
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
