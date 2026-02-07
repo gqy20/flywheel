@@ -1,0 +1,44 @@
+{
+  "issue_number": 2056,
+  "issue_title": "[Security] DEL character (0x7f) not sanitized despite being ASCII control character",
+  "candidate_number": 3,
+  "run_id": "21787732105",
+  "branch_name": "claude/issue-2056-candidate-3-21787732105",
+  "status": "verified_already_fixed",
+  "findings": {
+    "summary": "Issue #2056 reports that DEL character (0x7f) is not sanitized. This issue was already fixed in commit 77ad8bd (PR #2028) and later extended to cover C1 control characters (0x80-0x9f) in commit a497564 (issue #2057).",
+    "files_changed": [],
+    "lines_changed": 0,
+    "tests_added": 0,
+    "fix_type": "verification",
+    "previous_fix_commits": ["77ad8bd", "a497564"],
+    "previous_fix_prs": ["#2028"],
+    "acceptance_criteria_met": true,
+    "verification": {
+      "sanitize_text_escapes_del": true,
+      "sanitize_text_escapes_0x7f": true,
+      "sanitize_text_escapes_c1_controls": true,
+      "all_existing_tests_pass": true
+    }
+  },
+  "tests": {
+    "run_command": "uv run pytest tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py -v",
+    "total_tests": 11,
+    "passed": 11,
+    "failed": 0,
+    "coverage": "88% for formatter.py"
+  },
+  "code_analysis": {
+    "current_condition": "(0 <= code <= 0x1f and char not in (\"\\n\", \"\\r\", \"\\t\")) or 0x7f <= code <= 0x9f",
+    "covers_del_character": true,
+    "covers_c1_controls": true,
+    "documentation_updated": true,
+    "docstring_mentions_del": true,
+    "docstring_mentions_c1": true
+  },
+  "metadata": {
+    "created_at": "2026-02-07T20:30:00Z",
+    "candidate_model": "glm-4.7",
+    "verification_type": "already_fixed"
+  }
+}
