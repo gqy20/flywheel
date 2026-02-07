@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -12,7 +13,36 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        path = path or ".todo.json"
+        self._validate_path(path)
+        self.path = Path(path)
+
+    def _validate_path(self, path: str) -> None:
+        """Reject paths with '..' components to prevent directory traversal.
+
+        Args:
+            path: User-provided path string
+
+        Raises:
+            ValueError: If path contains '..' parent directory components
+        """
+        # Check for both Unix (../) and Windows (..\) style parent references
+        if "../" in path or "..\\" in path or path.endswith("..") or path.startswith(".."):
+            raise ValueError(f"path traversal not allowed: {path!r}")
+
+        # Also resolve absolute paths and warn if they escape CWD
+        resolved = Path(path).resolve()
+        try:
+            cwd = Path.cwd()
+            if cwd not in resolved.parents and cwd != resolved:
+                warnings.warn(
+                    f"Path {path!r} is outside current working directory",
+                    UserWarning,
+                    stacklevel=3,
+                )
+        except RuntimeError:
+            # Path.resolve() may raise RuntimeError on invalid paths
+            pass
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
