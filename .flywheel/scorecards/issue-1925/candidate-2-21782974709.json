@@ -1,22 +1,23 @@
 {
-  "issue_number": 1925,
+  "issue": 1925,
   "candidate": 2,
   "run_id": "21782974709",
-  "approach": "file_locking_with_fcntl",
-  "status": "verified",
-  "verification": {
-    "pytest_tests": [
-      "tests/test_issue_1925_race_condition_fix.py::test_concurrent_saves_from_multiple_processes_no_data_loss PASSED",
-      "tests/test_issue_1925_race_condition_fix.py::test_concurrent_saves_preserve_all_data PASSED",
-      "All 18 tests in test suite PASSED"
-    ],
-    "ruff_check": "PASSED - All checks passed on src/flywheel/storage.py and tests/test_issue_1925_race_condition_fix.py",
-    "commands_executed": [
-      "uv run pytest tests/test_issue_1925_race_condition_fix.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_1925_race_condition_fix.py",
-      "uv run pytest tests/ -v --ignore=tests/test_minimal_framework.py",
-      "uv run pytest tests/test_storage*.py tests/test_issue_1925*.py -v"
-    ],
-    "outcome": "All tests passed, no regressions detected. File locking approach successfully prevents data loss in concurrent save operations."
+  "branch": "claude/issue-1925-candidate-2-21782974709",
+  "pr_number": 2012,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2012",
+  "generated_at": "2026-02-07T16:32:46.779823+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3523,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2547,
+    "finalize": 712
   }
 }
