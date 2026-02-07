@@ -112,3 +112,37 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_storage_load_handles_invalid_json(tmp_path) -> None:
+    """Load should raise ValueError with file path for malformed JSON files."""
+    db = tmp_path / "corrupted.json"
+    storage = TodoStorage(str(db))
+
+    # Write malformed JSON content
+    db.write_text('{"invalid": "json"', encoding="utf-8")
+
+    # Should raise ValueError with file path context
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for malformed JSON file")
+    except ValueError as e:
+        error_msg = str(e)
+        # Error message should include file path
+        assert str(db) in error_msg or "corrupted" in error_msg.lower()
+
+
+def test_storage_load_handles_non_list_json(tmp_path) -> None:
+    """Load should raise ValueError when JSON is not a list."""
+    db = tmp_path / "notlist.json"
+    storage = TodoStorage(str(db))
+
+    # Write valid JSON but not a list
+    db.write_text('{"todos": []}', encoding="utf-8")
+
+    # Should raise ValueError
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for non-list JSON")
+    except ValueError as e:
+        assert "list" in str(e).lower()
