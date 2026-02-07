@@ -1,0 +1,13 @@
+{
+  "candidate_id": "candidate-1-21786031651",
+  "issue_number": 2028,
+  "branch": "claude/issue-2028-candidate-1-21786031651",
+  "stage": "FINALIZE",
+  "tdd_followed": true,
+  "tests_added": 2,
+  "files_changed": 2,
+  "ruff_check": "pass",
+  "pytest_result": "12/12 passed",
+  "commit_hash": "cb0acdd",
+  "created_at": "2026-02-07T18:30:00Z"
+}
