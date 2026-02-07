@@ -8,11 +8,40 @@ from pathlib import Path
 from .todo import Todo
 
 
+def _validate_path_safety(path: Path, base_dir: Path | None = None) -> None:
+    """Validate that path is within the allowed directory.
+
+    Args:
+        path: The path to validate
+        base_dir: The base directory (defaults to current working directory)
+
+    Raises:
+        ValueError: If path escapes the allowed directory via ../, absolute path, or symlink
+    """
+    if base_dir is None:
+        base_dir = Path.cwd()
+
+    # Resolve to absolute path and check for path traversal
+    resolved = path.resolve()
+    base_resolved = base_dir.resolve()
+
+    # Check if resolved path is within base directory
+    try:
+        resolved.relative_to(base_resolved)
+    except ValueError as err:
+        raise ValueError(
+            f"Path '{path}' resolves outside allowed directory '{base_resolved}'. "
+            f"Path traversal detected."
+        ) from err
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        input_path = Path(path or ".todo.json")
+        _validate_path_safety(input_path)
+        self.path = input_path
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
