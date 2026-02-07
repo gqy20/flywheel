@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +75,20 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_load_rejects_oversize_file(tmp_path) -> None:
+    """Security: Reject JSON files larger than 10MB to prevent DoS."""
+    db = tmp_path / "large.json"
+    storage = TodoStorage(str(db))
+
+    # Create a JSON file slightly larger than 10MB
+    large_data = [{"id": i, "text": "x" * 100} for i in range(110000)]
+    db.write_text(json.dumps(large_data), encoding="utf-8")
+
+    # Verify file is actually >10MB
+    assert db.stat().st_size > 10 * 1024 * 1024
+
+    # Should raise ValueError for oversized file
+    with pytest.raises(ValueError, match=r".*too large.*"):
+        storage.load()
