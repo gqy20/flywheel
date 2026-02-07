@@ -1,0 +1,60 @@
+{
+  "issue": 2000,
+  "candidate": 2,
+  "run_id": "21785429705",
+  "stage": "VERIFY",
+  "triage": {
+    "root_causes": [
+      "storage.py:73 - No exception handling for json.loads() causes JSONDecodeError with raw stack trace",
+      "todo.py:46-52 - Todo.from_dict() directly accesses data['id'] and data['text'] without validation"
+    ],
+    "risk_points": [
+      {
+        "location": "storage.py:73",
+        "severity": "P1",
+        "impact": "Raw stack trace on malformed JSON, poor UX"
+      },
+      {
+        "location": "todo.py:47-48",
+        "severity": "P1",
+        "impact": "KeyError with no context when required fields missing"
+      }
+    ],
+    "verification_targets": [
+      "Malformed JSON (missing brackets, truncated file)",
+      "Missing 'id' field",
+      "Missing 'text' field",
+      "Wrong type for 'id' (non-integer)",
+      "Wrong type for 'text' (non-string)"
+    ]
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "src/flywheel/todo.py"
+    ],
+    "summary": "Added JSON deserialization error handling with clear error messages"
+  },
+  "testing": {
+    "test_file": "tests/test_issue_2000_json_deserialization.py",
+    "test_count": 8,
+    "all_passed": true
+  },
+  "finalization": null,
+  "verification": {
+    "commands_run": [
+      "uv run pytest tests/test_issue_2000_json_deserialization.py -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/todo.py tests/test_issue_2000_json_deserialization.py",
+      "uv run pytest -v (full suite)"
+    ],
+    "results": {
+      "target_tests": "8/8 passed",
+      "full_suite": "48/48 passed",
+      "ruff_checks": "All passed"
+    },
+    "coverage": {
+      "storage.py": "87%",
+      "todo.py": "100%"
+    }
+  }
+}
