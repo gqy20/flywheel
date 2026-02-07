@@ -43,6 +43,7 @@
   },
   "finalization": {
     "pr_created": false,
-    "pr_url": null
+    "pr_url": null,
+    "note": "PR creation failed: GitHub Actions not permitted to create PRs. Branch pushed successfully."
   }
 }
