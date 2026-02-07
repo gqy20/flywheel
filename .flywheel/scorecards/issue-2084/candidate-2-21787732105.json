@@ -1,27 +1,23 @@
 {
-  "issue_number": 2084,
-  "candidate_number": 2,
+  "issue": 2084,
+  "candidate": 2,
   "run_id": "21787732105",
   "branch": "claude/issue-2084-candidate-2-21787732105",
-  "title": "[Security] CLI commands sanitize control characters in output",
-  "summary": "Fixes terminal control character injection in CLI add/done/undone commands by sanitizing todo.text with _sanitize_text() before output.",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_2084_cli_output_sanitization.py"
+  "pr_number": 2090,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2090",
+  "generated_at": "2026-02-07T22:30:06.190213+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "uv run pytest tests/test_issue_2084_cli_output_sanitization.py -v"
-  ],
-  "tests_passed": true,
-  "ruff_check": true,
-  "risks": [
-    "None - minimal change using existing _sanitize_text() function"
-  ],
-  "limitations": [
-    "Only sanitizes add/done/undone command output; rm command does not output todo.text"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2084_cli_output_sanitization.py -v",
-    "uv run ruff check src/flywheel/cli.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 3007,
+    "plan": 3002,
+    "implement": 1810,
+    "verify": 2545,
+    "finalize": 379
+  }
 }
