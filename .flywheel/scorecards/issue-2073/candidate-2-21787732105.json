@@ -1,29 +1,23 @@
 {
-  "candidate_id": "candidate-2-21787732105",
-  "issue_number": 2073,
-  "issue_title": "[Feature] Add file validation and repair method for corrupted JSON",
+  "issue": 2073,
+  "candidate": 2,
+  "run_id": "21787732105",
   "branch": "claude/issue-2073-candidate-2-21787732105",
-  "tests_added": [
-    "tests/test_issue_2073_json_repair.py"
+  "pr_number": 2091,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2091",
+  "generated_at": "2026-02-07T22:30:13.750173+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "source_files_modified": [
-    "src/flywheel/storage.py",
-    "src/flywheel/cli.py"
-  ],
-  "acceptance_criteria_met": [
-    "validate() method returns (is_valid: bool, error_message: str | None)",
-    "repair() method attempts to extract valid JSON objects from corrupted file",
-    "CLI command 'todo repair --db=path' available via cli.py",
-    "repair() creates .recovered.json backup before attempting repairs"
-  ],
-  "tests_pass": true,
-  "ruff_checks_pass": true,
-  "verification": {
-    "test_command": "uv run pytest tests/test_issue_2073_json_repair.py -v",
-    "test_result": "10/10 tests passed",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_2073_json_repair.py",
-    "ruff_result": "All checks passed",
-    "regression_test_command": "uv run pytest tests/test_storage_atomicity.py -v",
-    "regression_result": "6/6 tests passed"
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3889,
+    "implement": 2910,
+    "verify": 1860,
+    "finalize": 634
   }
 }
