@@ -1,18 +1,21 @@
 {
-  "issue_number": 2084,
-  "issue_title": "[Security] CLI 命令直接输出未清洗的 todo.text 到 stdout，存在终端控制字符注入风险",
-  "candidate_number": 1,
-  "run_id": "21787732105",
-  "branch_name": "claude/issue-2084-candidate-1-21787732105",
-  "test_file": "tests/test_issue_2084_cli_output_sanitization.py",
-  "source_files_modified": [
-    "src/flywheel/cli.py"
-  ],
-  "summary": "Fixed terminal control character injection vulnerability in CLI commands (add, done, undone) by sanitizing todo.text output using existing _sanitize_text() function from formatter.py.",
-  "tests_run": "11 tests in test_issue_2084_cli_output_sanitization.py - all passed",
-  "tests_passing": true,
-  "ruff_check": "passed",
-  "implementation": "Added import of _sanitize_text from formatter module and applied it to todo.text in print statements for add, done, and undone commands (lines 98, 108, 113)",
-  "risks_or_limitations": "None - minimal change reusing existing sanitization function that already handles all control characters (0x00-0x1f, 0x7f, 0x80-0x9f)",
-  "security_impact": "Prevents terminal control character injection attacks that could be used to fake todo items or manipulate terminal output"
+  "issue_id": 2084,
+  "candidate_id": "candidate-1-21787732105",
+  "stage": "FINALIZE",
+  "timestamp": "2025-02-07T22:30:00Z",
+  "pr_url": "",
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_2084_cli_output_sanitization.py tests/test_issue_1924_format_todo_sanitization.py -v",
+    "pytest_result": "21 passed in 0.09s",
+    "ruff_command": "uv run ruff check src/flywheel/cli.py src/flywheel/formatter.py tests/test_issue_2084_cli_output_sanitization.py",
+    "ruff_result": "All checks passed!"
+  },
+  "summary": {
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2084_cli_output_sanitization.py"
+    ],
+    "fix_description": "Add _sanitize_text() wrapper for todo.text in add/done/undone CLI command outputs to prevent terminal control character injection",
+    "test_coverage": "11 comprehensive CLI output tests covering newline, carriage return, tab, ANSI escape sequences, null byte, normal text, and Unicode"
+  }
 }
