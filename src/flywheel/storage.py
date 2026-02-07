@@ -70,9 +70,14 @@ class TodoStorage:
                 f"This protects against denial-of-service attacks."
             )
 
-        raw = json.loads(self.path.read_text(encoding="utf-8"))
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Failed to parse JSON in '{self.path}': {e.msg} at line {e.lineno}, column {e.colno}"
+            ) from e
         if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
+            raise ValueError(f"Todo storage must be a JSON list, got {type(raw).__name__}")
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
