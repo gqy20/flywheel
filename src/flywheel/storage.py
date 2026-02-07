@@ -35,7 +35,51 @@ class TodoStorage:
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        # Security: Validate schema of each item before deserialization
+        for idx, item in enumerate(raw):
+            self._validate_item_schema(item, idx)
+
         return [Todo.from_dict(item) for item in raw]
+
+    def _validate_item_schema(self, item: object, idx: int) -> None:
+        """Validate that an item has the required schema structure.
+
+        Raises ValueError with clear message if validation fails.
+        """
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Invalid todo data: item at index {idx} must be a JSON object, got {type(item).__name__}"
+            )
+
+        # Check required fields
+        missing_fields = []
+        if "id" not in item:
+            missing_fields.append("'id'")
+        if "text" not in item:
+            missing_fields.append("'text'")
+
+        if missing_fields:
+            raise ValueError(
+                f"Invalid todo data: item at index {idx} missing required field(s): {', '.join(missing_fields)}"
+            )
+
+        # Validate field types
+        if not isinstance(item["id"], int):
+            raise ValueError(
+                f"Invalid todo data: item at index {idx} field 'id' must be an int, got {type(item['id']).__name__}"
+            )
+
+        if not isinstance(item["text"], str):
+            raise ValueError(
+                f"Invalid todo data: item at index {idx} field 'text' must be a string, got {type(item['text']).__name__}"
+            )
+
+        # Validate optional field types
+        if "done" in item and not isinstance(item["done"], bool):
+            raise ValueError(
+                f"Invalid todo data: item at index {idx} field 'done' must be a bool, got {type(item['done']).__name__}"
+            )
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
