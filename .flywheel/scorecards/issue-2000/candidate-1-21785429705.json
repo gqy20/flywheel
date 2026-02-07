@@ -1,66 +1,23 @@
 {
-  "issue_number": 2000,
-  "issue_title": "[Bug] JSON deserialization does not handle malformed JSON or missing required fields",
-  "candidate_id": 1,
+  "issue": 2000,
+  "candidate": 1,
   "run_id": "21785429705",
-  "branch_name": "claude/issue-2000-candidate-1-21785429705",
-  "stage": "IMPLEMENT",
-  "tdd_plan": {
-    "problem_summary": "json.loads() lacks error handling for malformed JSON; Todo.from_dict() directly accesses data['id'] and data['text'] without validation",
-    "files_to_modify": {
-      "source": [
-        "src/flywheel/storage.py",
-        "src/flywheel/todo.py"
-      ],
-      "tests": [
-        "tests/test_issue_2000_json_validation.py"
-      ]
-    },
-    "tests_to_add": [
-      "test_storage_load_handles_malformed_json() - Invalid JSON syntax (unmatched brackets)",
-      "test_storage_load_handles_missing_id_field() - Missing 'id' field",
-      "test_storage_load_handles_missing_text_field() - Missing 'text' field",
-      "test_storage_load_handles_wrong_id_type() - Wrong type for 'id' (string instead of int)",
-      "test_todo_from_dict_handles_missing_id() - Missing 'id' field",
-      "test_todo_from_dict_handles_missing_text() - Missing 'text' field",
-      "test_todo_from_dict_handles_wrong_id_type() - Wrong type for 'id'"
-    ],
-    "implementation_sequence": [
-      "RED: Add 7 failing tests to test_issue_2000_json_validation.py",
-      "GREEN: Add try-except for json.JSONDecodeError in storage.py",
-      "GREEN: Add field validation in Todo.from_dict() in todo.py",
-      "VERIFY: Run pytest and ruff check",
-      "COMMIT: Create branch and commit changes"
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "uv run pytest tests/test_minimal_framework.py tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
-    ]
-  },
-  "implementation": {
-    "commit_hash": "223ee46",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "tests_run": {
-      "new_tests": "tests/test_issue_2000_json_validation.py - 7 tests passed",
-      "regression_tests": "tests/test_minimal_framework.py + tests/test_storage_atomicity.py - 13 tests passed",
-      "linting": "uv run ruff check - All checks passed"
-    },
-    "changes_summary": {
-      "storage.py": "Added try-except for json.JSONDecodeError with user-friendly error message including file path, error message, line number, and column number",
-      "todo.py": "Added field validation for missing 'id' and 'text' fields, type validation for 'id' (must be integer), type validation for 'text' (must be string)",
-      "test_issue_2000_json_validation.py": "Created new test file with 7 comprehensive tests for malformed JSON, missing fields, and invalid types"
-    }
-  },
-  "created_at": "2026-02-07T16:21:53Z",
-  "completed_at": "2026-02-07T19:34:00Z",
-  "finalize": {
-    "stage": "FINALIZE",
-    "pr_created": true,
-    "pr_url": "https://github.com/gqy20/flywheel/pull/2053"
+  "branch": "claude/issue-2000-candidate-1-21785429705",
+  "pr_number": 2053,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2053",
+  "generated_at": "2026-02-07T19:38:54.198847+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2769,
+    "plan": 4000,
+    "implement": 2635,
+    "verify": 2864,
+    "finalize": 1942
   }
 }
