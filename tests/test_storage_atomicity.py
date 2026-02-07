@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 from flywheel.todo import Todo
 
 
@@ -140,3 +140,104 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+# Security tests for file size limit (DoS protection)
+
+
+def test_load_raises_valueerror_when_file_exceeds_limit(tmp_path) -> None:
+    """Test that load() raises ValueError when file size exceeds 10MB limit."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file larger than _MAX_JSON_SIZE_BYTES
+    oversized_content = "x" * (_MAX_JSON_SIZE_BYTES + 1)
+    db.write_text(oversized_content, encoding="utf-8")
+
+    # Verify ValueError is raised with descriptive message
+    with pytest.raises(ValueError, match="JSON file too large"):
+        storage.load()
+
+
+def test_load_raises_valueerror_when_file_exactly_at_limit_boundary(tmp_path) -> None:
+    """Test that load() raises ValueError when file is at exactly the limit boundary."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file exactly one byte over the limit
+    oversized_content = "x" * (_MAX_JSON_SIZE_BYTES + 1)
+    db.write_text(oversized_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="JSON file too large"):
+        storage.load()
+
+
+def test_load_succeeds_when_file_within_limit(tmp_path) -> None:
+    """Test that load() succeeds for files within the size limit."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create valid JSON data well within limit
+    todos = [Todo(id=1, text="normal size file")]
+    storage.save(todos)
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "normal size file"
+
+
+def test_load_succeeds_when_file_exactly_at_limit(tmp_path) -> None:
+    """Test that load() succeeds when file size is exactly at the limit."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file exactly at the size limit with valid JSON
+    # Use smallest valid JSON entry
+    entry = '{"id":1,"text":"x","done":false}'
+    # Calculate how many entries we can fit
+    bracket_overhead = 2  # [ and ]
+    comma_overhead = 1  # comma between entries
+    entries_needed = (_MAX_JSON_SIZE_BYTES - bracket_overhead) // (len(entry) + comma_overhead)
+
+    # Build valid JSON
+    valid_json = "[" + ",".join([entry] * entries_needed) + "]"
+
+    # Verify it's within limit (should be slightly less than limit due to rounding)
+    assert len(valid_json.encode("utf-8")) <= _MAX_JSON_SIZE_BYTES
+
+    db.write_text(valid_json, encoding="utf-8")
+
+    # File should be within or at limit, should load
+    loaded = storage.load()
+    assert isinstance(loaded, list)
+    assert len(loaded) == entries_needed
+
+
+def test_load_error_message_includes_size_details(tmp_path) -> None:
+    """Test that error message includes actual and limit size information."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create file 20MB (2x the limit) to test error message format
+    twenty_mb = 20 * 1024 * 1024
+    oversized_content = "x" * twenty_mb
+    db.write_text(oversized_content, encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        storage.load()
+
+    error_msg = str(exc_info.value)
+    assert "20.0MB" in error_msg  # Actual size
+    assert "10MB" in error_msg  # Limit
+    assert "limit" in error_msg.lower()
+
+
+def test_load_returns_empty_list_for_nonexistent_file(tmp_path) -> None:
+    """Test that load() returns empty list when file doesn't exist (no size check needed)."""
+    db = tmp_path / "nonexistent.json"
+    storage = TodoStorage(str(db))
+
+    # Should return empty list, not raise error
+    loaded = storage.load()
+    assert loaded == []
