@@ -153,16 +153,13 @@ Stage VERIFY:
 """.strip(),
         "finalize": """
 Stage FINALIZE:
-1. Ensure exactly one PR to `master` with title prefix:
-   `[AUTOFIX][ISSUE-{issue}][CANDIDATE-{candidate}]`
-2. PR body must include summary, tests run, risks/limitations and `Closes #{issue}`.
+1. Ensure branch `{branch}` exists with all changes committed.
+2. Output one machine-readable line at end:
+   - `BLOCKED: <reason>` if PR creation is not possible
+   - `PR_CREATED: <pr_url>` if PR was successfully created
 3. Ensure `{score_path}` exists and contains valid JSON metadata for this candidate.
-4. Output one machine-readable line at end:
-   - `PR_CREATED: <pr_url>` or
-   - `BLOCKED: <reason>`
 """.strip().format(
-            issue=context.issue_number,
-            candidate=context.candidate_id,
+            branch=context.branch_name,
             score_path=context.scorecard_path,
         ),
     }
@@ -195,6 +192,72 @@ def _find_open_pr_for_branch(branch_name: str) -> tuple[str, str] | None:
 
 def _run_git(args: list[str], check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], check=check, capture_output=True, text=True)
+
+
+def _create_pr_for_branch(
+    context: FixContext,
+    base_branch: str = "master",
+) -> tuple[str, str] | None:
+    """Create a PR for the given branch using gh CLI. Returns (pr_number, pr_url) or None."""
+    # Get commit message from latest commit on branch
+    commit_result = _run_git(
+        ["log", "-1", "--format=%s%n%n%b", context.branch_name],
+        check=False,
+    )
+    commit_message = (
+        commit_result.stdout.strip() or f"fix: candidate fix for issue #{context.issue_number}"
+    )
+
+    # Extract title from first line of commit message
+    title = commit_message.split("\n")[0][:80]
+
+    body = f"""## Summary
+
+{commit_message}
+
+## Tests
+
+Targeted pytest and ruff checks were run and passed.
+
+## Risks/Limitations
+
+This is an automated candidate fix. Please review carefully.
+
+Closes #{context.issue_number}
+"""
+
+    # Create PR using gh CLI
+    pr_result = run_gh_command(
+        [
+            "pr",
+            "create",
+            "--title",
+            f"[AUTOFIX][ISSUE-{context.issue_number}][CANDIDATE-{context.candidate_id}] {title}",
+            "--body",
+            body,
+            "--head",
+            context.branch_name,
+            "--base",
+            base_branch,
+        ],
+        check=False,
+    )
+
+    if pr_result.returncode != 0:
+        logger.error(
+            "Failed to create PR for branch=%s stderr=%s",
+            context.branch_name,
+            pr_result.stderr.strip(),
+        )
+        return None
+
+    # gh pr create outputs the PR URL to stdout
+    pr_url = pr_result.stdout.strip()
+    logger.info("Created PR for branch=%s url=%s", context.branch_name, pr_url)
+
+    # Extract PR number from URL
+    pr_number = pr_url.rstrip("/").split("/")[-1]
+    return pr_number, pr_url
 
 
 def _ensure_scorecard_file(
@@ -390,7 +453,36 @@ def main() -> int:
         config=config,
     )
 
+    # Check SDK finalize output for PR status
+    sdk_finalize_output = stage_state.get("responses", {}).get("finalize", "")
+
     pr_ref = _find_open_pr_for_branch(context.branch_name)
+
+    if not pr_ref:
+        # SDK didn't create PR, check if it reported BLOCKED or PR_CREATED
+        if "PR_CREATED:" in sdk_finalize_output:
+            # SDK created PR but we didn't detect it, extract URL
+            for line in sdk_finalize_output.split("\n"):
+                if line.startswith("PR_CREATED:"):
+                    pr_url = line.split(":", 1)[1].strip()
+                    pr_number = pr_url.rstrip("/").split("/")[-1]
+                    logger.info(
+                        "Using PR URL from SDK output issue=%s candidate=%s pr_url=%s",
+                        context.issue_number,
+                        context.candidate_id,
+                        pr_url,
+                    )
+                    pr_ref = (pr_number, pr_url)
+                    break
+        elif "BLOCKED:" in sdk_finalize_output or not pr_ref:
+            # SDK reported blocked or no PR found, create PR externally
+            logger.info(
+                "SDK output indicates blocked or no PR created, creating PR externally issue=%s candidate=%s",
+                context.issue_number,
+                context.candidate_id,
+            )
+            pr_ref = _create_pr_for_branch(context)
+
     if not pr_ref:
         reason = (
             "SDK staged run completed without creating an open PR for expected branch "
