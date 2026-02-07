@@ -53,6 +53,40 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @staticmethod
+    def _validate_item(item: dict, index: int) -> None:
+        """Validate a single todo item from JSON.
+
+        Args:
+            item: The parsed JSON dict to validate
+            index: The index of the item in the list (for error messages)
+
+        Raises:
+            ValueError: If the item is invalid, with a clear error message
+        """
+        # Check that item is a dict
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Invalid todo at index {index}: expected object, got {type(item).__name__}"
+            )
+
+        # Check required fields
+        required_fields = {"id", "text"}
+        missing_fields = required_fields - item.keys()
+        if missing_fields:
+            missing_str = ", ".join(repr(f) for f in sorted(missing_fields))
+            raise ValueError(
+                f"Invalid todo at index {index}: missing required field(s): {missing_str}"
+            )
+
+        # Validate id field type (must be convertible to int)
+        try:
+            int(item["id"])
+        except (TypeError, ValueError) as e:
+            raise ValueError(
+                f"Invalid todo at index {index}: 'id' must be a number, got {type(item['id']).__name__}"
+            ) from e
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -70,6 +104,11 @@ class TodoStorage:
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        # Validate each item before creating Todo objects
+        for i, item in enumerate(raw):
+            self._validate_item(item, i)
+
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
