@@ -61,6 +61,6 @@
   "finalize": {
     "stage": "FINALIZE",
     "pr_created": true,
-    "pr_url": "pending"
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2053"
   }
 }
