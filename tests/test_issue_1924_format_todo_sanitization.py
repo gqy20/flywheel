@@ -110,3 +110,64 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_todo_escapes_del_char_in_text() -> None:
+    """DEL character (0x7f) should be escaped to prevent terminal injection."""
+    todo = Todo(id=1, text="Before\x7fAfter")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\x7f" in result
+    # Should not contain actual DEL character
+    assert "\x7f" not in result
+
+
+def test_format_todo_escapes_c1_control_chars_in_text() -> None:
+    """C1 control characters (0x80-0x9f) should be escaped to prevent terminal injection."""
+    # Test a representative sample of C1 controls
+    # 0x8d = reverse line feed, 0x9b = CSI (control sequence introducer)
+    todo = Todo(id=1, text="Before\x8dMiddle\x9bAfter")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representations
+    assert "\\x8d" in result
+    assert "\\x9b" in result
+    # Should not contain actual C1 control characters
+    assert "\x8d" not in result
+    assert "\x9b" not in result
+
+
+def test_format_todo_escapes_all_control_chars_comprehensive() -> None:
+    """Comprehensive test covering C0, DEL, and C1 control characters."""
+    # Include representatives from all control char ranges:
+    # - C0: \n (0x0a)
+    # - DEL: 0x7f
+    # - C1: 0x80, 0x9f
+    todo = Todo(id=1, text="Normal\nDel\x7fC1Start\x80C1End\x9fEnd")
+    result = TodoFormatter.format_todo(todo)
+    # All should be escaped
+    assert "\\n" in result
+    assert "\\x7f" in result
+    assert "\\x80" in result
+    assert "\\x9f" in result
+    # Should not contain actual control characters
+    assert "\n" not in result
+    assert "\x7f" not in result
+    assert "\x80" not in result
+    assert "\x9f" not in result
+
+
+def test_format_todo_escapes_del_and_c1_in_list() -> None:
+    """DEL and C1 control characters should be escaped in list format."""
+    todos = [
+        Todo(id=1, text="Task with DEL\x7fchar"),
+        Todo(id=2, text="Task with C1\x9bcontrol"),
+        Todo(id=3, text="Normal task"),
+    ]
+    result = TodoFormatter.format_list(todos)
+    lines = result.split("\n")
+    assert len(lines) == 3
+    # The control characters should be escaped
+    assert "\\x7f" in lines[0]
+    assert "\\x9b" in lines[1]
+    # Normal task should be unchanged
+    assert "Normal task" in lines[2]
