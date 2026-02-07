@@ -1,37 +1,23 @@
 {
-  "issue_number": 2056,
-  "candidate_id": "3-21786980318",
-  "stage": "FINALIZE",
-  "status": "DUPLICATE",
-  "summary": "Issue #2056 is a duplicate of #2028. The DEL character (0x7f) sanitization vulnerability was already fixed in commit 77ad8bd. No code changes needed - the fix is already in place.",
-  "root_cause": {
-    "file": null,
-    "line": null,
-    "description": "N/A - Issue is a duplicate of #2028 which was already fixed"
-  },
-  "fix_applied": {
-    "file": null,
-    "changes": []
-  },
-  "verification": {
-    "tests_run": [
-      "tests/test_issue_2028_del_char_sanitization.py"
-    ],
-    "tests_passed": 5,
-    "tests_failed": 0,
-    "commands": [
-      "uv run pytest tests/test_issue_2028_del_char_sanitization.py -v"
-    ]
-  },
-  "related_issues": {
-    "duplicate_of": 2028,
-    "fixing_pr": 2028,
-    "fixing_commit": "77ad8bd"
-  },
-  "risk_assessment": {
-    "vulnerability_status": "already_fixed",
-    "regression_risk": "none",
-    "scope": "duplicate_issue"
-  },
-  "recommendation": "Close issue #2056 as a duplicate of #2028. The DEL character sanitization is already implemented and tested."
+  "issue": 2056,
+  "candidate": 3,
+  "run_id": "21786980318",
+  "branch": "claude/issue-2056-candidate-3-21786980318",
+  "pr_number": 2076,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2076",
+  "generated_at": "2026-02-07T21:31:42.679393+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2561,
+    "implement": 1665,
+    "verify": 1831,
+    "finalize": 742
+  }
 }
