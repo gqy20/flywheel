@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
@@ -112,3 +113,55 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_storage_load_invalid_json_raises_valueerror(tmp_path) -> None:
+    """Invalid JSON files should raise ValueError (not JSONDecodeError)."""
+    db = tmp_path / "invalid.json"
+    storage = TodoStorage(str(db))
+
+    # Create file with invalid JSON content
+    db.write_text("{invalid json content", encoding="utf-8")
+
+    # Should raise ValueError (not JSONDecodeError) with helpful message
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for invalid JSON file")
+    except ValueError as e:
+        # Error message should include file path context
+        error_msg = str(e).lower()
+        assert "json" in error_msg or "parse" in error_msg or "invalid" in error_msg
+
+
+def test_storage_load_not_json_raises_valueerror(tmp_path) -> None:
+    """Non-JSON files should raise ValueError with helpful error."""
+    db = tmp_path / "notjson.json"
+    storage = TodoStorage(str(db))
+
+    # Create file with plain text content
+    db.write_text("this is not json at all", encoding="utf-8")
+
+    # Should raise ValueError
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for non-JSON file")
+    except ValueError as e:
+        error_msg = str(e).lower()
+        assert "json" in error_msg or "parse" in error_msg or "invalid" in error_msg
+
+
+def test_cli_handles_invalid_json_gracefully(tmp_path, capsys) -> None:
+    """CLI should handle invalid JSON files with friendly error message."""
+    db = str(tmp_path / "invalid.json")
+    parser = build_parser()
+
+    # Create invalid JSON file
+    Path(db).write_text("{broken", encoding="utf-8")
+
+    # Try to list todos - should exit with error code 1
+    args = parser.parse_args(["--db", db, "list"])
+    exit_code = run_command(args)
+
+    assert exit_code == 1
+    out = capsys.readouterr().out
+    assert "Error:" in out

@@ -1,0 +1,20 @@
+{
+  "issue_number": 1928,
+  "candidate_number": 1,
+  "run_id": "21784661334",
+  "branch": "claude/issue-1928-candidate-1-21784661334",
+  "tests_added": [
+    "test_storage_load_invalid_json_raises_valueerror",
+    "test_storage_load_not_json_raises_valueerror",
+    "test_cli_handles_invalid_json_gracefully"
+  ],
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "fix_type": "error_handling",
+  "lines_changed": 6,
+  "tests_pass": true,
+  "lint_pass": true,
+  "summary": "Catch json.JSONDecodeError and convert to ValueError with helpful error message including file path"
+}
