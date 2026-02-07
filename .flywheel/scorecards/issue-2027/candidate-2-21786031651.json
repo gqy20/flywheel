@@ -1,31 +1,23 @@
 {
-  "issue_number": 2027,
-  "candidate_number": 2,
+  "issue": 2027,
+  "candidate": 2,
   "run_id": "21786031651",
-  "status": "completed",
-  "summary": "Fix temp file permissions from 0o700 (rwx------) to 0o600 (rw-------)",
-  "changes": [
-    {
-      "file": "src/flywheel/storage.py",
-      "description": "Changed os.fchmod() from stat.S_IRWXU (0o700) to stat.S_IRUSR | stat.S_IWUSR (0o600). Updated comment to match implementation."
-    },
-    {
-      "file": "tests/test_issue_2027_permissions.py",
-      "description": "Added regression tests that verify temp file has exactly 0o600 permissions with no execute bit set."
-    }
+  "branch": "claude/issue-2027-candidate-2-21786031651",
+  "pr_number": 2064,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2064",
+  "generated_at": "2026-02-07T20:24:50.821211+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_issue_2027_permissions.py::test_temp_file_has_no_execute_bit - PASSED",
-    "tests/test_issue_2027_permissions.py::test_temp_file_is_not_executable - PASSED",
-    "tests/test_issue_1999_symlink_protection.py (6 tests) - PASSED"
-  ],
-  "lint_results": "ruff check passed",
-  "risks": [
-    "None identified. The fix is minimal and corrects a documentation/implementation mismatch."
-  ],
-  "acceptance_criteria_met": [
-    "Temp file has exactly 0o600 (rw-------) permissions",
-    "No execute bit set on temp file",
-    "Comment matches actual implementation"
-  ]
+  "stage_response_sizes": {
+    "triage": 2771,
+    "plan": 2694,
+    "implement": 1442,
+    "verify": 1201,
+    "finalize": 1313
+  }
 }
