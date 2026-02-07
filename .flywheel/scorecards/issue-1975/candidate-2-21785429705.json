@@ -1,34 +1,23 @@
 {
-  "issue_number": 1975,
-  "issue_title": "[Feature] Add atomic write with temporary file to prevent data corruption",
-  "candidate_number": 2,
+  "issue": 1975,
+  "candidate": 2,
   "run_id": "21785429705",
-  "status": "ALREADY_IMPLEMENTED",
-  "summary": "Issue #1975 requests atomic write with temporary file to prevent data corruption. This feature is already fully implemented in the codebase via commit b4ec10f ('fix: implement atomic file writes in TodoStorage.save()'), which fixed issue #1863.",
-  "implementation_details": {
-    "feature": "atomic write with temporary file",
-    "location": "src/flywheel/storage.py:78-118",
-    "implementation": "TodoStorage.save() uses tempfile.mkstemp() to create a temp file with unpredictable name, writes content to it with restrictive permissions (0o600), then uses os.replace() for atomic rename to final path.",
-    "test_coverage": "tests/test_storage_atomicity.py contains 6 comprehensive tests covering: atomic os.replace usage, write failure preserving original file, temp file creation in same directory, valid JSON output, concurrent write safety, and multiprocess concurrency (regression test for issue #1925).",
-    "commit": "b4ec10f5911dc072c02d43075cb1764d277c4aa4"
-  },
-  "verification": {
-    "tests_run": "uv run pytest tests/test_storage_atomicity.py",
-    "tests_passed": 6,
-    "tests_failed": 0,
-    "acceptance_criteria_met": [
-      "Atomic save prevents data corruption if process crashes during write",
-      "Successful save produces correct .todo.json file",
-      "No temporary .tmp files remain after normal completion",
-      "Concurrent access doesn't corrupt data (verified via multiprocess test)"
-    ]
-  },
-  "related_issues": {
-    "original_implementation": "#1863",
-    "concurrency_test_added_by": "#1925",
-    "documented_as_duplicate": "#1935"
-  },
-  "risks": [],
-  "limitations": [],
-  "recommendation": "This issue is a duplicate of #1863 and is already fixed. The implementation provides robust atomic writes with proper error handling, symlink attack protection, and comprehensive test coverage."
+  "branch": "claude/issue-1975-candidate-2-21785429705",
+  "pr_number": 2049,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2049",
+  "generated_at": "2026-02-07T19:37:23.072627+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3345,
+    "implement": 3105,
+    "verify": 2552,
+    "finalize": 791
+  }
 }
