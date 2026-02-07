@@ -71,3 +71,23 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_rejects_path_traversal(tmp_path) -> None:
+    """Path traversal: storage should reject paths with '..' escaping the working dir."""
+    import pytest
+
+    # Try to escape the tmp_path using '../'
+    evil_path = str(tmp_path / ".." / "evil.json")
+
+    with pytest.raises(ValueError, match="cannot contain"):
+        TodoStorage(evil_path)
+
+    # Also test direct '../' paths
+    with pytest.raises(ValueError, match="cannot contain"):
+        TodoStorage("../evil.json")
+
+    # Valid relative paths without '..' should still work
+    valid_path = str(tmp_path / "valid.json")
+    storage = TodoStorage(valid_path)
+    assert storage.path.name == "valid.json"

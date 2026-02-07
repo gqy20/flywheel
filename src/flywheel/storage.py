@@ -12,7 +12,16 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        raw_path = path or ".todo.json"
+
+        # Security: reject paths containing '..' to prevent directory traversal
+        if ".." in raw_path:
+            raise ValueError(
+                "Storage path cannot contain '..' for security reasons. "
+                "Path traversal is not allowed."
+            )
+
+        self.path = Path(raw_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
