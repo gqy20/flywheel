@@ -1,22 +1,23 @@
 {
-  "issue_number": 1894,
-  "candidate_id": 3,
+  "issue": 1894,
+  "candidate": 3,
   "run_id": "21782168521",
   "branch": "claude/issue-1894-candidate-3-21782168521",
-  "status": "already_fixed",
-  "fix_commit": "b5c2a97212bdc4529043f2a8e766008dd93ed624",
-  "summary": "Issue #1894 was already fixed in commit b5c2a97. The fix includes: 1) Removed premature mkdir() from cli.py main(), 2) Added _ensure_parent_directory() in storage.py with proper validation, 3) Added comprehensive tests. All 23 tests pass, ruff checks pass.",
-  "tests_run": ["pytest tests/ -v (23 passed)", "uv run ruff check (passed)"],
-  "risks": [],
-  "changes": {
-    "modified": [],
-    "added": [],
-    "removed": []
-  },
-  "verification": {
-    "tests_pass": true,
-    "ruff_passes": true,
-    "test_count": 23,
-    "coverage_percent": 84
+  "pr_number": 1991,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/1991",
+  "generated_at": "2026-02-07T15:35:01.123433+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2633,
+    "implement": 2853,
+    "verify": 1929,
+    "finalize": 680
   }
 }
