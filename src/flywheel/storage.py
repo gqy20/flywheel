@@ -105,9 +105,13 @@ class TodoStorage:
             os.fchmod(fd, stat.S_IRWXU)  # 0o700 initially, we'll tighten to 0o600
 
             # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
+            # Use os.fdopen for more control over the file descriptor
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Flush Python buffers to OS
+                f.flush()
+                # Force OS to write data to disk for durability
+                os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
