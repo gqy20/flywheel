@@ -13,8 +13,8 @@ from .todo import Todo
 class TodoApp:
     """Simple in-process todo application."""
 
-    def __init__(self, db_path: str | None = None) -> None:
-        self.storage = TodoStorage(db_path)
+    def __init__(self, db_path: str | None = None, validate_path: bool = False) -> None:
+        self.storage = TodoStorage(db_path, validate=validate_path)
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
-    app = TodoApp(db_path=args.db)
+    app = TodoApp(db_path=args.db, validate_path=True)
 
     try:
         if args.command == "add":
