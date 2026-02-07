@@ -70,6 +70,47 @@ class TodoStorage:
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        # Validate each item before deserialization to provide clear error messages
+        for idx, item in enumerate(raw):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"Todo item at index {idx} must be a JSON object, got {type(item).__name__}"
+                )
+            # Check required fields
+            if "id" not in item:
+                raise ValueError(f"Todo item at index {idx} missing required field 'id'")
+            if "text" not in item:
+                raise ValueError(f"Todo item at index {idx} missing required field 'text'")
+
+            # Validate field types
+            if not isinstance(item["id"], int):
+                # Check if it's a float that's actually an integer value (e.g., 1.0)
+                if isinstance(item["id"], float):
+                    if item["id"] != int(item["id"]):
+                        raise ValueError(
+                            f"Todo item at index {idx} has 'id' with non-integer value {item['id']}"
+                        )
+                else:
+                    raise ValueError(
+                        f"Todo item at index {idx} has 'id' with wrong type {type(item['id']).__name__}, expected integer"
+                    )
+            if not isinstance(item["text"], str):
+                raise ValueError(
+                    f"Todo item at index {idx} has 'text' with wrong type {type(item['text']).__name__}, expected string"
+                )
+            # Optional field: done must be boolean if present
+            if "done" in item and not isinstance(item["done"], bool):
+                raise ValueError(
+                    f"Todo item at index {idx} has 'done' with wrong type {type(item['done']).__name__}, expected boolean"
+                )
+            # Optional fields: created_at and updated_at must be strings if present
+            for field in ("created_at", "updated_at"):
+                if field in item and not isinstance(item[field], str):
+                    raise ValueError(
+                        f"Todo item at index {idx} has '{field}' with wrong type {type(item[field]).__name__}, expected string"
+                    )
+
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
