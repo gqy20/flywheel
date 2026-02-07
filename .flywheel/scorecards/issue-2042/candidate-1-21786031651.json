@@ -1,20 +1,23 @@
 {
-  "issue_number": 2042,
-  "candidate_id": 1,
-  "run_id": 21786031651,
-  "stage": "FINALIZE",
-  "status": "COMPLETED",
-  "tests": [
-    "test_format_todo_escapes_del_char",
-    "test_format_todo_escapes_c1_control_chars",
-    "test_format_todo_escapes_all_c1_range",
-    "test_format_todo_escapes_mixed_del_and_c1",
-    "test_format_todo_escapes_del_with_existing_controls"
+  "issue": 2042,
+  "candidate": 1,
+  "run_id": "21786031651",
+  "branch": "claude/issue-2042-candidate-1-21786031651",
+  "pr_number": 2065,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2065",
+  "generated_at": "2026-02-07T20:26:02.677985+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_2042_del_c1_sanitization.py"
-  ],
-  "summary": "Extended control character sanitization to include DEL (0x7f) and C1 controls (0x80-0x9f)",
-  "risks": []
+  "stage_response_sizes": {
+    "triage": 1670,
+    "plan": 3855,
+    "implement": 2038,
+    "verify": 1803,
+    "finalize": 1306
+  }
 }
