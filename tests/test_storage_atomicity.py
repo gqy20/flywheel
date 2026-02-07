@@ -49,17 +49,13 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     # Get the original file content
     original_content = db.read_text(encoding="utf-8")
 
-    # Simulate write failure by making temp file write fail
-    original_write_text = Path.write_text
-
-    def failing_write_text(self, content, encoding="utf-8", **kwargs):
-        # Only fail on temp files, allow initial setup to succeed
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            raise OSError("Simulated write failure")
-        return original_write_text(self, content, encoding=encoding, **kwargs)
+    # Simulate write failure by making os.write fail
+    def failing_os_write(fd, data):
+        # Fail on file descriptors (used by tempfile.mkstemp path)
+        raise OSError("Simulated write failure")
 
     with (
-        patch.object(Path, "write_text", failing_write_text),
+        patch("os.write", side_effect=failing_os_write),
         pytest.raises(OSError, match="Simulated write failure"),
     ):
         storage.save([Todo(id=3, text="new")])
@@ -76,21 +72,23 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
 
 def test_temp_file_created_in_same_directory(tmp_path) -> None:
     """Test that temp file is created in same directory as target for atomic rename."""
+    import tempfile
+
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
 
     todos = [Todo(id=1, text="test")]
 
-    # Track temp file creation
+    # Track temp file creation using tempfile.mkstemp
     temp_files_created = []
-    original_write_text = Path.write_text
+    original_mkstemp = tempfile.mkstemp
 
-    def tracking_write_text(self, content, encoding="utf-8"):
-        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
-            temp_files_created.append(self)
-        return original_write_text(self, content, encoding=encoding)
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
 
-    with patch.object(Path, "write_text", tracking_write_text):
+    with patch("tempfile.mkstemp", side_effect=tracking_mkstemp):
         storage.save(todos)
 
     # Verify temp file was created in same directory

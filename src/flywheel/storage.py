@@ -4,9 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Flags for os.open to get O_EXCL semantics (fail if file exists)
+_O_EXCL = getattr(os, "O_EXCL", 0)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -77,6 +81,10 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security: Uses tempfile.mkstemp to create unpredictable temp file name
+        with O_EXCL semantics to protect against symlink attacks. Sets restrictive
+        permissions (0o600) before rename.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -85,10 +93,21 @@ class TodoStorage:
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Security: Use mkstemp for unpredictable name + O_EXCL semantics
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.",
+        )
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        try:
+            # Set restrictive permissions (owner read/write only)
+            os.chmod(temp_path, 0o600)
+
+            # Write content to temp file
+            os.write(fd, content.encode("utf-8"))
+        finally:
+            # Always close the file descriptor
+            os.close(fd)
 
         # Atomic rename (os.replace is atomic on both Unix and Windows)
         os.replace(temp_path, self.path)
