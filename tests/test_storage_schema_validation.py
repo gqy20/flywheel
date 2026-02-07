@@ -46,7 +46,7 @@ class TestJSONSchemaValidation:
     def test_load_with_number_root_raises_clear_error(self, tmp_path) -> None:
         """Test that JSON number root raises a clear ValueError."""
         db = tmp_path / "todo.json"
-        db.write_text('42', encoding="utf-8")
+        db.write_text("42", encoding="utf-8")
 
         storage = TodoStorage(str(db))
         with pytest.raises(ValueError, match="Todo storage must be a JSON list"):
@@ -70,9 +70,7 @@ class TestJSONSchemaValidation:
         with pytest.raises(ValueError, match=r"missing required field.*'text'"):
             storage.load()
 
-    def test_load_with_item_missing_both_required_fields_raises_clear_error(
-        self, tmp_path
-    ) -> None:
+    def test_load_with_item_missing_both_required_fields_raises_clear_error(self, tmp_path) -> None:
         """Test that list item missing both 'id' and 'text' raises clear ValueError."""
         db = tmp_path / "todo.json"
         db.write_text('[{"done": true}]', encoding="utf-8")
@@ -159,15 +157,13 @@ class TestJSONSchemaValidation:
     def test_load_with_non_dict_item_raises_clear_error(self, tmp_path) -> None:
         """Test that list containing non-dict items raises clear ValueError."""
         db = tmp_path / "todo.json"
-        db.write_text('[1, 2, 3]', encoding="utf-8")
+        db.write_text("[1, 2, 3]", encoding="utf-8")
 
         storage = TodoStorage(str(db))
         with pytest.raises(ValueError, match="item at index 0 must be a JSON object"):
             storage.load()
 
-    def test_load_with_mixed_valid_invalid_items_raises_clear_error(
-        self, tmp_path
-    ) -> None:
+    def test_load_with_mixed_valid_invalid_items_raises_clear_error(self, tmp_path) -> None:
         """Test that list with one invalid item raises clear error at that position."""
         db = tmp_path / "todo.json"
         db.write_text(
