@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from .todo import Todo
@@ -24,8 +25,22 @@ class TodoStorage:
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
+        """Save todos to file atomically.
+
+        Uses write-to-temp-file + atomic rename pattern to prevent data loss
+        if the process crashes during write.
+        """
         payload = [todo.to_dict() for todo in todos]
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create temp file in same directory as target for atomic rename
+        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+
+        # Write to temp file first
+        temp_path.write_text(content, encoding="utf-8")
+
+        # Atomic rename (os.replace is atomic on both Unix and Windows)
+        os.replace(temp_path, self.path)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

@@ -1,0 +1,48 @@
+{
+  "issue_number": 1863,
+  "candidate_number": 3,
+  "run_id": "21779745669",
+  "stage": "complete",
+  "title": "[Security] storage.py:28 写入文件无原子性保证，进程崩溃可能丢失数据",
+  "plan": {
+    "problem": "storage.py:28 uses Path.write_text() which is not atomic. If the process crashes during write, the file can be corrupted.",
+    "approach": "Use atomic write pattern: write to temp file + os.replace() for atomic rename",
+    "files_to_modify": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files_to_create": [
+      "tests/test_storage_atomicity.py"
+    ],
+    "implementation_steps": [
+      "RED: Add test for atomic write - simulate interrupted write",
+      "GREEN: Implement atomic save using temp file + os.replace",
+      "VERIFY: Run pytest and ruff"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ],
+    "risks": [
+      "os.replace() behavior on Windows differs from Unix (overwrites destination)",
+      "Temp file cleanup if write fails before os.replace"
+    ]
+  },
+  "execution": {
+    "branch_created": true,
+    "branch_name": "claude/issue-1863-candidate-3-21779745669",
+    "tests_run": [
+      "uv run pytest tests/test_storage_atomicity.py -v: 5/5 passed",
+      "uv run pytest tests/test_minimal_framework.py -v: 5/5 passed",
+      "uv run ruff check src/flywheel/storage.py: passed"
+    ],
+    "changes_made": [
+      "Created tests/test_storage_atomicity.py with 5 tests for atomic writes",
+      "Modified src/flywheel/storage.py: added os import, refactored save() to use temp file + os.replace()"
+    ]
+  },
+  "finalization": {
+    "pr_created": false,
+    "pr_url": null
+  }
+}
