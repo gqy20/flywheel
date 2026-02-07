@@ -112,3 +112,25 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_cli_fails_when_db_parent_is_a_file(tmp_path) -> None:
+    """Security: Should fail when db parent path is an existing file, not a directory.
+
+    This is a regression test for issue #1894 - prevents the vulnerability where
+    Path(args.db).parent.mkdir() in main() could create a directory when the
+    parent is actually a file (e.g., specifying --db=file.json/nested.json).
+    """
+    # Create a file that will serve as the "parent" directory
+    parent_file = tmp_path / "db.json"
+    parent_file.write_text("existing file content")
+
+    parser = build_parser()
+    # Try to create a database under a file path (should fail)
+    args = parser.parse_args(["--db", str(parent_file / "nested.json"), "add", "test"])
+
+    # Should return error exit code
+    result = run_command(args)
+    assert result == 1
+    # Error message should indicate the path issue
+    # The error could be from Path.exists() check or from actual filesystem error

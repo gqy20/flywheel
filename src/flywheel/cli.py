@@ -90,6 +90,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
+    # Security: Validate and create parent directory on-demand.
+    # Check if parent path exists and is actually a directory (not a file).
+    # This prevents issues when --db specifies a path under an existing file.
+    db_path = Path(args.db)
+    parent = db_path.parent
+
+    if parent.exists() and not parent.is_dir():
+        print(f"Error: Database parent path exists but is not a directory: {parent}")
+        return 1
+
+    # Create parent directory if it doesn't exist.
+    # This is done here (not in main) to avoid premature directory creation
+    # and to check the path type before attempting creation.
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        print(f"Error: Cannot create database directory: {exc}")
+        return 1
+
     app = TodoApp(db_path=args.db)
 
     try:
@@ -127,9 +146,6 @@ def run_command(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-
-    # Ensure db parent directory exists.
-    Path(args.db).parent.mkdir(parents=True, exist_ok=True)
     return run_command(args)
 
 
