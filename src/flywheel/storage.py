@@ -12,7 +12,43 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        input_path = Path(path or ".todo.json")
+        self.path = self._validate_path(input_path)
+
+    def _validate_path(self, path: Path) -> Path:
+        """Validate path is safe from directory traversal attacks.
+
+        Prevents directory traversal attacks by detecting and rejecting
+        paths containing parent directory reference sequences ('../' or '..\\').
+
+        Args:
+            path: User-provided path to validate
+
+        Returns:
+            The validated path (may be relative or absolute)
+
+        Raises:
+            ValueError: If path contains parent directory traversal sequences
+        """
+        path_str = str(path)
+
+        # Check for path traversal patterns in the input string
+        # This catches both '../' and '..\\' sequences before any path normalization
+        if "../" in path_str or "..\\" in path_str:
+            raise ValueError(
+                "Invalid path: parent directory references ('../' or '..\\') are not allowed for security reasons"
+            )
+
+        # Additional check: reject paths that start with '..' (would be normalized to parent)
+        parts = Path(path_str).parts
+        if any(p == ".." for p in parts):
+            raise ValueError(
+                "Invalid path: parent directory references are not allowed for security reasons"
+            )
+
+        # Return path as-is (could be relative or absolute)
+        # Absolute paths are allowed for legitimate use cases (e.g., tests, explicit config)
+        return path
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

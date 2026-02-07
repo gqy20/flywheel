@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +73,49 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_rejects_path_traversal_with_parent_dir_sequences() -> None:
+    """Path traversal via '../' sequences should be rejected."""
+    import pytest
+    with pytest.raises(ValueError, match="parent directory"):
+        TodoStorage("../../../etc/passwd")
+
+
+def test_storage_rejects_parent_dir_at_start() -> None:
+    """Paths starting with '..' should be rejected."""
+    import pytest
+    with pytest.raises(ValueError, match="parent directory"):
+        TodoStorage("../etc/passwd")
+
+
+def test_storage_rejects_parent_dir_in_middle() -> None:
+    """Paths with '../' in the middle should be rejected."""
+    import pytest
+    with pytest.raises(ValueError, match="parent directory"):
+        TodoStorage("subdir/../../../etc/passwd")
+
+
+def test_storage_rejects_backslash_parent_dir_sequences() -> None:
+    """Windows-style path traversal with '..\\' should be rejected."""
+    import pytest
+    with pytest.raises(ValueError, match="parent directory"):
+        TodoStorage("..\\..\\windows\\system32")
+
+
+def test_storage_accepts_safe_relative_paths() -> None:
+    """Safe relative paths without traversal should work normally."""
+    storage = TodoStorage("safe.json")
+    assert storage.path == Path("safe.json")
+
+
+def test_storage_accepts_subdirectory_paths() -> None:
+    """Paths to subdirectories without traversal should work."""
+    storage = TodoStorage("subdir/nested.json")
+    assert storage.path == Path("subdir/nested.json")
+
+
+def test_storage_accepts_absolute_paths() -> None:
+    """Absolute paths should be allowed for legitimate use cases."""
+    storage = TodoStorage("/tmp/test.json")
+    assert storage.path == Path("/tmp/test.json")
