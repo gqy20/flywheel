@@ -129,6 +129,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Ensure db parent directory exists.
+    # IMPORTANT: Validate path before creating any directories to prevent
+    # directory traversal attacks that could create directories outside
+    # the intended workspace.
+    try:
+        TodoStorage._validate_path(Path(args.db))
+    except ValueError as exc:
+        print(f"Error: {exc}")
+        return 1
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
     return run_command(args)
 

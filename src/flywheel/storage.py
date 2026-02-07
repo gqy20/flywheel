@@ -15,7 +15,8 @@ class TodoStorage:
         input_path = Path(path or ".todo.json")
         self.path = self._validate_path(input_path)
 
-    def _validate_path(self, path: Path) -> Path:
+    @staticmethod
+    def _validate_path(path: Path) -> Path:
         """Validate path is safe from directory traversal attacks.
 
         Prevents directory traversal attacks by detecting and rejecting

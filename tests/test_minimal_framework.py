@@ -119,3 +119,34 @@ def test_storage_accepts_absolute_paths() -> None:
     """Absolute paths should be allowed for legitimate use cases."""
     storage = TodoStorage("/tmp/test.json")
     assert storage.path == Path("/tmp/test.json")
+
+
+def test_cli_validates_path_before_creating_directories(tmp_path) -> None:
+    """CLI should validate path before mkdir to prevent directory creation outside workspace."""
+    from flywheel.cli import main
+
+    # Try to use a path with directory traversal
+    # The validation should fail before any directory is created
+    traversal_path = tmp_path / "safe" / ".." / ".." / "etc" / "passwd.json"
+
+    result = main(["--db", str(traversal_path), "add", "test"])
+
+    # Should return error code (not 0)
+    assert result == 1
+
+
+def test_cli_blocks_path_traversal_via_db_argument(tmp_path, capsys) -> None:
+    """Direct CLI test: --db argument with '../' should be rejected."""
+    from flywheel.cli import main
+
+    # Create a nested path that would escape the tmp_path
+    escape_path = tmp_path / "subdir" / ".." / ".." / "escaped.json"
+
+    result = main(["--db", str(escape_path), "list"])
+
+    # Should return error code
+    assert result == 1
+
+    # Verify error message contains security warning
+    out = capsys.readouterr()
+    assert "parent directory" in out.out.lower() or "invalid path" in out.out.lower()
