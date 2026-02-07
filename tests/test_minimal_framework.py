@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +73,42 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_load_rejects_oversized_json(tmp_path) -> None:
+    """Security: JSON files larger than 10MB should be rejected to prevent DoS."""
+    db = tmp_path / "large.json"
+    storage = TodoStorage(str(db))
+
+    # Create a JSON file larger than 10MB (~11MB of data)
+    # Using a simple repeated pattern to ensure sufficient size
+    large_payload = [
+        {"id": i, "text": "x" * 100, "description": "y" * 100, "metadata": "z" * 50}
+        for i in range(65000)
+    ]
+    db.write_text(json.dumps(large_payload), encoding="utf-8")
+
+    # Verify the file is actually larger than 10MB
+    assert db.stat().st_size > 10 * 1024 * 1024
+
+    # Should raise ValueError for oversized file
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for oversized JSON file")
+    except ValueError as e:
+        assert "too large" in str(e).lower() or "size" in str(e).lower()
+
+
+def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
+    """Verify normal-sized JSON files are still accepted."""
+    db = tmp_path / "normal.json"
+    storage = TodoStorage(str(db))
+
+    # Create a normal small JSON file
+    todos = [Todo(id=1, text="normal todo")]
+    storage.save(todos)
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "normal todo"
