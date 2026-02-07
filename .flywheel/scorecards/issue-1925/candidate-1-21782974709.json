@@ -1,36 +1,23 @@
 {
-  "issue_number": 1925,
-  "candidate_number": 1,
+  "issue": 1925,
+  "candidate": 1,
   "run_id": "21782974709",
-  "issue_title": "[Bug] Race condition: non-atomic read-modify-write in save() can cause data loss",
   "branch": "claude/issue-1925-candidate-1-21782974709",
-  "stage": "finalize",
-  "created_at": "2026-02-07T00:00:00Z",
-  "test_plan": [
-    "Test concurrent save() calls from multiple processes",
-    "Test file state after SIGKILL during write",
-    "Test interrupted write (disk full scenario)"
-  ],
-  "implementation": {
-    "test_file": "tests/test_storage_atomicity.py",
-    "source_files": ["src/flywheel/storage.py"],
-    "summary": "The atomic write implementation using tempfile + os.replace() was already present in the codebase at src/flywheel/storage.py:87-94. The fix uses write-to-temp-file + atomic rename pattern to prevent data loss if the process crashes during write. No code changes were needed for this candidate.",
-    "risks": [
-      "The atomic write implementation is already present, so this is a verification candidate only",
-      "Existing tests cover atomic writes but do not test multi-process scenarios with actual process forking"
-    ]
-  },
-  "verification": {
-    "tests_run": [
-      "tests/test_storage_atomicity.py::test_save_is_atomic_with_os_replace",
-      "tests/test_storage_atomicity.py::test_write_failure_preserves_original_file",
-      "tests/test_storage_atomicity.py::test_temp_file_created_in_same_directory",
-      "tests/test_storage_atomicity.py::test_atomic_write_produces_valid_json",
-      "tests/test_storage_atomicity.py::test_concurrent_write_safety",
-      "tests/test_minimal_framework.py (7 tests)"
-    ],
-    "all_passed": true
-  },
+  "pr_number": 2007,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2007",
-  "commit": "c8540f9"
+  "generated_at": "2026-02-07T16:31:19.733684+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 1481,
+    "finalize": 1280
+  }
 }
