@@ -1,32 +1,23 @@
 {
-  "issue_id": 1958,
-  "candidate_id": 1,
+  "issue": 1958,
+  "candidate": 1,
   "run_id": "21784661334",
   "branch": "claude/issue-1958-candidate-1-21784661334",
-  "commit": "61e887a",
-  "stage": "FINALIZE",
-  "tdd_followed": true,
-  "tests": {
-    "file": "tests/test_issue_1958_json_parse_error.py",
-    "test_count": 9,
-    "all_passed": true
-  },
-  "source_changes": {
-    "file": "src/flywheel/storage.py",
-    "lines_changed": "73-76"
-  },
-  "verification": {
-    "pytest_issue_tests": "9 passed in 0.06s",
-    "pytest_storage_tests": "6 passed in 0.08s",
-    "pytest_full_suite": "49 passed in 0.37s",
-    "ruff_check": "All checks passed",
-    "ruff_format": "2 files already formatted"
-  },
-  "fix_description": "Added try-except block in TodoStorage.load() to catch json.JSONDecodeError and re-raise as ValueError with clear error message including file path",
-  "risks": [
-    "None - minimal change, converts low-level JSONDecodeError to user-friendly ValueError"
+  "pr_number": 2037,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2037",
+  "generated_at": "2026-02-07T18:37:20.404286+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": [
-    "Error message only includes e.msg from JSONDecodeError, not line/column numbers"
-  ]
+  "stage_response_sizes": {
+    "triage": 2869,
+    "plan": 2756,
+    "implement": 1786,
+    "verify": 2257,
+    "finalize": 1332
+  }
 }
