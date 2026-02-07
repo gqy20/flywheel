@@ -78,8 +78,8 @@ class TodoStorage:
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
-        Uses write-to-temp-file + atomic rename pattern to prevent data loss
-        if the process crashes during write.
+        Uses write-to-temp-file + fsync + atomic rename pattern to prevent data loss
+        if the process or system crashes during write.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
@@ -105,9 +105,11 @@ class TodoStorage:
             os.fchmod(fd, stat.S_IRWXU)  # 0o700 initially, we'll tighten to 0o600
 
             # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
+            # Use os.fdopen for more control over file operations
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                f.flush()
+                os.fsync(fd)  # Ensure data is written to disk before atomic rename
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)

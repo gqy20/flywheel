@@ -229,3 +229,27 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_calls_fsync_for_data_durability(tmp_path) -> None:
+    """Regression test for issue #1975: Verify fsync() is called for data durability.
+
+    Tests that save() calls os.fsync() after writing content to ensure data
+    is flushed to disk before the atomic rename. This protects against data loss
+    from system crashes (not just process crashes).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Mock os.fsync to track if it was called
+    with patch("flywheel.storage.os.fsync") as mock_fsync:
+        storage.save(todos)
+        # Verify fsync was called to ensure data durability
+        mock_fsync.assert_called_once()
+
+    # Verify file content is still valid
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
