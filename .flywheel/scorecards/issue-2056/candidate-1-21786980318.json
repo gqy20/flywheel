@@ -1,26 +1,23 @@
 {
-  "issue_number": 2056,
-  "candidate_number": 1,
+  "issue": 2056,
+  "candidate": 1,
   "run_id": "21786980318",
   "branch": "claude/issue-2056-candidate-1-21786980318",
-  "stage": "FINALIZE",
-  "red_phase": {
-    "status": "already_implemented",
-    "note": "Tests already exist in tests/test_issue_2028_del_char_sanitization.py"
-  },
-  "green_phase": {
-    "status": "already_implemented",
-    "note": "Fix already merged in commit 77ad8bd via PR #2028"
-  },
-  "verify_phase": {
-    "status": "passed",
-    "commands_run": [
-      "uv run pytest tests/test_issue_2028_del_char_sanitization.py",
-      "uv run ruff check src/flywheel/formatter.py"
-    ]
-  },
-  "resolution": "duplicate_issue",
-  "note": "Issue #2056 is a duplicate. The DEL character (0x7f) sanitization was already implemented and merged in commit 77ad8bd (PR #2028 for issue #2028).",
-  "fix_commit": "77ad8bd",
-  "related_issue": 2028
+  "pr_number": 2078,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2078",
+  "generated_at": "2026-02-07T21:33:08.730757+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2196,
+    "plan": 2891,
+    "implement": 3167,
+    "verify": 1881,
+    "finalize": 1376
+  }
 }
