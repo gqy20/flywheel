@@ -1,24 +1,23 @@
 {
-  "issue_number": 2028,
-  "candidate_id": "candidate-2-21786031651",
+  "issue": 2028,
+  "candidate": 2,
+  "run_id": "21786031651",
   "branch": "claude/issue-2028-candidate-2-21786031651",
-  "stage": "FINALIZE",
-  "tests_pass": true,
-  "ruff_pass": true,
-  "fix_summary": "Extended _sanitize_text to escape DEL character (0x7f/127) by modifying condition from '0 <= code <= 0x1f' to '(0 <= code <= 0x1f and char not in ('\\n', '\\r', '\\t')) or code == 0x7f'",
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2028_del_char_sanitization.py -v",
-    "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
-    "uv run ruff check src/flywheel/formatter.py tests/test_issue_2028_del_char_sanitization.py"
+  "pr_number": 2067,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2067",
+  "generated_at": "2026-02-07T20:26:28.252755+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification_outcomes": {
-    "test_issue_2028": "3 passed",
-    "test_issue_1924": "10 passed",
-    "ruff": "All checks passed"
-  },
-  "files_changed": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_2028_del_char_sanitization.py"
-  ],
-  "commit": "a914da7"
+  "stage_response_sizes": {
+    "triage": 2401,
+    "plan": 2907,
+    "implement": 2273,
+    "verify": 2990,
+    "finalize": 688
+  }
 }
