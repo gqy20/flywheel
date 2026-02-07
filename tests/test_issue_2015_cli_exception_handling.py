@@ -2,9 +2,13 @@
 
 This test file ensures that run_command catches broader exception types
 and outputs errors to stderr instead of stdout.
+
+Also covers Issue #2069: overly broad exception catching hides critical errors.
 """
 
 from __future__ import annotations
+
+import pytest
 
 from flywheel.cli import build_parser, run_command
 
@@ -114,3 +118,50 @@ def test_cli_run_command_handles_corrupt_json_not_value_error(tmp_path, capsys) 
     captured = capsys.readouterr()
     # Some error message should be present
     assert captured.err or captured.out
+
+
+def test_cli_run_keyboard_interrupt_should_propagate(tmp_path) -> None:
+    """KeyboardInterrupt should propagate, not be caught.
+
+    Issue #2069: Overly broad exception catching hides critical errors.
+    When a user sends SIGINT (Ctrl+C), the application should exit
+    immediately, not return 1 as if it were a normal error.
+    """
+    from unittest.mock import patch
+
+    db = tmp_path / "db.json"
+    db.write_text("[]", encoding="utf-8")
+
+    # Mock TodoStorage.load to raise KeyboardInterrupt
+    with patch("flywheel.cli.TodoStorage.load", side_effect=KeyboardInterrupt()):
+        parser = build_parser()
+        args = parser.parse_args(["--db", str(db), "list"])
+
+        # Should raise KeyboardInterrupt, NOT return 1
+        with pytest.raises(KeyboardInterrupt):
+            run_command(args)
+
+
+def test_cli_run_system_exit_should_propagate(tmp_path) -> None:
+    """SystemExit should propagate, not be caught.
+
+    Issue #2069: Overly broad exception catching hides critical errors.
+    SystemExit is used to terminate the Python process and should
+    propagate to the caller, not be caught and converted to return code 1.
+    """
+    from unittest.mock import patch
+
+    db = tmp_path / "db.json"
+    db.write_text("[]", encoding="utf-8")
+
+    # Mock TodoStorage.load to raise SystemExit
+    with patch("flywheel.cli.TodoStorage.load", side_effect=SystemExit(42)):
+        parser = build_parser()
+        args = parser.parse_args(["--db", str(db), "list"])
+
+        # Should raise SystemExit, NOT return 1
+        with pytest.raises(SystemExit) as exc_info:
+            run_command(args)
+
+        # The exit code should be preserved
+        assert exc_info.value.code == 42
