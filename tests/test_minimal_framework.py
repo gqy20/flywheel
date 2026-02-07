@@ -112,3 +112,51 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_main_fails_when_db_parent_is_existing_file(tmp_path, capsys) -> None:
+    """Security: When db parent path is an existing file (not directory), should fail gracefully."""
+    # Create a file where we expect a directory
+    existing_file = tmp_path / "db.json"
+    existing_file.write_text("I am a file, not a directory")
+
+    # Try to use a path that requires the file to be a directory
+    db_path = str(existing_file / "subdir" / "todo.json")
+
+    parser = build_parser()
+    args = parser.parse_args(["--db", db_path, "add", "test"])
+
+    # Should fail with appropriate error (not FileExistsError unhandled)
+    result = run_command(args)
+    assert result == 1
+
+    out = capsys.readouterr().out
+    # Should have a meaningful error message, not a traceback
+    assert "Error:" in out
+
+
+def test_main_fails_on_permission_denied_for_directory_creation(tmp_path, capsys) -> None:
+    """Security: When directory creation fails due to permissions, should surface error properly."""
+    # Create a directory with no write permissions
+    no_write_dir = tmp_path / "no_write"
+    no_write_dir.mkdir()
+
+    try:
+        # Remove write permissions
+        no_write_dir.chmod(0o000)
+
+        # Try to create a subdirectory (should fail permission denied)
+        db_path = str(no_write_dir / "subdir" / "todo.json")
+
+        parser = build_parser()
+        args = parser.parse_args(["--db", db_path, "add", "test"])
+
+        # Should fail gracefully, not crash
+        result = run_command(args)
+        assert result == 1
+
+        out = capsys.readouterr().out
+        assert "Error:" in out
+    finally:
+        # Restore permissions for cleanup
+        no_write_dir.chmod(0o755)
