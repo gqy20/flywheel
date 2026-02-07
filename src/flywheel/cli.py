@@ -118,7 +118,7 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except ValueError as exc:
+    except Exception as exc:
         print(f"Error: {exc}")
         return 1
 
