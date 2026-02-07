@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +73,48 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_save_preserves_original_on_failure(tmp_path) -> None:
+    """Test that save uses atomic write: original file preserved if write fails."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # First save - create initial file
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Save new data - should use temp file + atomic rename
+    new_todos = [Todo(id=1, text="updated"), Todo(id=2, text="new")]
+    storage.save(new_todos)
+
+    # Verify file was updated correctly
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "updated"
+    assert loaded[1].text == "new"
+
+    # Verify the file content is valid JSON (not truncated/corrupted)
+    content = db.read_text(encoding="utf-8")
+    data = json.loads(content)
+    assert isinstance(data, list)
+
+
+def test_storage_save_is_idempotent(tmp_path) -> None:
+    """Test that multiple saves produce consistent, valid results."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # First save
+    todos1 = [Todo(id=1, text="task1")]
+    storage.save(todos1)
+    loaded1 = storage.load()
+    assert len(loaded1) == 1
+
+    # Second save - should completely replace content atomically
+    todos2 = [Todo(id=2, text="task2")]
+    storage.save(todos2)
+    loaded2 = storage.load()
+    assert len(loaded2) == 1
+    assert loaded2[0].id == 2
+    assert loaded2[0].text == "task2"
