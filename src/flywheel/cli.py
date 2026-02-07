@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from .formatter import TodoFormatter
@@ -119,7 +120,7 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except Exception as exc:
+    except (ValueError, OSError, json.JSONDecodeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
