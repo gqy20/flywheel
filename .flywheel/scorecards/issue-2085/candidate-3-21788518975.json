@@ -1,23 +1,23 @@
 {
-  "issue_number": 2085,
-  "candidate_id": "candidate-3-21788518975",
-  "stage": "FINALIZE",
-  "triage": {
-    "root_cause": "Todo.rename() was missing validation after text.strip(), allowing empty strings to be set as todo text",
-    "fix_location": "src/flywheel/todo.py:37-40",
-    "risk_assessment": "Low - minimal fix adding validation, matching existing TodoApp.add() pattern"
-  },
-  "tests": [
-    "test_rename_empty_string_raises_value_error",
-    "test_rename_whitespace_only_raises_value_error",
-    "test_rename_valid_text_still_works"
+  "issue": 2085,
+  "candidate": 3,
+  "run_id": "21788518975",
+  "branch": "claude/issue-2085-candidate-3-21788518975",
+  "pr_number": 2102,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2102",
+  "generated_at": "2026-02-07T23:34:33.016084+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "pytest_result": "10 passed",
-  "ruff_result": "All checks passed",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ],
-  "summary": "Add validation to Todo.rename() to reject empty strings after strip, matching the behavior in TodoApp.add()",
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2714,
+    "implement": 2237,
+    "verify": 1687,
+    "finalize": 524
+  }
 }
