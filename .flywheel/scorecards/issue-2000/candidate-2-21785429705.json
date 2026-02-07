@@ -40,7 +40,13 @@
     "test_count": 8,
     "all_passed": true
   },
-  "finalization": null,
+  "finalization": {
+    "pr_number": 2051,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2051",
+    "pr_title": "[AUTOFIX][ISSUE-2000][CANDIDATE-2] fix: Handle JSON deserialization errors with clear messages",
+    "status": "OPEN",
+    "created_at": "2026-02-07T19:37:48Z"
+  },
   "verification": {
     "commands_run": [
       "uv run pytest tests/test_issue_2000_json_deserialization.py -v",
