@@ -1,29 +1,23 @@
 {
-  "issue_number": 2073,
-  "candidate_number": 1,
+  "issue": 2073,
+  "candidate": 1,
   "run_id": "21787732105",
-  "branch_name": "claude/issue-2073-candidate-1-21787732105",
-  "implementation_summary": "Added validate() and repair() methods to TodoStorage class in src/flywheel/storage.py",
-  "tests_added": "tests/test_issue_2073_json_validation_repair.py (12 tests covering validate() and repair() methods)",
-  "tests_run": "uv run pytest tests/test_issue_2073_json_validation_repair.py -v (12 passed)",
-  "linting": "uv run ruff check - passed",
-  "changes": [
-    "src/flywheel/storage.py: Added validate() method (lines 131-172)",
-    "src/flywheel/storage.py: Added repair() method (lines 174-202)",
-    "src/flywheel/storage.py: Added _extract_valid_todos() helper (lines 204-240)",
-    "src/flywheel/storage.py: Added _parse_todo_list() helper (lines 242-259)",
-    "tests/test_issue_2073_json_validation_repair.py: Added 12 tests"
+  "branch": "claude/issue-2073-candidate-1-21787732105",
+  "pr_number": 2096,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2096",
+  "generated_at": "2026-02-07T22:32:44.886680+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": [
-    "validate() method returns (is_valid: bool, error_message: str | None)",
-    "repair() method attempts to extract valid JSON objects from corrupted file",
-    "repair() creates .recovered.json backup before attempting repairs",
-    "Tests cover validate() with valid/invalid/truncated/trailing comma JSON",
-    "Tests cover repair() with various corruption scenarios"
-  ],
-  "risks_limitations": [
-    "repair() uses regex-based extraction which may fail for complex JSON structures",
-    "CLI command 'todo repair --db=path' not implemented (not in acceptance criteria for this candidate)",
-    "Repair success depends on recognizing specific JSON patterns with 'id' and 'text' fields"
-  ]
+  "stage_response_sizes": {
+    "triage": 3399,
+    "plan": 3883,
+    "implement": 4000,
+    "verify": 1757,
+    "finalize": 1185
+  }
 }
