@@ -1,21 +1,23 @@
 {
-  "issue_id": 2084,
-  "candidate_id": "candidate-1-21787732105",
-  "stage": "FINALIZE",
-  "timestamp": "2025-02-07T22:30:00Z",
+  "issue": 2084,
+  "candidate": 1,
+  "run_id": "21787732105",
+  "branch": "claude/issue-2084-candidate-1-21787732105",
+  "pr_number": 2092,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2092",
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2084_cli_output_sanitization.py tests/test_issue_1924_format_todo_sanitization.py -v",
-    "pytest_result": "21 passed in 0.09s",
-    "ruff_command": "uv run ruff check src/flywheel/cli.py src/flywheel/formatter.py tests/test_issue_2084_cli_output_sanitization.py",
-    "ruff_result": "All checks passed!"
-  },
-  "summary": {
-    "files_changed": [
-      "src/flywheel/cli.py",
-      "tests/test_issue_2084_cli_output_sanitization.py"
-    ],
-    "fix_description": "Add _sanitize_text() wrapper for todo.text in add/done/undone CLI command outputs to prevent terminal control character injection",
-    "test_coverage": "11 comprehensive CLI output tests covering newline, carriage return, tab, ANSI escape sequences, null byte, normal text, and Unicode"
+  "generated_at": "2026-02-07T22:30:21.048600+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3250,
+    "plan": 3880,
+    "implement": 3571,
+    "verify": 2914,
+    "finalize": 900
   }
 }
