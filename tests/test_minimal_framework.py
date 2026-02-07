@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -112,3 +114,47 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+
+def test_todo_rename_rejects_empty_string() -> None:
+    """Bug #2085: Todo.rename() should reject empty strings after strip."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Empty string should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.rename("")
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_rename_rejects_whitespace_only() -> None:
+    """Bug #2085: Todo.rename() should reject whitespace-only strings."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Various whitespace-only strings should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.rename(" ")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.rename("\t\n")
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_rename_accepts_valid_text() -> None:
+    """Bug #2085: Todo.rename() should still work with valid text."""
+    todo = Todo(id=1, text="original")
+
+    # Valid rename should work
+    todo.rename("new text")
+    assert todo.text == "new text"
+
+    # Whitespace should be stripped
+    todo.rename("  padded  ")
+    assert todo.text == "padded"
