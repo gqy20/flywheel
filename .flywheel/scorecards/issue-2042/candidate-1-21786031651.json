@@ -2,7 +2,7 @@
   "issue_number": 2042,
   "candidate_id": 1,
   "run_id": 21786031651,
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "status": "COMPLETED",
   "tests": [
     "test_format_todo_escapes_del_char",
