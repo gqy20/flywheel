@@ -22,6 +22,14 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    def repair(self) -> bool:
+        """Attempt to repair corrupted JSON database.
+
+        Returns:
+            True if repair succeeded or file was valid, False if repair failed.
+        """
+        return self.storage.repair()
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
@@ -86,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    # no arguments needed for repair command
+    sub.add_parser("repair", help="Repair corrupted JSON database")
+
     return parser
 
 
@@ -117,6 +128,15 @@ def run_command(args: argparse.Namespace) -> int:
             app.remove(args.id)
             print(f"Removed #{args.id}")
             return 0
+
+        if args.command == "repair":
+            success = app.repair()
+            if success:
+                print("Database repaired successfully")
+                return 0
+            else:
+                print("Warning: Database repair had limited success", file=sys.stderr)
+                return 1
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
