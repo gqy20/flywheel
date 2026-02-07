@@ -77,6 +77,9 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Security: Uses PID in temp filename to avoid cross-process collisions
+        and cleans up stale temp files from crashed processes.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -84,14 +87,31 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        temp_path = self.path.with_name(f".{self.path.name}.tmp")
+        # Clean up any stale temp files from crashed processes
+        # Pattern: .{filename}.{pid}.tmp where pid != current pid
+        temp_file_pattern = f".{self.path.name}.*.tmp"
+        for stale_temp in self.path.parent.glob(temp_file_pattern):
+            # Verify it's a temp file for this specific file
+            if stale_temp.name.startswith(f".{self.path.name}."):
+                # Don't delete our own temp file if we're retrying
+                current_pid = os.getpid()
+                temp_pid = stale_temp.stem.split(".")[-1]
+                if temp_pid != str(current_pid):
+                    stale_temp.unlink(missing_ok=True)
 
-        # Write to temp file first
-        temp_path.write_text(content, encoding="utf-8")
+        # Create temp file with PID to avoid cross-process collisions
+        # Pattern: .{filename}.{pid}.tmp
+        temp_path = self.path.with_name(f".{self.path.name}.{os.getpid()}.tmp")
 
-        # Atomic rename (os.replace is atomic on both Unix and Windows)
-        os.replace(temp_path, self.path)
+        try:
+            # Write to temp file first
+            temp_path.write_text(content, encoding="utf-8")
+
+            # Atomic rename (os.replace is atomic on both Unix and Windows)
+            os.replace(temp_path, self.path)
+        finally:
+            # Clean up temp file if os.replace fails
+            temp_path.unlink(missing_ok=True)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

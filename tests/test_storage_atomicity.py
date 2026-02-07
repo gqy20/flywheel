@@ -140,3 +140,161 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+# REGRESSION TESTS FOR ISSUE #1986
+
+
+def test_temp_filename_includes_unique_component(tmp_path) -> None:
+    """Test that temp filename includes process-unique component (PID) to avoid collisions."""
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+    temp_files_created = []
+    original_write_text = Path.write_text
+
+    def tracking_write_text(self, content, encoding="utf-8"):
+        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
+            temp_files_created.append(self.name)
+        return original_write_text(self, content, encoding=encoding)
+
+    with patch.object(Path, "write_text", tracking_write_text):
+        storage.save(todos)
+
+    # Temp filename should include PID
+    assert len(temp_files_created) == 1
+    temp_filename = temp_files_created[0]
+    expected_pid = str(os.getpid())
+    assert expected_pid in temp_filename, (
+        f"Temp filename '{temp_filename}' should include PID '{expected_pid}' "
+        f"to avoid cross-process collisions"
+    )
+
+
+def test_save_cleans_up_stale_temp_files(tmp_path) -> None:
+    """Test that save() removes existing stale temp files from dead processes."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos1 = [Todo(id=1, text="original")]
+    storage.save(todos1)
+
+    # Simulate stale temp files from crashed processes
+    # These should be cleaned up before writing new data
+    stale_temp_1 = db.parent / f".{db.name}.12345.tmp"
+    stale_temp_2 = db.parent / f".{db.name}.67890.tmp"
+
+    stale_temp_1.write_text('{"stale": "data"}', encoding="utf-8")
+    stale_temp_2.write_text('{"also": "stale"}', encoding="utf-8")
+
+    assert stale_temp_1.exists()
+    assert stale_temp_2.exists()
+
+    # Save new data - should clean up stale temps
+    todos2 = [Todo(id=1, text="new data")]
+    storage.save(todos2)
+
+    # Stale temps should be cleaned up
+    assert not stale_temp_1.exists(), "Stale temp file should be cleaned up"
+    assert not stale_temp_2.exists(), "Stale temp file should be cleaned up"
+
+    # But the new data should be saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "new data"
+
+
+def test_temp_file_cleaned_on_replace_failure(tmp_path) -> None:
+    """Test that temp file is cleaned up in finally block if os.replace fails."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+    temp_files_created = []
+
+    # Track temp file creation to get its path
+    original_write_text = Path.write_text
+
+    def tracking_write_text(self, content, encoding="utf-8"):
+        if self.name.startswith(".todo.json") and self.name.endswith(".tmp"):
+            temp_files_created.append(self)
+        return original_write_text(self, content, encoding=encoding)
+
+    # Mock os.replace to fail after temp file is written
+    with (
+        patch.object(Path, "write_text", tracking_write_text),
+        patch("flywheel.storage.os.replace", side_effect=OSError("Simulated replace failure")),
+        pytest.raises(OSError, match="Simulated replace failure"),
+    ):
+        storage.save(todos)
+
+    # Temp file should be cleaned up despite the exception
+    assert len(temp_files_created) == 1
+    temp_path = temp_files_created[0]
+    assert not temp_path.exists(), (
+        f"Temp file '{temp_path}' should be cleaned up after os.replace failure"
+    )
+
+
+def _multiprocess_worker(db_path_str: str, pid: int, result_queue: "mp.Queue") -> None:
+    """Worker function that writes to shared todo file.
+
+    Defined at module level to be picklable for multiprocessing.
+    """
+    storage = TodoStorage(db_path_str)
+    todos = [Todo(id=pid, text=f"Process {pid}")]
+    try:
+        storage.save(todos)
+        result_queue.put(("success", pid))
+    except Exception as e:
+        result_queue.put(("error", pid, str(e)))
+
+
+def test_concurrent_multiprocess_write_safety(tmp_path) -> None:
+    """Test two separate TodoStorage objects writing to same file concurrently.
+
+    This simulates multi-process scenario where each process has its own
+    TodoStorage instance but writes to the same file.
+    """
+    import multiprocessing as mp
+
+    db = tmp_path / "todo.json"
+
+    # Use processes (not threads) to get different PIDs
+    ctx = mp.get_context("spawn")
+    result_queue = ctx.Queue()
+
+    # Create multiple workers that will try to write concurrently
+    processes = []
+    for i in range(1, 4):
+        p = ctx.Process(target=_multiprocess_worker, args=(str(db), i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=5)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # At least one process should succeed
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(successes) > 0, f"At least one process should succeed, got: {results}"
+    assert len(errors) == 0, f"No errors should occur, got: {errors}"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db))
+    loaded = storage.load()
+    assert isinstance(loaded, list)
+
+    # File should contain at least one valid todo
+    assert len(loaded) >= 1
