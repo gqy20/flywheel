@@ -1,0 +1,11 @@
+{
+  "issue": 1999,
+  "candidate": 2,
+  "run_id": "21783816866",
+  "branch": "claude/issue-1999-candidate-2-21783816866",
+  "pr_number": null,
+  "pr_url": null,
+  "generated_at": "2026-02-07T17:31:00.000000+00:00",
+  "stages_completed": ["plan"],
+  "stage_response_sizes": {"plan": 0}
+}
