@@ -1,0 +1,35 @@
+{
+  "issue_number": 1958,
+  "candidate_id": "candidate-1-21784661334",
+  "branch": "claude/issue-1958-candidate-1-21784661334",
+  "summary": "Handle JSONDecodeError in TodoStorage.load() with clear ValueError including file path",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "description": "Wrap json.loads() in try/except to catch JSONDecodeError and raise ValueError with file path and error message"
+    },
+    {
+      "file": "tests/test_issue_1958_json_parse_error.py",
+      "description": "Add comprehensive regression tests for JSON parse error scenarios"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_1958_json_parse_error.py (9 tests)",
+    "tests/test_storage_atomicity.py (6 tests)"
+  ],
+  "tests_passed": 15,
+  "tests_failed": 0,
+  "lint_checks_passed": true,
+  "risks": [
+    "Error message format changed from raw JSONDecodeError to ValueError with custom message"
+  ],
+  "limitations": [
+    "Only handles JSONDecodeError - other I/O errors still propagate raw"
+  ],
+  "acceptance_criteria_met": [
+    "When JSON file is corrupted, program raises ValueError (not crash)",
+    "Error message includes file path and corruption reason",
+    "Unit tests cover JSON parse failure scenarios"
+  ],
+  "git_status": "committed"
+}
