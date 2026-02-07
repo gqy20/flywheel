@@ -1,26 +1,23 @@
 {
-  "issue_number": 1975,
-  "candidate_id": "candidate-1-21785429705",
-  "score": {
-    "test_coverage": 2,
-    "minimal_fix": 2,
-    "correctness": 2,
-    "documentation": 2,
-    "security": 2,
-    "total": 10
-  },
-  "rationale": {
-    "test_coverage": "Added regression test test_save_calls_fsync_for_durability that verifies os.fsync is called for data durability. All 7 atomicity tests pass.",
-    "minimal_fix": "Minimal change - added f.flush() and os.fsync() calls before atomic rename. No refactoring or additional changes.",
-    "correctness": "fsync is correctly called on the file descriptor after writing content and before atomic rename, ensuring data is written to disk.",
-    "documentation": "Updated docstring of save() method to mention fsync. Added detailed docstring to new test explaining the purpose.",
-    "security": "fsync addition strengthens data durability without introducing security issues. Uses file.fileno() for proper fd access."
-  },
-  "tests_run": [
-    "tests/test_storage_atomicity.py - 7/7 passed"
+  "issue": 1975,
+  "candidate": 1,
+  "run_id": "21785429705",
+  "branch": "claude/issue-1975-candidate-1-21785429705",
+  "pr_number": 2048,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2048",
+  "generated_at": "2026-02-07T19:37:15.307660+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_atomicity.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 3508,
+    "plan": 4000,
+    "implement": 3654,
+    "verify": 1617,
+    "finalize": 721
+  }
 }
