@@ -1,18 +1,23 @@
 {
-  "issue_number": 2083,
-  "candidate_number": 1,
+  "issue": 2083,
+  "candidate": 1,
   "run_id": "21788518975",
-  "title": "[Security] CLI outputs user-supplied todo.text without sanitization in success messages",
-  "assessment": {
-    "status": "already_fixed",
-    "duplicate_of": 2084,
-    "fix_commit": "eee53c0",
-    "summary": "Issue #2083 describes the same vulnerability as #2084 (CLI outputting unsanitized todo.text). The fix was already applied in commit eee53c0 which added _sanitize_text() calls to all three CLI success messages (add, done, undone commands at lines 98, 108, 113 in cli.py).",
-    "files_changed": [],
-    "tests_added": [],
-    "commands_run": [
-      "uv run pytest tests/test_issue_2084_cli_output_sanitization.py -v"
-    ],
-    "test_results": "All 11 tests pass - the sanitization is working correctly"
+  "branch": "claude/issue-2083-candidate-1-21788518975",
+  "pr_number": 2103,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2103",
+  "generated_at": "2026-02-07T23:32:50.866410+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3589,
+    "plan": 3627,
+    "implement": 3520,
+    "verify": 3027,
+    "finalize": 596
   }
 }
