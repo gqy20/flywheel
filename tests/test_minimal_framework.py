@@ -71,3 +71,49 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_rejects_path_traversal_with_double_dot() -> None:
+    """Test that TodoStorage rejects paths with '..' components that escape to sensitive system locations."""
+    import pytest
+
+    # Try to create storage with path traversal to /etc/passwd
+    # From current CWD, we need enough '..' to reach root then /etc
+    # Current CWD is /home/runner/work/flywheel/flywheel, so we need 5 levels up
+    with pytest.raises(ValueError, match=r"Path traversal detected|sensitive system"):
+        TodoStorage("../../../../../etc/passwd")
+
+
+def test_storage_rejects_absolute_path_escaping_cwd(tmp_path) -> None:
+    """Test that TodoStorage rejects absolute paths to sensitive system directories."""
+    import pytest
+
+    # Try to use an absolute path to /etc directory - should raise ValueError
+    with pytest.raises(ValueError, match=r"Path traversal detected|sensitive system"):
+        TodoStorage("/etc/todos.json")
+
+
+def test_storage_allows_safe_relative_paths(tmp_path) -> None:
+    """Test that TodoStorage allows safe relative paths within CWD."""
+    # Create subdirectory within CWD for testing
+    from pathlib import Path
+    cwd = Path.cwd()
+    test_subdir = cwd / ".test_storage_tmp"
+    test_subdir.mkdir(exist_ok=True)
+
+    try:
+        db = test_subdir / "todo.json"
+        storage = TodoStorage(str(db))
+
+        todos = [Todo(id=1, text="safe task")]
+        storage.save(todos)
+
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "safe task"
+    finally:
+        # Cleanup
+        if db.exists():
+            db.unlink()
+        if test_subdir.exists():
+            test_subdir.rmdir()
