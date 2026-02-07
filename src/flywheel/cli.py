@@ -64,6 +64,24 @@ class TodoApp:
             raise ValueError(f"Todo #{todo_id} not found")
         self._save(kept)
 
+    def validate(self) -> tuple[bool, str | None]:
+        """Validate the JSON file integrity.
+
+        Returns:
+            A tuple of (is_valid, error_message) where:
+            - is_valid: True if file is valid or doesn't exist, False otherwise
+            - error_message: None if valid, otherwise a description of the error
+        """
+        return self.storage.validate()
+
+    def repair(self) -> list[Todo]:
+        """Attempt to repair a corrupted JSON file.
+
+        Returns:
+            A list of recovered Todo objects (may be empty).
+        """
+        return self.storage.repair()
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -85,6 +103,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
+
+    sub.add_parser("repair", help="Repair corrupted JSON database")
 
     return parser
 
@@ -117,6 +137,29 @@ def run_command(args: argparse.Namespace) -> int:
             app.remove(args.id)
             print(f"Removed #{args.id}")
             return 0
+
+        if args.command == "repair":
+            # First validate
+            is_valid, error = app.validate()
+            if is_valid:
+                print(f"Database '{args.db}' is valid. No repair needed.")
+                return 0
+
+            # Need repair
+            print(f"Database validation failed: {error}")
+            print("Attempting to repair...")
+
+            recovered = app.repair()
+
+            if recovered:
+                print(f"Successfully repaired database. Recovered {len(recovered)} todo(s).")
+                for todo in recovered:
+                    status = "done" if todo.done else "pending"
+                    print(f"  #{todo.id} [{status}]: {todo.text}")
+                return 0
+            else:
+                print("Warning: No valid todos could be recovered. Database is now empty.")
+                return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:

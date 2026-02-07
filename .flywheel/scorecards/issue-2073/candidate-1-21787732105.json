@@ -1,0 +1,35 @@
+{
+  "issue_number": 2073,
+  "candidate_id": "candidate-1-21787732105",
+  "run_id": "21787732105",
+  "status": "completed",
+  "tests_pass": true,
+  "linting_pass": true,
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "src/flywheel/cli.py"
+  ],
+  "files_added": [
+    "tests/test_issue_2073_json_validation_repair.py"
+  ],
+  "summary": "Add file validation and repair method for corrupted JSON",
+  "implementation": {
+    "validate_method": true,
+    "repair_method": true,
+    "cli_repair_command": true,
+    "backup_before_repair": true
+  },
+  "test_results": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0
+  },
+  "risks": [
+    "The repair method uses regex-based extraction which may not recover all valid todos in complex corruption scenarios",
+    "Partial parsing may miss todos with unusual text content containing special characters"
+  ],
+  "limitations": [
+    "Repair only handles common corruption patterns (trailing commas, truncated JSON)",
+    "Completely invalid JSON will result in empty todo list"
+  ]
+}
