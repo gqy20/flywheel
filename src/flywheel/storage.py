@@ -12,7 +12,25 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        path_str = path or ".todo.json"
+        self.path = self._validate_and_resolve_path(path_str)
+
+    def _validate_and_resolve_path(self, path_str: str) -> Path:
+        """Validate and resolve path, rejecting potential path traversal attempts."""
+        input_path = Path(path_str)
+        resolved_path = input_path.resolve()
+
+        # Reject paths that contain '..' components that would escape the intended directory
+        # This prevents path traversal attacks via malicious path inputs
+        if ".." in path_str:
+            # Check if the path actually escapes the current directory or is clearly malicious
+            resolved_str = str(resolved_path)
+            if (not resolved_str.startswith(str(Path.cwd())) and "/../" in path_str) or path_str.startswith("../"):
+                raise ValueError(
+                    f"Path '{path_str}' contains parent directory references and may be a path traversal attempt"
+                )
+
+        return resolved_path
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
