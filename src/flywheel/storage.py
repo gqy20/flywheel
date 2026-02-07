@@ -11,8 +11,47 @@ from .todo import Todo
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+    def __init__(self, path: str | None = None, validate: bool = False) -> None:
+        self.path = self._validate_and_resolve_path(path or ".todo.json") if validate else Path(path or ".todo.json")
+
+    def _validate_and_resolve_path(self, path: str) -> Path:
+        """
+        Validate and resolve the database path to prevent path traversal attacks.
+
+        Normalizes the path and checks that it doesn't escape the current
+        working directory through parent directory references (../).
+
+        Args:
+            path: User-provided path string
+
+        Returns:
+            Resolved absolute Path
+
+        Raises:
+            ValueError: If path attempts to traverse outside current working directory
+        """
+        input_path = Path(path)
+
+        # Resolve to absolute path (this normalizes ../ and symlinks)
+        try:
+            resolved = input_path.resolve(strict=False)
+        except OSError as e:
+            raise ValueError(f"Invalid path: {e}") from e
+
+        # Get current working directory as the security boundary
+        cwd = Path.cwd().resolve()
+
+        # Check if the resolved path is within CWD
+        # This prevents path traversal attacks like "../../../etc/passwd"
+        try:
+            resolved.relative_to(cwd)
+        except ValueError:
+            raise ValueError(
+                f"Path '{path}' is outside the current working directory. "
+                "Path traversal is not permitted for security reasons."
+            ) from None
+
+        return resolved
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

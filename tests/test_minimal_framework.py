@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +75,71 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+# Security tests for path traversal vulnerability (Issue #1883)
+def test_storage_rejects_path_traversal_with_parent_refs() -> None:
+    """Should reject paths with ../ sequences to prevent directory traversal."""
+    with pytest.raises(ValueError, match="outside the current working directory"):
+        TodoStorage("../../../etc/passwd", validate=True)
+
+
+def test_storage_rejects_absolute_paths_outside_cwd() -> None:
+    """Should reject absolute paths outside current working directory."""
+    with pytest.raises(ValueError, match="outside the current working directory"):
+        TodoStorage("/tmp/evil.json", validate=True)
+
+
+def test_storage_rejects_absolute_path_etc_shadow() -> None:
+    """Should reject attempts to access sensitive system files."""
+    with pytest.raises(ValueError, match="outside the current working directory"):
+        TodoStorage("/etc/shadow", validate=True)
+
+
+def test_storage_rejects_complex_path_traversal() -> None:
+    """Should reject complex path traversal attempts."""
+    with pytest.raises(ValueError, match="outside the current working directory"):
+        TodoStorage("./../../tmp/test.json", validate=True)
+
+
+def test_storage_allows_safe_paths_with_validation() -> None:
+    """Should allow paths within current working directory when validation is enabled."""
+    # Create a test file in current directory
+    test_path = Path.cwd() / "test_safe.json"
+    storage = TodoStorage("test_safe.json", validate=True)
+    assert storage.path == test_path.resolve()
+
+
+def test_storage_allows_simple_filename() -> None:
+    """Should allow simple filename in current directory."""
+    storage = TodoStorage("todo.json")
+    # Without validation, path is not resolved
+    assert storage.path == Path("todo.json")
+
+    # With validation, path is resolved
+    storage_validated = TodoStorage("todo.json", validate=True)
+    assert storage_validated.path == (Path.cwd() / "todo.json").resolve()
+
+
+def test_storage_rejects_symlink_outside_allowed_directory(tmp_path) -> None:
+    """Should reject symlinks that point outside allowed directory."""
+    # Create a symlink in CWD pointing outside
+    cwd = Path.cwd()
+    outside_link = cwd / "escape_link"
+    target = tmp_path.parent / "target_file.json"
+    target.write_text("{}")
+
+    try:
+        outside_link.symlink_to(target)
+    except (OSError, NotImplementedError):
+        # Skip test if symlinks not supported
+        pytest.skip("Symlinks not supported on this system")
+        return
+
+    try:
+        # This should be rejected
+        with pytest.raises(ValueError, match="outside the current working directory"):
+            TodoStorage(str(outside_link), validate=True)
+    finally:
+        # Clean up symlink
+        outside_link.unlink(missing_ok=True)

@@ -13,8 +13,8 @@ from .todo import Todo
 class TodoApp:
     """Simple in-process todo application."""
 
-    def __init__(self, db_path: str | None = None) -> None:
-        self.storage = TodoStorage(db_path)
+    def __init__(self, db_path: str | None = None, validate_path: bool = False) -> None:
+        self.storage = TodoStorage(db_path, validate=validate_path)
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -127,6 +127,9 @@ def run_command(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    # Validate the db path before creating directories to prevent path traversal attacks
+    TodoStorage(args.db, validate=True)
 
     # Ensure db parent directory exists.
     Path(args.db).parent.mkdir(parents=True, exist_ok=True)
