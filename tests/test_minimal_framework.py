@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -85,7 +86,7 @@ def test_storage_rejects_absolute_path_outside_cwd() -> None:
     # For absolute paths without '..' but outside CWD, the validation is more lenient
     # The main security concern is preventing '..' traversal
     # This test documents the current behavior
-    storage = TodoStorage("/etc/passwd")
+    _ = TodoStorage("/etc/passwd")
     # The path is accepted since it doesn't contain '..' explicitly
     # In production, additional validation may be needed at the CLI level
 
