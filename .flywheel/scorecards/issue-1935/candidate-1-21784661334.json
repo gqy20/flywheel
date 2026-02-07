@@ -1,39 +1,23 @@
 {
-  "issue_number": 1935,
-  "issue_title": "[Bug] save() 操作缺少原子性：write_text 可能因磁盘满、权限不足、进程被杀等原因失败，导致数据丢失或文件损坏",
+  "issue": 1935,
   "candidate": 1,
   "run_id": "21784661334",
-  "status": "already_fixed",
-  "summary": "Issue #1935 describes a problem that has already been fixed in commit b4ec10f (atomic file writes) and further hardened in commit f14a7b9 (symlink attack protection). The automated scanner that created this issue analyzed stale code from before the fix was implemented.",
-  "files_touched": [],
-  "tests_added": [],
-  "verification_commands": [
-    "uv run pytest tests/test_storage_atomicity.py tests/test_issue_1999_symlink_protection.py -v",
-    "uv run ruff check src/flywheel/storage.py"
+  "branch": "claude/issue-1935-candidate-1-21784661334",
+  "pr_number": 2034,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2034",
+  "generated_at": "2026-02-07T18:36:16.919206+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_pass": true,
-  "existing_tests": [
-    "test_storage_atomicity.py::test_save_is_atomic_with_os_replace",
-    "test_storage_atomicity.py::test_write_failure_preserves_original_file",
-    "test_storage_atomicity.py::test_temp_file_created_in_same_directory",
-    "test_storage_atomicity.py::test_atomic_write_produces_valid_json",
-    "test_storage_atomicity.py::test_concurrent_write_safety",
-    "test_storage_atomicity.py::test_concurrent_save_from_multiple_processes",
-    "test_issue_1999_symlink_protection.py::test_save_fails_when_symlink_exists_at_temp_path",
-    "test_issue_1999_symlink_protection.py::test_temp_file_has_restrictive_permissions",
-    "test_issue_1999_symlink_protection.py::test_temp_file_path_is_unpredictable",
-    "test_issue_1999_symlink_protection.py::test_save_succeeds_when_no_symlink_exists",
-    "test_issue_1999_symlink_protection.py::test_atomic_rename_still_works_after_fix",
-    "test_issue_1999_symlink_protection.py::test_temp_file_cleanup_on_error"
-  ],
-  "related_commits": [
-    "b4ec10f - fix: implement atomic file writes in TodoStorage.save()",
-    "f14a7b9 - [AUTOFIX][ISSUE-1999] Fix symlink attack vulnerability in atomic save"
-  ],
-  "related_issues": [
-    1999
-  ],
-  "recommendation": "Close issue #1935 as already fixed. The atomic write implementation exists with comprehensive test coverage.",
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 3748,
+    "plan": 4000,
+    "implement": 3656,
+    "verify": 2221,
+    "finalize": 711
+  }
 }
