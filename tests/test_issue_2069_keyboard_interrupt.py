@@ -6,8 +6,6 @@ that should propagate for proper error handling and debugging.
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -28,11 +26,9 @@ def test_cli_memory_error_propagates(tmp_path) -> None:
     parser = build_parser()
     args = parser.parse_args(["--db", str(db), "list"])
 
-    # Mock load() to raise MemoryError
-    with patch("flywheel.cli.TodoApp._load", side_effect=MemoryError("Out of memory")):
-        # run_command should re-raise MemoryError, not return 1
-        with pytest.raises(MemoryError):
-            run_command(args)
+    # Mock load() to raise MemoryError and verify it propagates
+    with patch("flywheel.cli.TodoApp._load", side_effect=MemoryError("Out of memory")), pytest.raises(MemoryError):
+        run_command(args)
 
 
 def test_cli_recursion_error_propagates(tmp_path) -> None:
@@ -48,11 +44,9 @@ def test_cli_recursion_error_propagates(tmp_path) -> None:
     parser = build_parser()
     args = parser.parse_args(["--db", str(db), "list"])
 
-    # Mock load() to raise RecursionError
-    with patch("flywheel.cli.TodoApp._load", side_effect=RecursionError("Maximum recursion depth exceeded")):
-        # run_command should re-raise RecursionError, not return 1
-        with pytest.raises(RecursionError):
-            run_command(args)
+    # Mock load() to raise RecursionError and verify it propagates
+    with patch("flywheel.cli.TodoApp._load", side_effect=RecursionError("Maximum recursion depth exceeded")), pytest.raises(RecursionError):
+        run_command(args)
 
 
 def test_cli_value_error_still_caught(tmp_path) -> None:
