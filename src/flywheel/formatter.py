@@ -20,12 +20,12 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t)
+    # Other control characters (0x00-0x1f excluding \n, \r, \t) and DEL (0x7f)
     # Replace with \\xNN escape sequences
     result = []
     for char in text:
         code = ord(char)
-        if 0 <= code <= 0x1f and char not in ("\n", "\r", "\t"):
+        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or code == 0x7f:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
