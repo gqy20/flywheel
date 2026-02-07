@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -71,3 +73,43 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert run_command(args) == 1
     out = capsys.readouterr().out
     assert "not found" in out
+
+
+def test_storage_save_is_atomic(tmp_path, monkeypatch) -> None:
+    """Test that save uses atomic temp file + rename pattern.
+
+    This verifies data integrity: if the process crashes during write,
+    the original file remains intact.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial state
+    todos = [Todo(id=1, text="original")]
+    storage.save(todos)
+
+    # Track calls to replace (atomic rename on POSIX)
+    replace_calls = []
+
+    original_replace = Path.replace
+
+    def capture_replace(self, target):
+        replace_calls.append((self.name, target.name))
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", capture_replace)
+
+    # Save new data
+    todos = [Todo(id=1, text="updated")]
+    storage.save(todos)
+
+    # Verify atomic pattern: temp file was written then renamed to target
+    assert len(replace_calls) == 1, "save should use exactly one atomic replace operation"
+    temp_name, target_name = replace_calls[0]
+    assert target_name == db.name, "temp file should be renamed to the target database file"
+    assert temp_name.endswith(".tmp"), "temp file should use .tmp suffix"
+
+    # Verify the final content was written correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "updated"

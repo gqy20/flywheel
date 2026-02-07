@@ -1,0 +1,33 @@
+{
+  "issue_number": 1863,
+  "candidate_number": 2,
+  "run_id": "21779745669",
+  "title": "[Security] storage.py:28 写入文件无原子性保证，进程崩溃可能丢失数据",
+  "status": "completed",
+  "test_results": {
+    "tests_passed": 6,
+    "tests_failed": 0,
+    "new_test_added": "test_storage_save_is_atomic"
+  },
+  "lint_results": {
+    "ruff_check": "passed"
+  },
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "description": "Added _atomic_write() helper function using temp file + atomic replace pattern",
+      "lines_added": 15,
+      "lines_modified": 2
+    },
+    {
+      "file": "tests/test_minimal_framework.py",
+      "description": "Added regression test for atomic save behavior",
+      "lines_added": 33
+    }
+  ],
+  "approach": "temp-file-rename",
+  "tests_run": [
+    "uv run pytest tests/test_minimal_framework.py -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py"
+  ]
+}

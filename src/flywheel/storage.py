@@ -8,6 +8,23 @@ from pathlib import Path
 from .todo import Todo
 
 
+def _atomic_write(path: Path, content: str) -> None:
+    """Write content to file atomically using temp file + rename.
+
+    This ensures data integrity: if the process crashes during write,
+    the original file remains intact.
+
+    Args:
+        path: Target file path.
+        content: Content to write.
+    """
+    # Create temp file in same directory to ensure rename is atomic
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+    temp_path.write_text(content, encoding="utf-8")
+    # Atomic rename: on POSIX, this overwrites target atomically
+    temp_path.replace(path)
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
@@ -25,7 +42,8 @@ class TodoStorage:
 
     def save(self, todos: list[Todo]) -> None:
         payload = [todo.to_dict() for todo in todos]
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        _atomic_write(self.path, content)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
