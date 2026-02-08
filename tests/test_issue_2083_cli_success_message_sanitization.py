@@ -95,7 +95,7 @@ def test_cli_undone_command_sanitizes_newline_in_success_message(tmp_path, capsy
 
 
 def test_cli_all_commands_use_sanitize_text(tmp_path, capsys) -> None:
-    """All CLI success messages should use _sanitize_text for user output.
+    """All CLI success messages should use sanitize_text for user output.
 
     Issue #2083 acceptance criteria: Terminal control characters in todo text
     are escaped in CLI output for add, done, and undone commands.

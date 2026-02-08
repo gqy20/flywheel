@@ -1,0 +1,38 @@
+{
+  "issue_number": 2111,
+  "candidate": 2,
+  "run_id": "21792171273",
+  "branch": "claude/issue-2111-candidate-2-21792171273",
+  "stage": "implement",
+  "status": "completed",
+  "summary": "Made sanitize_text a public API function by removing underscore prefix",
+  "changes": [
+    "src/flywheel/formatter.py: Renamed _sanitize_text to sanitize_text (public API)",
+    "src/flywheel/cli.py: Updated import from _sanitize_text to sanitize_text",
+    "tests/test_issue_2083_cli_success_message_sanitization.py: Updated docstring reference",
+    "tests/test_issue_2028_del_char_sanitization.py: Updated all references to sanitize_text",
+    "tests/test_issue_2057_c1_control_sanitization.py: Updated all references to sanitize_text",
+    "tests/test_issue_2097_backslash_escape_collision.py: Updated all references to sanitize_text",
+    "tests/test_issue_2111_formatter_public_api.py: Added regression test for public API"
+  ],
+  "tests_run": [
+    "tests/test_issue_2111_formatter_public_api.py - 4 passed",
+    "tests/test_issue_2083_cli_success_message_sanitization.py - 4 passed",
+    "tests/test_issue_2084_cli_output_sanitization.py - 11 passed",
+    "tests/test_issue_2028_del_char_sanitization.py - 5 passed",
+    "tests/test_issue_2057_c1_control_sanitization.py - 6 passed",
+    "tests/test_issue_2097_backslash_escape_collision.py - 11 passed",
+    "Full test suite: 106 passed"
+  ],
+  "linting": "All ruff checks passed",
+  "risks": [
+    "API change - _sanitize_text is now sanitize_text (breaking change for external consumers)",
+    "Existing tests that imported _sanitize_text have been updated"
+  ],
+  "acceptance_criteria_met": [
+    "cli.py imports only public APIs (sanitize_text, not _sanitize_text)",
+    "All existing tests pass after refactoring",
+    "formatter.sanitize_text is exposed as public API",
+    "New regression test added for issue #2111"
+  ]
+}
