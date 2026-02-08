@@ -3,8 +3,9 @@
   "candidate": 2,
   "run_id": "21792171273",
   "branch": "claude/issue-2111-candidate-2-21792171273",
-  "stage": "implement",
-  "status": "completed",
+  "stage": "finalize",
+  "status": "finalized",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2138",
   "summary": "Made sanitize_text a public API function by removing underscore prefix",
   "changes": [
     "src/flywheel/formatter.py: Renamed _sanitize_text to sanitize_text (public API)",
