@@ -1,25 +1,23 @@
 {
-  "candidate_id": "candidate-3-21806329597",
-  "issue_number": 2390,
-  "status": "verified",
-  "stage": "FINALIZE",
-  "verification": {
-    "pytest_summary": "13/13 tests passed",
-    "ruff_checks": "All checks passed",
-    "commands_run": [
-      "uv run pytest tests/test_issue_2390_backup_creation.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_2390_backup_creation.py",
-      "uv run pytest tests/test_storage*.py -v"
-    ],
-    "outcomes": {
-      "test_issue_2390_backup_creation.py": "7 passed",
-      "test_storage_atomicity.py": "6 passed (no regressions)",
-      "ruff": "All checks passed"
-    }
-  },
-  "summary": "Implemented automatic backup creation before file modifications in TodoStorage with rotation and configurable backup count via FLYWHEEL_BACKUP_COUNT environment variable.",
-  "changes": [
-    "src/flywheel/storage.py: Added _backup_file(), _rotate_backups(), restore_from_backup(), _backup_path(), _backup_files(), _find_latest_backup(), _backup_number(), _get_backup_count() methods",
-    "tests/test_issue_2390_backup_creation.py: Added 7 tests for backup functionality"
-  ]
+  "issue": 2390,
+  "candidate": 3,
+  "run_id": "21806329597",
+  "branch": "claude/issue-2390-candidate-3-21806329597",
+  "pr_number": 2399,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2399",
+  "generated_at": "2026-02-08T22:42:46.277849+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3000,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2141,
+    "finalize": 1288
+  }
 }
