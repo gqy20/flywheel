@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from filelock import FileLock, Timeout
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -229,3 +230,94 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_lock_timeout_raises_exception(tmp_path) -> None:
+    """Test that file lock acquisition raises Timeout exception when lock is held."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Manually acquire a lock on the file to simulate contention
+    lock_path = str(db) + ".lock"
+    lock = FileLock(lock_path, timeout=0.1)
+
+    # Acquire lock to block subsequent save attempts
+    lock.acquire()
+
+    try:
+        # This should raise Timeout because lock is held
+        with pytest.raises(Timeout, match="could not be acquired"):
+            storage.save([Todo(id=1, text="should fail")])
+    finally:
+        lock.release()
+
+
+def test_concurrent_save_with_exclusive_lock(tmp_path) -> None:
+    """Test that concurrent save operations respect exclusive lock behavior.
+
+    Verifies that when one process holds the write lock, another process
+    cannot write until the lock is released. This ensures data consistency
+    by preventing simultaneous writes.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_lock.json"
+
+    def blocking_save_worker(worker_id: int, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves todos and reports timing of lock acquisition."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+
+            # Wait at barrier to ensure both start at same time
+            barrier.wait()
+
+            start_time = time.time()
+            storage.save(todos)
+            end_time = time.time()
+
+            result_queue.put(("success", worker_id, end_time - start_time))
+        except Timeout as e:
+            result_queue.put(("timeout", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Use a barrier to synchronize workers
+    num_workers = 2
+    barrier = multiprocessing.Barrier(num_workers)
+    result_queue = multiprocessing.Queue()
+    processes = []
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(
+            target=blocking_save_worker,
+            args=(i, barrier, result_queue)
+        )
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should succeed (one after another due to lock)
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+    timeouts = [r for r in results if r[0] == "timeout"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    # No timeouts should occur with default timeout
+    assert len(timeouts) == 0, f"Workers timed out: {timeouts}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final file should contain valid data from one of the workers
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) == 1
+    assert final_todos[0].text in ["worker-0", "worker-1"]
