@@ -1,32 +1,23 @@
 {
-  "issue_number": 2305,
-  "candidate_id": "3-21802118618",
-  "issue_title": "[Bug] Todo constructor allows empty/whitespace-only text, inconsistent with rename() v",
+  "issue": 2305,
+  "candidate": 3,
+  "run_id": "21802118618",
   "branch": "claude/issue-2305-candidate-3-21802118618",
-  "summary": "Add text validation to Todo.__post_init__ and Todo.from_dict to reject empty/whitespace-only text, making them consistent with Todo.rename() validation.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 2321,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2321",
+  "generated_at": "2026-02-08T17:41:20.043588+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_todo_constructor_rejects_empty_string",
-    "test_todo_constructor_rejects_whitespace_only",
-    "test_todo_constructor_strips_valid_text",
-    "test_todo_from_dict_rejects_empty_text",
-    "test_todo_from_dict_rejects_whitespace_only_text"
-  ],
-  "risks": [
-    "Breaking change: Direct Todo() constructor calls with empty/whitespace text will now raise ValueError",
-    "Breaking change: Todo.from_dict() calls with empty/whitespace text will now raise ValueError",
-    "Existing code that bypassed CLI (e.g., direct Todo() construction) may fail"
-  ],
-  "limitations": [
-    "CLI add() already validates text, so CLI users unaffected",
-    "Existing valid todos are unaffected (validation only on construction/deserialization)"
-  ],
-  "verification_commands_run": [
-    "uv run pytest tests/test_minimal_framework.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py",
-    "uv run pytest tests/test_issue_2000_json_validation.py -v"
-  ]
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2595,
+    "implement": 4000,
+    "verify": 2017,
+    "finalize": 614
+  }
 }
