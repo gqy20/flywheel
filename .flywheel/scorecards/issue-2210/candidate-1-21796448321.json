@@ -1,0 +1,11 @@
+{
+  "issue_number": 2210,
+  "candidate_number": 1,
+  "run_id": "21796448321",
+  "status": "completed",
+  "tests_added": "tests/test_issue_2210_todo_equality.py (11 tests)",
+  "files_modified": "src/flywheel/todo.py",
+  "fix_description": "Added eq=True and unsafe_hash=True to @dataclass decorator to enable proper equality comparison and hashing for Todo objects",
+  "tests_pass": true,
+  "ruff_checks_pass": true
+}
