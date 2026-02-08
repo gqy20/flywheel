@@ -1,7 +1,7 @@
 {
   "issue_number": 2265,
   "candidate_id": "candidate-1-21799611547",
-  "stage": "TRIAGE",
+  "stage": "FINALIZE",
   "triage": {
     "issue_summary": "Enhancement request to add file backup before overwrite in TodoStorage.save() method",
     "root_cause": "The save() method at src/flywheel/storage.py:85 uses atomic os.replace to directly overwrite the target file without creating any backup copy. If data corruption occurs or incorrect data is written, there is no recovery mechanism.",
@@ -25,26 +25,43 @@
     ]
   },
   "tests": {
-    "files_added": [],
+    "files_added": [
+      "tests/test_issue_2265_file_backup_before_overwrite.py"
+    ],
     "files_modified": [],
-    "tests_run": [],
-    "coverage_achieved": false
+    "tests_run": [
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_backup_file_created_when_enabled",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_no_backup_created_when_disabled",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_max_backups_limits_retained_backups",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_max_backups_equals_one_keeps_single_backup",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_backup_failure_does_not_prevent_main_save",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_backup_not_created_on_first_save",
+      "tests/test_issue_2265_file_backup_before_overwrite.py::TestFileBackupBeforeOverwrite::test_backup_rotation_removes_oldest"
+    ],
+    "coverage_achieved": true,
+    "coverage_percent": 84
   },
   "implementation": {
-    "files_changed": [],
-    "lines_added": 0,
-    "lines_removed": 0,
-    "description": ""
+    "files_changed": [
+      "src/flywheel/storage.py"
+    ],
+    "lines_added": 108,
+    "lines_removed": 1,
+    "description": "Added enable_backup and max_backups parameters to TodoStorage.__init__(), added _create_backup(), _rotate_backups(), and _enforce_max_backups() methods, modified save() to create backup before overwriting when enabled."
   },
   "validation": {
-    "pytest_passed": false,
-    "ruff_check_passed": false,
-    "notes": []
+    "pytest_passed": true,
+    "ruff_check_passed": true,
+    "notes": [
+      "All 7 tests passed",
+      "Ruff checks passed",
+      "84% coverage on storage.py"
+    ]
   },
   "pr": {
-    "branch_created": false,
-    "pr_url": "",
-    "pr_number": 0
+    "branch_created": true,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2288",
+    "pr_number": 2288
   },
   "metadata": {
     "candidate_number": 1,
