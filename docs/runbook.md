@@ -94,7 +94,8 @@ This runbook describes how to operate and recover Flywheel automation safely.
    ```
 3. Keep `.github/FLYWHEEL.md` aligned with policy and `README.md` aligned with operator entrypoints.
 
-### Dependabot Actor Naming
+### Dependabot Workflow Exemption
 
 - `docs-change-policy` treats both `dependabot[bot]` and `app/dependabot` as Dependabot actors.
-- Workflow-only dependency bumps from these actors are auto-exempt from docs update requirements.
+- Workflow-only means files under `.github/workflows/*` and optional `.github/dependabot.yml`.
+- These workflow-only bot updates are auto-exempt from docs update requirements.
