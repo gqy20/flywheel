@@ -4,12 +4,46 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+
+def get_logger() -> logging.Logger:
+    """Get a configured logger for storage operations.
+
+    The log level is controlled by the TODO_LOG_LEVEL environment variable.
+    Defaults to WARNING if not set. The log level is checked on each call
+    to allow for dynamic changes.
+
+    Returns:
+        A configured logger instance for the flywheel.storage module.
+    """
+    logger = logging.getLogger("flywheel.storage")
+
+    # Get log level from environment variable, default to WARNING
+    log_level_str = os.environ.get("TODO_LOG_LEVEL", "WARNING").upper()
+    log_level = getattr(logging, log_level_str, logging.WARNING)
+
+    # Update log level dynamically
+    logger.setLevel(log_level)
+
+    # Only add handler if none exists
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(log_level)
+        formatter = logging.Formatter(
+            "%(levelname)s - %(name)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    return logger
+
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -27,6 +61,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
     """
+    logger = get_logger()
     parent = file_path.parent
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
@@ -43,7 +78,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     if not parent.exists():
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            logger.debug(f"Created directory: {parent}")
         except OSError as e:
+            logger.error(f"Failed to create directory '{parent}': {e}")
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
@@ -56,6 +93,16 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def _log(self, level: int, message: str) -> None:
+        """Log a message at the specified level.
+
+        Args:
+            level: The logging level (e.g., logging.DEBUG, logging.ERROR)
+            message: The message to log
+        """
+        logger = get_logger()
+        logger.log(level, message)
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -65,22 +112,31 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
+            error_msg = (
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
+            self._log(logging.ERROR, error_msg)
+            raise ValueError(error_msg)
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            raise ValueError(
+            error_msg = (
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            )
+            self._log(logging.ERROR, error_msg)
+            raise ValueError(error_msg) from e
 
         if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            error_msg = "Todo storage must be a JSON list"
+            self._log(logging.ERROR, error_msg)
+            raise ValueError(error_msg)
+
+        todos = [Todo.from_dict(item) for item in raw]
+        self._log(logging.DEBUG, f"Loaded {len(todos)} todos from {self.path}")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,7 +174,12 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            # Log successful save
+            self._log(logging.DEBUG, f"Saved {len(todos)} todos to {self.path}")
+        except OSError as e:
+            # Log the error
+            self._log(logging.ERROR, f"Failed to save todos to {self.path}: {e}")
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
