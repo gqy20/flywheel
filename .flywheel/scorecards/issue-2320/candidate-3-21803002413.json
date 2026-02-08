@@ -1,29 +1,23 @@
 {
-  "issue_number": 2320,
-  "candidate_number": 3,
+  "issue": 2320,
+  "candidate": 3,
   "run_id": "21803002413",
-  "stage": "FINALIZE",
-  "branch_name": "claude/issue-2320-candidate-3-21803002413",
-  "status": "completed",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2336",
+  "branch": "claude/issue-2320-candidate-3-21803002413",
   "pr_number": 2336,
-  "test_results": {
-    "tests_run": 7,
-    "tests_passed": 7,
-    "tests_failed": 0
-  },
-  "linting": {
-    "ruff_check": "passed"
-  },
-  "verification_summary": {
-    "commands_run": [
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
-    ],
-    "outcome": "All tests passed (7/7). File locking feature already implemented in commit 920d671.",
-    "coverage": {
-      "src/flywheel/storage.py": "71%",
-      "total": "35%"
-    }
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2336",
+  "generated_at": "2026-02-08T18:44:55.606323+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3604,
+    "plan": 4000,
+    "implement": 2234,
+    "verify": 3020,
+    "finalize": 909
   }
 }
