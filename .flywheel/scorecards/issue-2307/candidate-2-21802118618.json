@@ -1,37 +1,23 @@
 {
-  "issue_number": 2307,
-  "candidate_number": 2,
+  "issue": 2307,
+  "candidate": 2,
   "run_id": "21802118618",
   "branch": "claude/issue-2307-candidate-2-21802118618",
-  "commit": "ec1498a",
-  "status": "submitted",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_2307_auto_backup.py"
+  "pr_number": 2323,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2323",
+  "generated_at": "2026-02-08T17:38:20.773420+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "test_save_creates_backup_when_file_exists",
-    "test_save_rotates_backups_with_limit",
-    "test_backup_deleted_when_limit_exceeded",
-    "test_no_backup_created_on_first_save",
-    "test_backup_with_custom_limit",
-    "test_load_fallback_to_backup_when_corrupted",
-    "test_load_raises_without_fallback_when_corrupted",
-    "test_load_returns_empty_when_no_file_or_backup"
-  ],
-  "tests_passed": 8,
-  "tests_failed": 0,
-  "linting_passed": true,
-  "implementation_approach": "TDD (RED-GREEN cycle)",
-  "key_changes": [
-    "Added shutil import for backup file copying",
-    "Added DEFAULT_BACKUP_LIMIT = 3 class constant",
-    "Added backup_limit parameter to __init__",
-    "Added use_backup parameter to load() method for fallback support",
-    "Added backup_limit parameter to save() method",
-    "Added _get_backup_path() helper method",
-    "Added _backup() method for rotating backups",
-    "Added _load_from_path() helper method",
-    "Added backup creation call in save() before atomic write"
-  ]
+  "stage_response_sizes": {
+    "triage": 2573,
+    "plan": 1947,
+    "implement": 3360,
+    "verify": 2288,
+    "finalize": 740
+  }
 }
