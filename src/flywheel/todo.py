@@ -48,6 +48,8 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
+        if not isinstance(text, str):
+            raise TypeError("Todo text must be a string")
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
