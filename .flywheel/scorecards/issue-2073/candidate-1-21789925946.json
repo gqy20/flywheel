@@ -1,35 +1,23 @@
 {
-  "issue_number": 2073,
-  "candidate_number": 1,
-  "candidate_id": "candidate-1-21789925946",
+  "issue": 2073,
+  "candidate": 1,
   "run_id": "21789925946",
-  "branch_name": "claude/issue-2073-candidate-1-21789925946",
-  "title": "[AUTOFIX][ISSUE-2073][CANDIDATE-1] Add file validation and repair method for corrupted JSON",
-  "summary": "Implements validate() and repair() methods in TodoStorage class to provide recovery path when JSON files get corrupted. Added CLI 'repair' command.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "src/flywheel/cli.py",
-    "tests/test_issue_2073_json_repair.py"
+  "branch": "claude/issue-2073-candidate-1-21789925946",
+  "pr_number": 2120,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2120",
+  "generated_at": "2026-02-08T01:38:51.661722+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": "13 tests in tests/test_issue_2073_json_repair.py - all passed",
-  "linting": "ruff check passed with no errors",
-  "risks": [
-    "Regex-based repair may not handle all possible JSON corruption patterns",
-    "repair() strategy 3 (brace counting) is a fallback that may not preserve all todos in complex corruption scenarios",
-    "No integration test for the CLI repair command yet"
-  ],
-  "limitations": [
-    "repair() cannot recover data from completely corrupted files where JSON objects are malformed",
-    "repair() uses regex which may fail on edge cases like escaped quotes in specific patterns"
-  ],
-  "verification": [
-    "validate() returns (True, None) for valid JSON files",
-    "validate() returns (False, error_message) for corrupted files with descriptive errors",
-    "repair() creates .recovered.json backup before attempting repairs",
-    "repair() extracts valid todos from files with trailing commas",
-    "repair() handles truncated JSON by extracting complete objects",
-    "repair() handles completely invalid JSON gracefully by returning False",
-    "CLI command 'todo repair --db=path' is available"
-  ],
-  "closes_issue": true
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3617,
+    "implement": 1860,
+    "verify": 1571,
+    "finalize": 845
+  }
 }
