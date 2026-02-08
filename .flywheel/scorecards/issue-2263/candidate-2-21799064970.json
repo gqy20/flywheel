@@ -22,6 +22,7 @@
   "risks": [
     "Changed behavior: Empty string ('') timestamp values will now be preserved instead of triggering auto-timestamp fill (edge case, unlikely to affect real usage)"
   ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2269",
   "acceptance_criteria_met": [
     "When data={'created_at': 0}, created_at='0' (not '')",
     "When data={'created_at': False}, created_at='False' (not '')",
