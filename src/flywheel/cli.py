@@ -86,6 +86,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    sub.add_parser("repair", help="Repair corrupted todo database")
+
     return parser
 
 
@@ -117,6 +119,25 @@ def run_command(args: argparse.Namespace) -> int:
             app.remove(args.id)
             print(f"Removed #{args.id}")
             return 0
+
+        if args.command == "repair":
+            storage = app.storage
+            is_valid, error = storage.validate()
+            if is_valid:
+                print("Database is valid - no repair needed.")
+                return 0
+
+            print(f"Database corruption detected: {error}")
+            print("Attempting repair...")
+
+            repaired = storage.repair()
+            if repaired:
+                todos = storage.load()
+                print(f"Repair successful! Recovered {len(todos)} todo(s).")
+                return 0
+
+            print("Repair failed. Manual intervention may be required.", file=sys.stderr)
+            return 1
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
