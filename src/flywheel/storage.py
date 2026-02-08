@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +54,12 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    # Default number of backups to retain
+    DEFAULT_BACKUP_LIMIT = 5
+
+    def __init__(self, path: str | None = None, backup_limit: int = DEFAULT_BACKUP_LIMIT) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_limit = backup_limit
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +96,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file
+        if self.path.exists():
+            self._cleanup_old_backups()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +132,116 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def backup(self) -> None:
+        """Create a timestamped backup of the current todo file.
+
+        Uses the same atomic write pattern as save() to ensure backup safety.
+        The backup filename includes a timestamp: .todo.json.bak.YYYYMMDDHHMMSS
+        """
+        if not self.path.exists():
+            return
+
+        # Read current content
+        content = self.path.read_text(encoding="utf-8")
+
+        # Generate backup filename with timestamp including microseconds for uniqueness
+        # Microseconds ensure unique filenames even for rapid successive saves
+        now = datetime.now(UTC)
+        timestamp = now.strftime("%Y%m%d%H%M%S") + f"{now.microsecond:06d}"
+        backup_path = self.path.parent / f"{self.path.name}.bak.{timestamp}"
+
+        # Use atomic write pattern for backup
+        fd, temp_backup_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.bak.",
+            suffix=".tmp",
+            text=False,
+        )
+
+        try:
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            os.replace(temp_backup_path, backup_path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_backup_path)
+            raise
+
+    def list_backups(self) -> list[dict]:
+        """Return a list of available backup files with timestamps.
+
+        Returns:
+            A list of dicts with keys:
+            - 'path': str - Path to the backup file
+            - 'timestamp': datetime - When the backup was created
+        """
+        backups = []
+        backup_pattern = f"{self.path.name}.bak."
+
+        for backup_path in sorted(self.path.parent.glob(f"{self.path.name}.bak.*")):
+            # Extract timestamp from filename
+            if backup_path.name.startswith(backup_pattern):
+                timestamp_str = backup_path.name.replace(backup_pattern, "")
+                try:
+                    # Try new format with microseconds (20 digits: YYYYMMDDHHMMSS + 6 digit microseconds)
+                    if len(timestamp_str) == 20:
+                        timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M%S%f")
+                    else:
+                        # Try old format without microseconds (14 digits)
+                        timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+                    timestamp = timestamp.replace(tzinfo=UTC)
+                    backups.append({"path": str(backup_path), "timestamp": timestamp})
+                except ValueError:
+                    # Skip invalid backup filenames
+                    continue
+
+        return backups
+
+    def restore(self, backup_path: Path) -> list[Todo]:
+        """Restore todos from a specific backup file.
+
+        Args:
+            backup_path: Path to the backup file to restore from
+
+        Returns:
+            The list of todos restored from the backup
+
+        Raises:
+            FileNotFoundError: If the backup file doesn't exist
+            ValueError: If the backup file contains invalid data
+        """
+        backup_path = Path(backup_path)
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Create a temporary storage object pointing to the backup file
+        backup_storage = TodoStorage(str(backup_path), backup_limit=0)
+        return backup_storage.load()
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backups, keeping only the most recent ones up to backup_limit."""
+        if self.backup_limit <= 0:
+            return
+
+        # Backup the current file before cleanup
+        self.backup()
+
+        # Get list of all backups after creating new backup
+        backups = sorted(
+            self.list_backups(),
+            key=lambda b: b["timestamp"],
+            reverse=True
+        )
+
+        # Remove excess backups (keep only backup_limit most recent)
+        for backup in backups[self.backup_limit:]:
+            backup_path = Path(backup["path"])
+            with contextlib.suppress(OSError):
+                backup_path.unlink()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

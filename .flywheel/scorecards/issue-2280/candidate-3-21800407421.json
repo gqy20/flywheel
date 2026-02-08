@@ -1,0 +1,39 @@
+{
+  "issue": 2280,
+  "candidate": 3,
+  "run_id": "21800407421",
+  "branch": "claude/issue-2280-candidate-3-21800407421",
+  "status": "completed",
+  "summary": "Add file backup/rollback capability for corrupted data recovery. Fixed timestamp collision issue by using microsecond precision in backup filenames.",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "description": "Added backup(), list_backups(), restore() methods with microsecond precision for unique backup filenames"
+    },
+    {
+      "file": "tests/test_issue_2280_backup_rollback.py",
+      "description": "Added 13 tests for backup/rollback functionality"
+    },
+    {
+      "file": "tests/test_storage_atomicity.py",
+      "description": "Updated test_save_is_atomic_with_os_replace to expect multiple os.replace calls"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_2280_backup_rollback.py - 13 passed",
+    "tests/test_storage_atomicity.py - 6 passed"
+  ],
+  "risks": [
+    "Backup filenames now include microseconds (20 digits vs 14 digits), which may affect any external tools that expect the old format"
+  ],
+  "acceptance_criteria_met": [
+    "TodoStorage.backup() creates timestamped backup file before save",
+    "Backups use same atomic write pattern as main save for safety",
+    "TodoStorage.save() calls backup() automatically before overwriting",
+    "TodoStorage.list_backups() returns chronologically ordered backup list",
+    "TodoStorage.restore(backup_path) restores from specific backup",
+    "Only last N backups retained (configurable, default 5)",
+    "Old backups are automatically cleaned up",
+    "Fixed timestamp collision issue - multiple rapid saves now create unique backups"
+  ]
+}
