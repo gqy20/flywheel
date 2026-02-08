@@ -1,44 +1,23 @@
 {
-  "issue_number": 2263,
-  "candidate_number": 2,
+  "issue": 2263,
+  "candidate": 2,
   "run_id": "21799064970",
   "branch": "claude/issue-2263-candidate-2-21799064970",
-  "title": "[AUTOFIX][ISSUE-2263][CANDIDATE-2] Fix from_dict falsy value handling (0, False)",
-  "summary": "Fix bug in Todo.from_dict where falsy values (0, False) were incorrectly converted to empty strings due to the `or` operator pattern. Changed to use `None` as sentinel for missing fields, allowing proper preservation of falsy values while maintaining auto-timestamp behavior.",
-  "tests_run": [
-    "uv run pytest tests/test_issue_2263_from_dict_falsy_values.py -v",
-    "uv run pytest tests/ -v -k from_dict",
-    "uv run pytest tests/ -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_2263_from_dict_falsy_values.py"
-  ],
-  "verify_tests_run": [
-    "uv run pytest tests/test_issue_2263_from_dict_falsy_values.py -v",
-    "uv run pytest tests/ -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_2263_from_dict_falsy_values.py"
-  ],
-  "verify_results": {
-    "issue_specific_tests": "8/8 passed",
-    "full_test_suite": "120/120 passed",
-    "ruff_checks": "All checks passed"
-  },
-  "tests_passed": true,
-  "ruff_passed": true,
-  "verify_passed": true,
-  "verified_at": "2026-02-08T14:10:00Z",
-  "files_modified": [
-    "src/flywheel/todo.py"
-  ],
-  "files_added": [
-    "tests/test_issue_2263_from_dict_falsy_values.py"
-  ],
-  "risks": [
-    "Changed behavior: Empty string ('') timestamp values will now be preserved instead of triggering auto-timestamp fill (edge case, unlikely to affect real usage)"
-  ],
+  "pr_number": 2269,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2269",
-  "acceptance_criteria_met": [
-    "When data={'created_at': 0}, created_at='0' (not '')",
-    "When data={'created_at': False}, created_at='False' (not '')",
-    "Missing created_at field auto-fills with timestamp (preserves __post_init__ behavior)"
+  "generated_at": "2026-02-08T14:05:05.170625+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation_notes": "Used None as sentinel value instead of empty string to distinguish 'missing field' from 'explicitly set to empty/zero/false'. Updated __post_init__ to check `is None` instead of truthiness check."
+  "stage_response_sizes": {
+    "triage": 3001,
+    "plan": 4000,
+    "implement": 1604,
+    "verify": 2038,
+    "finalize": 1133
+  }
 }
