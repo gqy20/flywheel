@@ -34,9 +34,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        if not self.created_at:
+        if self.created_at is None:
             self.created_at = _utc_now_iso()
-        if not self.updated_at:
+        if self.updated_at is None:
             self.updated_at = self.created_at
 
     def mark_done(self) -> None:
@@ -93,10 +93,12 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Use None as sentinel for missing fields to distinguish from falsy values (0, False)
+        # __post_init__ will replace None with default timestamp values
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(data["created_at"]) if "created_at" in data else None,
+            updated_at=str(data["updated_at"]) if "updated_at" in data else None,
         )
