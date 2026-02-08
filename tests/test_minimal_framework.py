@@ -158,3 +158,13 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_empty_list_returns_one() -> None:
+    """Issue #2143: next_id([]) should explicitly return 1 for empty list.
+
+    This documents the expected default behavior when no todos exist.
+    """
+    storage = TodoStorage()
+    result = storage.next_id([])
+    assert result == 1, "Empty todos list should return ID 1 for first todo"
