@@ -1,23 +1,23 @@
 {
-  "issue_number": 2210,
-  "candidate_id": "candidate-2-21796448321",
+  "issue": 2210,
+  "candidate": 2,
   "run_id": "21796448321",
-  "summary": "Add eq=True and unsafe_hash=True to Todo dataclass for proper equality comparison and hashability",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2210_todo_equality.py"
+  "branch": "claude/issue-2210-candidate-2-21796448321",
+  "pr_number": 2232,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2232",
+  "generated_at": "2026-02-08T10:35:07.917828+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 15,
-  "tests_pass": true,
-  "ruff_check": true,
-  "implementation": {
-    "approach": "Added eq=True and unsafe_hash=True to @dataclass decorator",
-    "lines_changed": 1,
-    "risk_level": "low"
-  },
-  "acceptance_criteria_met": [
-    "Two Todo objects with same id, text, done, created_at, updated_at are considered equal",
-    "Todo objects can be used in sets and as dict keys",
-    "Tests can use assert todo1 == todo2 instead of comparing individual fields"
-  ]
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 1901,
+    "implement": 1504,
+    "verify": 1812,
+    "finalize": 2040
+  }
 }
