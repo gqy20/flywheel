@@ -1,0 +1,31 @@
+{
+  "candidate_id": "candidate-3-21805491117",
+  "issue_number": 2372,
+  "issue_title": "[Security] tempfile.mkstemp text=False mismatched with fdopen encoding='utf-8'",
+  "branch_name": "claude/issue-2372-candidate-3-21805491117",
+  "run_id": "21805491117",
+  "created_at": "2026-02-08T21:25:37.000Z",
+  "scorecard": {
+    "correctness": {
+      "fix_addresses_root_cause": true,
+      "test_coverage": true,
+      "minimal_changes": true
+    },
+    "safety": {
+      "preserves_existing_behavior": true,
+      "no_side_effects": true,
+      "atomic_save_preserved": true
+    },
+    "code_quality": {
+      "lint_checks_passed": true,
+      "comment_accuracy": true,
+      "follows_project_conventions": true
+    }
+  },
+  "summary": "Changed mkstemp(text=False) to text=True to match fdopen text mode",
+  "test_results": {
+    "new_tests_added": 3,
+    "new_tests_passed": 3,
+    "existing_tests_passed": 6
+  }
+}
