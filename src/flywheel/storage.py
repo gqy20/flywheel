@@ -5,14 +5,20 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
+import shutil
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backup files to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +59,23 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        enable_backups: bool = False,
+        max_backups: int = _DEFAULT_MAX_BACKUPS,
+    ) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the storage file. Defaults to ".todo.json".
+            enable_backups: Whether to create timestamped backups before overwriting.
+            max_backups: Maximum number of backup files to keep (oldest are deleted).
+        """
         self.path = Path(path or ".todo.json")
+        self._enable_backups = enable_backups
+        self._max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,17 +103,61 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _get_backup_files(self) -> list[Path]:
+        """Get list of existing backup files sorted by modification time (oldest first)."""
+        parent = self.path.parent
+        pattern = re.compile(rf'^\.{self.path.name}\.backup\.(\d{{14}})$')
+        backups = []
+        for f in parent.iterdir():
+            if f.is_file() and pattern.match(f.name):
+                backups.append(f)
+        return sorted(backups, key=lambda p: p.stat().st_mtime)
+
+    def _create_backup(self) -> None:
+        """Create a timestamped backup of the existing file.
+
+        If max_backups is exceeded, oldest backups are removed.
+        Backup creation failures are silently ignored to not prevent the main save.
+        """
+        if not self._enable_backups:
+            return
+
+        try:
+            # Create timestamped backup filename
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            backup_path = self.path.parent / f".{self.path.name}.backup.{timestamp}"
+
+            # Copy current file to backup
+            shutil.copy(self.path, backup_path)
+
+            # Clean up old backups if we exceed max_backups
+            backups = self._get_backup_files()
+            while len(backups) > self._max_backups:
+                oldest = backups.pop(0)
+                with contextlib.suppress(OSError):
+                    oldest.unlink()
+        except OSError:
+            # Backup creation failed - log warning but don't prevent save
+            # (In production, this could use proper logging)
+            pass
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        If enable_backups=True, creates timestamped backup before overwriting.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if enabled and file exists
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
