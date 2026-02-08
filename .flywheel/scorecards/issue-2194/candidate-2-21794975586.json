@@ -1,0 +1,30 @@
+{
+  "issue_number": 2194,
+  "candidate_number": 2,
+  "run_id": "21794975586",
+  "branch": "claude/issue-2194-candidate-2-21794975586",
+  "status": "finalized",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2205",
+  "summary": "Fix TOCTOU race condition in load() by checking actual bytes read instead of stat()",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_toctou.py"
+  ],
+  "tests_run": [
+    "tests/test_storage_toctou.py - 5 passed",
+    "tests/test_storage_atomicity.py - 6 passed",
+    "tests/test_minimal_framework.py - 10 passed"
+  ],
+  "tests_status": "all_passed",
+  "lint_status": "passed",
+  "changes": {
+    "src/flywheel/storage.py": "Modified load() to read content first, then check size of actual bytes read instead of using stat()",
+    "tests/test_storage_toctou.py": "Added new test file with 5 tests for TOCTOU race condition"
+  },
+  "risks": [
+    "None - fix is minimal and backwards compatible"
+  ],
+  "limitations": [
+    "None - the fix addresses the root cause of the TOCTOU race"
+  ]
+}
