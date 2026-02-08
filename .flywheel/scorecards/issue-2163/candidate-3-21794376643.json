@@ -2,7 +2,7 @@
   "issue_number": 2163,
   "candidate_number": 3,
   "run_id": "21794376643",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "title": "[Bug] next_id() contains redundant conditional logic",
   "summary": "Removed redundant 'if todos else 1' conditional from next_id() function. The max(..., default=0) + 1 expression already handles empty lists correctly.",
   "files_changed": [
@@ -28,8 +28,10 @@
     "uv run pytest tests/test_minimal_framework.py -v"
   ],
   "verification_results": {
-    "pytest": "14 passed",
-    "ruff": "All checks passed!"
+    "targeted_pytest": "7 passed, 7 deselected in 0.17s",
+    "full_pytest": "14 passed in 0.19s",
+    "ruff": "All checks passed!",
+    "coverage": "78% (src/flywheel/storage.py: 77%)"
   },
   "tests_passed": 14,
   "tests_failed": 0,
