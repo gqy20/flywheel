@@ -1,0 +1,15 @@
+{
+  "issue_number": 2402,
+  "candidate_number": 2,
+  "run_id": "21807224853",
+  "branch": "claude/issue-2402-candidate-2-21807224853",
+  "title": "Fix falsy timestamp handling in Todo.from_dict",
+  "summary": "Fixed from_dict to preserve falsy values (0, False) for timestamps by replacing str(data.get(key) or '') with str(data.get(key, ''))",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2402_falsy_timestamp.py"
+  ],
+  "tests_added": 6,
+  "stage": "IMPLEMENT",
+  "created_at": "2026-02-08T23:35:00+00:00"
+}
