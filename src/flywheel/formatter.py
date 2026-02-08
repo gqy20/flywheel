@@ -8,9 +8,11 @@ from .todo import Todo
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
-    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
-    C1 control characters (0x80-0x9f) with their escaped representations
-    to prevent injection attacks via todo text.
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), C1 control
+    characters (0x80-0x9f), Unicode bidirectional override characters
+    (U+202A-U+202E, U+2066-U+2069), and zero-width characters (U+200B-U+200D,
+    U+FEFF) with their escaped representations to prevent injection attacks
+    and text spoofing via todo text.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -31,8 +33,13 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
+        # ASCII C0 (excluding \n, \r, \t), DEL, and C1 control characters
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        # Unicode bidirectional override characters (U+202A-U+202E, U+2066-U+2069)
+        # and zero-width characters (U+200B-U+200D, U+FEFF)
+        elif 0x202a <= code <= 0x202e or 0x2066 <= code <= 0x2069 or 0x200b <= code <= 0x200d or code == 0xfeff:
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
