@@ -2,6 +2,7 @@
   "issue_number": 2277,
   "candidate_number": 3,
   "run_id": "21800407421",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2300",
   "summary": "Fix --pending flag logic by changing default show_all to False and renaming --pending to --all flag for better UX",
   "files_changed": [
     "src/flywheel/cli.py",
