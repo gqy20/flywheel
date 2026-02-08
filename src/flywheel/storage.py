@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,8 +54,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_count: int = 0) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_count = backup_count
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,11 +90,17 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        If backup_count > 0, creates rotating backups before overwriting.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting
+        if self.backup_count > 0 and self.path.exists():
+            self._rotate_backups()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +131,36 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _rotate_backups(self) -> None:
+        """Rotate backup files before overwriting main file.
+
+        Creates backups with pattern: <filename>.1.bak, <filename>.2.bak, etc.
+        The .1.bak is the most recent backup. Older backups are rotated to
+        higher numbers. Backups beyond backup_count are deleted.
+
+        This method is called BEFORE the main file is overwritten, so backups
+        always contain the previous content.
+        """
+        # Rotate existing backups: N -> N+1, then delete oldest beyond backup_count
+        for i in range(self.backup_count, 0, -1):
+            old_backup = self.path.with_suffix(f"{self.path.suffix}.{i}.bak")
+            new_backup = self.path.with_suffix(f"{self.path.suffix}.{i + 1}.bak")
+
+            if old_backup.exists():
+                with contextlib.suppress(OSError):
+                    os.replace(old_backup, new_backup)
+
+        # Delete the oldest backup if it exists (now at backup_count + 1)
+        oldest_backup = self.path.with_suffix(f"{self.path.suffix}.{self.backup_count + 1}.bak")
+        with contextlib.suppress(OSError):
+            os.unlink(oldest_backup)
+
+        # Create .1.bak from current file (most recent backup)
+        backup_1 = self.path.with_suffix(f"{self.path.suffix}.1.bak")
+        with contextlib.suppress(OSError):
+            # Use shutil.copy2 to copy file with metadata
+            shutil.copy2(self.path, backup_1)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
