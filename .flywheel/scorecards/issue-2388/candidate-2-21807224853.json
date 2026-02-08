@@ -1,0 +1,28 @@
+{
+  "issue_number": 2388,
+  "candidate_number": 2,
+  "run_id": "21807224853",
+  "stage": "plan",
+  "created_at": "2026-02-08T23:40:00Z",
+  "files_to_touch": [
+    "tests/test_issue_2388_format_todo_id_alignment.py",
+    "src/flywheel/formatter.py"
+  ],
+  "tdd_plan": {
+    "red": [
+      "Add failing test for ID=1000 (4 digits) to demonstrate misalignment",
+      "Add failing test for ID=99999 (5 digits) to demonstrate severe misalignment",
+      "Add failing test for format_list with mixed IDs (1, 100, 1000) to verify column alignment issue"
+    ],
+    "green": [
+      "Implement dynamic width calculation in format_list() to find max ID width",
+      "Update format_todo() to accept optional width parameter",
+      "Use calculated width for proper column alignment in batch formatting"
+    ],
+    "verification": [
+      "uv run pytest tests/test_issue_2388_format_todo_id_alignment.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+      "uv run ruff check src/flywheel/formatter.py tests/test_issue_2388_format_todo_id_alignment.py"
+    ]
+  }
+}
