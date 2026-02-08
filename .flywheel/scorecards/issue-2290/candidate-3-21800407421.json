@@ -1,42 +1,23 @@
 {
-  "issue_number": 2290,
-  "candidate_number": 3,
+  "issue": 2290,
+  "candidate": 3,
   "run_id": "21800407421",
   "branch": "claude/issue-2290-candidate-3-21800407421",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2302",
   "pr_number": 2302,
-  "title": "[AUTOFIX][ISSUE-2290][CANDIDATE-3] Sanitize Unicode bidirectional override and zero-width characters",
-  "status": "pr_created",
-  "tdd_approach": {
-    "red_phase": {
-      "test_file": "tests/test_issue_2290_bidi_zero_width_sanitization.py",
-      "tests_created": 21,
-      "description": "Created failing regression tests for Unicode bidi (U+202A-U+202E, U+2066-U+2069) and zero-width (U+200B-U+200D, U+FEFF) character sanitization"
-    },
-    "green_phase": {
-      "source_file": "src/flywheel/formatter.py",
-      "description": "Extended _sanitize_text() to escape additional Unicode ranges for security"
-    }
-  },
-  "files_changed": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_2290_bidi_zero_width_sanitization.py"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2302",
+  "generated_at": "2026-02-08T15:41:33.236441+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "character_ranges_sanitized": {
-    "bidirectional_overrides": "U+202A-U+202E (LRE, RLE, PDF, LRO, RLO)",
-    "bidirectional_isolates": "U+2066-U+2069 (LRI, RLI, FSI, PDI)",
-    "zero_width_characters": "U+200B-U+200D (ZWSP, ZWNJ, ZWJ)",
-    "zero_width_no_break": "U+FEFF (BOM/ZWNBSP)"
-  },
-  "verification": {
-    "pytest": "133 passed",
-    "ruff": "All checks passed",
-    "new_tests": "21 tests added, all passing"
-  },
-  "security_impact": "Prevents text spoofing attacks using Unicode bidirectional override characters that could hide malicious file extensions or manipulate displayed text",
-  "risks_and_limitations": [
-    "Legitimate Arabic and Hebrew text continues to pass through unchanged (verified by tests)",
-    "Escaped characters are visible as \\uXXXX sequences in output",
-    "This is a display-time sanitization only; data in storage may still contain these characters"
-  ]
+  "stage_response_sizes": {
+    "triage": 2911,
+    "plan": 4000,
+    "implement": 1403,
+    "verify": 1694,
+    "finalize": 1034
+  }
 }
