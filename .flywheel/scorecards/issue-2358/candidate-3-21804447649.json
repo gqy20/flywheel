@@ -1,0 +1,46 @@
+{
+  "issue_number": 2358,
+  "candidate_number": 3,
+  "run_id": "21804447649",
+  "branch": "claude/issue-2358-candidate-3-21804447649",
+  "stage": "FINALIZE",
+  "commit": "7197a70",
+  "summary": "Apply _sanitize_text() to exception messages printed to stderr at cli.py:125 to prevent control character injection via error messages that include user-supplied data (e.g., file paths).",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_2358_cli_error_message_sanitization.py"
+  ],
+  "tests_added": 6,
+  "tests_passing": true,
+  "linter_checks_passing": true,
+  "acceptance_criteria_met": [
+    "Error messages containing user input are sanitized",
+    "Terminal control characters in error messages don't affect output"
+  ],
+  "risks": [
+    "Sanitizing all error messages may make some error output less readable (control characters escaped as visible sequences)"
+  ],
+  "limitations": [
+    "The fix sanitizes all exception messages globally; specific error types that might want to preserve certain formatting are also affected"
+  ],
+  "implementation": {
+    "test_file": "tests/test_issue_2358_cli_error_message_sanitization.py",
+    "source_file": "src/flywheel/cli.py",
+    "change_description": "Added _sanitize_text() call around str(exc) in exception handler at line 125",
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2358_cli_error_message_sanitization.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/cli.py tests/test_issue_2358_cli_error_message_sanitization.py"
+    ],
+    "verification_results": {
+      "targeted_tests": "6/6 passed",
+      "full_test_suite": "118/118 passed",
+      "ruff_checks": "All passed",
+      "coverage": {
+        "cli.py": "92%",
+        "formatter.py": "100%",
+        "overall": "94%"
+      }
+    }
+  }
+}
