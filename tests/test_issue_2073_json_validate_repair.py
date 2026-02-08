@@ -8,10 +8,6 @@ These tests verify that:
 
 from __future__ import annotations
 
-import shutil
-
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
