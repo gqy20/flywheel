@@ -2,7 +2,43 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from .todo import Todo
+
+
+def _is_overdue(todo: Todo) -> bool:
+    """Check if a todo is overdue (past due date and not done).
+
+    Args:
+        todo: The todo to check.
+
+    Returns:
+        True if the todo is overdue, False otherwise.
+    """
+    if todo.due_date is None or todo.done:
+        return False
+    try:
+        due_dt = datetime.fromisoformat(todo.due_date)
+        # Reset due_dt to midnight for consistent comparison
+        due_dt = due_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        # Get current date in UTC
+        now_utc = datetime.now(UTC)
+
+        # Convert due_dt to UTC for comparison (assume naive dates are UTC)
+        due_dt_utc = (
+            due_dt.replace(tzinfo=UTC) if due_dt.tzinfo is None else due_dt.astimezone(UTC)
+        )
+
+        # Compare dates only
+        due_date_only = due_dt_utc.date()
+        now_date_only = now_utc.date()
+
+        return due_date_only < now_date_only
+    except (ValueError, AttributeError):
+        # If we can't parse the date, don't mark as overdue
+        return False
 
 
 def _sanitize_text(text: str) -> str:
@@ -45,7 +81,18 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+
+        # Add overdue prefix for incomplete tasks past their due date
+        prefix = ""
+        if _is_overdue(todo):
+            prefix = "OVERDUE "
+
+        # Add due date if present
+        due_suffix = ""
+        if todo.due_date:
+            due_suffix = f" (due: {todo.due_date})"
+
+        return f"[{status}] {todo.id:>3} {prefix}{safe_text}{due_suffix}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

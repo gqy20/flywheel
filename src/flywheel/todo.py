@@ -4,10 +4,38 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from re import fullmatch
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _validate_iso_date(date_str: str | None) -> None:
+    """Validate that date_str is a valid ISO date format (YYYY-MM-DD).
+
+    Args:
+        date_str: The date string to validate.
+
+    Raises:
+        ValueError: If date_str is not a valid ISO date format.
+    """
+    if date_str is None:
+        return
+    # ISO 8601 date format: YYYY-MM-DD
+    if not fullmatch(r"\d{4}-\d{2}-\d{2}", date_str):
+        raise ValueError(
+            f"Invalid value for 'due_date': {date_str!r}. "
+            "'due_date' must be in ISO 8601 format (YYYY-MM-DD)."
+    )
+    # Additional validation: try to parse the date
+    try:
+        datetime.fromisoformat(date_str)
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid value for 'due_date': {date_str!r}. "
+            "'due_date' must be a valid date in ISO 8601 format (YYYY-MM-DD)."
+        ) from e
 
 
 @dataclass(slots=True)
@@ -17,6 +45,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    due_date: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -93,10 +122,19 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'due_date' if present
+        raw_due_date = data.get("due_date")
+        if raw_due_date is not None and raw_due_date != "":
+            _validate_iso_date(str(raw_due_date))
+            due_date = str(raw_due_date)
+        else:
+            due_date = None
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            due_date=due_date,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
