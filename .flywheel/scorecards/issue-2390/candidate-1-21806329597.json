@@ -1,0 +1,45 @@
+{
+  "issue_number": 2390,
+  "candidate_number": 1,
+  "run_id": "21806329597",
+  "stage": "PLAN",
+  "title": "[Feature] Add automatic backup creation before file modifications",
+  "branch_name": "claude/issue-2390-candidate-1-21806329597",
+  "plan": {
+    "description": "Implement automatic backup creation before file modifications with configurable rotation",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_backup.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Create failing tests for backup functionality",
+        "tests": [
+          "test_backup_created_on_save",
+          "test_backup_rotation",
+          "test_backup_count_env_var",
+          "test_restore_from_backup"
+        ]
+      },
+      {
+        "step": "GREEN",
+        "description": "Implement minimal backup functionality",
+        "implementation": [
+          "_backup_file() method with rotation logic",
+          "Call _backup_file() in save() before os.replace()",
+          "FLYWHEEL_BACKUP_COUNT environment variable support",
+          "restore_from_backup() method"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_storage_backup.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "implementation": null,
+  "verification": null,
+  "pr_url": null
+}

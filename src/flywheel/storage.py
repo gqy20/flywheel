@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -50,11 +51,83 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _get_backup_count() -> int:
+    """Get the maximum number of backups to keep from environment variable.
+
+    Returns:
+        int: Number of backups to keep (0 = disabled, default = 3)
+    """
+    try:
+        count = os.getenv("FLYWHEEL_BACKUP_COUNT", "3")
+        return max(0, int(count))
+    except ValueError:
+        return 3  # Default if env var is invalid
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    def _backup_file(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        Copies the current file to a .bak backup with numbered suffix.
+        Implements rotation to keep only N backups (configurable via
+        FLYWHEEL_BACKUP_COUNT env var, default=3).
+
+        If FLYWHEEL_BACKUP_COUNT is 0, no backup is created.
+        """
+        backup_count = _get_backup_count()
+        if backup_count == 0:
+            return
+
+        if not self.path.exists():
+            return
+
+        # Find existing backup files (use relative pattern for Python 3.13+)
+        backup_pattern = f"{self.path.name}.*.bak"
+        existing_backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.stat().st_mtime,
+        )
+
+        # Create new backup with numbered suffix
+        # Use next number in sequence (1-indexed)
+        next_num = len(existing_backups) + 1
+        backup_path = self.path.parent / f"{self.path.name}.{next_num}.bak"
+
+        # Copy file preserving metadata
+        shutil.copy2(self.path, backup_path)
+
+        # Rotate: remove oldest backups if we have too many
+        all_backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.stat().st_mtime,
+        )
+        while len(all_backups) > backup_count:
+            oldest = all_backups.pop(0)
+            with contextlib.suppress(OSError):
+                oldest.unlink()
+
+    def restore_from_backup(self) -> None:
+        """Restore the most recent backup file.
+
+        Raises:
+            FileNotFoundError: If no backup file exists
+        """
+        backup_pattern = f"{self.path.name}.*.bak"
+        backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.stat().st_mtime,
+        )
+
+        if not backups:
+            raise FileNotFoundError(f"No backup file found for '{self.path}'")
+
+        # Use the most recent backup (last in sorted list)
+        shutil.copy2(backups[-1], self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,6 +161,9 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Automatically creates a backup of the existing file before overwriting,
+        keeping N backups (configurable via FLYWHEEL_BACKUP_COUNT, default=3).
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
@@ -115,6 +191,9 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Create backup of existing file before overwriting
+            self._backup_file()
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
