@@ -10,6 +10,27 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_or_replace_timestamp(value: str | None) -> str:
+    """Validate timestamp is valid ISO8601 format, otherwise return current UTC timestamp.
+
+    Args:
+        value: The timestamp value to validate.
+
+    Returns:
+        The original value if it's a valid ISO8601 timestamp, otherwise current UTC timestamp.
+    """
+    if not value or not isinstance(value, str):
+        return _utc_now_iso()
+
+    try:
+        # Try to parse the timestamp to validate it's ISO8601 format
+        datetime.fromisoformat(value)
+        return value
+    except (ValueError, TypeError):
+        # Invalid timestamp format, replace with current UTC timestamp
+        return _utc_now_iso()
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -97,6 +118,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=_validate_or_replace_timestamp(data.get("created_at")),
+            updated_at=_validate_or_replace_timestamp(data.get("updated_at")),
         )
