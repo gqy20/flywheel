@@ -1,0 +1,120 @@
+name: Remote Branch Cleanup
+
+on:
+  schedule:
+    - cron: "20 2 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report candidates without deleting"
+        required: false
+        default: true
+        type: boolean
+      min_age_hours:
+        description: "Delete only branches older than this (hours)"
+        required: false
+        default: "24"
+        type: string
+      branch_prefix:
+        description: "Remote branch prefix under origin/"
+        required: false
+        default: "claude/"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: remote-branch-cleanup
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BRANCH_PREFIX: ${{ inputs.branch_prefix || 'claude/' }}
+      MIN_AGE_HOURS: ${{ inputs.min_age_hours || '24' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
+      GH_PAGER: cat
+      PAGER: cat
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fetch remote refs
+        run: git fetch --all --prune
+
+      - name: Cleanup stale remote branches
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          all_refs="$(mktemp)"
+          open_heads="$(mktemp)"
+          candidates="$(mktemp)"
+
+          git for-each-ref \
+            --format='%(refname:short)|%(committerdate:unix)' \
+            refs/remotes/origin \
+            | sed 's#^origin/##' \
+            | awk -F'|' -v pfx="$BRANCH_PREFIX" '$1 ~ ("^" pfx) {print}' \
+            | sort > "$all_refs"
+
+          gh pr list --state open --limit 1000 --json headRefName \
+            | jq -r '.[].headRefName' \
+            | sort -u > "$open_heads"
+
+          now="$(date +%s)"
+          while IFS='|' read -r branch ts; do
+            if grep -qx "$branch" "$open_heads"; then
+              continue
+            fi
+            age_hours=$(( (now - ts) / 3600 ))
+            if (( age_hours >= MIN_AGE_HOURS )); then
+              printf '%s|%s\n' "$branch" "$age_hours" >> "$candidates"
+            fi
+          done < "$all_refs"
+
+          total_refs="$(wc -l < "$all_refs" | tr -d ' ')"
+          open_count="$(grep -c "^${BRANCH_PREFIX}" "$open_heads" || true)"
+          delete_count="$(wc -l < "$candidates" | tr -d ' ')"
+
+          echo "prefix=${BRANCH_PREFIX}"
+          echo "tracked_refs=${total_refs}"
+          echo "open_pr_heads=${open_count}"
+          echo "delete_candidates=${delete_count}"
+          echo "dry_run=${DRY_RUN}"
+
+          if (( delete_count == 0 )); then
+            echo "No stale branches matched policy."
+            rm -f "$all_refs" "$open_heads" "$candidates"
+            exit 0
+          fi
+
+          echo "Candidate sample:"
+          head -20 "$candidates"
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "Dry-run enabled, no deletion performed."
+            rm -f "$all_refs" "$open_heads" "$candidates"
+            exit 0
+          fi
+
+          deleted=0
+          failed=0
+          while IFS='|' read -r branch age_hours; do
+            if git push origin --delete "$branch"; then
+              deleted=$((deleted + 1))
+              echo "deleted ${branch} (age=${age_hours}h)"
+            else
+              failed=$((failed + 1))
+              echo "failed ${branch} (age=${age_hours}h)"
+            fi
+          done < "$candidates"
+
+          echo "delete_result deleted=${deleted} failed=${failed}"
+
+          rm -f "$all_refs" "$open_heads" "$candidates"
