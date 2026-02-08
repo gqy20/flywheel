@@ -119,3 +119,60 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2126 - validate timestamp fields (created_at, updated_at)
+def test_todo_from_dict_rejects_int_created_at() -> None:
+    """Todo.from_dict should reject int for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": 1234567890})
+
+
+def test_todo_from_dict_rejects_list_created_at() -> None:
+    """Todo.from_dict should reject list for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": ["2024-01-01"]})
+
+
+def test_todo_from_dict_rejects_dict_created_at() -> None:
+    """Todo.from_dict should reject dict for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": {"date": "2024-01-01"}})
+
+
+def test_todo_from_dict_rejects_int_updated_at() -> None:
+    """Todo.from_dict should reject int for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": 1234567890})
+
+
+def test_todo_from_dict_rejects_list_updated_at() -> None:
+    """Todo.from_dict should reject list for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": ["2024-01-01"]})
+
+
+def test_todo_from_dict_rejects_dict_updated_at() -> None:
+    """Todo.from_dict should reject dict for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": {"date": "2024-01-01"}})
+
+
+def test_todo_from_dict_accepts_valid_string_timestamps() -> None:
+    """Todo.from_dict should accept valid string timestamps."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "task",
+        "created_at": "2024-01-15T10:30:00+00:00",
+        "updated_at": "2024-01-15T11:00:00+00:00"
+    })
+    assert todo.created_at == "2024-01-15T10:30:00+00:00"
+    assert todo.updated_at == "2024-01-15T11:00:00+00:00"
+
+
+def test_todo_from_dict_defaults_missing_timestamps() -> None:
+    """Todo.from_dict should default missing timestamps to current time."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    # Should have non-empty timestamps (defaulted to current time)
+    assert todo.created_at != ""
+    assert todo.updated_at != ""

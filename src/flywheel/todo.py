@@ -93,6 +93,17 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields (created_at, updated_at)
+        # Accept: None, empty string, or valid string values
+        # Reject: list, dict, or other non-string types
+        for field_name in ("created_at", "updated_at"):
+            raw_value = data.get(field_name)
+            if raw_value is not None and raw_value != "" and not isinstance(raw_value, str):
+                raise ValueError(
+                    f"Invalid value for '{field_name}': {raw_value!r}. "
+                    f"'{field_name}' must be a string or null."
+                )
+
         return cls(
             id=todo_id,
             text=data["text"],
