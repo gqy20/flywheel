@@ -1,32 +1,23 @@
 {
-  "issue_number": 2126,
-  "candidate_number": 1,
+  "issue": 2126,
+  "candidate": 1,
   "run_id": "21793241465",
-  "stage": "VERIFY",
-  "triage_summary": "Root cause: from_dict() uses str() to coerce timestamp fields without type validation, accepting int/list/dict which become meaningless strings. Risk: data integrity and security issues with invalid timestamp data in storage.",
-  "root_cause_location": "src/flywheel/todo.py:100-101",
-  "verification_targets": [
-    "created_at as list raises ValueError",
-    "created_at as dict raises ValueError",
-    "created_at as int raises ValueError",
-    "valid ISO string created_at is accepted",
-    "null/missing created_at defaults to current time"
+  "branch": "claude/issue-2126-candidate-1-21793241465",
+  "pr_number": 2147,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2147",
+  "generated_at": "2026-02-08T06:12:21.161003+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation_summary": "Added type validation for timestamp fields in from_dict(). Fields must be string or None/missing. Invalid types (int, list, dict) now raise ValueError with clear message. 9 new regression tests added.",
-  "verification_summary": "All 9 new tests pass, 121 total tests pass with 92% coverage. Ruff checks pass on all changed files.",
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2126_from_dict_timestamp_validation.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_2126_from_dict_timestamp_validation.py"
-  ],
-  "test_results": {
-    "new_tests": 9,
-    "new_tests_passing": 9,
-    "total_tests": 121,
-    "total_tests_passing": 121,
-    "coverage": "92%"
-  },
-  "files_changed": [
-    "src/flywheel/todo.py (validation logic added)",
-    "tests/test_issue_2126_from_dict_timestamp_validation.py (new test file)"
-  ]
+  "stage_response_sizes": {
+    "triage": 1866,
+    "plan": 3183,
+    "implement": 2344,
+    "verify": 1535,
+    "finalize": 1533
+  }
 }
