@@ -1,0 +1,36 @@
+{
+  "issue_number": 2291,
+  "issue_title": "[Bug] next_id() logic bug: returns 2 for empty list instead of 1",
+  "candidate_number": 3,
+  "run_id": "21801270895",
+  "branch_name": "claude/issue-2291-candidate-3-21801270895",
+  "stage": "IMPLEMENT",
+  "created_at": "2026-02-08T15:30:00Z",
+  "plan": {
+    "description": "Remove redundant conditional in next_id() - simplify max(default=0)+1 logic",
+    "files_to_touch": [
+      "tests/test_minimal_framework.py",
+      "src/flywheel/storage.py"
+    ],
+    "tdd_approach": {
+      "red_phase": "Add regression tests for edge cases (empty list, single todo, gapped ids)",
+      "green_phase": "Simplify next_id() to use max(..., default=0) + 1 without redundant ternary",
+      "verification_commands": [
+        "uv run pytest tests/test_minimal_framework.py -v",
+        "uv run ruff check src/flywheel/storage.py"
+      ]
+    }
+  },
+  "implementation": {
+    "test_changes": "Added 3 new test functions in test_minimal_framework.py",
+    "source_changes": "Simplified next_id() in storage.py from ternary expression to max(..., default=0) + 1"
+  },
+  "verification_results": {
+    "tests_run": 13,
+    "tests_passed": 13,
+    "tests_failed": 0,
+    "ruff_check": "All checks passed"
+  },
+  "risks": [],
+  "limitations": []
+}
