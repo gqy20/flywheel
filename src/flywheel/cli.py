@@ -122,7 +122,9 @@ def run_command(args: argparse.Namespace) -> int:
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        # Sanitize exception message to prevent control character injection
+        # Matches the security pattern used for success messages
+        print(f"Error: {_sanitize_text(str(exc))}", file=sys.stderr)
         return 1
 
 

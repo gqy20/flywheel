@@ -1,0 +1,19 @@
+{
+  "issue_id": 2358,
+  "candidate_id": 1,
+  "run_id": "21804447649",
+  "stage": "triage",
+  "triage": {
+    "root_cause": "Exception handler in run_command() directly formats exceptions without sanitization, allowing control characters from user-supplied input to leak through to stderr",
+    "risk_assessment": "P1 - Terminal control character injection through stderr could hide legitimate errors or inject fake output",
+    "verification_targets": [
+      "Test with control characters in todo text that triggers ValueError",
+      "Verify stderr output contains escaped control characters",
+      "Ensure existing success message sanitization remains intact"
+    ],
+    "proposed_fix": "Sanitize exception messages using _sanitize_text() before outputting to stderr"
+  },
+  "test_results": null,
+  "fix_summary": null,
+  "risks": null
+}
