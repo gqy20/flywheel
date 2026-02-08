@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
+
 from .todo import Todo
 
 
@@ -42,10 +44,39 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
+    def _is_overdue(due_date: str) -> bool:
+        """Check if a due date is in the past (overdue).
+
+        Args:
+            due_date: ISO date string (YYYY-MM-DD).
+
+        Returns:
+            True if the due date is in the past, False otherwise.
+        """
+        try:
+            due = date.fromisoformat(due_date)
+            today = datetime.now(UTC).date()
+            return due < today
+        except (ValueError, TypeError):
+            return False
+
+    @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+
+        # Build the base output
+        output = f"[{status}] {todo.id:>3} {safe_text}"
+
+        # Add due date information if present
+        if todo.due_date:
+            # Check if overdue
+            if TodoFormatter._is_overdue(todo.due_date):
+                output += f" [OVERDUE: {todo.due_date}]"
+            else:
+                output += f" [due: {todo.due_date}]"
+
+        return output
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

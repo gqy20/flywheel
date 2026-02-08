@@ -3,11 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _validate_iso_date(date_value: str) -> None:
+    """Validate that a string is a valid ISO date (YYYY-MM-DD).
+
+    Args:
+        date_value: The date string to validate.
+
+    Raises:
+        ValueError: If the date is not a valid ISO date format.
+    """
+    if not isinstance(date_value, str):
+        raise ValueError(
+            f"Invalid value for 'due_date': {date_value!r}. 'due_date' must be a string in YYYY-MM-DD format."
+        )
+
+    try:
+        # Parse the date string to validate format
+        date.fromisoformat(date_value)
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid value for 'due_date': {date_value!r}. 'due_date' must be a valid ISO date in YYYY-MM-DD format."
+        ) from e
 
 
 @dataclass(slots=True)
@@ -19,6 +42,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -93,10 +117,18 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'due_date' if present
+        raw_due_date = data.get("due_date")
+        due_date: str | None = None
+        if raw_due_date is not None:
+            _validate_iso_date(raw_due_date)
+            due_date = raw_due_date
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=due_date,
         )
