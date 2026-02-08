@@ -53,8 +53,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        enable_backups: bool = True,
+        max_backups: int = 3,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.enable_backups = enable_backups
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,9 +97,15 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backups: If enabled, creates backup files before overwriting existing data.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if enabled and file exists
+        if self.enable_backups and self.max_backups > 0 and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +139,57 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before overwriting.
+
+        Implements rotation based on max_backups:
+        - .backup (most recent)
+        - .backup.1, .backup.2, etc. (older backups)
+
+        Backup failures are silently ignored to prevent blocking the main save operation.
+        """
+        backup_path = self._get_backup_path(0)
+
+        try:
+            # Rotate existing backups
+            self._rotate_backups()
+
+            # Copy current file to backup
+            import shutil
+
+            shutil.copy2(self.path, backup_path)
+        except OSError:
+            # Silently ignore backup failures to avoid blocking main save
+            pass
+
+    def _get_backup_path(self, index: int) -> Path:
+        """Get backup path for given index.
+
+        index=0 returns .backup (most recent)
+        index=1 returns .backup.1, index=2 returns .backup.2, etc.
+        """
+        if index == 0:
+            return self.path.with_suffix(self.path.suffix + ".backup")
+        return self.path.with_suffix(self.path.suffix + f".backup.{index}")
+
+    def _rotate_backups(self) -> None:
+        """Rotate backup files to respect max_backups limit.
+
+        Removes the oldest backup if needed, then shifts each backup
+        to the next index (e.g., .backup.1 -> .backup.2).
+        """
+        if self.max_backups == 0:
+            return
+
+        # Remove oldest backup if we're at the limit
+        oldest_backup = self._get_backup_path(self.max_backups - 1)
+        with contextlib.suppress(OSError):
+            oldest_backup.unlink()
+
+        # Rotate backups in reverse order (highest index first)
+        for i in range(self.max_backups - 1, 0, -1):
+            src = self._get_backup_path(i - 1)
+            dst = self._get_backup_path(i)
+            with contextlib.suppress(OSError):
+                src.replace(dst)
