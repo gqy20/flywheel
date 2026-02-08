@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,90 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backups to keep
+_DEFAULT_BACKUP_COUNT = 3
+
+
+def _get_backup_count() -> int:
+    """Get the number of backups to keep from environment variable.
+
+    Returns:
+        Number of backups to keep (0 means disabled).
+    """
+    try:
+        count_str = os.environ.get("TODO_BACKUP_COUNT", str(_DEFAULT_BACKUP_COUNT))
+        return max(0, int(count_str))
+    except ValueError:
+        return _DEFAULT_BACKUP_COUNT
+
+
+def _rotate_backups(file_path: Path, max_backups: int) -> None:
+    """Rotate backup files, keeping only the most recent max_backups.
+
+    Args:
+        file_path: The original file path.
+        max_backups: Maximum number of backups to keep (0 = disable).
+
+    Backup naming:
+        .bak      - most recent backup (created on overwrite)
+        .bak.1    - previous backup
+        .bak.N-1  - oldest backup kept (where N = max_backups)
+    """
+    if max_backups == 0:
+        return
+
+    # Delete the oldest backup that would be pushed out of rotation
+    # With max_backups=3, we delete .bak.2 before rotating .bak.1 -> .bak.2
+    oldest_backup = file_path.parent / f"{file_path.name}.bak.{max_backups - 1}"
+    with contextlib.suppress(OSError):
+        oldest_backup.unlink()
+
+    # Rotate numbered backups in reverse order (highest number first)
+    # .bak.2 -> .bak.3 would become oldest, but we just deleted .bak.2
+    # So we rotate: .bak.1 -> .bak.2, .bak -> .bak.1
+    # When max_backups=3: we keep .bak, .bak.1, .bak.2 (delete .bak.2 before rotating)
+    # Wait, that's not right either. Let's think again...
+    # With max_backups=3:
+    #   We want to keep: .bak, .bak.1, .bak.2 (3 files)
+    #   Before creating new .bak, delete .bak.2, then:
+    #   .bak.1 -> .bak.2, .bak -> .bak.1, create new .bak
+    # But we already deleted .bak.2, so .bak.1 becomes .bak.2
+    # That leaves us with: .bak (new), .bak.1 (was .bak), .bak.2 (was .bak.1)
+    # That's 3 files. Correct!
+    for i in range(max_backups - 2, 0, -1):
+        old_backup = file_path.parent / f"{file_path.name}.bak.{i}"
+        new_backup = file_path.parent / f"{file_path.name}.bak.{i + 1}"
+        if old_backup.exists():
+            with contextlib.suppress(OSError):
+                old_backup.rename(new_backup)
+
+    # Rotate .bak to .bak.1
+    backup_path = file_path.parent / f"{file_path.name}.bak"
+    if backup_path.exists():
+        with contextlib.suppress(OSError):
+            backup_path.rename(file_path.parent / f"{file_path.name}.bak.1")
+
+
+def _create_backup(file_path: Path, max_backups: int) -> None:
+    """Create a backup of the existing file before overwriting.
+
+    Args:
+        file_path: The file to backup.
+        max_backups: Maximum number of backups to keep (0 = disable).
+    """
+    if max_backups == 0 or not file_path.exists():
+        return
+
+    backup_path = file_path.parent / f"{file_path.name}.bak"
+
+    # Rotate existing backups first
+    _rotate_backups(file_path, max_backups)
+
+    # Create new backup
+    # Use shutil.copy for atomic-like behavior - failure won't affect main save
+    with contextlib.suppress(OSError):
+        shutil.copy(file_path, backup_path)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -88,11 +173,19 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before overwriting an existing file, creates a backup copy.
+        Backups are rotated to keep only N most recent (configurable via
+        TODO_BACKUP_COUNT env var, default 3).
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting
+        backup_count = _get_backup_count()
+        _create_backup(self.path, backup_count)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
