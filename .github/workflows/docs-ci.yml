@@ -78,7 +78,7 @@ jobs:
 
           # Dependabot workflow version bumps can be high-volume and low-risk.
           # Allow these through without docs changes when they only touch workflow files.
-          if [ "$PR_AUTHOR" = "dependabot[bot]" ] \
+          if echo "$PR_AUTHOR" | grep -Eq '^(dependabot\[bot\]|app/dependabot)$' \
             && echo "$changed_files" | grep -Eq '^\.github/workflows/' \
             && ! echo "$changed_files" | grep -Eq '^scripts/'; then
             non_workflow_changes="$(
