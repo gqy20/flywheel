@@ -48,10 +48,15 @@ def test_app_add_done_remove(tmp_path) -> None:
     assert app.list()[0].text == "demo"
 
     app.mark_done(1)
-    assert app.list()[0].done is True
+    # After marking as done, list() with default (show_all=False) returns empty
+    assert app.list() == []
+
+    # Verify the todo is actually still there using show_all=True
+    assert app.list(show_all=True)[0].done is True
 
     app.remove(1)
     assert app.list() == []
+    assert app.list(show_all=True) == []
 
 
 def test_cli_run_command_flow(tmp_path, capsys) -> None:

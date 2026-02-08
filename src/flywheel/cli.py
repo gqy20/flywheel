@@ -33,7 +33,7 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, show_all: bool = False) -> list[Todo]:
         todos = self._load()
         if show_all:
             return todos
