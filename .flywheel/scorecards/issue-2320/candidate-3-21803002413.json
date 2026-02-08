@@ -1,0 +1,16 @@
+{
+  "issue_number": 2320,
+  "candidate_number": 3,
+  "run_id": "21803002413",
+  "stage": "FINALIZE",
+  "branch_name": "claude/issue-2320-candidate-3-21803002413",
+  "status": "completed",
+  "test_results": {
+    "tests_run": 7,
+    "tests_passed": 7,
+    "tests_failed": 0
+  },
+  "linting": {
+    "ruff_check": "passed"
+  }
+}

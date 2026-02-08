@@ -6,7 +6,9 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 from .todo import Todo
@@ -50,6 +52,61 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+@contextlib.contextmanager
+def _file_lock(file_path: Path) -> Iterator[None]:
+    """Acquire exclusive file lock for cross-platform concurrent write safety.
+
+    Uses fcntl.flock() on Unix and msvcrt.locking() on Windows.
+    The lock is automatically released when the context manager exits,
+    even if an exception occurs.
+
+    Args:
+        file_path: Path to the file to lock.
+
+    Raises:
+        OSError: If lock acquisition fails.
+    """
+    # Open the file for locking (create if it doesn't exist)
+    # Use mode 'a+' to allow reading and writing, create if needed
+    fd = os.open(file_path, os.O_CREAT | os.O_RDWR)
+
+    try:
+        if sys.platform == "win32":
+            # Windows: use msvcrt.locking()
+            import msvcrt
+
+            # Lock the entire file (0 = start, -1 = EOF)
+            # LK_LOCK = locking with retry (blocks until available)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, -1)
+        else:
+            # Unix/Linux/macOS: use fcntl.flock()
+            import fcntl
+
+            # LOCK_EX = exclusive lock
+            # LOCK_NB = non-blocking (not used - we want to block for simplicity)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+
+        # Yield control back to caller - lock is held during this time
+        yield
+
+    finally:
+        # Always release the lock, even on error
+        try:
+            if sys.platform == "win32":
+                import msvcrt
+
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, -1)
+            else:
+                import fcntl
+
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            # Ignore errors during unlock (file may have been closed, etc.)
+            pass
+        finally:
+            os.close(fd)
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
@@ -60,36 +117,47 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        with _file_lock(self.path):
+            # Security: Check file size before loading to prevent DoS
+            file_size = self.path.stat().st_size
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
 
-        try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            try:
+                raw = json.loads(self.path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            if not isinstance(raw, list):
+                raise ValueError("Todo storage must be a JSON list")
+            return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
-        if the process crashes during write.
+        if the process crashes during write. Also uses file locking to prevent
+        concurrent processes from interfering with each other.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+        """
+        with _file_lock(self.path):
+            self._save_unlocked(todos)
+
+    def _save_unlocked(self, todos: list[Todo]) -> None:
+        """Internal save method that assumes caller holds the file lock.
+
+        This is separated from save() to avoid acquiring the lock twice
+        (once in save(), once in load() during modify operations).
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)

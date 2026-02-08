@@ -229,3 +229,98 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_locking_prevents_data_loss_from_concurrent_processes(tmp_path) -> None:
+    """Regression test for issue #2320: File locking for concurrent write safety.
+
+    Tests that multiple processes performing load-modify-save operations
+    concurrently do not lose data. With proper file locking, all operations
+    should be serialized and no data should be lost.
+
+    Each worker:
+    1. Loads existing todos
+    2. Adds its own unique todos
+    3. Saves back
+
+    Without file locking: last-write-wins causes data loss
+    With file locking: all writes are serialized, preserving all data
+    """
+    import multiprocessing
+
+    db = tmp_path / "locking.json"
+
+    def modify_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that loads, modifies, and saves todos."""
+        try:
+            storage = TodoStorage(str(db))
+            # Load existing todos
+            existing = storage.load()
+
+            # Add unique todos for this worker
+            # Use unique IDs based on worker_id to avoid ID collisions
+            new_todos = [
+                Todo(id=worker_id * 100 + i, text=f"worker-{worker_id}-todo-{i}")
+                for i in range(3)
+            ]
+
+            # Combine existing with new and save
+            all_todos = existing + new_todos
+            storage.save(all_todos)
+
+            # Report the number of todos we wrote
+            result_queue.put(("success", worker_id, len(all_todos)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 4
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=modify_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers
+
+    # With file locking, all todos from all workers should be preserved
+    # Each worker adds 3 unique todos, so we expect 3 * num_workers todos total
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    expected_count = 3 * num_workers
+    actual_count = len(final_todos)
+
+    # Verify no data loss occurred
+    assert (
+        actual_count == expected_count
+    ), f"Data loss detected! Expected {expected_count} todos, got {actual_count}. Without file locking, concurrent writes cause last-write-wins behavior."
+
+    # Verify all todos have unique content (no duplicates from lost updates)
+    todo_texts = [todo.text for todo in final_todos]
+    assert (
+        len(todo_texts) == len(set(todo_texts))
+    ), "Duplicate todos detected - indicates data loss from concurrent writes"
+
+    # Verify each worker's todos are present
+    for worker_id in range(num_workers):
+        worker_todos = [t for t in todo_texts if f"worker-{worker_id}-" in t]
+        assert (
+            len(worker_todos) == 3
+        ), f"Worker {worker_id}'s todos incomplete: found {len(worker_todos)}, expected 3"
