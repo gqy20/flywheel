@@ -33,11 +33,17 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, pending_only: bool = False) -> list[Todo]:
+        """List todos.
+
+        Args:
+            pending_only: If True, return only pending (not done) todos.
+                          If False, return all todos.
+        """
         todos = self._load()
-        if show_all:
-            return todos
-        return [todo for todo in todos if not todo.done]
+        if pending_only:
+            return [todo for todo in todos if not todo.done]
+        return todos
 
     def mark_done(self, todo_id: int) -> Todo:
         todos = self._load()
@@ -101,7 +107,7 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         if args.command == "list":
-            todos = app.list(show_all=not args.pending)
+            todos = app.list(pending_only=args.pending)
             print(TodoFormatter.format_list(todos))
             return 0
 
