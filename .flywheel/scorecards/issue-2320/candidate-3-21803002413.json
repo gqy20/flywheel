@@ -2,9 +2,11 @@
   "issue_number": 2320,
   "candidate_number": 3,
   "run_id": "21803002413",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "branch_name": "claude/issue-2320-candidate-3-21803002413",
   "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2336",
+  "pr_number": 2336,
   "test_results": {
     "tests_run": 7,
     "tests_passed": 7,
