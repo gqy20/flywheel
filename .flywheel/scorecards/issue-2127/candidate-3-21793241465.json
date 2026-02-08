@@ -1,52 +1,23 @@
 {
-  "issue_number": 2127,
-  "candidate_id": 3,
+  "issue": 2127,
+  "candidate": 3,
   "run_id": "21793241465",
   "branch": "claude/issue-2127-candidate-3-21793241465",
-  "summary": "Validate non-empty text in Todo.from_dict() to match rename() behavior",
-  "changes": {
-    "files_added": [
-      "tests/test_issue_2127_empty_text_validation.py"
-    ],
-    "files_modified": [
-      "src/flywheel/todo.py"
-    ]
-  },
-  "tests": {
-    "added": 8,
-    "passing": 8,
-    "failing": 0,
-    "details": [
-      "test_todo_from_dict_rejects_empty_text",
-      "test_todo_from_dict_rejects_whitespace_only_text",
-      "test_todo_from_dict_rejects_tabs_only_text",
-      "test_todo_from_dict_strips_padded_text",
-      "test_todo_from_dict_accepts_valid_text",
-      "test_storage_load_rejects_empty_text",
-      "test_storage_load_rejects_whitespace_text",
-      "test_storage_load_strips_padded_text"
-    ]
-  },
-  "linting": {
-    "tool": "ruff",
-    "status": "passed"
-  },
-  "regression_tests": {
-    "total": 99,
-    "passed": 99
-  },
-  "verification": {
-    "commands": [
-      "uv run pytest tests/test_issue_2127_empty_text_validation.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2127_empty_text_validation.py",
-      "uv run pytest tests/ -v --ignore=tests/test_automation_smoke.py --ignore=tests/test_workflow_selection_logic.py --ignore=tests/test_storage_atomicity.py --ignore=tests/test_minimal_framework.py"
-    ],
-    "outcomes": [
-      "8/8 tests passed for issue 2127",
-      "ruff checks passed on changed files",
-      "99/99 tests passed in full test suite (no regressions)"
-    ]
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 2152,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2152",
+  "generated_at": "2026-02-08T06:13:04.335880+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1929,
+    "plan": 2957,
+    "implement": 2024,
+    "verify": 2341,
+    "finalize": 293
+  }
 }
