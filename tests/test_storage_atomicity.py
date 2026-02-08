@@ -229,3 +229,81 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_write_with_file_lock_stress(tmp_path) -> None:
+    """Regression test for issue #2166: File locking prevents concurrent write corruption.
+
+    Stress test with aggressive timing that forces race conditions.
+    Multiple processes write simultaneously - without file locking, data corruption
+    is highly likely. With file locking, the file should always contain valid JSON.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "stress_lock.json"
+
+    def write_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that performs rapid save/load cycles."""
+        try:
+            storage = TodoStorage(str(db))
+            for cycle in range(3):  # Multiple cycles per worker
+                todos = [
+                    Todo(id=i, text=f"w{worker_id}-c{cycle}-t{i}"),
+                    Todo(id=i + 1, text=f"w{worker_id}-c{cycle}-t{i + 1}"),
+                ]
+                storage.save(todos)
+
+                # Minimal delay to force race conditions
+                time.sleep(0.0001)
+
+                # Verify we can read valid data
+                loaded = storage.load()
+                assert len(loaded) >= 1, f"Worker {worker_id} cycle {cycle}: no data loaded"
+
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # More workers with more cycles increases race condition likelihood
+    num_workers = 8
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers simultaneously
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=write_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for completion
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers failed: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final verification: file MUST contain valid JSON
+    storage = TodoStorage(str(db))
+    try:
+        final_todos = storage.load()
+    except (json.JSONDecodeError, ValueError) as e:
+        raise AssertionError(
+            f"File corrupted despite file locking! Got error: {e}"
+        ) from e
+
+    # Data integrity check
+    assert isinstance(final_todos, list)
+    for todo in final_todos:
+        assert hasattr(todo, "id")
+        assert hasattr(todo, "text")
+        assert isinstance(todo.text, str)
