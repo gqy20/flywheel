@@ -93,3 +93,9 @@ This runbook describes how to operate and recover Flywheel automation safely.
    uv run python scripts/check_docs_sync.py --check
    ```
 3. Keep `.github/FLYWHEEL.md` aligned with policy and `README.md` aligned with operator entrypoints.
+
+### Docs Policy Exception
+
+- `docs-change-policy` still requires docs updates when `scripts/` or workflow logic changes.
+- Dependabot PRs that only bump versions in `.github/workflows/` (or `.github/dependabot.yml`) are auto-exempt.
+- If a Dependabot PR touches additional files, docs updates are still required.
