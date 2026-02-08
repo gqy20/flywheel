@@ -1,0 +1,24 @@
+{
+  "issue": 2236,
+  "candidate": 3,
+  "run_id": "21797794461",
+  "branch": "claude/issue-2236-candidate-3-21797794461",
+  "tests_added": 5,
+  "tests_passed": 5,
+  "tests_failed": 0,
+  "files_changed": [
+    "tests/test_issue_2236_list_pending_flag.py"
+  ],
+  "source_files_changed": [],
+  "is_fix_only": false,
+  "is_test_only": true,
+  "coverage_change": {
+    "before": null,
+    "after": "68%"
+  },
+  "commands_run": [
+    "uv run pytest tests/test_issue_2236_list_pending_flag.py -v",
+    "uv run ruff check tests/test_issue_2236_list_pending_flag.py"
+  ],
+  "commit_hash": "06f3fab"
+}
