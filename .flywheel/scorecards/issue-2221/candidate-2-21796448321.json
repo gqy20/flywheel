@@ -1,28 +1,23 @@
 {
-  "issue_number": 2221,
-  "candidate_number": 2,
+  "issue": 2221,
+  "candidate": 2,
   "run_id": "21796448321",
   "branch": "claude/issue-2221-candidate-2-21796448321",
-  "title": "[Bug] from_dict treats falsy timestamp values (False, 0, None) as empty string, causin",
-  "summary": "Fix was already present in codebase - Todo.from_dict already uses dict.get(key, default) pattern which preserves falsy values. Added regression tests to verify the fix works correctly.",
-  "files_changed": [
-    "tests/test_minimal_framework.py"
+  "pr_number": 2226,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2226",
+  "generated_at": "2026-02-08T10:35:14.885381+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_todo_from_dict_preserves_falsy_timestamps",
-    "test_todo_from_dict_with_missing_timestamps",
-    "test_todo_from_dict_with_valid_timestamp_strings"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_minimal_framework.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
-  ],
-  "verification_outcomes": {
-    "pytest": "13 passed in 0.20s",
-    "ruff": "All checks passed!"
-  },
-  "risks": [],
-  "limitations": [],
-  "status": "verify_complete",
-  "created_at": "2026-02-08T10:33:20+00:00"
+  "stage_response_sizes": {
+    "triage": 2935,
+    "plan": 4000,
+    "implement": 2614,
+    "verify": 2423,
+    "finalize": 1215
+  }
 }
