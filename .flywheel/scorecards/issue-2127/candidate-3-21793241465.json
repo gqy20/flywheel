@@ -1,0 +1,40 @@
+{
+  "issue_number": 2127,
+  "candidate_id": 3,
+  "run_id": "21793241465",
+  "branch": "claude/issue-2127-candidate-3-21793241465",
+  "summary": "Validate non-empty text in Todo.from_dict() to match rename() behavior",
+  "changes": {
+    "files_added": [
+      "tests/test_issue_2127_empty_text_validation.py"
+    ],
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ]
+  },
+  "tests": {
+    "added": 8,
+    "passing": 8,
+    "failing": 0,
+    "details": [
+      "test_todo_from_dict_rejects_empty_text",
+      "test_todo_from_dict_rejects_whitespace_only_text",
+      "test_todo_from_dict_rejects_tabs_only_text",
+      "test_todo_from_dict_strips_padded_text",
+      "test_todo_from_dict_accepts_valid_text",
+      "test_storage_load_rejects_empty_text",
+      "test_storage_load_rejects_whitespace_text",
+      "test_storage_load_strips_padded_text"
+    ]
+  },
+  "linting": {
+    "tool": "ruff",
+    "status": "passed"
+  },
+  "regression_tests": {
+    "total": 120,
+    "passed": 120
+  },
+  "risks": [],
+  "limitations": []
+}
