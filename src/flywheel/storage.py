@@ -5,8 +5,11 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+import time
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +56,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        enable_backups: bool = False,
+        max_backups: int = 3,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.enable_backups = enable_backups
+        self.max_backups = max(1, max_backups)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +102,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file (if enabled)
+        if self.enable_backups and self.path.exists():
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +138,41 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file.
+
+        Creates a timestamped backup before overwriting. If backup creation
+        fails, logs a warning but does not prevent the main save operation.
+        """
+        try:
+            # Use higher precision timestamp for unique backup names
+            timestamp = int(time.time() * 1000)  # milliseconds
+            backup_path = self.path.parent / f".{self.path.name}.{timestamp}.bak"
+            shutil.copy(self.path, backup_path)
+            self._cleanup_old_backups()
+        except OSError as e:
+            # Backup failure should not prevent the main save operation
+            warnings.warn(f"Failed to create backup: {e}", stacklevel=2)
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backups exceeding max_backups limit.
+
+        Keeps only the most recent max_backups backup files.
+        """
+        backup_pattern = f".{self.path.name}.*.bak"
+        # Sort by timestamp in filename (millisecond precision)
+        # Filename pattern: .todo.json.<timestamp>.bak
+        backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: int(p.name.split(".")[-2]),
+        )
+
+        # Remove oldest backups if we exceed max_backups
+        while len(backups) > self.max_backups:
+            oldest = backups.pop(0)
+            with contextlib.suppress(OSError):
+                oldest.unlink()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
