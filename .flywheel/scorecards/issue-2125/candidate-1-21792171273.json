@@ -49,6 +49,6 @@
     "Breaking change for code that relies on truthy/falsy conversion for non-boolean types",
     "Legacy integer values 0/1 are still accepted for backwards compatibility"
   ],
-  "finalized": false,
+  "finalized": true,
   "created_at": "2026-02-08T04:39:26Z"
 }
