@@ -1,0 +1,23 @@
+{
+  "issue_number": 2319,
+  "candidate_number": 1,
+  "run_id": "21803002413",
+  "status": "pending_finalize",
+  "tests": [
+    "tests/test_issue_2319_backup_before_save.py::test_backup_created_on_save",
+    "tests/test_issue_2319_backup_before_save.py::test_backup_rotation_keeps_only_n_backups",
+    "tests/test_issue_2319_backup_before_save.py::test_save_succeeds_even_if_backup_fails",
+    "tests/test_issue_2319_backup_before_save.py::test_no_backup_when_file_doesnt_exist",
+    "tests/test_issue_2319_backup_before_save.py::test_backup_preserves_file_permissions",
+    "tests/test_issue_2319_backup_before_save.py::test_backup_content_matches_original"
+  ],
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2319_backup_before_save.py"
+  ],
+  "implementation_summary": "Added automatic backup creation before saving with rotation to keep 3 most recent backups. Backup creation failure does not prevent save operation.",
+  "risks": [
+    "Backup files are created in the same directory as the main file, which may use additional disk space",
+    "Backup rotation uses file renaming which could fail on some filesystems, but failures are silently ignored"
+  ]
+}

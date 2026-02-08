@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -50,11 +51,62 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+# Maximum number of backups to keep
+_MAX_BACKUPS = 3
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    @property
+    def _backup_path(self) -> Path:
+        """Get the base backup file path."""
+        return self.path.parent / f"{self.path.name}.bak"
+
+    def _rotate_backups(self) -> None:
+        """Rotate backups to keep only the most recent ones.
+
+        Existing backups are renamed:
+        .bak -> .bak.1, .bak.1 -> .bak.2, etc.
+        Oldest backups beyond _MAX_BACKUPS are deleted.
+        """
+        # First, delete the oldest backup to make room
+        oldest_backup = self._backup_path.parent / f"{self._backup_path.name}.{_MAX_BACKUPS - 1}"
+        if oldest_backup.exists():
+            with contextlib.suppress(OSError):
+                oldest_backup.unlink()
+
+        # Rotate existing backups: .bak.N -> .bak.(N+1)
+        for i in range(_MAX_BACKUPS - 2, 0, -1):
+            old_backup = self._backup_path.parent / f"{self._backup_path.name}.{i}"
+            new_backup = self._backup_path.parent / f"{self._backup_path.name}.{i + 1}"
+            if old_backup.exists():
+                with contextlib.suppress(OSError):
+                    old_backup.rename(new_backup)
+
+        # Rotate .bak -> .bak.1
+        if self._backup_path.exists():
+            with contextlib.suppress(OSError):
+                self._backup_path.rename(f"{self._backup_path}.1")
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before saving.
+
+        If the source file doesn't exist, no backup is created.
+        Backup creation failure is silently ignored to allow save to proceed.
+        """
+        if not self.path.exists():
+            return
+
+        try:
+            self._rotate_backups()
+            shutil.copy2(self.path, self._backup_path)
+        except OSError:
+            # Backup failure should not prevent the save operation
+            pass
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,9 +140,14 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup of the existing file (if any) before writing.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting
+        self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
