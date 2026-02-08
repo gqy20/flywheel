@@ -1,0 +1,24 @@
+{
+  "issue_number": 2163,
+  "candidate_number": 3,
+  "run_id": "21794376643",
+  "title": "[Bug] next_id() contains redundant conditional logic",
+  "summary": "Removed redundant 'if todos else 1' conditional from next_id() function. The max(..., default=0) + 1 expression already handles empty lists correctly.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2163_next_id_redundant_conditional.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "tests_failed": 0,
+  "linting_passed": true,
+  "risk_level": "low",
+  "scope": "single_function_single_line",
+  "behavioral_change": false,
+  "code_simplified": true,
+  "verification_targets_met": [
+    "next_id([]) returns 1 (empty list case)",
+    "next_id([Todo(id=1, text='x')]) returns 2",
+    "next_id([Todo(id=1, text='x'), Todo(id=3, text='y')]) returns 4 (handles gaps)"
+  ]
+}
