@@ -1,21 +1,23 @@
 {
-  "issue_number": 2236,
-  "candidate_number": 1,
+  "issue": 2236,
+  "candidate": 1,
   "run_id": "21797794461",
   "branch": "claude/issue-2236-candidate-1-21797794461",
-  "summary": "Add test coverage for list command --pending flag behavior",
-  "tests_added": [
-    "test_cli_list_without_pending_flag_shows_all",
-    "test_cli_list_with_pending_flag_shows_only_pending",
-    "test_cli_list_pending_with_empty_list"
+  "pr_number": 2253,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2253",
+  "generated_at": "2026-02-08T12:28:47.560920+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": "uv run pytest tests/test_minimal_framework.py -v",
-  "tests_result": "13 passed in 0.19s",
-  "lint_run": "uv run ruff check src/flywheel/cli.py tests/test_minimal_framework.py",
-  "lint_result": "All checks passed!",
-  "source_files_modified": [],
-  "test_files_modified": ["tests/test_minimal_framework.py"],
-  "risks": "None - functionality already existed, only added test coverage",
-  "limitations": "None",
-  "closes_issue": true
+  "stage_response_sizes": {
+    "triage": 3978,
+    "plan": 1599,
+    "implement": 1705,
+    "verify": 3206,
+    "finalize": 1025
+  }
 }
