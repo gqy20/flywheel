@@ -1,0 +1,61 @@
+{
+  "issue_number": 2277,
+  "candidate_number": 1,
+  "run_id": "21800407421",
+  "branch_name": "claude/issue-2277-candidate-1-21800407421",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2295",
+  "created_at": "2026-02-08T14:28:00Z",
+  "summary": "Fix: default list command to show only pending todos (issue #2277)",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2112_remove_iteration_pattern.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "files_created": [
+      "tests/test_issue_2277_pending_flag_default.py"
+    ],
+    "total_lines_added": 145,
+    "total_lines_removed": 6
+  },
+  "tests": {
+    "new_tests_added": 4,
+    "new_tests_passing": 4,
+    "existing_tests_passing": 116,
+    "total_tests_run": 116,
+    "test_framework": "pytest"
+  },
+  "linting": {
+    "tool": "ruff",
+    "status": "passed",
+    "files_checked": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2277_pending_flag_default.py"
+    ]
+  },
+  "triage": {
+    "root_cause": "TodoApp.list() defaulted to show_all=True, showing all todos including completed ones by default",
+    "fix_location": "src/flywheel/cli.py:36 (TodoApp.list method) and src/flywheel/cli.py:104 (run_command list handling)",
+    "fix_type": "Default parameter change",
+    "breaking_change": true,
+    "backward_compatible": false
+  },
+  "verification": {
+    "default_list_shows_pending_only": true,
+    "pending_flag_idempotent": true,
+    "empty_database_handled": true,
+    "all_completed_shows_empty": true
+  },
+  "risks": [
+    {
+      "type": "breaking_change",
+      "description": "Users expecting todo list to show all todos will now see only pending",
+      "mitigation": "Document the change and recommend show_all=True for programmatic access"
+    },
+    {
+      "type": "flag_redundancy",
+      "description": "The --pending flag is now idempotent with default behavior",
+      "mitigation": "Consider adding --all flag in future for showing all todos"
+    }
+  ]
+}

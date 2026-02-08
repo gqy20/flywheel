@@ -33,7 +33,7 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, show_all: bool = False) -> list[Todo]:
         todos = self._load()
         if show_all:
             return todos
@@ -101,7 +101,7 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         if args.command == "list":
-            todos = app.list(show_all=not args.pending)
+            todos = app.list(show_all=False)
             print(TodoFormatter.format_list(todos))
             return 0
 
