@@ -1,11 +1,23 @@
 {
-  "issue_number": 2210,
-  "candidate_number": 1,
+  "issue": 2210,
+  "candidate": 1,
   "run_id": "21796448321",
-  "status": "completed",
-  "tests_added": "tests/test_issue_2210_todo_equality.py (11 tests)",
-  "files_modified": "src/flywheel/todo.py",
-  "fix_description": "Added eq=True and unsafe_hash=True to @dataclass decorator to enable proper equality comparison and hashing for Todo objects",
-  "tests_pass": true,
-  "ruff_checks_pass": true
+  "branch": "claude/issue-2210-candidate-1-21796448321",
+  "pr_number": 2229,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2229",
+  "generated_at": "2026-02-08T10:34:53.532677+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3589,
+    "plan": 2297,
+    "implement": 2210,
+    "verify": 1384,
+    "finalize": 881
+  }
 }
