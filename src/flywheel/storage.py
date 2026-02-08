@@ -53,8 +53,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, keep_backups: int = 3) -> None:
         self.path = Path(path or ".todo.json")
+        self.keep_backups = keep_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -116,6 +117,10 @@ class TodoStorage:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
+            # Create backup of existing file before atomic replace
+            # This preserves data if the new file has bugs
+            self._create_backup()
+
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
@@ -123,6 +128,110 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def list_backups(self) -> list[Path]:
+        """List all backup files for this storage, sorted newest first.
+
+        Returns:
+            List of backup file paths, sorted by modification time (newest first).
+        """
+        if self.keep_backups <= 0:
+            return []
+
+        backups = []
+        # Check for .bak file (most recent backup)
+        bak_path = self.path.with_suffix(self.path.suffix + ".bak")
+        if bak_path.exists():
+            backups.append(bak_path)
+
+        # Check for .bak.1, .bak.2, etc. (older backups)
+        i = 1
+        while True:
+            numbered_bak = self.path.with_suffix(f"{self.path.suffix}.bak.{i}")
+            if numbered_bak.exists():
+                backups.append(numbered_bak)
+                i += 1
+            else:
+                break
+
+        # Sort by modification time, newest first
+        backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return backups
+
+    def restore_from_backup(self, backup_path: Path) -> None:
+        """Restore data from a backup file.
+
+        Args:
+            backup_path: Path to the backup file to restore from.
+
+        Raises:
+            FileNotFoundError: If backup file doesn't exist.
+            ValueError: If backup file contains invalid data.
+        """
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Create a temporary storage to load the backup
+        backup_storage = TodoStorage(str(backup_path), keep_backups=0)
+        todos = backup_storage.load()
+
+        # Save the restored data to the main file
+        self.save(todos)
+
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file and rotate old backups.
+
+        This method:
+        1. Rotates existing backups (.bak.2 -> .bak.3, .bak.1 -> .bak.2, etc.)
+        2. Renames current file to .bak
+        3. Deletes excess backups beyond keep_backups limit
+
+        Must be called BEFORE os.replace in save() to preserve the original file.
+
+        Backup naming convention:
+        - .bak (most recent backup)
+        - .bak.1, .bak.2, ..., .bak.N-1 (older backups)
+        Total backups = keep_backups (includes .bak + .bak.1 through .bak.keep_backups-1)
+        """
+        if self.keep_backups <= 0:
+            return
+
+        if not self.path.exists():
+            return
+
+        # Rotate existing backups
+        # Start from the oldest and work backwards to avoid overwriting
+        # We keep (keep_backups - 1) numbered backups (.bak.1 through .bak.keep_backups-1)
+        # plus .bak for a total of keep_backups backups
+        max_numbered = self.keep_backups - 1  # Maximum numbered backup to keep
+        for i in range(max_numbered - 1, 0, -1):
+            old_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{i}")
+            new_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{i + 1}")
+            if old_backup.exists():
+                import shutil
+                shutil.copy2(old_backup, new_backup)
+
+        # Move .bak to .bak.1
+        bak_path = self.path.with_suffix(self.path.suffix + ".bak")
+        if bak_path.exists():
+            bak1_path = self.path.with_suffix(f"{self.path.suffix}.bak.1")
+            import shutil
+            shutil.copy2(bak_path, bak1_path)
+
+        # Copy current file to .bak
+        import shutil
+        shutil.copy2(self.path, bak_path)
+
+        # Clean up excess backups
+        # Delete .bak.N where N >= keep_backups (we only keep .bak.1 through .bak.keep_backups-1)
+        i = self.keep_backups
+        while True:
+            excess_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{i}")
+            if excess_backup.exists():
+                excess_backup.unlink()
+                i += 1
+            else:
+                break
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
