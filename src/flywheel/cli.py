@@ -59,10 +59,12 @@ class TodoApp:
 
     def remove(self, todo_id: int) -> None:
         todos = self._load()
-        kept = [todo for todo in todos if todo.id != todo_id]
-        if len(kept) == len(todos):
-            raise ValueError(f"Todo #{todo_id} not found")
-        self._save(kept)
+        for i, todo in enumerate(todos):
+            if todo.id == todo_id:
+                todos.pop(i)
+                self._save(todos)
+                return
+        raise ValueError(f"Todo #{todo_id} not found")
 
 
 def build_parser() -> argparse.ArgumentParser:
