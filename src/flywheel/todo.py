@@ -86,7 +86,7 @@ class Todo:
         if isinstance(raw_done, bool):
             done = raw_done
         elif isinstance(raw_done, int) and raw_done in (0, 1):
-            done = bool(raw_done)
+            done = raw_done == 1
         else:
             raise ValueError(
                 f"Invalid value for 'done': {raw_done!r}. "
