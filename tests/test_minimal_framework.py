@@ -48,7 +48,7 @@ def test_app_add_done_remove(tmp_path) -> None:
     assert app.list()[0].text == "demo"
 
     app.mark_done(1)
-    assert app.list()[0].done is True
+    assert app.list(show_all=True)[0].done is True
 
     app.remove(1)
     assert app.list() == []
