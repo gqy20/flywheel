@@ -115,6 +115,11 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
 
     Before fix: Temp file name is always .todo.json.tmp (predictable)
     After fix: Temp file name should vary between saves
+
+    Note: After issue #2280, save() creates backups which also use temp files.
+    First save: 1 temp file (no backup yet)
+    Subsequent saves: 2 temp files each (backup + main save)
+    Total for 3 saves: 1 + 2 + 2 = 5 temp files
     """
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
@@ -140,13 +145,17 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
     finally:
         tempfile.mkstemp = original
 
-    # All temp file names should be different (unpredictable/random component)
-    assert len(temp_file_names) == 3, "Should have created 3 temp files"
-    assert len(set(temp_file_names)) == 3, f"Temp file names should be unique, got: {temp_file_names}"
+    # After issue #2280, we have 5 temp files (1 for first save, 2 for each subsequent)
+    # First save: no backup (file doesn't exist yet)
+    # Second and third saves: backup + main save each
+    assert len(temp_file_names) == 5, f"Should have created 5 temp files (1 + 2 + 2), got {len(temp_file_names)}"
+    assert len(set(temp_file_names)) == 5, f"Temp file names should be unique, got: {temp_file_names}"
 
     # Names should not be the simple predictable pattern
     for name in temp_file_names:
-        assert name != ".todo.json.tmp", f"Temp file name should not be predictable: {name}"
+        assert ".tmp" in name, f"Temp file should end with .tmp: {name}"
+        # Check it's not the old predictable pattern
+        assert name not in (".todo.json.tmp", ".todo.json.bak.tmp"), f"Temp file name should not be predictable: {name}"
 
 
 def test_save_succeeds_when_no_symlink_exists(tmp_path) -> None:
