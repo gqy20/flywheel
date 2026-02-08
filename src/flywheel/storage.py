@@ -103,7 +103,7 @@ class TodoStorage:
             dir=self.path.parent,
             prefix=f".{self.path.name}.",
             suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
+            text=True,  # Match text mode used with fdopen (mode="w", encoding="utf-8")
         )
 
         try:
