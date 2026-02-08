@@ -1,0 +1,62 @@
+name: Candidate PR Hygiene
+
+on:
+  schedule:
+    - cron: "35 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report close candidates without closing PRs"
+        required: false
+        default: true
+        type: boolean
+      keep_per_issue:
+        description: "How many newest candidate PRs to keep per issue"
+        required: false
+        default: "1"
+        type: string
+      min_age_hours:
+        description: "Only close duplicates older than this age (hours)"
+        required: false
+        default: "12"
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: candidate-pr-hygiene
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      KEEP_PER_ISSUE: ${{ inputs.keep_per_issue || '1' }}
+      MIN_AGE_HOURS: ${{ inputs.min_age_hours || '12' }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
+      GH_PAGER: cat
+      PAGER: cat
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run candidate PR hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cmd=(python scripts/shared/cleanup_candidate_prs.py \
+            --keep-per-issue "$KEEP_PER_ISSUE" \
+            --min-age-hours "$MIN_AGE_HOURS")
+
+          if [[ "$DRY_RUN" == "true" ]]; then
+            cmd+=(--dry-run)
+          fi
+
+          echo "Running: ${cmd[*]}"
+          "${cmd[@]}"
