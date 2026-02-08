@@ -158,3 +158,27 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #2163: next_id() should return 1 for empty list (new database)."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_handles_single_todo() -> None:
+    """Bug #2163: next_id() should return 2 for single todo with id=1."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="x")]) == 2
+
+
+def test_next_id_handles_gaps() -> None:
+    """Bug #2163: next_id() should handle gaps in ID sequence."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="x"), Todo(id=3, text="y")]) == 4
+
+
+def test_next_id_handles_gap_at_start() -> None:
+    """Bug #2163: next_id() should return next ID after highest existing ID."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=5, text="gap")]) == 6

@@ -2,14 +2,36 @@
   "issue_number": 2163,
   "candidate_number": 3,
   "run_id": "21794376643",
+  "stage": "IMPLEMENT",
   "title": "[Bug] next_id() contains redundant conditional logic",
   "summary": "Removed redundant 'if todos else 1' conditional from next_id() function. The max(..., default=0) + 1 expression already handles empty lists correctly.",
   "files_changed": [
     "src/flywheel/storage.py",
-    "tests/test_issue_2163_next_id_redundant_conditional.py"
+    "tests/test_minimal_framework.py"
   ],
-  "tests_added": 4,
-  "tests_passed": 116,
+  "tests_added": [
+    "test_next_id_returns_1_for_empty_list",
+    "test_next_id_handles_single_todo",
+    "test_next_id_handles_gaps",
+    "test_next_id_handles_gap_at_start"
+  ],
+  "implementation": {
+    "file": "src/flywheel/storage.py",
+    "function": "next_id",
+    "line": 128,
+    "before": "return (max((todo.id for todo in todos), default=0) + 1) if todos else 1",
+    "after": "return max((todo.id for todo in todos), default=0) + 1"
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_minimal_framework.py -v -k \"next_id or storage\"",
+    "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py",
+    "uv run pytest tests/test_minimal_framework.py -v"
+  ],
+  "verification_results": {
+    "pytest": "14 passed",
+    "ruff": "All checks passed!"
+  },
+  "tests_passed": 14,
   "tests_failed": 0,
   "linting_passed": true,
   "risk_level": "low",
