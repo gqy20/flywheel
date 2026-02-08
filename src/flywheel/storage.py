@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,8 +54,10 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_limit: int = 3) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_limit = backup_limit
+        self._backup_path = self.path.with_suffix(self.path.suffix + ".bak")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -94,6 +97,10 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
+        # Create backup before overwriting existing file
+        if self.path.exists() and self.backup_limit > 0:
+            self._backup()
+
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -123,6 +130,28 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _backup(self) -> None:
+        """Create a backup of the current file before saving.
+
+        Rotates backups up to backup_limit:
+        - .todo.json.bak (most recent)
+        - .todo.json.bak.1
+        - .todo.json.bak.2 (oldest, deleted when limit exceeded)
+        """
+        # Rotate existing backups
+        for i in range(self.backup_limit - 1, 0, -1):
+            old_backup = self._backup_path.with_suffix(f"{self._backup_path.suffix}.{i}")
+            new_backup = self._backup_path.with_suffix(f"{self._backup_path.suffix}.{i + 1}")
+            if old_backup.exists():
+                shutil.move(str(old_backup), str(new_backup))
+
+        # Move current .bak to .bak.1 if it exists
+        if self._backup_path.exists():
+            shutil.move(str(self._backup_path), str(self._backup_path.with_suffix(f"{self._backup_path.suffix}.1")))
+
+        # Create new backup from current file
+        shutil.copy2(str(self.path), str(self._backup_path))
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
