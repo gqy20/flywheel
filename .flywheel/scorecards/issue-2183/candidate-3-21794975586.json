@@ -6,8 +6,17 @@
   "pr_number": null,
   "pr_url": null,
   "generated_at": "2026-02-08T08:35:00.000000+00:00",
-  "stages_completed": ["triage"],
+  "stages_completed": ["triage", "plan", "implement"],
   "stage_response_sizes": {
-    "triage": 2500
-  }
+    "triage": 2500,
+    "plan": 3200,
+    "implement": 1200
+  },
+  "summary": "Add data validation and schema verification for TodoStorage.save()",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2183_data_validation.py"
+  ],
+  "tests_run": "uv run pytest tests/ (118 passed)",
+  "lint_run": "uv run ruff check src/flywheel/storage.py tests/test_issue_2183_data_validation.py (all passed)"
 }
