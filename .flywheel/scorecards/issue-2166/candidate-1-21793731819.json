@@ -1,0 +1,64 @@
+{
+  "issue_number": 2166,
+  "candidate_id": 1,
+  "run_id": "21793731819",
+  "branch_name": "claude/issue-2166-candidate-1-21793731819",
+  "stage": "finalize",
+  "created_at": "2026-02-08T00:00:00Z",
+  "updated_at": "2026-02-08T00:00:00Z",
+  "plan": {
+    "summary": "Add file locking to prevent concurrent write corruption using filelock (already available as transitive dependency)",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing test for file lock timeout behavior - test that lock timeout raises Timeout exception",
+        "test_file": "tests/test_storage_atomicity.py",
+        "test_function": "test_file_lock_timeout_raises_exception"
+      },
+      {
+        "step": "RED",
+        "description": "Add failing test for lock acquisition during concurrent save - verifies exclusive lock behavior",
+        "test_file": "tests/test_storage_atomicity.py",
+        "test_function": "test_concurrent_save_with_exclusive_lock"
+      },
+      {
+        "step": "GREEN",
+        "description": "Implement file_lock context manager in storage.py using filelock.FileLock",
+        "file": "src/flywheel/storage.py",
+        "details": "Add _FileLock context manager class with configurable timeout parameter"
+      },
+      {
+        "step": "GREEN",
+        "description": "Wrap save() method with exclusive write lock",
+        "file": "src/flywheel/storage.py",
+        "details": "Acquire exclusive lock before temp file creation, release after atomic replace"
+      },
+      {
+        "step": "GREEN",
+        "description": "Wrap load() method with shared read lock",
+        "file": "src/flywheel/storage.py",
+        "details": "Acquire shared lock during read to prevent reading during write"
+      }
+    ],
+    "implementation_details": {
+      "approach": "Use filelock library (already available as transitive dependency via claude-agent-sdk)",
+      "lock_file": "Use .lock file suffix for lock files (e.g., .todo.json.lock)",
+      "timeout_default": 30 seconds,
+      "lock_types": {
+        "write": "Exclusive lock for save() operations",
+        "read": "Shared lock for load() operations"
+      },
+      "error_handling": "Timeout exception with clear error message indicating lock contention"
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_storage_atomicity.py::test_file_lock_timeout_raises_exception -v",
+      "uv run pytest tests/test_storage_atomicity.py::test_concurrent_save_with_exclusive_lock -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
+    ]
+  }
+}
