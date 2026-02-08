@@ -2,7 +2,8 @@
   "issue_number": 2264,
   "candidate_number": 1,
   "run_id": "21799611547",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2289",
   "tdd_plan": {
     "files_to_touch": [
       "tests/test_issue_2264_todo_text_validation.py",
