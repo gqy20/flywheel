@@ -1,0 +1,62 @@
+{
+  "issue_number": 2266,
+  "candidate_number": 2,
+  "run_id": "21799611547",
+  "branch_name": "claude/issue-2266-candidate-2-21799611547",
+  "stage": "IMPLEMENTED",
+  "title": "[Enhancement] Add optional debug logging for storage operations",
+  "tdd_plan": {
+    "issue_summary": "Add optional debug logging for storage operations to help diagnose storage issues",
+    "target_files": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2266_storage_debug_logging.py"
+    ],
+    "test_first": true,
+    "red_phase": {
+      "description": "Create failing regression test for debug logging feature",
+      "file": "tests/test_issue_2266_storage_debug_logging.py",
+      "test_cases": [
+        "test_default_no_logging_output: Verify no logs when FW_LOG not set",
+        "test_fw_log_debug_enables_logging: Verify logs when FW_LOG=debug",
+        "test_load_logs_path_and_count: Verify load() logs path + count",
+        "test_save_logs_path_and_count: Verify save() logs path + count"
+      ]
+    },
+    "green_phase": {
+      "description": "Implement minimal fix to pass tests",
+      "steps": [
+        "1. Import logging module in storage.py",
+        "2. Create module-level logger with NullHandler by default",
+        "3. Add _setup_logging() function to enable debug via FW_LOG env var",
+        "4. Add logger.debug() calls in load() with path and count",
+        "5. Add logger.debug() calls in save() with path and count"
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2266_storage_debug_logging.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "Default behavior: no logging output",
+    "FW_LOG=debug enables debug logging",
+    "load() logs file path and todo count",
+    "save() logs file path and todo count",
+    "Existing tests still pass"
+  ],
+  "test_plan": {
+    "default_no_logs": "Verify no log output when FW_LOG not set",
+    "debug_logs_enabled": "Verify log output when FW_LOG=debug",
+    "log_content": "Verify logs contain path and count info",
+    "load_logs": "Test load() produces expected logs",
+    "save_logs": "Test save() produces expected logs"
+  },
+  "risks": [
+    "Logging might impact performance",
+    "Environment variable handling must be safe",
+    "Log format should be consistent"
+  ],
+  "created_at": "2026-02-08T13:52:53Z"
+}

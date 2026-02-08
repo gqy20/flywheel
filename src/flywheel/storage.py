@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
@@ -11,8 +12,35 @@ from pathlib import Path
 
 from .todo import Todo
 
+# Module-level logger with NullHandler by default (no output unless configured)
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _setup_debug_logging() -> None:
+    """Setup debug logging if FW_LOG environment variable is set.
+
+    Checks the FW_LOG environment variable and enables debug logging
+    for the storage module when set to 'debug'.
+
+    This function is called at module initialization to optionally
+    enable debug output based on the environment.
+    """
+    log_level = os.environ.get("FW_LOG", "").lower()
+    if log_level == "debug":
+        # Remove NullHandler and add a StreamHandler for debug output
+        logger.handlers.clear()
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+        logger.addHandler(handler)
+
+
+# Setup logging at module import time
+_setup_debug_logging()
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -57,7 +85,10 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        logger.debug(f"Loading todos from {self.path}")
+
         if not self.path.exists():
+            logger.debug(f"File {self.path} does not exist, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +111,10 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug(f"Loaded {len(todos)} todos from {self.path}")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +125,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        logger.debug(f"Saving {len(todos)} todos to {self.path}")
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
