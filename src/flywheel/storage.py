@@ -5,8 +5,10 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +55,12 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    # Maximum number of backup files to keep
+    _MAX_BACKUPS = 3
+
+    def __init__(self, path: str | None = None, *, enable_backup: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self._enable_backup = enable_backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +88,37 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> None:
+        """Create a timestamped backup of the existing file.
+
+        Backup is created BEFORE overwriting to capture previous content.
+        Uses shutil.copy2() to preserve file metadata.
+        Only keeps the last _MAX_BACKUPS backups.
+        """
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        backup_path = self.path.parent / f"{self.path.name}.{timestamp}.bak"
+
+        try:
+            shutil.copy2(self.path, backup_path)
+            self._cleanup_old_backups()
+        except OSError:
+            # Backup failure should not prevent save operation
+            pass
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove oldest backups, keeping only _MAX_BACKUPS most recent."""
+        backup_pattern = f"{self.path.name}.*.bak"
+        backup_files = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+
+        # Keep only the most recent backups
+        for old_backup in backup_files[self._MAX_BACKUPS :]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -90,9 +127,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: If enabled and file exists, creates timestamped backup of current
+        content before overwriting.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup BEFORE overwrite if file exists and backup is enabled
+        if self._enable_backup and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
