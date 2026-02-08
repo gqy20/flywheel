@@ -158,3 +158,21 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_empty_list() -> None:
+    """Issue #2291: next_id should return 1 for empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_single_todo() -> None:
+    """Issue #2291: next_id should return 2 after todo with id=1."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="test")]) == 2
+
+
+def test_next_id_gapped_ids() -> None:
+    """Issue #2291: next_id should return max+1 even with gaps."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="a"), Todo(id=5, text="b")]) == 6
