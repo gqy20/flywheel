@@ -7,8 +7,6 @@ for debugging, performance tracking, and audit trails.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -67,9 +65,8 @@ def test_load_logs_error_before_raising(tmp_path, caplog) -> None:
     db.write_text("{ invalid json", encoding="utf-8")
 
     # Attempt load with logging capture
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(ValueError, match="Invalid JSON"):
-            storage.load()
+    with caplog.at_level(logging.ERROR), pytest.raises(ValueError, match="Invalid JSON"):
+        storage.load()
 
     # Verify error was logged before raising
     assert any(
@@ -108,7 +105,6 @@ def test_save_logs_error_before_raising(tmp_path, caplog) -> None:
     """Test that save() logs errors with context before raising exceptions."""
     db = tmp_path / "impossible.json"
     # Create a file where a directory needs to be (simulate permission issue)
-    storage = TodoStorage(str(db))
 
     # Create a file at parent path to cause directory creation failure
     db.parent.mkdir(parents=True, exist_ok=True)
@@ -119,9 +115,8 @@ def test_save_logs_error_before_raising(tmp_path, caplog) -> None:
     blocked_storage = TodoStorage(str(blocked_path))
 
     # Attempt save with logging capture
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises((ValueError, OSError)):
-            blocked_storage.save([Todo(id=1, text="test")])
+    with caplog.at_level(logging.ERROR), pytest.raises((ValueError, OSError)):
+        blocked_storage.save([Todo(id=1, text="test")])
 
     # Verify error was logged
     assert any(
