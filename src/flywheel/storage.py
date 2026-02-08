@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +54,32 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        enable_backup: bool | None = None,
+        max_backups: int = 3,
+    ) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the todo storage file. Defaults to ".todo.json".
+            enable_backup: Whether to create backups before overwriting.
+                None (default): checks FLYWHEEL_ENABLE_BACKUP env var.
+                True: always create backups.
+                False: never create backups.
+            max_backups: Maximum number of backup files to keep. Defaults to 3.
+        """
         self.path = Path(path or ".todo.json")
+        self._max_backups = max_backups
+
+        # Determine backup behavior from env var if not explicitly set
+        if enable_backup is None:
+            env_val = os.getenv("FLYWHEEL_ENABLE_BACKUP", "1")
+            self._enable_backup = env_val not in ("0", "false", "False", "0")
+        else:
+            self._enable_backup = enable_backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,11 +113,17 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup of the previous file before overwriting if backups
+        are enabled (default: enabled, max 3 backups kept).
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before overwriting existing file
+        self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +157,41 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before overwriting.
+
+        Creates a backup file with timestamp suffix (.bak-YYYYMMDDHHMMSS) and
+        cleans up old backups beyond max_backups limit.
+
+        Only creates backup if the target file already exists and backups are enabled.
+        """
+        # Skip backup if disabled or file doesn't exist yet
+        if not self._enable_backup or not self.path.exists():
+            return
+
+        # Create backup filename with timestamp
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+        backup_path = self.path.parent / f"{self.path.name}.bak-{timestamp}"
+
+        # Copy current file to backup
+        import shutil
+
+        shutil.copy2(self.path, backup_path)
+
+        # Clean up old backups
+        self._cleanup_old_backups()
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backup files, keeping only the most recent max_backups."""
+        if self._max_backups <= 0:
+            return
+
+        # Find all backup files for this storage file
+        backup_pattern = f"{self.path.name}.bak-*"
+        backup_files = sorted(self.path.parent.glob(backup_pattern), reverse=True)
+
+        # Keep only the most recent max_backups
+        for old_backup in backup_files[self._max_backups :]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()

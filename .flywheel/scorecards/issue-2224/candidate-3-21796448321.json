@@ -1,0 +1,69 @@
+{
+  "issue_number": 2224,
+  "candidate_id": "candidate-3-21796448321",
+  "branch_name": "claude/issue-2224-candidate-3-21796448321",
+  "stage": "implement",
+  "created_at": "2026-02-08T10:25:00Z",
+  "updated_at": "2026-02-08T10:30:00Z",
+  "triage": {
+    "summary": "Add file backup before overwriting in TodoStorage.save()",
+    "root_cause": "TodoStorage.save() uses atomic rename for crash safety but has no backup mechanism for recovery from buggy code writes. If bad data is written, users have no rollback option.",
+    "risk_points": [
+      "storage.py:85-125 - save() method has no backup/rollback capability",
+      "storage.py:120 - os.replace overwrites target file atomically but destroys previous content",
+      "cli.py:124 - Generic error messages without recovery hints",
+      "No environment variable or parameter to control backup behavior"
+    ],
+    "verification_targets": [
+      "Verify .bak file creation with timestamp after successful save",
+      "Verify only last 3 backups are kept (oldest auto-deleted)",
+      "Verify backup contains previous content before new save",
+      "Verify enable_backup parameter/env var disables backup creation",
+      "Verify backup behavior with read-only directory errors"
+    ]
+  },
+  "plan": {
+    "summary": "Implement TDD-based backup feature for TodoStorage.save()",
+    "test_strategy": "RED-GREEN-TDD cycle",
+    "files_to_modify": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2224_file_backup.py"
+    ],
+    "stages": [
+      {
+        "name": "RED",
+        "description": "Write failing regression tests for backup feature",
+        "test_cases": [
+          "test_backup_file_created_after_save - Verify .bak file with timestamp is created",
+          "test_backup_contains_previous_content - Verify backup has content from before save",
+          "test_only_last_3_backups_kept - Verify old backups are auto-deleted",
+          "test_enable_backup_false_disables_backup - Verify parameter disables backups",
+          "test_backup_env_var_disables_backup - Verify FLYWHEEL_ENABLE_BACKUP=0 disables backups"
+        ]
+      },
+      {
+        "name": "GREEN",
+        "description": "Implement minimal backup mechanism to pass tests",
+        "implementation_steps": [
+          "Add _create_backup() private method to TodoStorage",
+          "Add _cleanup_old_backups() to keep only N backups",
+          "Modify save() to call _create_backup() after atomic rename",
+          "Add enable_backup parameter to __init__ and save()",
+          "Add FLYWHEEL_ENABLE_BACKUP env var support"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2224_file_backup.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "results": {
+    "tests_run": ["tests/test_issue_2224_file_backup.py", "tests/test_storage_atomicity.py"],
+    "tests_passed": 13,
+    "tests_failed": 0,
+    "lint_errors": [],
+    "pr_url": null
+  }
+}
