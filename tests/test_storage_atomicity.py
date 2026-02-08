@@ -229,3 +229,88 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_save_from_multiple_processes_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #2320: File locking prevents data corruption.
+
+    Tests that multiple processes saving to the same file concurrently
+    produce valid JSON without corruption. File locking serializes writes
+    to prevent race conditions that could corrupt the file.
+
+    The test simulates high concurrent write pressure with many workers
+    all writing at once. With proper file locking, writes are serialized
+    and the file remains valid.
+    """
+    import multiprocessing
+
+    db = tmp_path / "concurrent-noloss.json"
+
+    def save_worker(worker_id: int, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves todos and reports success."""
+        try:
+            storage = TodoStorage(str(db))
+            # Each worker writes a unique set of todos
+            todos = [
+                Todo(id=worker_id * 100 + i, text=f"worker-{worker_id}-todo-{i}")
+                for i in range(5)
+            ]
+            # Wait for all workers to be ready, then race to write
+            barrier.wait()
+            storage.save(todos)
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run many workers concurrently to stress test the locking
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+    barrier = multiprocessing.Barrier(num_workers)
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, barrier, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=15)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final verification: file should contain valid JSON
+    # (last-write-wins is expected, but file must not be corrupted)
+    storage = TodoStorage(str(db))
+
+    # This should not raise json.JSONDecodeError or ValueError
+    try:
+        final_todos = storage.load()
+    except (json.JSONDecodeError, ValueError) as e:
+        raise AssertionError(
+            f"File was corrupted by concurrent writes. Got error: {e}"
+        ) from e
+
+    # Verify we got valid todo data (not necessarily all data due to last-write-wins)
+    assert isinstance(final_todos, list), "Final data should be a list"
+    assert len(final_todos) > 0, "Should have at least some todos"
+    # All todos should have valid structure
+    for todo in final_todos:
+        assert hasattr(todo, "id"), "Todo should have id"
+        assert hasattr(todo, "text"), "Todo should have text"
+        assert isinstance(todo.text, str), "Todo text should be a string"
+
+    # Verify the data looks like one of our workers' output
+    # (last-write-wins means one worker's data should be intact)
+    worker_ids = {todo.id // 100 for todo in final_todos}
+    assert len(worker_ids) == 1, f"Expected data from one worker, got from workers: {worker_ids}"
