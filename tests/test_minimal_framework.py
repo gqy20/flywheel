@@ -158,3 +158,68 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_list_without_pending_flag_shows_all(tmp_path, capsys) -> None:
+    """Issue #2236: list command without --pending should show all todos."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add todos: one pending, one done
+    args = parser.parse_args(["--db", db, "add", "pending task"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "add", "done task"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "done", "2"])
+    assert run_command(args) == 0
+
+    # Clear previous output
+    capsys.readouterr()
+
+    # List without --pending should show both
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "pending task" in out
+    assert "done task" in out
+
+
+def test_cli_list_with_pending_flag_shows_only_pending(tmp_path, capsys) -> None:
+    """Issue #2236: list command with --pending should filter out completed todos."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add todos: one pending, one done
+    args = parser.parse_args(["--db", db, "add", "pending task"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "add", "done task"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "done", "2"])
+    assert run_command(args) == 0
+
+    # Clear previous output
+    capsys.readouterr()
+
+    # List with --pending should only show pending
+    args = parser.parse_args(["--db", db, "list", "--pending"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "pending task" in out
+    assert "done task" not in out
+
+
+def test_cli_list_pending_with_empty_list(tmp_path, capsys) -> None:
+    """Issue #2236: --pending behavior with empty todo list."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # List with --pending on empty list should not error
+    args = parser.parse_args(["--db", db, "list", "--pending"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    # Empty list produces empty output
+    assert out == "" or "No todos" in out or out.count("\n") <= 2
