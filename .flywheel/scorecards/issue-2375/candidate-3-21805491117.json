@@ -1,24 +1,23 @@
 {
-  "issue_number": 2375,
-  "candidate_number": 3,
+  "issue": 2375,
+  "candidate": 3,
   "run_id": "21805491117",
   "branch": "claude/issue-2375-candidate-3-21805491117",
-  "stage": "finalize",
-  "status": "completed",
-  "created_at": "2026-02-08T21:30:00Z",
-  "tests_run": "uv run pytest tests/test_issue_2375_due_date.py -v (11 passed)",
-  "ruff_check": "uv run ruff check src/flywheel/todo.py src/flywheel/formatter.py tests/test_issue_2375_due_date.py (All checks passed!)",
-  "full_suite": "uv run pytest tests/ (120 passed, 92% coverage)",
-  "summary": "Added optional due_date field to Todo model with set_due_date() method, from_dict/to_dict serialization support, and TodoFormatter display of due dates.",
-  "risks": [
-    "CLI does not yet have --due option for 'add' command (future enhancement)",
-    "No filtering/sorting by due date implemented (future enhancement)"
+  "pr_number": 2378,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2378",
+  "generated_at": "2026-02-08T21:35:02.251518+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "src/flywheel/formatter.py"
-  ],
-  "files_added": [
-    "tests/test_issue_2375_due_date.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 2840,
+    "plan": 4000,
+    "implement": 1429,
+    "verify": 1215,
+    "finalize": 792
+  }
 }
