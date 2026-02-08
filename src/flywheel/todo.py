@@ -34,6 +34,11 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and normalize text field
+        self.text = self.text.strip()
+        if not self.text:
+            raise ValueError("Todo text cannot be empty")
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -73,11 +78,16 @@ class Todo:
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
             ) from e
 
-        # Validate 'text' is a string
+        # Validate 'text' is a string and not empty/whitespace-only
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
+
+        # Check for empty or whitespace-only text
+        text_stripped = data["text"].strip()
+        if not text_stripped:
+            raise ValueError("Todo text cannot be empty")
 
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
