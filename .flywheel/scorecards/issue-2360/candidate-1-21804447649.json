@@ -1,0 +1,43 @@
+{
+  "issue_number": 2360,
+  "candidate_number": 1,
+  "run_id": "21804447649",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add timestamp validation to Todo.from_dict() to ensure created_at and updated_at contain valid ISO8601 timestamps",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2360_timestamp_validation.py"
+    ],
+    "test_plan": {
+      "failing_tests_first": [
+        "test_from_dict_rejects_invalid_timestamp_string",
+        "test_from_dict_handles_empty_timestamp_gracefully",
+        "test_from_dict_handles_missing_timestamp_field",
+        "test_from_dict_handles_integer_timestamp",
+        "test_from_dict_preserves_valid_iso8601_timestamp",
+        "test_roundtrip_to_dict_from_dict_preserves_timestamps"
+      ],
+      "implementation_sequence": [
+        "Add _is_valid_iso8601() helper function",
+        "Modify from_dict() to validate created_at/updated_at",
+        "Replace invalid timestamps with current UTC time"
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2360_timestamp_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "implementation": {
+    "changes": [
+      "Added _is_valid_iso8601() helper function to validate ISO8601 timestamp format",
+      "Modified from_dict() to validate created_at and updated_at timestamps",
+      "Invalid timestamps are replaced with empty string, triggering __post_init__ to set current UTC time"
+    ],
+    "tests_pass": true,
+    "ruff_check_pass": true
+  }
+}

@@ -10,6 +10,31 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _is_valid_iso8601(timestamp: str) -> bool:
+    """Check if a string is a valid ISO8601 timestamp.
+
+    Args:
+        timestamp: String to validate.
+
+    Returns:
+        True if the string is a valid ISO8601 timestamp, False otherwise.
+    """
+    if not timestamp:
+        return False
+
+    try:
+        # Try parsing as ISO8601 format
+        # Python's fromisoformat handles most ISO8601 variants
+        # For 'Z' suffix (UTC), we need to replace it with +00:00
+        normalized = timestamp
+        if timestamp.endswith("Z"):
+            normalized = timestamp[:-1] + "+00:00"
+        datetime.fromisoformat(normalized)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -93,10 +118,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate and normalize timestamp fields
+        raw_created = data.get("created_at")
+        raw_updated = data.get("updated_at")
+
+        # Convert to string, handling None and other types
+        created_at = "" if raw_created is None else str(raw_created)
+        updated_at = "" if raw_updated is None else str(raw_updated)
+
+        # Validate timestamp format - replace invalid ones with empty string
+        # Empty string will trigger __post_init__ to set current UTC time
+        if created_at and not _is_valid_iso8601(created_at):
+            created_at = ""
+        if updated_at and not _is_valid_iso8601(updated_at):
+            updated_at = ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
