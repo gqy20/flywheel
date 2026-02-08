@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import stat
 import tempfile
 from pathlib import Path
@@ -126,3 +127,241 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def validate(self) -> tuple[bool, str | None]:
+        """Validate the JSON file integrity.
+
+        Returns:
+            A tuple of (is_valid, error_message). If valid, error_message is None.
+            If file doesn't exist, it's considered valid (empty state).
+        """
+        if not self.path.exists():
+            return True, None
+
+        try:
+            content = self.path.read_text(encoding="utf-8")
+            # Check file size limit
+            file_size = len(content.encode("utf-8"))
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                return False, f"File too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit)"
+
+            raw = json.loads(content)
+            if not isinstance(raw, list):
+                return False, "Todo storage must be a JSON list"
+
+            # Try to parse each todo to ensure they're all valid
+            for item in raw:
+                Todo.from_dict(item)
+
+            return True, None
+        except json.JSONDecodeError as e:
+            return False, f"Invalid json: {e.msg} at line {e.lineno}, column {e.colno}"
+        except (ValueError, KeyError, TypeError) as e:
+            return False, f"Invalid todo object: {e}"
+        except OSError as e:
+            return False, f"File read error: {e}"
+
+    def repair(self) -> int:
+        """Attempt to repair a corrupted JSON file.
+
+        Creates a .recovered.json backup before attempting repair.
+        Uses partial parsing strategies to extract valid todo objects.
+
+        Returns:
+            The number of valid todos recovered.
+        """
+        # If file doesn't exist, nothing to repair
+        if not self.path.exists():
+            return 0
+
+        # Try to validate first - if valid, try to load and count todos
+        is_valid, _ = self.validate()
+        if is_valid:
+            try:
+                todos = self.load()
+                return len(todos)
+            except (ValueError, KeyError, TypeError):
+                # JSON is valid but contains invalid todo objects
+                # Fall through to recovery logic
+                pass
+
+        # Create backup of corrupted file
+        backup_path = self.path.with_suffix(self.path.suffix + ".recovered.json")
+        try:
+            content = self.path.read_text(encoding="utf-8")
+            backup_path.write_text(content, encoding="utf-8")
+        except OSError:
+            pass  # Continue even if backup fails
+            # If we haven't read content yet, try now
+            try:
+                content = self.path.read_text(encoding="utf-8")
+            except OSError:
+                return 0
+
+        # Attempt to recover valid todos using multiple strategies
+        recovered_todos = self._recover_todos(content)
+
+        # Save recovered data (empty list if recovery failed)
+        self.save(recovered_todos)
+        return len(recovered_todos)
+
+    def _recover_todos(self, content: str) -> list[Todo]:
+        """Attempt to recover valid todos from corrupted JSON content.
+
+        Args:
+            content: The potentially corrupted JSON content.
+
+        Returns:
+            A list of valid Todo objects (may be empty).
+        """
+        recovered: list[Todo] = []
+
+        # Strategy 1: Try to parse as-is and filter out invalid objects
+        recovered.extend(self._try_parse_and_filter(content))
+
+        # Strategy 2: If that failed, try to extract individual JSON objects
+        if not recovered:
+            recovered.extend(self._extract_json_objects(content))
+
+        # Strategy 3: Last resort - try to fix trailing commas
+        if not recovered:
+            recovered.extend(self._try_fix_trailing_commas(content))
+
+        # Deduplicate by ID while preserving order
+        seen_ids = set()
+        unique_todos = []
+        for todo in recovered:
+            if todo.id not in seen_ids:
+                seen_ids.add(todo.id)
+                unique_todos.append(todo)
+
+        return unique_todos
+
+    def _try_parse_and_filter(self, content: str) -> list[Todo]:
+        """Try to parse JSON and filter out objects that fail validation.
+
+        Args:
+            content: The JSON content to parse.
+
+        Returns:
+            A list of valid Todo objects.
+        """
+        todos: list[Todo] = []
+
+        # Try standard JSON parsing
+        try:
+            raw = json.loads(content)
+            if isinstance(raw, list):
+                for item in raw:
+                    try:
+                        todos.append(Todo.from_dict(item))
+                    except (ValueError, KeyError, TypeError):
+                        # Skip invalid todo objects
+                        continue
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        return todos
+
+    def _extract_json_objects(self, content: str) -> list[Todo]:
+        """Try to extract individual JSON objects from corrupted content.
+
+        This regex-based approach looks for JSON object patterns
+        ({...}) even when the overall structure is invalid.
+
+        Args:
+            content: The corrupted content to scan.
+
+        Returns:
+            A list of valid Todo objects.
+        """
+        todos: list[Todo] = []
+
+        # Pattern to match JSON objects: {...}
+        # This handles nested braces by counting balanced pairs
+        objects = self._extract_braced_content(content, "{", "}")
+
+        for obj_str in objects:
+            try:
+                # Try to parse as JSON
+                obj_data = json.loads(obj_str)
+                # Try to create a Todo from it
+                try:
+                    todos.append(Todo.from_dict(obj_data))
+                except (ValueError, KeyError, TypeError):
+                    # Not a valid todo, skip
+                    continue
+            except json.JSONDecodeError:
+                # Not valid JSON, skip
+                continue
+
+        return todos
+
+    def _extract_braced_content(self, content: str, open_brace: str, close_brace: str) -> list[str]:
+        """Extract content within matching braces from a string.
+
+        Args:
+            content: The content to scan.
+            open_brace: The opening brace character.
+            close_brace: The closing brace character.
+
+        Returns:
+            A list of strings containing braced content.
+        """
+        results: list[str] = []
+        i = 0
+
+        while i < len(content):
+            # Find opening brace
+            if content[i] != open_brace:
+                i += 1
+                continue
+
+            # Track brace depth to find matching close
+            depth = 0
+            start = i
+
+            while i < len(content):
+                if content[i] == open_brace:
+                    depth += 1
+                elif content[i] == close_brace:
+                    depth -= 1
+                    if depth == 0:
+                        # Found matching close
+                        results.append(content[start:i + 1])
+                        break
+                i += 1
+
+            i += 1
+
+        return results
+
+    def _try_fix_trailing_commas(self, content: str) -> list[Todo]:
+        """Try to fix common trailing comma issues in JSON.
+
+        Args:
+            content: The JSON content with potential trailing commas.
+
+        Returns:
+            A list of valid Todo objects.
+        """
+        todos: list[Todo] = []
+
+        # Fix trailing commas in arrays and objects
+        # Pattern: ,\s*([}\]])
+        # This replaces ", }" or ", ]" with just "}" or "]"
+        try:
+            fixed = re.sub(r",\s*([}\]])", r"\1", content)
+            raw = json.loads(fixed)
+            if isinstance(raw, list):
+                for item in raw:
+                    try:
+                        todos.append(Todo.from_dict(item))
+                    except (ValueError, KeyError, TypeError):
+                        continue
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+        return todos

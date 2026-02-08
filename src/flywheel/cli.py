@@ -86,6 +86,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_repair = sub.add_parser("repair", help="Repair corrupted JSON database")
+    p_repair.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate without making changes",
+    )
+
     return parser
 
 
@@ -118,10 +125,64 @@ def run_command(args: argparse.Namespace) -> int:
             print(f"Removed #{args.id}")
             return 0
 
+        if args.command == "repair":
+            return _run_repair(args)
+
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
+
+
+def _run_repair(args: argparse.Namespace) -> int:
+    """Run the repair command.
+
+    Args:
+        args: Parsed command-line arguments with --db and --dry-run options.
+
+    Returns:
+        Exit code (0 for success, 1 for error).
+    """
+    storage = TodoStorage(args.db)
+
+    # First validate
+    is_valid, error = storage.validate()
+
+    if is_valid:
+        print(f"Database '{args.db}' is valid.")
+        if storage.path.exists():
+            todos = storage.load()
+            print(f"Found {len(todos)} todo(s).")
+        return 0
+
+    # File is invalid
+    if args.dry_run:
+        print(f"Database '{args.db}' is INVALID: {error}")
+        print("Use 'todo repair --db=path' (without --dry-run) to attempt repair.")
+        return 1
+
+    # Attempt repair
+    print(f"Database '{args.db}' is INVALID: {error}")
+    print("Attempting repair...")
+
+    recovered = storage.repair()
+
+    if recovered > 0:
+        todos = storage.load()
+        print(f"Repair successful: recovered {recovered} todo(s).")
+        print(f"Total todos after repair: {len(todos)}.")
+        # Check if backup was created
+        backup_path = storage.path.with_suffix(storage.path.suffix + ".recovered.json")
+        if backup_path.exists():
+            print(f"Backup created: {backup_path}")
+        return 0
+    else:
+        print("Repair complete: no valid todos could be recovered.")
+        print("Database file has been reset to an empty state.")
+        backup_path = storage.path.with_suffix(storage.path.suffix + ".recovered.json")
+        if backup_path.exists():
+            print(f"Original corrupted content saved to: {backup_path}")
+        return 0
 
 
 def main(argv: list[str] | None = None) -> int:
