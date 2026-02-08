@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,15 +54,38 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_limit: int = 3) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_limit = backup_limit
 
-    def load(self) -> list[Todo]:
-        if not self.path.exists():
+    def load(self, use_backup: bool = False) -> list[Todo]:
+        """Load todos from file, with optional fallback to backup.
+
+        Args:
+            use_backup: If True, fall back to most recent backup when main file is corrupted.
+
+        Returns:
+            List of Todo objects.
+
+        Raises:
+            ValueError: If file is corrupted and no backup is available.
+        """
+        try:
+            return self._load_from_path(self.path)
+        except (ValueError, json.JSONDecodeError, OSError):
+            if use_backup:
+                backup_path = self._get_backup_path(0)
+                if backup_path.exists():
+                    return self._load_from_path(backup_path)
+            raise
+
+    def _load_from_path(self, file_path: Path) -> list[Todo]:
+        """Load todos from a specific file path."""
+        if not file_path.exists():
             return []
 
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
@@ -71,16 +95,68 @@ class TodoStorage:
             )
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(file_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
+                f"Invalid JSON in '{file_path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
+
+    def _get_backup_path(self, index: int) -> Path:
+        """Get backup file path for given index.
+
+        Args:
+            index: 0 for most recent backup, 1 for second most recent, etc.
+
+        Returns:
+            Path to backup file.
+        """
+        if index == 0:
+            return self.path.with_suffix(self.path.suffix + ".bak")
+        return self.path.with_suffix(f"{self.path.suffix}.bak.{index}")
+
+    def _rotate_backups(self) -> None:
+        """Rotate existing backups to make room for new backup.
+
+        Implements a rotation scheme where:
+        - .bak is the most recent backup
+        - .bak.1 is the second most recent
+        - .bak.2 is the third most recent
+        - etc.
+
+        When backup_limit is exceeded, the oldest backup is deleted.
+        """
+        # Rotate existing backups: .bak.N -> .bak.N+1
+        for i in range(self.backup_limit - 1, 0, -1):
+            old_backup = self._get_backup_path(i - 1)
+            new_backup = self._get_backup_path(i)
+            if old_backup.exists():
+                shutil.copy2(old_backup, new_backup)
+
+        # Delete the oldest backup if we've exceeded the limit
+        oldest_backup = self._get_backup_path(self.backup_limit)
+        if oldest_backup.exists():
+            oldest_backup.unlink()
+
+    def _backup(self) -> None:
+        """Create backup of current file before save.
+
+        Copies the current file to a backup location and rotates
+        existing backups to stay within backup_limit.
+        """
+        if not self.path.exists():
+            return
+
+        # Rotate existing backups first
+        self._rotate_backups()
+
+        # Copy current file to primary backup location
+        backup_path = self._get_backup_path(0)
+        shutil.copy2(self.path, backup_path)
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +167,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup of current file before overwriting
+        self._backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
