@@ -1,21 +1,23 @@
 {
-  "issue_number": 2112,
-  "candidate_id": 3,
+  "issue": 2112,
+  "candidate": 3,
   "run_id": "21792171273",
   "branch": "claude/issue-2112-candidate-3-21792171273",
-  "status": "finalized",
-  "summary": "Refactored TodoApp.remove() to use explicit iteration pattern consistent with mark_done()/mark_undone() methods",
-  "changes": {
-    "source_files": ["src/flywheel/cli.py"],
-    "test_files": ["tests/test_issue_2112_remove_uses_explicit_iteration.py"]
-  },
-  "tests": {
-    "framework": "pytest",
-    "results": "6 passed"
-  },
-  "linting": {
-    "tool": "ruff",
-    "status": "All checks passed"
-  },
-  "timestamp": "2026-02-08T01:25:00Z"
+  "pr_number": 2132,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2132",
+  "generated_at": "2026-02-08T04:47:53.799674+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2896,
+    "plan": 3206,
+    "implement": 3148,
+    "verify": 1259,
+    "finalize": 1548
+  }
 }
