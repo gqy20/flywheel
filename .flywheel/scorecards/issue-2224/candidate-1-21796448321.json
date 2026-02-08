@@ -1,0 +1,28 @@
+{
+  "issue_number": 2224,
+  "candidate_id": "candidate-1-21796448321",
+  "timestamp": "2025-02-08T10:25:06Z",
+  "summary": "Add file backup before overwriting to prevent data loss from bad writes",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2224_backup_feature.py"
+  ],
+  "tests_added": 6,
+  "tests_passing": 6,
+  "acceptance_criteria_met": [
+    "Backup file created with .bak extension",
+    "Backup contains previous content before new save",
+    "Only last 3 backups kept, older ones auto-deleted",
+    "enable_backup parameter disables backup creation"
+  ],
+  "risks": [
+    "Backup creation uses shutil.copy2 which preserves metadata",
+    "Backup failures are suppressed to not affect main save operation",
+    "Multiple rapid saves create unique backup filenames with microsecond precision"
+  ],
+  "limitations": [
+    "Backup files are stored in same directory as original file",
+    "No environment variable support for enabling/disabling (only parameter)"
+  ],
+  "implementation_notes": "Backup created before atomic rename, uses timestamp with microseconds for uniqueness"
+}
