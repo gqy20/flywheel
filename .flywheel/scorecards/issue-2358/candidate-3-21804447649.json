@@ -3,7 +3,8 @@
   "candidate_number": 3,
   "run_id": "21804447649",
   "branch": "claude/issue-2358-candidate-3-21804447649",
-  "stage": "FINALIZE",
+  "stage": "COMPLETE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2371",
   "commit": "7197a70",
   "summary": "Apply _sanitize_text() to exception messages printed to stderr at cli.py:125 to prevent control character injection via error messages that include user-supplied data (e.g., file paths).",
   "files_changed": [
