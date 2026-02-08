@@ -60,18 +60,21 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
-
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Security: Read file content first, then check actual bytes read
+            # This prevents TOCTOU race where file size changes between stat() and read()
+            content = self.path.read_text(encoding="utf-8")
+            content_bytes = len(content.encode("utf-8"))
+
+            if content_bytes > _MAX_JSON_SIZE_BYTES:
+                size_mb = content_bytes / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            raw = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
