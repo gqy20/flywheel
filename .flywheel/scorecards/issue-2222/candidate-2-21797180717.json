@@ -4,7 +4,8 @@
   "run_id": "21797180717",
   "branch": "claude/issue-2222-candidate-2-21797180717",
   "commit": "a153c1f",
-  "status": "verified",
+  "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2244",
   "stages": {
     "implement": {
       "status": "completed",
@@ -27,7 +28,11 @@
       ]
     },
     "finalize": {
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-02-08T00:00:00Z",
+      "ended_at": "2026-02-08T00:00:00Z",
+      "pr_number": 2244,
+      "pr_url": "https://github.com/gqy20/flywheel/pull/2244"
     }
   },
   "test_results": [
