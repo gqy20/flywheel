@@ -229,3 +229,141 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_lock_timeout_raises_exception(tmp_path) -> None:
+    """Test that file lock acquisition raises exception after timeout duration.
+
+    This test verifies that when a file is locked by one process,
+    another process attempting to acquire the lock will receive a
+    timeout exception after the configured duration.
+    """
+    import multiprocessing
+    import time
+
+    from flywheel.storage import _FileLock
+
+    db = tmp_path / "lock_timeout.json"
+
+    def lock_holder(result_queue: multiprocessing.Queue) -> None:
+        """Holds a lock for an extended period."""
+        try:
+            # Directly use _FileLock to hold lock for an extended period
+            with _FileLock(db, timeout=10):
+                # Signal that lock is acquired
+                result_queue.put(("lock_acquired", None))
+                # Hold lock for 2 seconds (longer than the attempter's timeout)
+                time.sleep(2)
+            result_queue.put(("holder_complete", None))
+        except Exception as e:
+            result_queue.put(("error", str(e)))
+
+    def lock_attempter(result_queue: multiprocessing.Queue) -> None:
+        """Attempts to acquire lock with short timeout."""
+        try:
+            # Give lock_holder time to acquire lock first
+            time.sleep(0.3)
+            # Use short timeout - should fail since holder holds for 2 seconds
+            with _FileLock(db, timeout=0.5):
+                result_queue.put(("success", "unexpectedly acquired lock"))
+        except TimeoutError as e:
+            result_queue.put(("timeout", str(e)))
+        except Exception as e:
+            result_queue.put(("other_error", f"{type(e).__name__}: {e}"))
+
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start lock holder
+    p1 = multiprocessing.Process(target=lock_holder, args=(result_queue,))
+    processes.append(p1)
+    p1.start()
+
+    # Wait for lock holder to acquire lock
+    time.sleep(0.1)
+
+    # Start lock attempter after lock is acquired
+    p2 = multiprocessing.Process(target=lock_attempter, args=(result_queue,))
+    processes.append(p2)
+    p2.start()
+
+    # Wait for completion
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Verify timeout occurred
+    timeout_results = [r for r in results if r[0] == "timeout"]
+    assert len(timeout_results) > 0, f"Expected timeout exception, got results: {results}"
+
+
+def test_concurrent_writes_with_file_locking(tmp_path) -> None:
+    """Stress test with 10+ processes to verify no data corruption with locking.
+
+    This test creates a high-concurrency scenario (10+ processes) all writing
+    to the same file simultaneously. With file locking enabled, no corruption
+    should occur - the file should always contain valid JSON with one writer's
+    complete data.
+    """
+    import multiprocessing
+
+    db = tmp_path / "stress_lock.json"
+
+    def stress_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that performs multiple write operations."""
+        try:
+            storage = TodoStorage(str(db))
+            # Each worker writes multiple todos with unique identifiers
+            for iteration in range(3):
+                todos = [
+                    Todo(id=worker_id * 10 + i, text=f"w{worker_id}-i{iteration}-t{i}"),
+                    Todo(id=worker_id * 10 + i + 1, text=f"w{worker_id}-i{iteration}-t{i+1}"),
+                ]
+                storage.save(todos)
+
+                # Verify we can read valid data
+                loaded = storage.load()
+                assert isinstance(loaded, list), f"Worker {worker_id}: loaded data is not a list"
+
+            result_queue.put(("success", worker_id))
+        except (json.JSONDecodeError, ValueError) as e:
+            result_queue.put(("corruption", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, f"{type(e).__name__}: {e}"))
+
+    # Run 10 workers concurrently
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=stress_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Verify no corruption or errors occurred
+    successes = [r for r in results if r[0] == "success"]
+    corruptions = [r for r in results if r[0] == "corruption"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(corruptions) == 0, f"Data corruption detected: {corruptions}"
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final verification: file should contain valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list), "Final data should be a list"
