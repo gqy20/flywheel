@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Maximum number of backup files to keep
+_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -88,9 +92,15 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before saving, creates a backup of the existing file to allow
+        recovery from accidental data loss or corruption.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup of existing file before overwriting
+        self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +133,60 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    @property
+    def _backup_path(self) -> Path:
+        """Get the path for the primary backup file."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before saving.
+
+        Implements backup rotation to keep only the most recent N backups.
+        Backup files are named: .bak, .bak.1, .bak.2, etc.
+        If backup creation fails, the error is silently ignored to prevent
+        disrupting the main save operation.
+        """
+        if not self.path.exists():
+            return
+
+        try:
+            # Rotate existing backups
+            self._rotate_backups()
+
+            # Copy current file to primary backup
+            shutil.copy2(self.path, self._backup_path)
+        except OSError:
+            # Silently ignore backup failures - don't prevent the main save
+            pass
+
+    def _rotate_backups(self) -> None:
+        """Rotate backup files, keeping only the most recent N backups.
+
+        With _MAX_BACKUPS=3, we keep: .bak, .bak.1, .bak.2
+
+        Rotation scheme:
+        - If .bak.2 exists, it will be moved to .bak.3 and then deleted
+        - .bak.1 -> .bak.2
+        - .bak -> .bak.1
+        - Current file -> .bak (handled by caller)
+        """
+        # Rotate backups from oldest to newest
+        for i in range(_MAX_BACKUPS - 1, 0, -1):
+            old_backup = self._backup_path.with_suffix(self._backup_path.suffix + f".{i}")
+            new_backup = self._backup_path.with_suffix(self._backup_path.suffix + f".{i + 1}")
+
+            if old_backup.exists():
+                # If this is the oldest backup that would exceed our limit, delete instead
+                if i == _MAX_BACKUPS - 1:
+                    old_backup.unlink()
+                else:
+                    old_backup.rename(new_backup)
+
+        # Rotate primary backup to .bak.1
+        if self._backup_path.exists():
+            rotated = self._backup_path.with_suffix(self._backup_path.suffix + ".1")
+            self._backup_path.rename(rotated)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
