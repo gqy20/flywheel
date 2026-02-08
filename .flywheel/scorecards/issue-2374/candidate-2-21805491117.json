@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "21805491117",
   "issue_title": "[Bug] next_id() returns inconsistent value for empty todos list",
-  "stage": "implement",
+  "stage": "verify",
   "root_cause": "Redundant ternary expression in next_id() - both branches return same value for empty list",
   "proposed_fix": "Simplify to: return max((todo.id for todo in todos), default=0) + 1",
   "files_to_modify": [
@@ -24,5 +24,15 @@
     "test_storage_next_id_with_single_todo"
   ],
   "tests_pass": true,
-  "linting_pass": true
+  "linting_pass": true,
+  "verification_commands": [
+    "uv run pytest tests/test_minimal_framework.py::test_storage_next_id_with_empty_list tests/test_minimal_framework.py::test_storage_next_id_with_single_todo tests/test_minimal_framework.py::test_storage_roundtrip -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py",
+    "uv run pytest tests/test_minimal_framework.py -v"
+  ],
+  "verification_results": {
+    "targeted_tests": "3 passed in 0.05s",
+    "full_suite": "12 passed in 0.18s",
+    "ruff_checks": "All checks passed"
+  }
 }
