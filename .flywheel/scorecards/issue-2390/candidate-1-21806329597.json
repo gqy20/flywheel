@@ -1,60 +1,23 @@
 {
-  "issue_number": 2390,
-  "candidate_number": 1,
+  "issue": 2390,
+  "candidate": 1,
   "run_id": "21806329597",
-  "stage": "COMPLETE",
-  "title": "[Feature] Add automatic backup creation before file modifications",
-  "branch_name": "claude/issue-2390-candidate-1-21806329597",
-  "plan": {
-    "description": "Implement automatic backup creation before file modifications with configurable rotation",
-    "files_to_touch": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_backup.py"
-    ],
-    "tdd_sequence": [
-      {
-        "step": "RED",
-        "description": "Create failing tests for backup functionality",
-        "tests": [
-          "test_backup_created_on_save",
-          "test_backup_rotation",
-          "test_backup_count_env_var",
-          "test_restore_from_backup"
-        ]
-      },
-      {
-        "step": "GREEN",
-        "description": "Implement minimal backup functionality",
-        "implementation": [
-          "_backup_file() method with rotation logic",
-          "Call _backup_file() in save() before os.replace()",
-          "FLYWHEEL_BACKUP_COUNT environment variable support",
-          "restore_from_backup() method"
-        ]
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_storage_backup.py -v",
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py"
-    ]
-  },
-  "implementation": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_storage_backup.py"
-    ],
-    "changes_summary": "Added _backup_file(), restore_from_backup(), _get_backup_count() helper, modified save() to create backups"
-  },
-  "verification": {
-    "tests_run": [
-      "tests/test_storage_backup.py - 8/8 PASSED",
-      "tests/test_storage_atomicity.py - 6/6 PASSED"
-    ],
-    "linting": "ruff check - PASSED",
-    "all_checks_passed": true
-  },
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2392"
+  "branch": "claude/issue-2390-candidate-1-21806329597",
+  "pr_number": 2392,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2392",
+  "generated_at": "2026-02-08T22:34:48.753417+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1569,
+    "plan": 4000,
+    "implement": 1196,
+    "verify": 1821,
+    "finalize": 339
+  }
 }
