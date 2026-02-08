@@ -1,30 +1,23 @@
 {
-  "issue_number": 2334,
-  "candidate_number": 1,
+  "issue": 2334,
+  "candidate": 1,
   "run_id": "21803813900",
   "branch": "claude/issue-2334-candidate-1-21803813900",
-  "status": "submitted",
-  "tests": {
-    "file": "tests/test_issue_2334_backup_before_overwrite.py",
-    "count": 8,
-    "all_passed": true
-  },
-  "linting": {
-    "tool": "ruff",
-    "passed": true
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_2334_backup_before_overwrite.py"
+  "pr_number": 2357,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2357",
+  "generated_at": "2026-02-08T19:38:27.506768+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation": {
-    "summary": "Added automatic backup before overwrite on save with configurable backup count via TODO_BACKUP_COUNT environment variable",
-    "features": [
-      "Backup file created on overwrite (.bak)",
-      "Backup rotation keeping N most recent (default 3)",
-      "Configurable via TODO_BACKUP_COUNT env var",
-      "Graceful handling of backup failures",
-      "Atomic write pattern respected"
-    ]
+  "stage_response_sizes": {
+    "triage": 3529,
+    "plan": 2351,
+    "implement": 4000,
+    "verify": 2058,
+    "finalize": 755
   }
 }
