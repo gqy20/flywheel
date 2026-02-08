@@ -8,9 +8,9 @@ from .todo import Todo
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
-    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
-    C1 control characters (0x80-0x9f) with their escaped representations
-    to prevent injection attacks via todo text.
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), C1 control
+    characters (0x80-0x9f), and Unicode bidirectional override characters
+    with their escaped representations to prevent injection attacks via todo text.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,13 +26,27 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
+    # Control characters to escape:
+    # - ASCII/C1 controls: (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), C1 (0x80-0x9f)
+    # - Unicode bidi overrides: U+202A-U+202E (LRE, RLE, PDF, LRO, RLO)
+    # - Zero-width chars: U+200B-U+200D (ZWSP, ZWNJ, ZWJ)
+    # - Bidi isolation: U+2066-U+2069 (LRI, RLI, FSI, PDI)
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        is_ascii_control = (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f
+        is_unicode_bidi_control = (
+            0x202a <= code <= 0x202e or  # Bidirectional overrides
+            0x200b <= code <= 0x200d or  # Zero-width characters
+            0x2066 <= code <= 0x2069     # Bidirectional isolation
+        )
+
+        if is_ascii_control:
+            # Use \xNN format for ASCII/C1 control characters
             result.append(f"\\x{code:02x}")
+        elif is_unicode_bidi_control:
+            # Use \uNNNN format for Unicode control characters
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
