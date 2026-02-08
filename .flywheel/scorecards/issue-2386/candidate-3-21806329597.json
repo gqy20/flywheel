@@ -36,5 +36,7 @@
   "limitations": [
     "This is a breaking API change that affects both the library API and CLI interface"
   ],
-  "verification": "All 19 affected tests pass including 4 new regression tests. Ruff checks pass on all changed files."
+  "verification": "All 19 affected tests pass including 4 new regression tests. Ruff checks pass on all changed files.",
+  "pr_number": 2396,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2396"
 }
