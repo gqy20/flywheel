@@ -1,0 +1,19 @@
+{
+  "issue_number": 2374,
+  "candidate_number": 2,
+  "run_id": "21805491117",
+  "issue_title": "[Bug] next_id() returns inconsistent value for empty todos list",
+  "stage": "triage",
+  "root_cause": "Redundant ternary expression in next_id() - both branches return same value for empty list",
+  "proposed_fix": "Simplify to: return max((todo.id for todo in todos), default=0) + 1",
+  "files_to_modify": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "verification_targets": [
+    "next_id([]) returns 1",
+    "next_id([Todo(id=1), Todo(id=2)]) returns 3",
+    "next_id([Todo(id=5)]) returns 6"
+  ],
+  "risk_assessment": "low - pure simplification, no behavior change"
+}
