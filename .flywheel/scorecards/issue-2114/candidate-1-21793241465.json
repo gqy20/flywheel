@@ -2,11 +2,22 @@
   "issue": 2114,
   "candidate": 1,
   "run_id": "21793241465",
-  "status": "implementing",
-  "tests_pass": true,
-  "lint_pass": true,
-  "changes": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_backup.py"
-  ]
+  "branch": "claude/issue-2114-candidate-1-21793241465",
+  "pr_number": 2148,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2148",
+  "generated_at": "2026-02-08T06:14:39.466816+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2312,
+    "plan": 4000,
+    "implement": 3306,
+    "verify": 1849,
+    "finalize": 802
+  }
 }
