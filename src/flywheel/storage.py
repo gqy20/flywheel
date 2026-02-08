@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -126,3 +128,135 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def validate(self) -> tuple[bool, str | None]:
+        """Validate the JSON file integrity.
+
+        Returns:
+            A tuple of (is_valid: bool, error_message: str | None).
+            Returns (True, None) if the file is valid JSON.
+            Returns (False, error_message) if the file is corrupted or missing.
+        """
+        if not self.path.exists():
+            return False, f"File not found: {self.path}"
+
+        try:
+            content = self.path.read_text(encoding="utf-8")
+        except OSError as e:
+            return False, f"Failed to read file: {e}"
+
+        try:
+            json.loads(content)
+            return True, None
+        except json.JSONDecodeError as e:
+            return False, f"Invalid JSON: {e.msg} at line {e.lineno}, column {e.colno}"
+
+    def repair(self) -> list[Todo]:
+        """Attempt to recover valid todos from a corrupted JSON file.
+
+        Creates a .recovered.json backup before attempting repairs.
+        Uses partial parsing strategies to extract valid JSON objects.
+
+        Returns:
+            A list of recovered Todo objects. May be empty if no valid todos found.
+        """
+        recovered: list[Todo] = []
+
+        # Create backup of original corrupted file if it exists
+        if self.path.exists():
+            backup_path = Path(str(self.path) + ".recovered")
+            with contextlib.suppress(OSError):
+                shutil.copy2(self.path, backup_path)
+
+            content = self.path.read_text(encoding="utf-8")
+        else:
+            content = ""
+
+        # Attempt to recover valid todos from corrupted JSON
+        recovered = self._recover_todos_from_corrupted(content)
+
+        # Save recovered todos (creates valid empty array if no recovery)
+        self.save(recovered)
+        return recovered
+
+    def _recover_todos_from_corrupted(self, content: str) -> list[Todo]:
+        """Recover valid todos from corrupted JSON content.
+
+        Uses several strategies:
+        1. Try to fix trailing commas
+        2. Extract complete JSON objects using regex
+        3. Try parsing with missing closing brackets
+
+        Args:
+            content: The corrupted JSON content
+
+        Returns:
+            A list of recovered Todo objects
+        """
+        recovered: list[Todo] = []
+
+        # Strategy 1: Try to fix trailing commas (common manual edit error)
+        fixed = self._try_fix_trailing_commas(content)
+        if fixed:
+            try:
+                parsed = json.loads(fixed)
+                if isinstance(parsed, list):
+                    return [Todo.from_dict(item) for item in parsed]
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Strategy 2: Extract complete JSON objects using regex
+        # Look for patterns like {"id": 1, "text": "...", "done": false}
+        objects = self._extract_json_objects(content)
+        for obj in objects:
+            try:
+                recovered.append(Todo.from_dict(obj))
+            except (ValueError, KeyError):
+                continue
+
+        return recovered
+
+    def _try_fix_trailing_commas(self, content: str) -> str | None:
+        """Try to fix trailing commas in JSON.
+
+        Removes trailing commas before closing brackets/braces.
+
+        Args:
+            content: The potentially corrupted JSON content
+
+        Returns:
+            Fixed content if successful, None if fixing didn't help
+        """
+        # Remove trailing comma before closing bracket or brace
+        # Pattern: ",]" or ",}" -> "]" or "}"
+        fixed = re.sub(r",(\s*[\]}])", r"\1", content)
+
+        # Only return if we actually made changes
+        return fixed if fixed != content else None
+
+    def _extract_json_objects(self, content: str) -> list[dict]:
+        """Extract complete JSON objects from corrupted content.
+
+        Uses regex to find patterns that look like todo objects.
+
+        Args:
+            content: The corrupted JSON content
+
+        Returns:
+            A list of valid JSON dict objects
+        """
+        objects: list[dict] = []
+
+        # Pattern to match {"id": ..., "text": "...", ...}
+        # This is a best-effort approach and won't catch all cases
+        pattern = r'\{[^{}]*"id"\s*:\s*\d+[^{}]*"text"\s*:\s*"[^"]*"[^{}]*\}'
+
+        for match in re.finditer(pattern, content):
+            try:
+                obj = json.loads(match.group(0))
+                if isinstance(obj, dict) and "id" in obj and "text" in obj:
+                    objects.append(obj)
+            except json.JSONDecodeError:
+                continue
+
+        return objects

@@ -64,6 +64,19 @@ class TodoApp:
             raise ValueError(f"Todo #{todo_id} not found")
         self._save(kept)
 
+    def repair(self) -> tuple[bool, str | None, list[Todo]]:
+        """Repair corrupted JSON database.
+
+        Returns:
+            A tuple of (was_corrupted: bool, error_message: str | None, recovered_todos: list[Todo]).
+        """
+        is_valid, error = self.storage.validate()
+        if is_valid:
+            return False, None, self._load()
+
+        recovered = self.storage.repair()
+        return True, error, recovered
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -85,6 +98,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
+
+    sub.add_parser("repair", help="Repair corrupted JSON database")
 
     return parser
 
@@ -116,6 +131,18 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "repair":
+            was_corrupted, error, recovered = app.repair()
+            if was_corrupted:
+                print(f"Database was corrupted: {_sanitize_text(error or 'unknown error')}")
+                if recovered:
+                    print(f"Recovered {len(recovered)} todo(s)")
+                else:
+                    print("No todos could be recovered")
+            else:
+                print("Database is valid, no repair needed")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
