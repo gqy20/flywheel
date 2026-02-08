@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,21 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backups to keep
+_DEFAULT_BACKUP_COUNT = 3
+
+
+def _get_backup_count() -> int:
+    """Get the number of backups to keep from environment variable.
+
+    Returns:
+        Number of backups to keep (0 means no backups).
+    """
+    try:
+        return int(os.environ.get("TODO_BACKUP_COUNT", str(_DEFAULT_BACKUP_COUNT)))
+    except ValueError:
+        return _DEFAULT_BACKUP_COUNT
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -90,12 +106,19 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backups: Creates a backup of the existing file before overwriting if
+        TODO_BACKUP_COUNT is greater than 0. Keeps only the N most recent backups.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file if it exists and backups are enabled
+        if self.path.exists():
+            self._create_backup()
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -123,6 +146,41 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        Implements backup rotation to keep only the N most recent backups.
+        Backup failures are silently ignored to not prevent the main save operation.
+        """
+        backup_count = _get_backup_count()
+        if backup_count <= 0:
+            return
+
+        try:
+            # Rotate existing backups: .bak.N -> .bak.N+1
+            # Start from the oldest (highest number) and work down
+            for i in range(backup_count - 1, 0, -1):
+                old_backup = self.path.parent / f"{self.path.name}.bak.{i}"
+                new_backup = self.path.parent / f"{self.path.name}.bak.{i + 1}"
+                if old_backup.exists():
+                    os.replace(old_backup, new_backup)
+
+            # Delete the oldest backup if we've reached the limit
+            oldest_backup = self.path.parent / f"{self.path.name}.bak.{backup_count}"
+            with contextlib.suppress(OSError):
+                os.unlink(oldest_backup)
+
+            # Move .bak (if exists) to .bak.1
+            current_backup = self.path.parent / f"{self.path.name}.bak"
+            if current_backup.exists():
+                os.replace(current_backup, self.path.parent / f"{self.path.name}.bak.1")
+
+            # Create new backup from current file (copy, not move, to preserve original)
+            shutil.copy2(self.path, current_backup)
+        except OSError:
+            # Backup failure should not prevent the main save operation
+            pass
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
