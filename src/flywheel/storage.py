@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,8 +54,12 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_count: int | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Get backup count from env var, parameter, or default to 1
+        if backup_count is None:
+            backup_count = int(os.environ.get("FLYWHEEL_BACKUP_COUNT", "1"))
+        self._backup_count = max(0, backup_count)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,11 +93,17 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup of the existing file before overwriting if it exists.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before overwriting existing file
+        if self.path.exists():
+            self._backup_file()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +134,50 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _backup_file(self) -> None:
+        """Create a backup of the existing file with rotation.
+
+        Backups are named with .bak suffix. If backup_count is N, keeps
+        the most recent N backups as .bak, .bak.1, .bak.2, etc.
+        """
+        if self._backup_count <= 0:
+            return
+
+        # Rotate existing backups: .bak.N-1 -> .bak.N, ..., .bak -> .bak.1
+        for i in range(self._backup_count - 1, 0, -1):
+            old_backup = self.path.with_suffix(f".{self.path.suffix}.bak.{i}")
+            new_backup = self.path.with_suffix(f".{self.path.suffix}.bak.{i + 1}")
+            if old_backup.exists():
+                shutil.move(str(old_backup), str(new_backup))
+
+        # Move current .bak to .bak.1
+        current_backup = self.path.with_suffix(f"{self.path.suffix}.bak")
+        backup_1 = self.path.with_suffix(f".{self.path.suffix}.bak.1")
+        if current_backup.exists():
+            shutil.move(str(current_backup), str(backup_1))
+
+        # Copy current file to .bak
+        shutil.copy2(str(self.path), str(current_backup))
+
+    def restore_from_backup(self) -> list[Todo]:
+        """Restore the most recent backup and return the restored todos.
+
+        Returns:
+            The restored list of todos.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+        """
+        backup_path = self.path.with_suffix(f"{self.path.suffix}.bak")
+        if not backup_path.exists():
+            raise FileNotFoundError(f"No backup file found at {backup_path}")
+
+        # Copy backup to main file
+        shutil.copy2(str(backup_path), str(self.path))
+
+        # Load and return the restored data
+        return self.load()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
