@@ -20,6 +20,19 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __repr__(self) -> str:
+        """Return a concise, debug-friendly representation of the Todo.
+
+        Shows only the essential fields (id, text, done) and truncates long text.
+        Timestamps are excluded to keep the output concise and useful in debuggers.
+        """
+        # Truncate text if longer than 50 characters
+        display_text = self.text
+        if len(display_text) > 50:
+            display_text = display_text[:47] + "..."
+
+        return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
