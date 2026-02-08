@@ -33,9 +33,14 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, include_done: bool = True) -> list[Todo]:
+        """List todos, optionally including completed ones.
+
+        Args:
+            include_done: If True, return all todos. If False, only return pending todos.
+        """
         todos = self._load()
-        if show_all:
+        if include_done:
             return todos
         return [todo for todo in todos if not todo.done]
 
@@ -101,7 +106,7 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         if args.command == "list":
-            todos = app.list(show_all=not args.pending)
+            todos = app.list(include_done=not args.pending)
             print(TodoFormatter.format_list(todos))
             return 0
 

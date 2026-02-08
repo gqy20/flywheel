@@ -1,0 +1,10 @@
+{
+  "issue_number": 2330,
+  "candidate": 1,
+  "run_id": "21803002413",
+  "tests_added": ["tests/test_issue_2330_pending_flag.py"],
+  "files_changed": ["src/flywheel/cli.py"],
+  "fix_type": "semantics",
+  "test_results": "4/4 passed",
+  "lint_results": "All checks passed"
+}
