@@ -82,3 +82,40 @@ def test_todo_from_dict_handles_wrong_id_type() -> None:
     """Todo.from_dict should provide clear error when 'id' is not an integer."""
     with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
         Todo.from_dict({"id": "not-an-int", "text": "task"})
+
+
+# Tests for Issue #2125 - validate 'done' field is properly typed
+def test_todo_from_dict_rejects_truthy_int_done() -> None:
+    """Todo.from_dict should reject non-boolean integers like 2 for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo.from_dict({"id": 1, "text": "task", "done": 2})
+
+
+def test_todo_from_dict_rejects_negative_int_done() -> None:
+    """Todo.from_dict should reject negative integers for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo.from_dict({"id": 1, "text": "task", "done": -1})
+
+
+def test_todo_from_dict_rejects_string_done() -> None:
+    """Todo.from_dict should reject strings for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo.from_dict({"id": 1, "text": "task", "done": "false"})
+
+
+def test_todo_from_dict_accepts_boolean_done() -> None:
+    """Todo.from_dict should accept JSON boolean true/false for 'done' field."""
+    todo_true = Todo.from_dict({"id": 1, "text": "task", "done": True})
+    assert todo_true.done is True
+
+    todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": False})
+    assert todo_false.done is False
+
+
+def test_todo_from_dict_accepts_legacy_int_done() -> None:
+    """Todo.from_dict should accept legacy int values 0 and 1 for 'done' field."""
+    todo_true = Todo.from_dict({"id": 1, "text": "task", "done": 1})
+    assert todo_true.done is True
+
+    todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
+    assert todo_false.done is False
