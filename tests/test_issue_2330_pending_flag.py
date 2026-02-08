@@ -8,8 +8,6 @@ Expected behavior:
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.cli import build_parser, run_command
 
 
