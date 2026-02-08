@@ -107,14 +107,16 @@ class TodoStorage:
         )
 
         try:
-            # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
-
             # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
+            # Use os.fdopen for more control, then set permissions after close
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Set restrictive permissions (owner read/write only) after closing fd
+            # This protects against other users reading temp file before rename.
+            # Use os.chmod on path instead of os.fchmod for cross-platform compatibility
+            # (os.fchmod is Unix-only, os.chmod works on both Unix and Windows)
+            os.chmod(temp_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
