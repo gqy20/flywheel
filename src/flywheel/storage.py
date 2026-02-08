@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
@@ -53,11 +55,14 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, logger: logging.Logger | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._logger = logger
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            if self._logger:
+                self._logger.info(f"Loading from {self.path}: file not found, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +85,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if self._logger:
+            self._logger.info(f"Loaded {len(todos)} todos from {self.path}")
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +101,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +135,10 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        if self._logger:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            self._logger.info(f"Saved {len(todos)} todos to {self.path} in {elapsed_ms:.2f}ms")
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
