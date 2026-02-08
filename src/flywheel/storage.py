@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,8 +54,109 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        enable_backup: bool = False,
+        max_backups: int = 3,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.enable_backup = enable_backup
+        self.max_backups = max_backups
+
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file.
+
+        Creates a .backup copy of the current file before it's overwritten.
+        If max_backups is set, rotates existing backups to enforce the limit.
+        Backup failures are silently suppressed to not prevent the main save operation.
+        """
+        if not self.path.exists():
+            return
+
+        with contextlib.suppress(OSError):
+            # Rotate existing backups if max_backups is set
+            if self.max_backups > 0:
+                self._rotate_backups()
+
+            # Create new backup from current file
+            backup_path = self.path.with_suffix(self.path.suffix + ".backup")
+            shutil.copy2(self.path, backup_path)
+
+            # After creating new backup, enforce max_backups limit
+            self._enforce_max_backups()
+
+    def _rotate_backups(self) -> None:
+        """Rotate backup files to make room for the new backup.
+
+        Renames existing backups:
+        - .backup -> .backup.1
+        - .backup.1 -> .backup.2
+        - etc.
+
+        This is called BEFORE creating the new .backup file.
+        """
+        backup_base = self.path.with_suffix(self.path.suffix + ".backup")
+
+        # Find existing backups
+        existing_backups = {}
+        for suffix in list(self.path.parent.glob(f"{self.path.name}.backup*")):
+            if suffix == backup_base:
+                existing_backups[0] = suffix
+            else:
+                # Extract number from .backup.1, .backup.2, etc.
+                parts = suffix.name.split(".backup.")
+                if len(parts) == 2 and parts[1].isdigit():
+                    existing_backups[int(parts[1])] = suffix
+
+        if not existing_backups:
+            return
+
+        # Rotate backups starting from the oldest (highest number first)
+        max_existing = max(existing_backups.keys())
+        for i in range(max_existing, 0, -1):
+            old_backup = existing_backups.get(i)
+            if old_backup:
+                new_backup = self.path.with_suffix(
+                    self.path.suffix + f".backup.{i + 1}"
+                )
+                with contextlib.suppress(OSError):
+                    old_backup.rename(new_backup)
+
+        # Rotate .backup to .backup.1
+        base_backup = existing_backups.get(0)
+        if base_backup:
+            new_backup = self.path.with_suffix(self.path.suffix + ".backup.1")
+            with contextlib.suppress(OSError):
+                base_backup.rename(new_backup)
+
+    def _enforce_max_backups(self) -> None:
+        """Delete oldest backup files if we exceed max_backups.
+
+        This is called AFTER creating the new .backup file.
+        """
+        backup_base = self.path.with_suffix(self.path.suffix + ".backup")
+
+        # Find all backup files
+        backup_files = []
+        for suffix in self.path.parent.glob(f"{self.path.name}.backup*"):
+            if suffix == backup_base:
+                backup_files.append((0, suffix))
+            else:
+                # Extract number from .backup.1, .backup.2, etc.
+                parts = suffix.name.split(".backup.")
+                if len(parts) == 2 and parts[1].isdigit():
+                    backup_files.append((int(parts[1]), suffix))
+
+        # Sort by backup number (ascending)
+        backup_files.sort(key=lambda x: x[0])
+
+        # Delete oldest backups if we exceed max_backups
+        while len(backup_files) > self.max_backups:
+            _, oldest_backup = backup_files.pop()  # Remove highest numbered backup
+            with contextlib.suppress(OSError):
+                oldest_backup.unlink()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +193,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting if enabled
+        if self.enable_backup:
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
