@@ -11,7 +11,18 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Args:
+        text: The string to sanitize.
+
+    Returns:
+        The sanitized string with control characters escaped.
+
+    Raises:
+        TypeError: If text is not a string.
     """
+    if not isinstance(text, str):
+        raise TypeError(f"expected str, got {type(text).__name__}")
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
     # between literal backslash-escape text and sanitized control characters.
