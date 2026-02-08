@@ -3,7 +3,9 @@
   "candidate_number": 1,
   "run_id": "21797794461",
   "title": "[Enhancement] Add backup/rotation support for corrupted database files",
-  "status": "finalizing",
+  "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2261",
+  "pr_number": 2261,
   "created_at": "2026-02-08T12:00:00Z",
   "tests": {
     "test_file": "tests/test_issue_2238_backup_rotation.py",
