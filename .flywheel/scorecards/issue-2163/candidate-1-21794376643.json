@@ -1,0 +1,58 @@
+{
+  "issue_number": 2163,
+  "candidate_number": 1,
+  "run_id": "21794376643",
+  "branch": "claude/issue-2163-candidate-1-21794376643",
+  "stage": "implement",
+  "created_at": "2026-02-08T07:00:00Z",
+  "plan": {
+    "title": "Fix redundant conditional logic in next_id()",
+    "summary": "Remove redundant 'if todos else 1' clause from next_id() function. The expression 'max((todo.id for todo in todos), default=0) + 1' already handles empty lists correctly.",
+    "files_to_modify": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files_to_create": [
+      "tests/test_minimal_framework.py"
+    ],
+    "tdd_plan": {
+      "step_1_red": {
+        "description": "Create failing regression tests that verify next_id() behavior",
+        "test_cases": [
+          "next_id([]) should return 1 (empty list case)",
+          "next_id([Todo(id=1)]) should return 2",
+          "next_id([Todo(id=5)]) should return 6 (handles gaps)",
+          "next_id([Todo(id=1), Todo(id=3)]) should return 4"
+        ],
+        "file": "tests/test_minimal_framework.py"
+      },
+      "step_2_green": {
+        "description": "Simplify next_id() implementation by removing redundant conditional",
+        "change": "Replace 'return (max((todo.id for todo in todos), default=0) + 1) if todos else 1' with 'return max((todo.id for todo in todos), default=0) + 1'",
+        "file": "src/flywheel/storage.py",
+        "line": 128
+      },
+      "step_3_verify": {
+        "description": "Run verification commands",
+        "commands": [
+          "uv run pytest tests/test_minimal_framework.py -v",
+          "uv run ruff check src/flywheel/storage.py"
+        ]
+      }
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "implementation": {
+    "completed": true,
+    "test_results": {
+      "pytest": "13 passed",
+      "ruff": "All checks passed"
+    },
+    "changes": {
+      "src/flywheel/storage.py": "Removed redundant 'if todos else 1' conditional from next_id()",
+      "tests/test_minimal_framework.py": "Added 3 test cases: test_next_id_with_empty_list, test_next_id_with_gap, test_next_id_with_multiple_todos"
+    }
+  }
+}
