@@ -1,10 +1,23 @@
 {
-  "issue_number": 2145,
-  "candidate_id": "3-21794376643",
+  "issue": 2145,
+  "candidate": 3,
+  "run_id": "21794376643",
   "branch": "claude/issue-2145-candidate-3-21794376643",
-  "implementation_summary": "Added optional file backup/rotation feature to TodoStorage using enable_backups parameter",
-  "tests_added": ["tests/test_storage_backup.py"],
-  "tests_run": ["pytest tests/test_storage_backup.py", "pytest tests/test_storage*.py", "ruff check"],
-  "risks": [],
-  "limitations": "Backup feature is opt-in (enable_backups=False by default) to maintain backward compatibility"
+  "pr_number": 2190,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2190",
+  "generated_at": "2026-02-08T07:59:56.540861+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3383,
+    "plan": 4000,
+    "implement": 3571,
+    "verify": 1973,
+    "finalize": 4000
+  }
 }
