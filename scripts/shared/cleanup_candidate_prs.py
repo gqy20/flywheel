@@ -68,7 +68,10 @@ def _list_open_candidate_prs(limit: int) -> list[CandidatePR]:
 
 
 def _select_to_close(
-    prs: list[CandidatePR], keep_per_issue: int, min_age_hours: int
+    prs: list[CandidatePR],
+    keep_per_issue: int,
+    min_age_hours: int,
+    close_singleton_after_hours: int | None,
 ) -> tuple[list[CandidatePR], list[CandidatePR]]:
     grouped: dict[int, list[CandidatePR]] = defaultdict(list)
     for pr in prs:
@@ -80,6 +83,17 @@ def _select_to_close(
     for issue, items in grouped.items():
         _ = issue
         items_sorted = sorted(items, key=lambda x: x.updated_at, reverse=True)
+        if len(items_sorted) <= keep_per_issue:
+            for pr in items_sorted:
+                age_hours = (now - pr.updated_at).total_seconds() / 3600
+                if (
+                    close_singleton_after_hours is not None
+                    and age_hours >= close_singleton_after_hours
+                ):
+                    close.append(pr)
+                else:
+                    keep.append(pr)
+            continue
         keep.extend(items_sorted[:keep_per_issue])
         for pr in items_sorted[keep_per_issue:]:
             age_hours = (now - pr.updated_at).total_seconds() / 3600
@@ -103,6 +117,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keep-per-issue", type=int, default=1)
     parser.add_argument("--min-age-hours", type=int, default=12)
+    parser.add_argument("--close-singleton-after-hours", type=int, default=72)
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -111,15 +126,21 @@ def main() -> None:
         raise ValueError("keep-per-issue must be >= 1")
     if args.min_age_hours < 0:
         raise ValueError("min-age-hours must be >= 0")
+    if args.close_singleton_after_hours < 0:
+        raise ValueError("close-singleton-after-hours must be >= 0")
 
     prs = _list_open_candidate_prs(limit=args.limit)
     keep, close = _select_to_close(
-        prs=prs, keep_per_issue=args.keep_per_issue, min_age_hours=args.min_age_hours
+        prs=prs,
+        keep_per_issue=args.keep_per_issue,
+        min_age_hours=args.min_age_hours,
+        close_singleton_after_hours=args.close_singleton_after_hours,
     )
 
     print(
         f"open_candidate_prs={len(prs)} keep={len(keep)} close_candidates={len(close)} "
-        f"keep_per_issue={args.keep_per_issue} min_age_hours={args.min_age_hours} dry_run={args.dry_run}"
+        f"keep_per_issue={args.keep_per_issue} min_age_hours={args.min_age_hours} "
+        f"close_singleton_after_hours={args.close_singleton_after_hours} dry_run={args.dry_run}"
     )
     for pr in close:
         print(

@@ -2,7 +2,7 @@ name: Candidate PR Hygiene
 
 on:
   schedule:
-    - cron: "35 */2 * * *"
+    - cron: "15 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -19,6 +19,11 @@ on:
         description: "Only close duplicates older than this age (hours)"
         required: false
         default: "12"
+        type: string
+      close_singleton_after_hours:
+        description: "Close even single remaining candidate PR per issue after this age (hours)"
+        required: false
+        default: "72"
         type: string
 
 permissions:
@@ -38,6 +43,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       KEEP_PER_ISSUE: ${{ inputs.keep_per_issue || '1' }}
       MIN_AGE_HOURS: ${{ inputs.min_age_hours || '12' }}
+      CLOSE_SINGLETON_AFTER_HOURS: ${{ inputs.close_singleton_after_hours || '72' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
       GH_PAGER: cat
       PAGER: cat
@@ -52,7 +58,8 @@ jobs:
 
           cmd=(python scripts/shared/cleanup_candidate_prs.py \
             --keep-per-issue "$KEEP_PER_ISSUE" \
-            --min-age-hours "$MIN_AGE_HOURS")
+            --min-age-hours "$MIN_AGE_HOURS" \
+            --close-singleton-after-hours "$CLOSE_SINGLETON_AFTER_HOURS")
 
           if [[ "$DRY_RUN" == "true" ]]; then
             cmd+=(--dry-run)
