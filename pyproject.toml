@@ -60,6 +60,7 @@ ignore = [
     "RUF003", # allow Chinese comments
     "RUF005", # allow list concatenation for clarity
     "SIM103", # prefer explicit return for readability
+    "SIM210", # allow explicit True/False for clarity (issue #2345)
 ]
 
 [tool.ruff.lint.per-file-ignores]
