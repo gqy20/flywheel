@@ -29,7 +29,13 @@ def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     with patch("flywheel.storage.os.replace") as mock_replace:
         storage.save(todos)
         # Verify atomic replace was used
-        mock_replace.assert_called_once()
+        # Now called twice: once for backup, once for save (issue #2280)
+        assert mock_replace.call_count >= 1, "os.replace should be used for atomic writes"
+
+        # Verify the final call is for the main file (not the backup)
+        final_call = mock_replace.call_args_list[-1]
+        # The second argument should be the main file path
+        assert str(final_call[0][1]).endswith("todo.json"), "Final os.replace should write to main file"
 
     # Verify file content is still valid
     loaded = storage.load()
