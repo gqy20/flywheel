@@ -38,13 +38,27 @@ def _sanitize_text(text: str) -> str:
     return "".join(result)
 
 
+def sanitize_text(text: str) -> str:
+    """Public API to escape control characters to prevent terminal output manipulation.
+
+    This is the public wrapper for _sanitize_text, providing a stable API
+    for external modules like cli.py to use without depending on internal
+    implementation details.
+
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
+    C1 control characters (0x80-0x9f) with their escaped representations
+    to prevent injection attacks via todo text.
+    """
+    return _sanitize_text(text)
+
+
 class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
-        safe_text = _sanitize_text(todo.text)
+        safe_text = sanitize_text(todo.text)
         return f"[{status}] {todo.id:>3} {safe_text}"
 
     @classmethod
@@ -52,3 +66,13 @@ class TodoFormatter:
         if not todos:
             return "No todos yet."
         return "\n".join(cls.format_todo(todo) for todo in todos)
+
+    @staticmethod
+    def sanitize_text(text: str) -> str:
+        """Public API to escape control characters for safe terminal output.
+
+        Provides class-method access to text sanitization, allowing external
+        modules to use TodoFormatter.sanitize_text() rather than importing
+        internal _sanitize_text function.
+        """
+        return sanitize_text(text)
