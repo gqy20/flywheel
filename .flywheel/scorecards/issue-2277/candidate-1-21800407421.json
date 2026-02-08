@@ -1,72 +1,23 @@
 {
-  "issue_number": 2277,
-  "candidate_number": 1,
+  "issue": 2277,
+  "candidate": 1,
   "run_id": "21800407421",
-  "branch_name": "claude/issue-2277-candidate-1-21800407421",
+  "branch": "claude/issue-2277-candidate-1-21800407421",
+  "pr_number": 2295,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2295",
-  "created_at": "2026-02-08T14:28:00Z",
-  "updated_at": "2026-02-08T16:00:00Z",
-  "summary": "Fix: default list command to show only pending todos, add --all flag (issue #2277)",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/cli.py",
-      "tests/test_issue_2112_remove_iteration_pattern.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "files_created": [
-      "tests/test_issue_2277_pending_flag_default.py"
-    ],
-    "total_lines_added": 148,
-    "total_lines_removed": 8,
-    "commits": [
-      "f8ccdc9 - fix: default list command to show only pending todos (issue #2277)",
-      "6b05184 - feat: add --all flag to list command (improvement to #2277 fix)"
-    ]
-  },
-  "tests": {
-    "new_tests_added": 4,
-    "new_tests_passing": 4,
-    "existing_tests_passing": 116,
-    "total_tests_run": 116,
-    "test_framework": "pytest",
-    "commands_run": [
-      "uv run pytest tests/test_issue_2277_pending_flag_default.py -v",
-      "uv run ruff check src/flywheel/cli.py tests/test_issue_2277_pending_flag_default.py"
-    ]
-  },
-  "linting": {
-    "tool": "ruff",
-    "status": "passed",
-    "files_checked": [
-      "src/flywheel/cli.py",
-      "tests/test_issue_2277_pending_flag_default.py"
-    ]
-  },
-  "triage": {
-    "root_cause": "TodoApp.list() defaulted to show_all=True, showing all todos including completed ones by default",
-    "fix_location": "src/flywheel/cli.py:36 (TodoApp.list method) and src/flywheel/cli.py:104-106 (run_command list handling and argument parsing)",
-    "fix_type": "Default parameter change + new --all flag",
-    "breaking_change": false,
-    "backward_compatible": true
-  },
-  "verification": {
-    "default_list_shows_pending_only": true,
-    "pending_flag_idempotent": true,
-    "all_flag_shows_all_todos": true,
-    "empty_database_handled": true,
-    "all_completed_shows_empty": true,
-    "manual_tests": [
-      "todo list -> shows only pending",
-      "todo list --all -> shows all todos including completed",
-      "todo list --pending -> shows only pending (idempotent with default)"
-    ]
-  },
-  "improvements": [
-    {
-      "type": "enhancement",
-      "description": "Added --all flag to restore ability to view all todos including completed ones",
-      "addresses": "User feedback that the original fix removed useful functionality"
-    }
+  "generated_at": "2026-02-08T15:39:18.669153+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": []
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3093,
+    "implement": 1569,
+    "verify": 2154,
+    "finalize": 4000
+  }
 }
