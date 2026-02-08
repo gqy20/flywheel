@@ -11,8 +11,6 @@ falsy values (0, False) to empty string.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
