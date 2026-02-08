@@ -10,6 +10,30 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_iso_date(date_str: str | None) -> str | None:
+    """Validate that date_str is a valid ISO date (YYYY-MM-DD).
+
+    Args:
+        date_str: The date string to validate, or None.
+
+    Returns:
+        The validated date string, or None if input was None.
+
+    Raises:
+        ValueError: If date_str is not a valid ISO date format.
+    """
+    if date_str is None:
+        return None
+    if not isinstance(date_str, str):
+        raise ValueError(f"due_date must be a string or None, got {type(date_str).__name__}")
+    try:
+        # Try to parse the date - this will raise ValueError for invalid dates
+        datetime.strptime(date_str, "%Y-%m-%d").date()
+        return date_str
+    except ValueError as e:
+        raise ValueError(f"due_date must be a valid ISO date (YYYY-MM-DD), got {date_str!r}") from e
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -19,6 +43,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -93,10 +118,15 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'due_date' if present
+        raw_due_date = data.get("due_date")
+        due_date = _validate_iso_date(raw_due_date)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=due_date,
         )
