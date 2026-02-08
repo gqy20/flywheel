@@ -53,8 +53,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_count: int = 0) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_count = backup_count
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +83,36 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _rotate_backups(self) -> None:
+        """Rotate backup files (1->2, 2->3, etc.) before creating new backup.
+
+        This ensures we only keep backup_count most recent backups.
+        """
+        # Rotate existing backups from highest to lowest
+        # e.g., .3.bak -> .4.bak, .2.bak -> .3.bak, .1.bak -> .2.bak
+        for i in range(self.backup_count - 1, 0, -1):
+            old_backup = self.path.parent / f".{self.path.name}.{i}.bak"
+            new_backup = self.path.parent / f".{self.path.name}.{i + 1}.bak"
+
+            if old_backup.exists():
+                # Use atomic rename to move the backup
+                # If new_backup exists, it will be replaced (which is correct behavior)
+                if i + 1 > self.backup_count:
+                    # This backup would exceed backup_count, so delete it
+                    with contextlib.suppress(OSError):
+                        old_backup.unlink()
+                else:
+                    os.replace(old_backup, new_backup)
+
+        # Delete any backup that exceeds backup_count
+        # (handles case where backup_count was reduced)
+        for i in range(self.backup_count + 1, self.backup_count + 10):
+            excess_backup = self.path.parent / f".{self.path.name}.{i}.bak"
+            if not excess_backup.exists():
+                break
+            with contextlib.suppress(OSError):
+                excess_backup.unlink()
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -90,12 +121,43 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        If backup_count > 0, creates rolling backups before overwriting the main file.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup if enabled and main file exists
+        if self.backup_count > 0 and self.path.exists():
+            # Rotate existing backups first
+            self._rotate_backups()
+
+            # Create backup by copying current file to .1.bak
+            backup_path = self.path.parent / f".{self.path.name}.1.bak"
+            # Use atomic rename to create backup
+            # We copy to a temp file first, then rename to ensure atomicity
+            fd, backup_temp = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".bak.tmp",
+                text=False,
+            )
+            try:
+                # Set restrictive permissions on backup temp file
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+                # Copy current file content to backup temp
+                with os.fdopen(fd, "wb") as f:
+                    f.write(self.path.read_bytes())
+                # Atomic rename to backup location
+                os.replace(backup_temp, backup_path)
+            except OSError:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    os.unlink(backup_temp)
+                raise
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
