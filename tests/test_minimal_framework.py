@@ -158,3 +158,42 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_rename_rejects_non_string_none() -> None:
+    """Bug #2222: Todo.rename() should reject None with TypeError."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    with pytest.raises(TypeError, match="Todo text must be a string"):
+        todo.rename(None)
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_rename_rejects_non_string_int() -> None:
+    """Bug #2222: Todo.rename() should reject int with TypeError."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    with pytest.raises(TypeError, match="Todo text must be a string"):
+        todo.rename(123)
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_rename_rejects_non_string_list() -> None:
+    """Bug #2222: Todo.rename() should reject list with TypeError."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    with pytest.raises(TypeError, match="Todo text must be a string"):
+        todo.rename(["list"])
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
