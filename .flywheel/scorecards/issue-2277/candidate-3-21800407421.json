@@ -1,0 +1,14 @@
+{
+  "issue_number": 2277,
+  "candidate_number": 3,
+  "run_id": "21800407421",
+  "summary": "Fix --pending flag logic by changing default show_all to False and renaming --pending to --all flag for better UX",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_2277_pending_flag_logic.py",
+    "tests/test_issue_2112_remove_iteration_pattern.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_pass": true,
+  "lint_pass": true
+}
