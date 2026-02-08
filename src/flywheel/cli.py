@@ -33,7 +33,7 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, show_all: bool = False) -> list[Todo]:
         todos = self._load()
         if show_all:
             return todos
@@ -77,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument("text", help="Todo text")
 
     p_list = sub.add_parser("list", help="List todos")
+    p_list.add_argument("--all", action="store_true", help="Show all todos including completed ones")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
 
     p_done = sub.add_parser("done", help="Mark todo done")
@@ -101,7 +102,9 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         if args.command == "list":
-            todos = app.list(show_all=not args.pending)
+            # --all takes precedence over --pending when both are set
+            show_all = args.all if hasattr(args, "all") and args.all else False
+            todos = app.list(show_all=show_all)
             print(TodoFormatter.format_list(todos))
             return 0
 
