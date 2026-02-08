@@ -1,0 +1,30 @@
+{
+  "issue_number": 2223,
+  "candidate_number": 2,
+  "run_id": "21797180717",
+  "created_at": "2026-02-08T10:25:00Z",
+  "stage": "IMPLEMENT",
+  "test_plan": {
+    "file": "tests/test_issue_2223_sanitize_text_type_check.py",
+    "tests": [
+      "test_sanitize_text_with_int_raises_typeerror",
+      "test_sanitize_text_with_none_raises_typeerror",
+      "test_sanitize_text_with_list_raises_typeerror",
+      "test_sanitize_text_with_normal_string_works",
+      "test_sanitize_text_with_special_chars_works"
+    ],
+    "all_passed": true
+  },
+  "source_changes": [
+    {
+      "file": "src/flywheel/formatter.py",
+      "description": "Add type check at function entry to raise TypeError for non-str inputs"
+    }
+  ],
+  "verification": {
+    "pytest": "5/5 passed",
+    "ruff": "passed",
+    "related_tests": "25/25 passed (all sanitization tests)"
+  },
+  "approach": "Minimal fix - single isinstance check with clear TypeError message"
+}
