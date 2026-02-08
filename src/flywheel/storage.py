@@ -9,10 +9,15 @@ import stat
 import tempfile
 from pathlib import Path
 
+from filelock import FileLock
+
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# File lock timeout (60 seconds) - prevents indefinite hangs
+_LOCK_TIMEOUT_SECONDS = 60.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,32 +60,41 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _lock(self) -> FileLock:
+        """Get a FileLock for the storage file.
+
+        The lock file is created alongside the data file with a .lock suffix.
+        """
+        return FileLock(self._lock_path, timeout=_LOCK_TIMEOUT_SECONDS)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        with self._lock():
+            # Security: Check file size before loading to prevent DoS
+            file_size = self.path.stat().st_size
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
 
-        try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            try:
+                raw = json.loads(self.path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            if not isinstance(raw, list):
+                raise ValueError("Todo storage must be a JSON list")
+            return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -90,7 +104,15 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        The entire operation is protected by a file lock to prevent concurrent
+        writes from causing data loss.
         """
+        with self._lock():
+            self._save_unlocked(todos)
+
+    def _save_unlocked(self, todos: list[Todo]) -> None:
+        """Internal save method without locking (must be called with lock held)."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +148,44 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, todo: Todo) -> None:
+        """Atomically add a todo to storage.
+
+        This method holds the file lock for the entire read-modify-write cycle,
+        preventing race conditions when multiple processes add todos concurrently.
+
+        This is the recommended way to modify the todo list when concurrent
+        access is possible.
+        """
+        with self._lock():
+            todos = self._load_unlocked()
+            todos.append(todo)
+            self._save_unlocked(todos)
+
+    def _load_unlocked(self) -> list[Todo]:
+        """Internal load method without locking (must be called with lock held)."""
+        if not self.path.exists():
+            return []
+
+        # Security: Check file size before loading to prevent DoS
+        file_size = self.path.stat().st_size
+        if file_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = file_size / (1024 * 1024)
+            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            raise ValueError(
+                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                f"This protects against denial-of-service attacks."
+            )
+
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in '{self.path}': {e.msg}. "
+                f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError("Todo storage must be a JSON list")
+        return [Todo.from_dict(item) for item in raw]
