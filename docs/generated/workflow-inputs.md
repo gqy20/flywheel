@@ -9,6 +9,22 @@ Run `uv run python scripts/check_docs_sync.py --generate` after workflow changes
 |---|---|---|---|---|
 | `window_days` | `false` | `7` | `string` | Lookback window (days) |
 
+## `branch-cleanup.yml`
+
+| Input | Required | Default | Type | Description |
+|---|---|---|---|---|
+| `branch_prefix` | `false` | `claude/` | `string` | Remote branch prefix under origin/ |
+| `dry_run` | `false` | `True` | `boolean` | Only report candidates without deleting |
+| `min_age_hours` | `false` | `24` | `string` | Delete only branches older than this (hours) |
+
+## `candidate-pr-hygiene.yml`
+
+| Input | Required | Default | Type | Description |
+|---|---|---|---|---|
+| `dry_run` | `false` | `True` | `boolean` | Only report close candidates without closing PRs |
+| `keep_per_issue` | `false` | `1` | `string` | How many newest candidate PRs to keep per issue |
+| `min_age_hours` | `false` | `12` | `string` | Only close duplicates older than this age (hours) |
+
 ## `ci-failure-auto-fix.yml`
 
 | Input | Required | Default | Type | Description |
