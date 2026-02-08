@@ -4,15 +4,66 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
 
+# Module-level logger - by default has NullHandler (no output)
+logger = logging.getLogger(__name__)
+
+# Add NullHandler to prevent "No handler found" warnings
+# This is the recommended practice for libraries
+if not logger.handlers:
+    logger.addHandler(logging.NullHandler())
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _setup_logging() -> None:
+    """Configure logging based on FW_LOG environment variable.
+
+    Reads FW_LOG environment variable and sets up logging level.
+    Values: debug, info, warning, error (case-insensitive).
+    """
+    fw_log = os.environ.get("FW_LOG", "").lower()
+
+    if not fw_log:
+        # No logging configured, keep NullHandler
+        return
+
+    # Map FW_LOG values to logging levels
+    level_map = {
+        "debug": logging.DEBUG,
+        "info": logging.INFO,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+    }
+
+    level = level_map.get(fw_log, logging.INFO)
+
+    # Remove NullHandler if present
+    for handler in logger.handlers[:]:
+        if isinstance(handler, logging.NullHandler):
+            logger.removeHandler(handler)
+
+    # Only add handler if we don't have one yet
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(level)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+
+    logger.setLevel(level)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,9 +106,13 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Setup logging once per storage instance
+        _setup_logging()
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter()
         if not self.path.exists():
+            logger.debug(f"load: file not found: {self.path}")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +135,13 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        result = [Todo.from_dict(item) for item in raw]
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        logger.debug(
+            f"load: {self.path} - loaded {len(result)} todos in {elapsed_ms:.2f}ms"
+        )
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +152,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +186,11 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        logger.debug(
+            f"save: {self.path} - saved {len(todos)} todos in {elapsed_ms:.2f}ms"
+        )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
