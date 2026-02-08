@@ -1,0 +1,13 @@
+{
+  "issue": 2183,
+  "candidate": 3,
+  "run_id": "21794975586",
+  "branch": "claude/issue-2183-candidate-3-21794975586",
+  "pr_number": null,
+  "pr_url": null,
+  "generated_at": "2026-02-08T08:35:00.000000+00:00",
+  "stages_completed": ["triage"],
+  "stage_response_sizes": {
+    "triage": 2500
+  }
+}

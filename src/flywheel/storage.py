@@ -56,6 +56,32 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def validate(self, todos: list[Todo]) -> None:
+        """Validate todo list integrity before saving.
+
+        Checks for:
+        - Duplicate todo IDs
+        - Invalid todo objects (missing required fields)
+
+        Raises:
+            ValueError: If validation fails with descriptive error message
+        """
+        # Check for duplicate IDs
+        seen_ids = set()
+        duplicate_ids = set()
+
+        for todo in todos:
+            if todo.id in seen_ids:
+                duplicate_ids.add(todo.id)
+            seen_ids.add(todo.id)
+
+        if duplicate_ids:
+            duplicates_str = ", ".join(str(id) for id in sorted(duplicate_ids))
+            raise ValueError(
+                f"Duplicate todo IDs detected: {duplicates_str}. "
+                f"Each todo must have a unique ID."
+            )
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -90,7 +116,13 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Raises:
+            ValueError: If validation fails (duplicate IDs, missing fields, etc.)
         """
+        # Validate todo list integrity before saving
+        self.validate(todos)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
