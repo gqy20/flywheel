@@ -17,13 +17,14 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 2  # 1=high, 2=medium, 3=low, 4=lowest
     created_at: str = ""
     updated_at: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
-        Shows only the essential fields (id, text, done) and truncates long text.
+        Shows only the essential fields (id, text, done, priority) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
         """
         # Truncate text if longer than 50 characters
@@ -31,7 +32,7 @@ class Todo:
         if len(display_text) > 50:
             display_text = display_text[:47] + "..."
 
-        return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+        return f"Todo(id={self.id}, text={display_text!r}, done={self.done}, priority={self.priority})"
 
     def __post_init__(self) -> None:
         if not self.created_at:
@@ -52,6 +53,22 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, value: int) -> None:
+        """Set the priority level.
+
+        Args:
+            value: Priority level (1=high, 2=medium, 3=low, 4=lowest)
+
+        Raises:
+            ValueError: If value is not between 1 and 4 inclusive.
+        """
+        if not isinstance(value, int):
+            raise ValueError("Priority must be an integer between 1 and 4")
+        if not 1 <= value <= 4:
+            raise ValueError("Priority must be between 1 and 4")
+        self.priority = value
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +110,28 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is an integer in range 1-4
+        # Default to 2 (medium) if missing
+        raw_priority = data.get("priority", 2)
+        if isinstance(raw_priority, int):
+            if 1 <= raw_priority <= 4:
+                priority = raw_priority
+            else:
+                raise ValueError(
+                    f"Invalid value for 'priority': {raw_priority!r}. "
+                    "'priority' must be between 1 and 4."
+                )
+        else:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be an integer between 1 and 4."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
