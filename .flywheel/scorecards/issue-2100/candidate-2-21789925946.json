@@ -17,7 +17,8 @@
   "tests": {
     "new_tests": 11,
     "all_passed": true,
-    "coverage": "82%"
+    "all_tests_passed": 105,
+    "coverage": "90%"
   },
   "linting": {
     "ruff": "passed"
@@ -30,6 +31,12 @@
     "save_debug_logging": true,
     "save_error_logging": true,
     "directory_creation_logging": true
+  },
+  "verification": {
+    "pytest_command": "uv run pytest tests/ --tb=short",
+    "ruff_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2100_storage_logging.py",
+    "all_checks_passed": true,
+    "date": "2026-02-08"
   },
   "risks": [
     "Logger is cached globally in _logger module variable - may need reset in tests"
