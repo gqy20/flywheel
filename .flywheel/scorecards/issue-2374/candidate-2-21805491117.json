@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "21805491117",
   "issue_title": "[Bug] next_id() returns inconsistent value for empty todos list",
-  "stage": "verify",
+  "stage": "finalize",
   "root_cause": "Redundant ternary expression in next_id() - both branches return same value for empty list",
   "proposed_fix": "Simplify to: return max((todo.id for todo in todos), default=0) + 1",
   "files_to_modify": [
@@ -34,5 +34,9 @@
     "targeted_tests": "3 passed in 0.05s",
     "full_suite": "12 passed in 0.18s",
     "ruff_checks": "All checks passed"
-  }
+  },
+  "pr_number": 2382,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2382",
+  "pr_status": "open",
+  "finalized_at": "2026-02-08T21:34:17Z"
 }
