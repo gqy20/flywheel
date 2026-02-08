@@ -1,0 +1,49 @@
+{
+  "issue_number": 2290,
+  "candidate_number": 1,
+  "run_id": "21800407421",
+  "title": "[Security] Unicode bidirectional override characters (U+202E, U+202B, etc.) and zero-width",
+  "stage": "VERIFY",
+  "status": "PASSED",
+  "verification_summary": {
+    "tests_run": [
+      "tests/test_issue_2290_bidi_spoofing_sanitization.py - 18 tests PASSED",
+      "tests/test_issue_2057_c1_control_sanitization.py - 6 tests PASSED",
+      "tests/test_issue_2097_backslash_escape_collision.py - 14 tests PASSED",
+      "tests/test_issue_1924_format_todo_sanitization.py - 9 tests PASSED"
+    ],
+    "total_tests": 47,
+    "failed_tests": 0,
+    "ruff_checks": "PASSED",
+    "commands_executed": [
+      "uv run pytest tests/test_issue_2290_bidi_spoofing_sanitization.py -v",
+      "uv run ruff check src/flywheel/formatter.py tests/test_issue_2290_bidi_spoofing_sanitization.py",
+      "uv run pytest tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py tests/test_issue_1924_format_todo_sanitization.py -v"
+    ]
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/formatter.py"
+    ],
+    "files_added": [
+      "tests/test_issue_2290_bidi_spoofing_sanitization.py"
+    ]
+  },
+  "fix_details": {
+    "sanitized_ranges": [
+      "U+202A-U+202E (Bidirectional override characters)",
+      "U+2066-U+2069 (Bidirectional isolation characters)",
+      "U+200B-U+200D (Zero-width characters)",
+      "U+FEFF (Zero-width non-breaking space/BOM)"
+    ],
+    "escape_format": "\\u{code:04x}",
+    "preserves_legitimate_text": true
+  },
+  "acceptance_criteria_met": {
+    "text_with_u202e_sanitized": true,
+    "text_with_u200b_handled": true,
+    "documentation_updated": true,
+    "legitimate_arabic_hebrew_preserved": true
+  },
+  "timestamp": "2026-02-08T15:30:00Z"
+}
