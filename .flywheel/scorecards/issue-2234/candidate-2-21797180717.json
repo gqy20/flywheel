@@ -1,0 +1,10 @@
+{
+  "issue_number": 2234,
+  "candidate_number": 2,
+  "run_id": "21797180717",
+  "status": "in_progress",
+  "title": "[Security] Replace os.fchmod with os.chmod for Windows compatibility",
+  "files_changed": ["src/flywheel/storage.py"],
+  "tests_added": ["tests/test_issue_2027_permissions.py::test_temp_file_permissions_work_on_windows"],
+  "commit_hash": "23eee6d"
+}

@@ -119,3 +119,56 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
             assert not (file_mode & stat.S_IXUSR), f"Owner execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXGRP), f"Group execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXOTH), f"Other execute bit set on {temp_file}"
+
+
+def test_temp_file_permissions_work_on_windows(tmp_path) -> None:
+    """Issue #2234: Temp file permissions code must work cross-platform.
+
+    The original code used os.fchmod(fd, ...) which is not available on Windows
+    before Python 3.11. This test verifies the code uses os.chmod(path, ...)
+    instead, which works on all platforms.
+    """
+    import inspect
+    import tempfile as tempfile_module
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Verify the save method doesn't call os.fchmod directly
+    # (it's fine to mention it in comments, just not as a function call)
+    save_source = inspect.getsource(storage.save)
+    assert "os.fchmod(" not in save_source, (
+        "storage.py should not call os.fchmod() as it's not available on Windows. "
+        "Use os.chmod with the file path instead."
+    )
+
+    # Verify permissions are still set correctly
+    temp_files_created = []
+
+    original_mkstemp = tempfile_module.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    import tempfile
+    original = tempfile.mkstemp
+    tempfile.mkstemp = tracking_mkstemp
+
+    try:
+        storage.save([Todo(id=1, text="test")])
+    finally:
+        tempfile.mkstemp = original
+
+    # Verify temp file has 0o600 permissions (on Unix-like systems)
+    # Note: Windows handles permissions differently, so we skip the exact check there
+    if os.name != "nt":  # Unix-like systems
+        for temp_file in temp_files_created:
+            if temp_file.exists():
+                file_stat = temp_file.stat()
+                file_mode = stat.S_IMODE(file_stat.st_mode)
+                assert file_mode == 0o600, (
+                    f"Temp file should have 0o600 permissions on Unix-like systems, "
+                    f"got {oct(file_mode)}"
+                )
