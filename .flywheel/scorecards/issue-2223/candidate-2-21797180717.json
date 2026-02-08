@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "21797180717",
   "created_at": "2026-02-08T10:25:00Z",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "test_plan": {
     "file": "tests/test_issue_2223_sanitize_text_type_check.py",
     "tests": [
