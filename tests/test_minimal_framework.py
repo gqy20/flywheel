@@ -45,13 +45,13 @@ def test_app_add_done_remove(tmp_path) -> None:
 
     added = app.add("demo")
     assert added.id == 1
-    assert app.list()[0].text == "demo"
+    assert app.list(show_all=True)[0].text == "demo"
 
     app.mark_done(1)
-    assert app.list()[0].done is True
+    assert app.list(show_all=True)[0].done is True
 
     app.remove(1)
-    assert app.list() == []
+    assert app.list(show_all=True) == []
 
 
 def test_cli_run_command_flow(tmp_path, capsys) -> None:

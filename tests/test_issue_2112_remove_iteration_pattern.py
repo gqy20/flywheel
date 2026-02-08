@@ -74,17 +74,17 @@ def test_remove_consistent_with_mark_done_undone_pattern(tmp_path) -> None:
     # All three methods should work consistently
     # mark_done modifies in-place and saves
     app.mark_done(todo1.id)
-    todos = app.list()
+    todos = app.list(show_all=True)
     assert todos[0].done
 
     # mark_undone modifies in-place and saves
     app.mark_undone(todo1.id)
-    todos = app.list()
+    todos = app.list(show_all=True)
     assert not todos[0].done
 
     # remove should work with the same pattern
     app.remove(todo2.id)
-    todos = app.list()
+    todos = app.list(show_all=True)
     assert len(todos) == 2
     assert all(t.id != todo2.id for t in todos)
 
