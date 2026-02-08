@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -52,6 +53,24 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date: str) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date: ISO format date string (YYYY-MM-DD)
+
+        Raises:
+            ValueError: If date is not a valid ISO date format
+        """
+        # Validate ISO date format
+        try:
+            datetime.fromisoformat(date)
+        except ValueError as e:
+            raise ValueError(f"Invalid ISO date format: {date!r}") from e
+
+        self.due_date = date
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -99,4 +118,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=data.get("due_date"),
         )
