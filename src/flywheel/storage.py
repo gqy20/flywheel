@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -57,30 +60,44 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        logger.info("Loading todos from %s", self.path)
+
         if not self.path.exists():
+            logger.info("No existing file at %s, starting with empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
+        logger.debug("File size: %d bytes", file_size)
+
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
+            error_msg = (
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
+            logger.error("File size limit exceeded for %s: %s", self.path, error_msg)
+            raise ValueError(error_msg)
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            raise ValueError(
+            error_msg = (
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            )
+            logger.error("%s", error_msg)
+            raise ValueError(error_msg) from e
 
         if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            error_msg = "Todo storage must be a JSON list"
+            logger.error("Invalid data structure in %s: %s", self.path, error_msg)
+            raise ValueError(error_msg)
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.info("Loaded %d todos from %s", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,20 +108,30 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        logger.info("Saving %d todos to %s", len(todos), self.path)
+
         # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
+        try:
+            _ensure_parent_directory(self.path)
+        except (ValueError, OSError) as e:
+            logger.error("Failed to create parent directory for %s: %s", self.path, e)
+            raise
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=f".{self.path.name}.",
-            suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
-        )
+        try:
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                text=False,  # We'll write binary data to control encoding
+            )
+        except OSError as e:
+            logger.error("Failed to create temp file for %s: %s", self.path, e)
+            raise
 
         try:
             # Set restrictive permissions (owner read/write only)
@@ -118,10 +145,12 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+            logger.info("Saved %d todos to %s", len(todos), self.path)
+        except OSError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            logger.error("Failed to write todos to %s: %s", self.path, e)
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
