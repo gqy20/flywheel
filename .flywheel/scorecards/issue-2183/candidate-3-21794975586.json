@@ -6,11 +6,13 @@
   "pr_number": 2201,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2201",
   "generated_at": "2026-02-08T08:35:00.000000+00:00",
-  "stages_completed": ["triage", "plan", "implement"],
+  "stages_completed": ["triage", "plan", "implement", "verify", "finalize"],
   "stage_response_sizes": {
     "triage": 2500,
     "plan": 3200,
-    "implement": 1200
+    "implement": 1200,
+    "verify": 1500,
+    "finalize": 500
   },
   "summary": "Add data validation and schema verification for TodoStorage.save()",
   "files_changed": [
@@ -18,5 +20,10 @@
     "tests/test_issue_2183_data_validation.py"
   ],
   "tests_run": "uv run pytest tests/ (118 passed)",
-  "lint_run": "uv run ruff check src/flywheel/storage.py tests/test_issue_2183_data_validation.py (all passed)"
+  "lint_run": "uv run ruff check src/flywheel/storage.py tests/test_issue_2183_data_validation.py (all passed)",
+  "verify_commands": [
+    "uv run pytest tests/test_issue_2183_data_validation.py -v (6 passed)",
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_2183_data_validation.py (all passed)",
+    "uv run pytest tests/ -v (118 passed)"
+  ]
 }
