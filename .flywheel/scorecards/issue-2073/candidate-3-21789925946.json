@@ -1,36 +1,23 @@
 {
-  "issue_number": 2073,
-  "candidate_number": 3,
+  "issue": 2073,
+  "candidate": 3,
   "run_id": "21789925946",
-  "branch_name": "claude/issue-2073-candidate-3-21789925946",
-  "status": "finalized",
-  "created_at": "2026-02-08T00:00:00Z",
-  "summary": "Add validate() and repair() methods for corrupted JSON recovery",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_2073_json_validate_repair.py"
+  "branch": "claude/issue-2073-candidate-3-21789925946",
+  "pr_number": 2119,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2119",
+  "generated_at": "2026-02-08T01:35:21.088698+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "uv run pytest tests/test_issue_2073_json_validate_repair.py -v"
-  ],
-  "tests_passed": 11,
-  "linter_checks_passed": true,
-  "implementation": {
-    "validate_method": {
-      "description": "Returns (is_valid: bool, error_message: str | None) tuple",
-      "handles": ["missing files", "invalid JSON", "truncated JSON", "trailing commas"]
-    },
-    "repair_method": {
-      "description": "Recovers valid todos from corrupted JSON with .recovered backup",
-      "strategies": ["fix trailing commas", "extract complete objects via regex", "graceful degradation"]
-    }
-  },
-  "risks": [
-    "Regex-based extraction may not recover all valid todos in complex corruption scenarios",
-    "Backup files (.recovered) may accumulate if repair is called multiple times"
-  ],
-  "limitations": [
-    "Cannot recover from completely unstructured content",
-    "Manual edits to JSON may still cause issues if format is severely malformed"
-  ]
+  "stage_response_sizes": {
+    "triage": 3227,
+    "plan": 4000,
+    "implement": 2984,
+    "verify": 2301,
+    "finalize": 812
+  }
 }
