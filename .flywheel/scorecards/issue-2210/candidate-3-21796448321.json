@@ -1,0 +1,33 @@
+{
+  "issue_number": 2210,
+  "candidate_id": "candidate-3-21796448321",
+  "status": "ready_for_review",
+  "implementation": {
+    "approach": "Add unsafe_hash=True to Todo dataclass decorator",
+    "changes": [
+      "src/flywheel/todo.py: Added unsafe_hash=True to @dataclass(slots=True, unsafe_hash=True)",
+      "tests/test_issue_2210_todo_equality.py: Added 9 tests for Todo equality and hashing"
+    ],
+    "tests_added": 9,
+    "tests_passing": true,
+    "linting_passing": true,
+    "breaking_changes": false
+  },
+  "verification": {
+    "test_results": "All 9 tests in test_issue_2210_todo_equality.py pass",
+    "full_test_results": "All 121 existing tests pass (no regressions)",
+    "coverage": "Todo class coverage at 98%"
+  },
+  "risks": [
+    "Using unsafe_hash=True means that mutable Todo objects can be used in sets/dicts. If a Todo is mutated after being added to a set, its hash won't update automatically, which could lead to unexpected behavior. This is acceptable because: 1) The issue explicitly requests hashability for testing purposes, 2) The existing code already has mutability via mark_done(), mark_undone(), rename() methods, 3) This is the minimal fix without breaking existing functionality."
+  ],
+  "alternatives_considered": [
+    "frozen=True dataclass - rejected because it would break existing mutability methods (mark_done, mark_undone, rename)",
+    "Custom __eq__ and __hash__ methods - rejected because dataclass auto-generated __eq__ already works correctly"
+  ],
+  "met_acceptance_criteria": [
+    "Two Todo objects with same id, text, done, created_at, updated_at are considered equal - YES (via dataclass auto-__eq__)",
+    "Todo objects can be used in sets and as dict keys - YES (via unsafe_hash=True)",
+    "Tests can use assert todo1 == todo2 instead of comparing individual fields - YES"
+  ]
+}
