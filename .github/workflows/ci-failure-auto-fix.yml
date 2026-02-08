@@ -42,7 +42,7 @@ jobs:
       reason: ${{ steps.gate.outputs.reason }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Circuit breaker gate
         id: gate
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.select-target.outputs.head_branch }}
           fetch-depth: 0
