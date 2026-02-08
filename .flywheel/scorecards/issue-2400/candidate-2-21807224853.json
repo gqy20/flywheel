@@ -22,7 +22,7 @@
   "verification_summary": "All 12 new tests for issue #2400 pass. All 31 existing formatter/sanitize tests continue to pass. Ruff checks pass with no warnings.",
   "implementation": {
     "approach": "Extended _sanitize_text() to check for Unicode bidirectional control characters in ranges U+202A-U+202E and U+2066-U+2069, escaping them to \\uXXXX format.",
-    "lines_changed": 14 in formatter.py, 81 new lines in test file",
+    "lines_changed": "14 in formatter.py, 81 new lines in test file",
     "risks": [
       "None identified - normal Unicode text (Arabic, Hebrew, Chinese, Japanese, emojis) passes through unchanged"
     ],
