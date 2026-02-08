@@ -1,25 +1,23 @@
 {
-  "issue_number": 2386,
-  "candidate_number": 1,
+  "issue": 2386,
+  "candidate": 1,
   "run_id": "21806329597",
-  "summary": "Fix TodoApp.list() default parameter inconsistency with CLI --pending flag",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_2386_list_pending_consistency.py",
-    "tests/test_issue_2112_remove_iteration_pattern.py",
-    "tests/test_minimal_framework.py"
+  "branch": "claude/issue-2386-candidate-1-21806329597",
+  "pr_number": 2398,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2398",
+  "generated_at": "2026-02-08T22:37:26.750791+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passing": 113,
-  "ruff_check": "pass",
-  "behavior_change": "Changed TodoApp.list() default from show_all=True to show_all=False, and added --all flag to CLI for explicit control",
-  "risks": [
-    "Breaking change: TodoApp.list() now defaults to showing only pending todos instead of all todos",
-    "Users relying on the old default behavior will need to use app.list(show_all=True) or CLI --all flag"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2386_list_pending_consistency.py -v",
-    "uv run pytest tests/ -v --ignore=tests/test_automation_smoke.py --ignore=tests/test_workflow_selection_logic.py",
-    "uv run ruff check src/flywheel/cli.py tests/"
-  ]
+  "stage_response_sizes": {
+    "triage": 3086,
+    "plan": 4000,
+    "implement": 3982,
+    "verify": 2368,
+    "finalize": 1280
+  }
 }
