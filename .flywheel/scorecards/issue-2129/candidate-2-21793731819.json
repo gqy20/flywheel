@@ -41,5 +41,20 @@
     "total_tests": 21,
     "all_passed": true,
     "ruff_check": "passed"
+  },
+  "verify_summary": {
+    "stage": "VERIFY",
+    "verified_at": "2026-02-08T07:00:00Z",
+    "commands_executed": [
+      "uv run pytest tests/test_issue_2129_storage_logging.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_2129_storage_logging.py",
+      "uv run pytest tests/test_storage_atomicity.py tests/test_minimal_framework.py -v"
+    ],
+    "outcomes": {
+      "targeted_tests": "5 passed in 0.06s",
+      "related_tests": "16 passed in 0.22s",
+      "linting": "All checks passed",
+      "total": "21 tests passed"
+    }
   }
 }
