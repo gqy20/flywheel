@@ -7,12 +7,16 @@ import json
 import os
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backups to keep
+_DEFAULT_BACKUP_RETENTION = 5
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_retention: int = _DEFAULT_BACKUP_RETENTION) -> None:
         self.path = Path(path or ".todo.json")
+        self._backup_retention = backup_retention
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +87,84 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> Path | None:
+        """Create a timestamped backup of the current database file.
+
+        Returns:
+            Path to the backup file, or None if the file doesn't exist.
+        """
+        if not self.path.exists():
+            return None
+
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_path = self.path.with_name(f"{self.path.name}.{timestamp}.bak")
+
+        # Copy the file to backup location
+        import shutil
+        shutil.copy2(self.path, backup_path)
+
+        return backup_path
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove oldest backups if retention limit is exceeded."""
+        backups = sorted(
+            self.path.parent.glob(f"{self.path.name}.*.bak"),
+            key=lambda p: p.stat().st_mtime,
+        )
+
+        while len(backups) > self._backup_retention:
+            oldest = backups.pop(0)
+            with contextlib.suppress(OSError):
+                oldest.unlink()
+
+    def _get_backup_path(self, backup_path: str | Path | None) -> Path:
+        """Validate and return backup path.
+
+        Args:
+            backup_path: Path to backup file. If None, returns most recent backup.
+
+        Returns:
+            Validated Path object pointing to a backup file.
+
+        Raises:
+            FileNotFoundError: If no backup exists.
+            ValueError: If specified backup doesn't exist.
+        """
+        if backup_path is None:
+            # Return most recent backup
+            backups = sorted(
+                self.path.parent.glob(f"{self.path.name}.*.bak"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if not backups:
+                raise FileNotFoundError(f"No backups found for {self.path}")
+            return backups[0]
+
+        backup_path = Path(backup_path)
+        if not backup_path.exists():
+            raise ValueError(f"Backup file not found: {backup_path}")
+        return backup_path
+
+    def rollback(self, backup_path: str | Path | None = None) -> None:
+        """Restore the database from a backup file.
+
+        Args:
+            backup_path: Path to backup file. If None, uses most recent backup.
+
+        Raises:
+            FileNotFoundError: If no backup exists.
+            ValueError: If specified backup doesn't exist.
+        """
+        backup = self._get_backup_path(backup_path)
+
+        # Ensure parent directory exists (lazy creation, validated)
+        _ensure_parent_directory(self.path)
+
+        # Copy backup to main file location
+        import shutil
+        shutil.copy2(backup, self.path)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -90,7 +173,13 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: Creates a timestamped backup before overwriting existing data.
         """
+        # Create backup if file exists
+        if self.path.exists():
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +212,9 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Cleanup old backups after successful save
+        self._cleanup_old_backups()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
