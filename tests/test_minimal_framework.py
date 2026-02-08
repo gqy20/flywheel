@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_preserves_falsy_timestamps() -> None:
+    """Bug #2221: Todo.from_dict should preserve falsy timestamp values (False, 0, None) as strings."""
+    # Test with False value for created_at
+    todo1 = Todo.from_dict({"id": 1, "text": "task1", "created_at": False})
+    assert todo1.created_at == "False"
+
+    # Test with 0 value for updated_at
+    todo2 = Todo.from_dict({"id": 2, "text": "task2", "updated_at": 0})
+    assert todo2.updated_at == "0"
+
+    # Test with None value (should be converted to string "None")
+    todo3 = Todo.from_dict({"id": 3, "text": "task3", "created_at": None, "updated_at": None})
+    assert todo3.created_at == "None"
+    assert todo3.updated_at == "None"
+
+    # Test with both False and 0
+    todo4 = Todo.from_dict({"id": 4, "text": "task4", "created_at": False, "updated_at": 0})
+    assert todo4.created_at == "False"
+    assert todo4.updated_at == "0"
+
+
+def test_todo_from_dict_with_missing_timestamps() -> None:
+    """Bug #2221: Todo.from_dict should use empty string default for missing timestamps, then __post_init__ auto-fills them."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    # from_dict sets empty string, then __post_init__ populates with current time
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+    assert todo.updated_at == todo.created_at
+
+
+def test_todo_from_dict_with_valid_timestamp_strings() -> None:
+    """Bug #2221: Todo.from_dict should preserve valid timestamp strings."""
+    iso_time = "2025-01-15T12:30:45+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": iso_time, "updated_at": iso_time})
+    assert todo.created_at == iso_time
+    assert todo.updated_at == iso_time
