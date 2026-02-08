@@ -2,7 +2,7 @@
   "issue_id": 2358,
   "candidate_id": 1,
   "run_id": "21804447649",
-  "stage": "triage",
+  "stage": "complete",
   "triage": {
     "root_cause": "Exception handler in run_command() directly formats exceptions without sanitization, allowing control characters from user-supplied input to leak through to stderr",
     "risk_assessment": "P1 - Terminal control character injection through stderr could hide legitimate errors or inject fake output",
@@ -13,7 +13,23 @@
     ],
     "proposed_fix": "Sanitize exception messages using _sanitize_text() before outputting to stderr"
   },
-  "test_results": null,
-  "fix_summary": null,
-  "risks": null
+  "test_results": {
+    "new_tests": 7,
+    "all_tests_passed": true,
+    "total_tests": 119,
+    "test_file": "tests/test_issue_2358_error_message_sanitization.py"
+  },
+  "fix_summary": {
+    "files_changed": 3,
+    "lines_added": 213,
+    "lines_removed": 1,
+    "main_change": "src/flywheel/cli.py:124-126 - Added _sanitize_text() call to exception handler",
+    "pattern": "Uses existing _sanitize_text() function, consistent with success message pattern"
+  },
+  "risks": {
+    "severity": "low",
+    "scope": "error message formatting only",
+    "mitigation": "Uses proven _sanitize_text() function with existing security test coverage"
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2366"
 }
