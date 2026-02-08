@@ -71,11 +71,30 @@ class TodoStorage:
             )
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Read file content first to measure actual bytes read
+            # This prevents TOCTOU issues where file size changes between stat() and read()
+            raw_bytes = self.path.read_bytes()
+            actual_bytes_read = len(raw_bytes)
+
+            # Validate that we read the expected number of bytes
+            # If file was truncated or modified between stat() and read(), this will detect it
+            if actual_bytes_read != file_size:
+                raise ValueError(
+                    f"File size inconsistency: expected {file_size} bytes but read "
+                    f"{actual_bytes_read} bytes. File may have been modified during read."
+                )
+
+            # Decode UTF-8 and parse JSON
+            raw = json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+        except UnicodeDecodeError as e:
+            raise ValueError(
+                f"Invalid UTF-8 encoding in '{self.path}': {e.reason}. "
+                f"File may be truncated or corrupted."
             ) from e
 
         if not isinstance(raw, list):
