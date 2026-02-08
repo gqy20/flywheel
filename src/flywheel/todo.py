@@ -97,6 +97,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(data.get("created_at")) if data.get("created_at") is not None else "",
+            updated_at=str(data.get("updated_at")) if data.get("updated_at") is not None else "",
         )
