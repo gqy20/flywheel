@@ -45,7 +45,8 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        priority_marker = f"[P{todo.priority}] " if todo.priority > 0 else ""
+        return f"[{status}] {todo.id:>3} {priority_marker}{safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
