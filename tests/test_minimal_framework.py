@@ -158,3 +158,21 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_rejects_duplicate_todo_ids(tmp_path) -> None:
+    """Bug #2250: Loading JSON with duplicate todo IDs should raise ValueError."""
+    db = tmp_path / "duplicates.json"
+    storage = TodoStorage(str(db))
+
+    # Create a JSON file with duplicate todo IDs
+    duplicate_payload = [
+        {"id": 1, "text": "first todo", "done": False},
+        {"id": 2, "text": "second todo", "done": True},
+        {"id": 1, "text": "duplicate id todo", "done": False},
+    ]
+    db.write_text(json.dumps(duplicate_payload), encoding="utf-8")
+
+    # Should raise ValueError for duplicate IDs
+    with pytest.raises(ValueError, match="Duplicate todo IDs"):
+        storage.load()
