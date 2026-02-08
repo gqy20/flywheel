@@ -1,15 +1,23 @@
 {
-  "issue_number": 2277,
-  "candidate_number": 3,
+  "issue": 2277,
+  "candidate": 3,
   "run_id": "21800407421",
+  "branch": "claude/issue-2277-candidate-3-21800407421",
+  "pr_number": 2300,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2300",
-  "summary": "Fix --pending flag logic by changing default show_all to False and renaming --pending to --all flag for better UX",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_2277_pending_flag_logic.py",
-    "tests/test_issue_2112_remove_iteration_pattern.py",
-    "tests/test_minimal_framework.py"
+  "generated_at": "2026-02-08T15:39:54.525468+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_pass": true,
-  "lint_pass": true
+  "stage_response_sizes": {
+    "triage": 3833,
+    "plan": 3871,
+    "implement": 4000,
+    "verify": 1548,
+    "finalize": 1106
+  }
 }
