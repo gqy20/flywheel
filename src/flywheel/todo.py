@@ -79,10 +79,24 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate 'done' is a proper boolean value
+        # Accept: True, False, 0, 1
+        # Reject: other integers (2, -1), strings, or other types
+        raw_done = data.get("done", False)
+        if isinstance(raw_done, bool):
+            done = raw_done
+        elif isinstance(raw_done, int) and raw_done in (0, 1):
+            done = bool(raw_done)
+        else:
+            raise ValueError(
+                f"Invalid value for 'done': {raw_done!r}. "
+                "'done' must be a boolean (true/false) or 0/1."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
-            done=bool(data.get("done", False)),
+            done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
