@@ -1,10 +1,12 @@
 {
   "issue_number": 2400,
   "candidate_id": "candidate-1-21807224853",
-  "stage": "FINALIZE",
+  "stage": "COMPLETE",
   "title": "Unicode bidirectional control character sanitization",
   "severity": "p0",
   "vulnerability_type": "trojan_source_spoofing",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2407",
+  "branch": "claude/issue-2400-candidate-1-21807224853",
   "tdd_plan": {
     "test_file": "tests/test_issue_2400_bidi_control_sanitization.py",
     "source_file": "src/flywheel/formatter.py",
@@ -19,6 +21,15 @@
       "VERIFY: Run uv run ruff check src/flywheel/formatter.py"
     ]
   },
+  "results": {
+    "new_tests": 16,
+    "new_tests_passed": 16,
+    "regression_tests": 27,
+    "regression_tests_passed": 27,
+    "total_tests": 128,
+    "total_tests_passed": 128,
+    "ruff_check": "passed"
+  },
   "bidi_ranges": {
     "U+202A-U+202E": ["LRE", "RLE", "PDF", "LRO", "RLO"],
     "U+2066-U+2069": ["LRI", "RLI", "FSI", "PDI"]
@@ -28,5 +39,6 @@
     "Unicode bidi control chars U+2066-U+2069 are escaped to \\uXXXX format",
     "Normal Unicode text (Chinese, Japanese, emojis) passes through unchanged",
     "Existing tests for normal Unicode continue to pass"
-  ]
+  ],
+  "acceptance_criteria_met": true
 }
