@@ -2,7 +2,7 @@
   "issue_number": 2320,
   "candidate_number": 3,
   "run_id": "21803002413",
-  "stage": "FINALIZE",
+  "stage": "VERIFY",
   "branch_name": "claude/issue-2320-candidate-3-21803002413",
   "status": "completed",
   "test_results": {
@@ -12,5 +12,16 @@
   },
   "linting": {
     "ruff_check": "passed"
+  },
+  "verification_summary": {
+    "commands_run": [
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
+    ],
+    "outcome": "All tests passed (7/7). File locking feature already implemented in commit 920d671.",
+    "coverage": {
+      "src/flywheel/storage.py": "71%",
+      "total": "35%"
+    }
   }
 }
