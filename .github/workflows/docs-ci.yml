@@ -83,7 +83,7 @@ jobs:
             && ! echo "$changed_files" | grep -Eq '^scripts/'; then
             non_workflow_changes="$(
               echo "$changed_files" \
-                | grep -Ev '^(\.github/workflows/|\.github/dependabot\.yml)$' \
+                | grep -Ev '^(\.github/workflows/.*|\.github/dependabot\.yml)$' \
                 || true
             )"
             if [ -z "$non_workflow_changes" ]; then
