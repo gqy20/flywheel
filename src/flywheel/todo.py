@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from datetime import date as date_type
 
 
 def _utc_now_iso() -> str:
@@ -19,6 +20,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -52,6 +54,29 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, due_date: str | None) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            due_date: ISO date string (e.g., "2025-12-31") or None to clear.
+
+        Raises:
+            ValueError: If due_date is not a valid ISO date string.
+        """
+        if due_date is None:
+            self.due_date = None
+            self.updated_at = _utc_now_iso()
+            return
+
+        # Validate ISO date format (YYYY-MM-DD)
+        try:
+            date_type.fromisoformat(due_date)
+        except ValueError as e:
+            raise ValueError(f"Invalid ISO date format: {due_date!r}") from e
+
+        self.due_date = due_date
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +118,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle optional 'due_date' field
+        due_date = None
+        raw_due_date = data.get("due_date")
+        if raw_due_date is not None:
+            due_date_str = str(raw_due_date)
+            try:
+                date_type.fromisoformat(due_date_str)
+                due_date = due_date_str
+            except ValueError:
+                # Invalid due_date is ignored (set to None)
+                pass
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=due_date,
         )
