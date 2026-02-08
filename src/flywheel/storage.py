@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, enable_backups: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self._enable_backups = enable_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +87,19 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        The backup is created at the same path with a .bak suffix.
+        If backup creation fails, a warning is logged but the error is not raised
+        - the save operation should continue even if backup fails.
+        """
+        backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+        try:
+            shutil.copy2(self.path, backup_path)
+        except OSError as e:
+            logger.warning("Failed to create backup at %s: %s", backup_path, e)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -90,7 +108,14 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        If enable_backups=True, creates a .bak file with the previous content
+        before overwriting (only if the target file already exists).
         """
+        # Create backup before overwriting if enabled and file exists
+        if self._enable_backups and self.path.exists():
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
