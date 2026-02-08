@@ -7,9 +7,14 @@ import json
 import os
 import stat
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +58,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, max_backups: int = 5) -> None:
         self.path = Path(path or ".todo.json")
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +97,11 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file
+        if self.path.exists():
+            with contextlib.suppress(OSError):
+                self.backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +134,113 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _backup_file_path(self) -> Path:
+        """Generate a timestamped backup file path.
+
+        Uses timestamp + counter to ensure uniqueness even when multiple
+        backups are created within the same second.
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+
+        # Find existing backups with this timestamp and increment counter
+        counter = 0
+        pattern = f".{self.path.name}.bak.{timestamp}_*"
+        existing = list(self.path.parent.glob(pattern))
+        if existing:
+            # Extract counters and find max
+            for path in existing:
+                try:
+                    suffix = path.name.split(f".bak.{timestamp}_")[1]
+                    counter = max(counter, int(suffix))
+                except (ValueError, IndexError):
+                    pass
+            counter += 1
+
+        return self.path.parent / f".{self.path.name}.bak.{timestamp}_{counter}"
+
+    def backup(self) -> None:
+        """Create a timestamped backup of the current file.
+
+        Creates an atomic backup using the same temp-file + rename pattern
+        as save() for safety. Only creates backup if the main file exists.
+        Automatically cleans up old backups exceeding max_backups limit.
+        """
+        if not self.path.exists():
+            return
+
+        backup_path = self._backup_file_path()
+
+        # Create temp file for atomic backup
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            text=False,
+        )
+
+        try:
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+
+            # Copy current file content to temp
+            with os.fdopen(fd, "wb") as f:
+                f.write(self.path.read_bytes())
+
+            # Atomic rename to backup path
+            os.replace(temp_path, backup_path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
+
+        # Clean up old backups
+        self._cleanup_old_backups()
+
+    def list_backups(self) -> Sequence[Path]:
+        """Return list of available backup files, ordered oldest to newest."""
+        pattern = f".{self.path.name}.bak.*"
+        backups = sorted(self.path.parent.glob(pattern))
+        return backups
+
+    def restore(self, backup_path: Path) -> None:
+        """Restore from a specific backup file.
+
+        Uses atomic replace to safely restore the backup.
+        The backup file is preserved after restore.
+        """
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Atomic restore - copy backup to main file
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.",
+            suffix=".tmp",
+            text=False,
+        )
+
+        try:
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+
+            with os.fdopen(fd, "wb") as f:
+                f.write(backup_path.read_bytes())
+
+            os.replace(temp_path, self.path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backups exceeding max_backups limit."""
+        backups = self.list_backups()
+
+        # Keep only the most recent max_backups
+        # Since list_backups returns oldest first, remove from beginning
+        while len(backups) > self.max_backups:
+            old_backup = backups.pop(0)
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
