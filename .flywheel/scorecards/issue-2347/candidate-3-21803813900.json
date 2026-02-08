@@ -1,0 +1,48 @@
+{
+  "issue_number": 2347,
+  "issue_title": "[Enhancement] 添加优先级字段支持",
+  "candidate_id": "3",
+  "run_id": "21803813900",
+  "branch": "claude/issue-2347-candidate-3-21803813900",
+  "stage": "finalized",
+  "created_at": "2026-02-08T19:26:32Z",
+  "test_results": {
+    "new_tests": 10,
+    "new_tests_passed": 10,
+    "all_tests": 122,
+    "all_tests_passed": 122,
+    "ruff_check": "passed"
+  },
+  "plan": {
+    "summary": "Add priority field support to Todo dataclass with formatter display",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "src/flywheel/formatter.py",
+      "tests/test_issue_2347_priority_field.py"
+    ],
+    "test_plan": [
+      "Create Todo with default priority=0",
+      "Create Todo with explicit priority values (1, 2, 3)",
+      "Todo.from_dict correctly parses priority field from JSON",
+      "Todo.from_dict handles missing priority field (defaults to 0)",
+      "TodoFormatter.format_todo hides priority when priority=0",
+      "TodoFormatter.format_todo shows [P1] for priority=1",
+      "TodoFormatter.format_todo shows [P2] for priority=2",
+      "TodoFormatter.format_todo shows [P3] for priority=3"
+    ],
+    "implementation_sequence": [
+      "RED: Write failing regression tests for priority field",
+      "GREEN: Add priority: int = 0 field to Todo dataclass",
+      "GREEN: Update Todo.from_dict to parse priority field",
+      "GREEN: Update TodoFormatter.format_todo to display priority tags",
+      "VERIFY: Run uv run pytest tests/test_issue_2347_priority_field.py -v",
+      "VERIFY: Run uv run ruff check src/flywheel/todo.py src/flywheel/formatter.py"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2347_priority_field.py -v",
+      "uv run pytest tests/ -v -k priority",
+      "uv run ruff check src/flywheel/todo.py src/flywheel/formatter.py",
+      "uv run ruff check tests/test_issue_2347_priority_field.py"
+    ]
+  }
+}
