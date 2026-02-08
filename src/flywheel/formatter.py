@@ -8,9 +8,10 @@ from .todo import Todo
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
-    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
-    C1 control characters (0x80-0x9f) with their escaped representations
-    to prevent injection attacks via todo text.
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), C1 control
+    characters (0x80-0x9f), Unicode bidirectional override characters
+    (U+202A-U+202E), and zero-width characters (U+200B-U+200D) with their
+    escaped representations to prevent injection attacks via todo text.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,13 +27,23 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
+    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f),
+    # C1 (0x80-0x9f), Unicode bidirectional overrides (U+202A-U+202E),
+    # and zero-width characters (U+200B-U+200D)
+    # Replace with \\xNN (for code <= 0xff) or \\uNNNN (for code > 0xff) escape sequences
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
+        if (
+            (0 <= code <= 0x1f and char not in ("\n", "\r", "\t"))
+            or 0x7f <= code <= 0x9f
+            or 0x200b <= code <= 0x200d
+            or 0x202a <= code <= 0x202e
+        ):
+            if code <= 0xff:
+                result.append(f"\\x{code:02x}")
+            else:
+                result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
