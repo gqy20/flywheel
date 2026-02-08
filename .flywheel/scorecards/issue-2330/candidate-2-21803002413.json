@@ -1,0 +1,25 @@
+{
+  "issue": 2330,
+  "candidate": 2,
+  "run_id": "21803002413",
+  "summary": "Refactor TodoApp.list() parameter from show_all to include_done for clearer semantics",
+  "changes": [
+    {
+      "file": "src/flywheel/cli.py",
+      "description": "Renamed list() parameter from show_all to include_done with improved documentation"
+    },
+    {
+      "file": "tests/test_issue_2330_pending_flag.py",
+      "description": "Added regression tests for --pending flag behavior"
+    }
+  ],
+  "tests_run": [
+    "pytest tests/ - 114 passed",
+    "ruff check src/flywheel/cli.py - All checks passed"
+  ],
+  "risks": [
+    "Parameter rename is internal to TodoApp, existing code using default value works unchanged",
+    "Behavior remains functionally identical - this is a semantic clarity improvement"
+  ],
+  "verification": "Manual testing confirmed: todo list shows all todos, todo list --pending shows only pending todos"
+}
