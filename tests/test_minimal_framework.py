@@ -158,3 +158,51 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_repr_with_all_fields() -> None:
+    """Issue #2087: repr() should show all key fields for debugging."""
+    todo = Todo(id=1, text="buy milk", done=True)
+    repr_str = repr(todo)
+
+    # Should contain class name and key fields
+    assert "Todo" in repr_str
+    assert "id=1" in repr_str
+    assert "text=" in repr_str
+    assert "done=True" in repr_str
+
+
+def test_todo_repr_with_minimal_fields() -> None:
+    """Issue #2087: repr() should work with minimal required fields."""
+    todo = Todo(id=42, text="simple task")
+    repr_str = repr(todo)
+
+    # Should still show basic info
+    assert "Todo" in repr_str
+    assert "id=42" in repr_str
+    assert "text=" in repr_str
+    assert "done=False" in repr_str
+
+
+def test_todo_repr_truncates_long_text() -> None:
+    """Issue #2087: repr() should truncate long text to stay concise."""
+    long_text = "This is a very long todo item that exceeds fifty characters and should be truncated"
+    todo = Todo(id=1, text=long_text)
+    repr_str = repr(todo)
+
+    # Repr should be under 100 chars for long text
+    assert len(repr_str) < 100
+    # Should indicate truncation
+    assert "..." in repr_str
+
+
+def test_todo_repr_is_eval_friendly() -> None:
+    """Issue #2087: repr() format should be useful for debugging."""
+    todo = Todo(id=1, text='test "quoted" text', done=False)
+    repr_str = repr(todo)
+
+    # Text should be quoted (shows it's a string)
+    assert "'" in repr_str or '"' in repr_str
+    # Should be readable in debugger/traceback
+    assert repr_str.startswith("Todo(")
+    assert repr_str.endswith(")")

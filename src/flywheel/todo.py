@@ -44,6 +44,18 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def __repr__(self) -> str:
+        """Return a concise, debugging-friendly representation.
+
+        Truncates long text (>50 chars) to keep output readable.
+        Format: Todo(id=X, text='...', done=Y)
+        """
+        # Truncate text at 50 characters
+        text_repr = repr(self.text)
+        if len(self.text) > 50:
+            text_repr = repr(self.text[:47] + "...")
+        return f"Todo(id={self.id}, text={text_repr}, done={self.done})"
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
