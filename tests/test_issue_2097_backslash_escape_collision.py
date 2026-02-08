@@ -14,7 +14,7 @@ Solution: Escape backslash character BEFORE escaping control characters.
 
 from __future__ import annotations
 
-from flywheel.formatter import TodoFormatter, _sanitize_text
+from flywheel.formatter import TodoFormatter, sanitize_text
 from flywheel.todo import Todo
 
 
@@ -28,10 +28,10 @@ class TestBackslashEscapeCollision:
         currently produce identical output, making them indistinguishable.
         """
         # Actual control character (SOH - Start of Header)
-        actual_control_char_output = _sanitize_text("\x01")
+        actual_control_char_output = sanitize_text("\x01")
 
         # Literal backslash-x-zero-one text (6 characters: \, x, 0, 1)
-        literal_backslash_text_output = _sanitize_text(r"\x01")
+        literal_backslash_text_output = sanitize_text(r"\x01")
 
         # These MUST be different to prevent collision attacks
         assert actual_control_char_output != literal_backslash_text_output, (
@@ -45,7 +45,7 @@ class TestBackslashEscapeCollision:
         Input: "\" (1 character)
         Output: r"\\" (2 characters: backslash, backslash)
         """
-        result = _sanitize_text("\\")
+        result = sanitize_text("\\")
         assert result == r"\\", f"Expected r'\\\\' but got {result!r}"
         # Verify it's actually 2 characters, not 1
         assert len(result) == 2, f"Escaped backslash should be 2 chars, got {len(result)}"
@@ -81,10 +81,10 @@ class TestBackslashEscapeCollision:
         This should work! Let me write the test correctly.
         """
         # Actual newline character (1 char)
-        actual_newline_output = _sanitize_text("\n")
+        actual_newline_output = sanitize_text("\n")
 
         # Literal backslash-n text (2 characters: backslash, n)
-        literal_newline_output = _sanitize_text(r"\n")
+        literal_newline_output = sanitize_text(r"\n")
 
         # These MUST be different
         assert actual_newline_output != literal_newline_output, (
@@ -100,17 +100,17 @@ class TestBackslashEscapeCollision:
     def test_normal_text_with_backslashes(self):
         """Normal text containing backslashes should have them escaped."""
         # Windows-style path
-        result = _sanitize_text(r"C:\Users\test\file.txt")
+        result = sanitize_text(r"C:\Users\test\file.txt")
         assert result == r"C:\\Users\\test\\file.txt"
 
         # Multiple consecutive backslashes
-        result = _sanitize_text(r"\\\\server\\share")
+        result = sanitize_text(r"\\\\server\\share")
         assert result == r"\\\\\\\\server\\\\share"
 
     def test_backslash_followed_by_control_char(self):
         """Input with both backslash and control character should escape both properly."""
         # Backslash followed by SOH control char
-        result = _sanitize_text("\\\x01")
+        result = sanitize_text("\\\x01")
 
         # Backslash should be escaped to \\
         # Control char \x01 should be escaped to \x01
@@ -120,7 +120,7 @@ class TestBackslashEscapeCollision:
     def test_mixed_backslashes_and_various_control_chars(self):
         """Complex input with backslashes and multiple control characters."""
         # Literal r"\x" followed by actual control chars
-        result = _sanitize_text(r"literal\x" + "\x01\x02\x1b")
+        result = sanitize_text(r"literal\x" + "\x01\x02\x1b")
 
         # r"literal\x" → r"literal\\x" (backslash escaped)
         # "\x01\x02\x1b" → r"\x01\x02\x1b" (control chars escaped)
@@ -137,13 +137,13 @@ class TestBackslashEscapeCollision:
 
     def test_empty_string(self):
         """Empty string should remain empty."""
-        assert _sanitize_text("") == ""
+        assert sanitize_text("") == ""
 
     def test_only_backslashes(self):
         """String of only backslashes should all be escaped."""
-        assert _sanitize_text("\\") == r"\\"
-        assert _sanitize_text("\\\\") == r"\\\\"
-        assert _sanitize_text("\\\\\\\\") == r"\\\\\\\\"
+        assert sanitize_text("\\") == r"\\"
+        assert sanitize_text("\\\\") == r"\\\\"
+        assert sanitize_text("\\\\\\\\") == r"\\\\\\\\"
 
     def test_backslash_collision_attack_vector(self):
         """Test a potential attack vector where user tries to mimic control char output.
@@ -157,8 +157,8 @@ class TestBackslashEscapeCollision:
         # Actual control characters
         actual_control_chars = "\x01\n\x1b[31m"
 
-        literal_output = _sanitize_text(malicious_literal_input)
-        control_output = _sanitize_text(actual_control_chars)
+        literal_output = sanitize_text(malicious_literal_input)
+        control_output = sanitize_text(actual_control_chars)
 
         # Must be distinguishable
         assert literal_output != control_output, (
@@ -190,7 +190,7 @@ class TestBackslashEscapeComprehensive:
 
         for control_char, expected_escaped in test_cases:
             # Test actual control character
-            control_output = _sanitize_text(control_char)
+            control_output = sanitize_text(control_char)
             assert control_output == expected_escaped, (
                 f"Control char {control_char!r} should escape to {expected_escaped!r}, "
                 f"got {control_output!r}"
@@ -198,7 +198,7 @@ class TestBackslashEscapeComprehensive:
 
             # Test literal text (backslash-escape sequence)
             literal_input = expected_escaped  # This is the literal text
-            literal_output = _sanitize_text(literal_input)
+            literal_output = sanitize_text(literal_input)
 
             # After escaping backslash, literal should have one more backslash
             expected_literal = "\\" + expected_escaped

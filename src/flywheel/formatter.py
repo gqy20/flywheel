@@ -5,7 +5,7 @@ from __future__ import annotations
 from .todo import Todo
 
 
-def _sanitize_text(text: str) -> str:
+def sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
@@ -44,7 +44,7 @@ class TodoFormatter:
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
-        safe_text = _sanitize_text(todo.text)
+        safe_text = sanitize_text(todo.text)
         return f"[{status}] {todo.id:>3} {safe_text}"
 
     @classmethod
