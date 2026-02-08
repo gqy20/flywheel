@@ -11,11 +11,9 @@ use _sanitize_text() for security.
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import patch
 
 from flywheel.cli import build_parser, run_command
-from flywheel.formatter import _sanitize_text
 
 
 def test_cli_error_message_sanitizes_control_chars_from_value_error(tmp_path, capsys) -> None:

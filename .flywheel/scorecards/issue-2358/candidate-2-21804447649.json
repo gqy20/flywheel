@@ -1,0 +1,17 @@
+{
+  "issue_number": 2358,
+  "candidate_id": "2-21804447649",
+  "stage": "verify",
+  "title": "CLI error message sanitization for control characters",
+  "description": "Add sanitization to error messages in CLI output that may expose untrusted input with control characters",
+  "commit_hash": "8221b34",
+  "tests_run": "uv run pytest tests/test_issue_2358_cli_error_message_sanitization.py",
+  "tests_result": "6 passed",
+  "changes": [
+    "src/flywheel/cli.py: Added _sanitize_text() to exception error output",
+    "tests/test_issue_2358_cli_error_message_sanitization.py: Added 6 regression tests"
+  ],
+  "risks": [
+    "Sanitization applies to all error messages - may affect readability of legitimate error messages containing control characters (unlikely in practice)"
+  ]
+}
