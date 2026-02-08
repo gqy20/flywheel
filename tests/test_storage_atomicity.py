@@ -151,6 +151,157 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_backup_file_created_on_overwrite(tmp_path, monkeypatch) -> None:
+    """Test that save creates a .bak backup when overwriting existing file.
+
+    Regression test for issue #2334.
+    """
+    # Set default backup count to 3
+    monkeypatch.setenv("TODO_BACKUP_COUNT", "3")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file
+    initial_todos = [Todo(id=1, text="original")]
+    storage.save(initial_todos)
+
+    # Overwrite with new data
+    updated_todos = [Todo(id=1, text="updated")]
+    storage.save(updated_todos)
+
+    # Backup file should exist
+    backup = tmp_path / "todo.json.bak"
+    assert backup.exists(), "Backup file should be created on overwrite"
+
+    # Backup should contain original content
+    backup_content = backup.read_text(encoding="utf-8")
+    backup_data = json.loads(backup_content)
+    assert len(backup_data) == 1
+    assert backup_data[0]["text"] == "original"
+
+
+def test_backup_rotation_keeps_n_most_recent(tmp_path, monkeypatch) -> None:
+    """Test that backup rotation keeps only N most recent backups.
+
+    Regression test for issue #2334.
+    """
+    # Set backup count to 2 for testing
+    monkeypatch.setenv("TODO_BACKUP_COUNT", "2")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file
+    storage.save([Todo(id=1, text="v1")])
+
+    # First overwrite - creates .bak
+    storage.save([Todo(id=1, text="v2")])
+    assert (tmp_path / "todo.json.bak").exists()
+
+    # Second overwrite - creates .bak.1, keeps .bak
+    storage.save([Todo(id=1, text="v3")])
+    assert (tmp_path / "todo.json.bak").exists()
+    assert (tmp_path / "todo.json.bak.1").exists()
+
+    # Third overwrite - creates .bak.2, removes .bak.1
+    storage.save([Todo(id=1, text="v4")])
+    assert (tmp_path / "todo.json.bak").exists()  # newest
+    assert (tmp_path / "todo.json.bak.1").exists()  # second newest
+    assert not (tmp_path / "todo.json.bak.2").exists()  # over limit
+
+    # Verify content: .bak should have v3, .bak.1 should have v2
+    bak_content = (tmp_path / "todo.json.bak").read_text(encoding="utf-8")
+    assert json.loads(bak_content)[0]["text"] == "v3"
+
+    bak1_content = (tmp_path / "todo.json.bak.1").read_text(encoding="utf-8")
+    assert json.loads(bak1_content)[0]["text"] == "v2"
+
+
+def test_backup_count_zero_disables_backups(tmp_path, monkeypatch) -> None:
+    """Test that TODO_BACKUP_COUNT=0 disables backup creation.
+
+    Regression test for issue #2334.
+    """
+    # Disable backups
+    monkeypatch.setenv("TODO_BACKUP_COUNT", "0")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file
+    storage.save([Todo(id=1, text="original")])
+
+    # Overwrite
+    storage.save([Todo(id=1, text="updated")])
+
+    # No backup should be created
+    assert not (tmp_path / "todo.json.bak").exists()
+    assert not (tmp_path / "todo.json.bak.0").exists()
+
+
+def test_backup_failure_doesnt_prevent_main_save(tmp_path, monkeypatch) -> None:
+    """Test that backup creation failure doesn't prevent main save operation.
+
+    Regression test for issue #2334.
+    """
+    monkeypatch.setenv("TODO_BACKUP_COUNT", "3")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file
+    storage.save([Todo(id=1, text="original")])
+
+    # Mock shutil.copy to fail, but save should still succeed
+    import shutil
+    with patch.object(shutil, "copy", side_effect=OSError("Backup failed")):
+        # This should not raise
+        storage.save([Todo(id=1, text="updated")])
+
+    # Main file should be updated despite backup failure
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "updated"
+
+
+def test_backup_has_same_content_as_original(tmp_path, monkeypatch) -> None:
+    """Test that backup has same content as original before overwrite.
+
+    Regression test for issue #2334.
+    """
+    monkeypatch.setenv("TODO_BACKUP_COUNT", "3")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create original with specific content
+    original_todos = [
+        Todo(id=1, text="task1"),
+        Todo(id=2, text="task2", done=True),
+        Todo(id=3, text="task with unicode: 你好"),
+    ]
+    storage.save(original_todos)
+
+    # Get original file content
+    original_content = db.read_text(encoding="utf-8")
+
+    # Overwrite
+    storage.save([Todo(id=1, text="modified")])
+
+    # Backup should match original exactly
+    backup_content = (tmp_path / "todo.json.bak").read_text(encoding="utf-8")
+    assert backup_content == original_content
+
+    # Verify backup content is valid JSON with correct todos
+    backup_data = json.loads(backup_content)
+    assert len(backup_data) == 3
+    assert backup_data[0]["text"] == "task1"
+    assert backup_data[1]["text"] == "task2"
+    assert backup_data[1]["done"] is True
+    assert backup_data[2]["text"] == "task with unicode: 你好"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

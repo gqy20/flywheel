@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,97 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backups to keep
+_DEFAULT_BACKUP_COUNT = 3
+
+
+def _get_backup_count() -> int:
+    """Get the number of backups to keep from environment variable.
+
+    Returns:
+        int: Number of backups to keep (0 means disabled).
+    """
+    try:
+        value = os.environ.get("TODO_BACKUP_COUNT", str(_DEFAULT_BACKUP_COUNT))
+        count = int(value)
+        return max(0, count)  # Ensure non-negative
+    except ValueError:
+        return _DEFAULT_BACKUP_COUNT
+
+
+def _rotate_backups(file_path: Path, max_backups: int) -> None:
+    """Rotate backup files, keeping only the most recent max_backups.
+
+    Args:
+        file_path: The original file path.
+        max_backups: Maximum number of backups to keep.
+
+    Rotation scheme:
+        - Newest backup: .bak (no number)
+        - Older backups: .bak.1, .bak.2, ..., .bak.(max_backups-1)
+    """
+    if max_backups <= 0:
+        return
+
+    # Rotate existing numbered backups: .bak.N -> .bak.N+1
+    # We start from the highest number to avoid overwriting
+    existing_backups = []
+    for f in file_path.parent.glob(f"{file_path.name}.bak.*"):
+        suffix = f.name.split(".bak.")[-1]
+        if suffix.isdigit():
+            existing_backups.append((int(suffix), f))
+
+    # Sort by number descending (oldest numbered backup first in rotation)
+    existing_backups.sort(key=lambda x: x[0], reverse=True)
+
+    for num, backup in existing_backups:
+        if num >= max_backups - 1:
+            # Delete old backups beyond the limit
+            with contextlib.suppress(OSError):
+                backup.unlink()
+        else:
+            # Rotate to higher number
+            new_name = backup.parent / f"{file_path.name}.bak.{num + 1}"
+            with contextlib.suppress(OSError):
+                os.replace(backup, new_name)
+
+    # Rotate .bak (without number) to .bak.1
+    bak_path = file_path.parent / f"{file_path.name}.bak"
+    if bak_path.exists():
+        new_bak = bak_path.parent / f"{file_path.name}.bak.1"
+        with contextlib.suppress(OSError):
+            os.replace(bak_path, new_bak)
+
+
+def _create_backup(file_path: Path) -> None:
+    """Create a backup of the existing file before overwriting.
+
+    Args:
+        file_path: The file to backup.
+
+    Note:
+        Backup failures are silently suppressed to prevent main save operation
+        from failing. This is intentional - the save operation is more critical
+        than the backup creation.
+    """
+    max_backups = _get_backup_count()
+    if max_backups <= 0:
+        return
+
+    if not file_path.exists():
+        return
+
+    try:
+        # First rotate existing backups
+        _rotate_backups(file_path, max_backups)
+
+        # Create new backup as .bak (most recent)
+        bak_path = file_path.parent / f"{file_path.name}.bak"
+        shutil.copy2(file_path, bak_path)
+    except OSError:
+        # Silently suppress backup failures - don't prevent main save
+        pass
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -115,6 +207,9 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Create backup of existing file before overwriting
+            _create_backup(self.path)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
