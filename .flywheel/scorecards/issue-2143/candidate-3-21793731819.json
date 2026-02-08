@@ -1,26 +1,23 @@
 {
-  "issue_number": 2143,
-  "candidate_number": 3,
+  "issue": 2143,
+  "candidate": 3,
   "run_id": "21793731819",
   "branch": "claude/issue-2143-candidate-3-21793731819",
-  "status": "completed",
-  "acceptance_criteria_met": {
-    "test_exists_for_empty_list": true,
-    "test_calls_next_id_with_empty_list": true,
-    "test_asserts_returns_one": true
-  },
-  "changes": {
-    "test_files_added": [],
-    "test_files_modified": ["tests/test_minimal_framework.py"],
-    "source_files_modified": [],
-    "new_tests": ["test_next_id_empty_list_returns_one"]
-  },
-  "test_results": {
-    "pytest_passed": true,
-    "new_test_passed": true,
-    "all_tests_passed": true,
-    "ruff_check_passed": true
-  },
-  "risks": [],
-  "limitations": "Test-only change - no source code modification needed as implementation already handles empty list case correctly"
+  "pr_number": 2174,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2174",
+  "generated_at": "2026-02-08T06:57:36.548464+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1326,
+    "plan": 3049,
+    "implement": 1822,
+    "verify": 1896,
+    "finalize": 1564
+  }
 }
