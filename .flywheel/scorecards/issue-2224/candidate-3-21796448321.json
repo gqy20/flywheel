@@ -82,6 +82,6 @@
   "finalize": {
     "stage": "FINALIZE",
     "finalized_at": "2026-02-08T10:40:00Z",
-    "pr_url": null
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2231"
   }
 }
