@@ -1,57 +1,23 @@
 {
-  "issue_number": 2238,
-  "candidate_number": 1,
+  "issue": 2238,
+  "candidate": 1,
   "run_id": "21797794461",
-  "title": "[Enhancement] Add backup/rotation support for corrupted database files",
-  "status": "completed",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2261",
+  "branch": "claude/issue-2238-candidate-1-21797794461",
   "pr_number": 2261,
-  "created_at": "2026-02-08T12:00:00Z",
-  "tests": {
-    "test_file": "tests/test_issue_2238_backup_rotation.py",
-    "test_count": 9,
-    "test_names": [
-      "test_backup_created_when_file_exists",
-      "test_backup_rotation_keeps_only_n_backups",
-      "test_no_backup_for_new_files",
-      "test_restore_from_backup_restores_data",
-      "test_list_backups_returns_sorted_paths",
-      "test_default_keep_backups_is_three",
-      "test_backup_with_zero_keeps_no_backups",
-      "test_backup_naming_convention",
-      "test_concurrent_backup_operations"
-    ]
-  },
-  "implementation": {
-    "source_file": "src/flywheel/storage.py",
-    "changes": [
-      "Added keep_backups parameter to TodoStorage.__init__()",
-      "Added list_backups() method to discover available backups",
-      "Added restore_from_backup() method for manual recovery",
-      "Added _create_backup() private method for backup rotation",
-      "Modified save() to call _create_backup() before os.replace"
-    ]
-  },
-  "acceptance_criteria": {
-    "add_keep_backups_parameter": true,
-    "backup_before_save": true,
-    "backup_rotation": true,
-    "list_backups_method": true,
-    "restore_from_backup_method": true,
-    "tests_added": true
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2238_backup_rotation.py -v",
-    "pytest_result": "9 passed in 0.10s",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2238_backup_rotation.py",
-    "ruff_result": "All checks passed!",
-    "storage_coverage": "81%",
-    "all_tests_passed": true
-  },
-  "score": {
-    "test_coverage": "passed",
-    "code_quality": "passed",
-    "acceptance_criteria_met": true,
-    "overall": "passed"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2261",
+  "generated_at": "2026-02-08T12:31:34.041007+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2323,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 1233,
+    "finalize": 662
   }
 }
