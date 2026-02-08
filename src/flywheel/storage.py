@@ -91,6 +91,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Validate todo list integrity before save
+        self.validate(todos)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +126,34 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def validate(self, todos: list[Todo]) -> None:
+        """Validate todo list integrity before save.
+
+        Checks for:
+        - Duplicate todo IDs
+        - Empty or invalid required fields (text cannot be empty)
+
+        Raises:
+            ValueError: If validation fails with descriptive error message
+        """
+        # Check for duplicate IDs
+        seen_ids = set()
+        for todo in todos:
+            if todo.id in seen_ids:
+                raise ValueError(
+                    f"Duplicate todo ID detected: {todo.id}. "
+                    f"Each todo must have a unique ID."
+                )
+            seen_ids.add(todo.id)
+
+        # Check for empty text (invalid required field)
+        for todo in todos:
+            if not todo.text or not todo.text.strip():
+                raise ValueError(
+                    f"Todo ID {todo.id} has invalid text field: "
+                    f"text cannot be empty or whitespace."
+                )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
