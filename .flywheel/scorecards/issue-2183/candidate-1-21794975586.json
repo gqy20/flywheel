@@ -1,0 +1,10 @@
+{
+  "candidate_number": 1,
+  "issue_number": 2183,
+  "run_id": "21794975586",
+  "branch_name": "claude/issue-2183-candidate-1-21794975586",
+  "summary": "Add data validation and schema verification to TodoStorage.save()",
+  "tests_run": ["tests/test_issue_2183_data_validation.py - 5 passed"],
+  "risks_limitations": "None identified. The validate() method is overridable for extensibility.",
+  "created_at": "2026-02-08T07:44:00Z"
+}

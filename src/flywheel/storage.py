@@ -82,6 +82,41 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def validate(self, todos: list[Todo]) -> None:
+        """Validate todo list integrity before saving.
+
+        Checks for:
+        - Duplicate todo IDs
+        - Missing or invalid required fields
+
+        Raises:
+            ValueError: If validation fails with descriptive error message
+        """
+        # Check for duplicate IDs
+        seen_ids: set[int] = set()
+        duplicate_ids: set[int] = set()
+
+        for todo in todos:
+            if todo.id in seen_ids:
+                duplicate_ids.add(todo.id)
+            seen_ids.add(todo.id)
+
+        if duplicate_ids:
+            dup_list = sorted(duplicate_ids)
+            raise ValueError(
+                f"Duplicate todo IDs detected: {dup_list}. "
+                f"Each todo must have a unique ID."
+            )
+
+        # Check required fields
+        for todo in todos:
+            # Validate text is present and non-empty
+            if not todo.text or not isinstance(todo.text, str):
+                raise ValueError(
+                    f"Todo {todo.id} has invalid or missing text field. "
+                    f"'text' must be a non-empty string."
+                )
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -91,6 +126,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Validate data before writing
+        self.validate(todos)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
