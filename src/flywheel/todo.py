@@ -10,6 +10,30 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_timestamp(value: str | None) -> str:
+    """Validate and normalize timestamp value.
+
+    Returns:
+        - Empty string if value is falsy (triggers __post_init__ to set current time)
+        - Empty string if value is not a valid ISO8601 timestamp (triggers __post_init__)
+        - The original value if it's a valid ISO8601 timestamp
+
+    This ensures invalid timestamps are replaced with current time via __post_init__.
+    """
+    if not value:
+        return ""
+
+    # Try to parse as ISO8601 timestamp
+    # Handle both 'Z' suffix and +00:00 timezone formats
+    try:
+        normalized = value.replace("Z", "+00:00")
+        datetime.fromisoformat(normalized)
+        return value  # Valid timestamp, return as-is
+    except (ValueError, AttributeError):
+        # Not a valid ISO8601 timestamp, return empty to trigger __post_init__
+        return ""
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -97,6 +121,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=_validate_timestamp(data.get("created_at")),
+            updated_at=_validate_timestamp(data.get("updated_at")),
         )
