@@ -45,7 +45,10 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        due_str = ""
+        if todo.due_date:
+            due_str = f" (due: {todo.due_date})"
+        return f"[{status}] {todo.id:>3} {safe_text}{due_str}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

@@ -4,10 +4,27 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from re import fullmatch
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _validate_iso_date(date_str: str) -> bool:
+    """Validate that a string is in YYYY-MM-DD date format.
+
+    Args:
+        date_str: The string to validate.
+
+    Returns:
+        True if the string is a valid ISO date (YYYY-MM-DD), False otherwise.
+    """
+    if not isinstance(date_str, str):
+        return False
+    # Use regex to validate YYYY-MM-DD format
+    # YYYY: 4 digits, MM: 01-12, DD: 01-31
+    return fullmatch(r"\d{4}-\d{2}-\d{2}", date_str) is not None
 
 
 @dataclass(slots=True)
@@ -19,6 +36,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -52,6 +70,31 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date: str | None) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date: ISO date string in YYYY-MM-DD format, or None/empty string to clear.
+
+        Raises:
+            ValueError: If date is not a valid ISO date format or None/empty string.
+        """
+        # Handle None or empty string as clearing the due date
+        if date is None or (isinstance(date, str) and date == ""):
+            self.due_date = None
+            self.updated_at = _utc_now_iso()
+            return
+
+        # Validate ISO date format (YYYY-MM-DD)
+        if not _validate_iso_date(date):
+            raise ValueError(
+                f"Invalid ISO date format: {date!r}. "
+                "Expected format: YYYY-MM-DD (e.g., '2025-12-31')."
+            )
+
+        self.due_date = date
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +136,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate and extract due_date if present
+        raw_due_date = data.get("due_date")
+        due_date: str | None = None
+        if (
+            raw_due_date is not None
+            and raw_due_date != ""
+            and isinstance(raw_due_date, str)
+            and _validate_iso_date(raw_due_date)
+        ):
+            due_date = raw_due_date
+        # Invalid due_date values are ignored (treated as None)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=due_date,
         )
