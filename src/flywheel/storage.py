@@ -5,14 +5,19 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backups to retain
+_DEFAULT_BACKUP_RETENTION = 5
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +58,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup_retention: int = _DEFAULT_BACKUP_RETENTION) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_retention = backup_retention
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,9 +94,15 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a timestamped backup before save if the file already exists.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup if file already exists
+        if self.path.exists():
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +138,60 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a timestamped backup of the current database file.
+
+        The backup file is named with pattern: {filename}.bak.{timestamp}
+        where timestamp is Unix time in seconds.
+        """
+        timestamp = int(time.time())
+        backup_path = self.path.parent / f"{self.path.name}.bak.{timestamp}"
+
+        # Copy current file to backup
+        shutil.copy2(self.path, backup_path)
+
+        # Clean up old backups exceeding retention limit
+        self._cleanup_old_backups()
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove oldest backup files exceeding the retention limit.
+
+        Keeps only the most recent backup files up to backup_retention count.
+        """
+        # Get all backup files matching the pattern
+        backup_pattern = f"{self.path.name}.bak.*"
+
+        def extract_timestamp(path: Path) -> int:
+            """Extract timestamp from backup filename."""
+            # Filename format: {basename}.bak.{timestamp}
+            timestamp_str = path.name.split(".")[-1]
+            return int(timestamp_str)
+
+        backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=extract_timestamp,
+        )
+
+        # Remove oldest backups if we exceed retention limit
+        while len(backups) > self.backup_retention:
+            oldest = backups.pop(0)
+            with contextlib.suppress(OSError):
+                oldest.unlink()
+
+    def rollback(self, backup_path: Path) -> None:
+        """Restore database from a backup file.
+
+        Args:
+            backup_path: Path to the backup file to restore from.
+
+        Raises:
+            FileNotFoundError: If the backup file doesn't exist.
+        """
+        backup_path = Path(backup_path)
+
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Copy backup to main file
+        shutil.copy2(backup_path, self.path)
