@@ -1,17 +1,23 @@
 {
-  "issue_number": 2223,
-  "candidate_number": 1,
+  "issue": 2223,
+  "candidate": 1,
   "run_id": "21797180717",
-  "stage": "FINALIZE",
-  "created_at": "2025-02-08T00:00:00Z",
-  "summary": "Add type checking to _sanitize_text function to raise TypeError instead of AttributeError for non-str inputs",
-  "verification": {
-    "pytest_result": "PASS",
-    "ruff_result": "PASS",
-    "tests_run": 6,
-    "commands": [
-      "uv run pytest tests/test_issue_2223_sanitize_text_type_check.py -v",
-      "uv run ruff check src/flywheel/formatter.py tests/test_issue_2223_sanitize_text_type_check.py"
-    ]
+  "branch": "claude/issue-2223-candidate-1-21797180717",
+  "pr_number": 2246,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2246",
+  "generated_at": "2026-02-08T11:33:14.226585+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2064,
+    "implement": 1634,
+    "verify": 1849,
+    "finalize": 871
   }
 }
