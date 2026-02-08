@@ -53,8 +53,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        backup: bool = False,
+        backup_count: int = 3,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
+        self.backup_count = backup_count
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -116,6 +123,10 @@ class TodoStorage:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
+            # Create backup before overwriting if enabled and file exists
+            if self.backup and self.path.exists():
+                self._create_backup()
+
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
@@ -123,6 +134,25 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a rotating backup of the current file.
+
+        Implements rotation: .1.bak is newest, .N.bak is oldest.
+        Keeps only backup_count most recent backups.
+        """
+        # Shift existing backups: .N.bak -> .N+1.bak
+        for i in range(self.backup_count, 1, -1):
+            old_backup = self.path.parent / f"{self.path.name}.{i - 1}.bak"
+            new_backup = self.path.parent / f"{self.path.name}.{i}.bak"
+            if old_backup.exists():
+                with contextlib.suppress(OSError):
+                    os.replace(old_backup, new_backup)
+
+        # Create new .1.bak from current file (atomic copy)
+        new_backup = self.path.parent / f"{self.path.name}.1.bak"
+        with contextlib.suppress(OSError):
+            os.replace(self.path, new_backup)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
