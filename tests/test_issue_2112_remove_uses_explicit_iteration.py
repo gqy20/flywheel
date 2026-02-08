@@ -9,7 +9,6 @@ These tests verify that:
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 from flywheel.cli import TodoApp
@@ -44,7 +43,7 @@ def test_remove_with_non_existent_todo_id_raises_value_error(tmp_path: Path) -> 
     # Try to remove non-existent todo
     try:
         app.remove(999)
-        assert False, "Expected ValueError to be raised"
+        raise AssertionError("Expected ValueError to be raised")
     except ValueError as e:
         assert "Todo #999 not found" in str(e)
 
@@ -79,13 +78,13 @@ def test_remove_consistent_with_mark_done_pattern(tmp_path: Path) -> None:
     # Both methods should raise ValueError with same message format
     try:
         app.mark_done(999)
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError as e:
         mark_done_error = str(e)
 
     try:
         app.remove(999)
-        assert False, "Expected ValueError"
+        raise AssertionError("Expected ValueError")
     except ValueError as e:
         remove_error = str(e)
 
@@ -100,7 +99,7 @@ def test_remove_from_empty_list_raises_value_error(tmp_path: Path) -> None:
 
     try:
         app.remove(1)
-        assert False, "Expected ValueError to be raised"
+        raise AssertionError("Expected ValueError to be raised")
     except ValueError as e:
         assert "Todo #1 not found" in str(e)
 
