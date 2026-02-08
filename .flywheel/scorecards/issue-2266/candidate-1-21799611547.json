@@ -1,0 +1,12 @@
+{
+  "issue_number": 2266,
+  "candidate_number": 1,
+  "run_id": "21799611547",
+  "status": "complete",
+  "summary": "Add optional debug logging for storage operations",
+  "test_file": "tests/test_issue_2266_storage_debug_logging.py",
+  "modified_files": ["src/flywheel/storage.py"],
+  "tests_run": ["tests/test_issue_2266_storage_debug_logging.py::test_default_no_logging_output", "tests/test_issue_2266_storage_debug_logging.py::test_fw_log_debug_enables_logging_on_load", "tests/test_issue_2266_storage_debug_logging.py::test_fw_log_debug_enables_logging_on_save", "tests/test_issue_2266_storage_debug_logging.py::test_logging_includes_timing_info", "tests/test_issue_2266_storage_debug_logging.py::test_load_empty_file_no_logging_by_default", "tests/test_issue_2266_storage_debug_logging.py::test_fw_log_info_level_also_logs"],
+  "linter": "ruff check passed",
+  "commit_hash": "0006730"
+}
