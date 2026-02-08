@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backup files to keep
+_DEFAULT_MAX_BACKUPS = 5
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,59 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, max_backups: int = _DEFAULT_MAX_BACKUPS) -> None:
         self.path = Path(path or ".todo.json")
+        self.max_backups = max_backups
+
+    @property
+    def _backup_path(self) -> Path:
+        """Return the path to the primary backup file."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
+    def create_backup(self) -> None:
+        """Create a backup of the current file with rotation.
+
+        Copies the current file to a backup and rotates existing backups
+        to keep only the most recent N backups (controlled by max_backups).
+
+        Backup files are named:
+        - .todo.json.bak (most recent)
+        - .todo.json.bak.1 (second most recent)
+        - .todo.json.bak.2 (third most recent)
+        - etc.
+
+        Total backup files kept = max_backups (includes .bak and .bak.1 through .bak.(max_backups-1))
+
+        If backup creation fails, the error is silently suppressed to avoid
+        preventing the main save operation.
+        """
+        if not self.path.exists():
+            return
+
+        try:
+            # Delete the oldest backup if we've reached the limit
+            # We keep max_backups total: .bak, .bak.1, ..., .bak.(max_backups-1)
+            oldest_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{self.max_backups - 1}")
+            if oldest_backup.exists():
+                oldest_backup.unlink()
+
+            # Rotate existing backups: .bak.N -> .bak.(N+1)
+            # We start from max_backups-2 down to 1 to avoid creating .bak.(max_backups-1)
+            for i in range(self.max_backups - 2, 0, -1):
+                old_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{i}")
+                new_backup = self.path.with_suffix(f"{self.path.suffix}.bak.{i + 1}")
+                if old_backup.exists():
+                    shutil.move(str(old_backup), str(new_backup))
+
+            # Move current primary backup to .bak.1
+            if self._backup_path.exists():
+                shutil.move(str(self._backup_path), str(self._backup_path) + ".1")
+
+            # Create new backup from current file
+            shutil.copy2(self.path, self._backup_path)
+        except OSError:
+            # Silently suppress backup failures to avoid blocking the main save operation
+            pass
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,7 +145,12 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Creates a backup of the current file before writing, if it exists.
         """
+        # Create backup before overwriting
+        self.create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
