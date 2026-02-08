@@ -1,64 +1,23 @@
 {
-  "candidate": 3,
   "issue": 2307,
+  "candidate": 3,
   "run_id": "21802118618",
-  "stage": "FINALIZE",
   "branch": "claude/issue-2307-candidate-3-21802118618",
-  "title": "[AUTOFIX][ISSUE-2307][CANDIDATE-3] Add automatic backup before save",
-  "created_at": "2026-02-08T16:30:00Z",
-  "completed_at": "2026-02-08T17:35:00Z",
-  "plan": {
-    "files_to_modify": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_backup.py (new)"
-    ],
-    "tdd_sequence": [
-      "RED: Create tests/test_storage_backup.py with 6 failing tests",
-      "GREEN: Implement _backup() method and modify save()",
-      "GREEN: Add backup_limit parameter to __init__()",
-      "GREEN: Add use_backup parameter to load()",
-      "VERIFY: Run uv run pytest tests/test_storage_backup.py -v",
-      "VERIFY: Run uv run pytest tests/test_storage_atomicity.py -v",
-      "VERIFY: Run uv run ruff check src/flywheel/storage.py tests/test_storage_backup.py"
-    ],
-    "test_count": 6,
-    "verification_commands": [
-      "uv run pytest tests/test_storage_backup.py -v",
-      "uv run pytest tests/test_storage_atomicity.py tests/test_storage_backup.py -v",
-      "uv run pytest -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_storage_backup.py",
-      "uv run mypy src/flywheel/storage.py"
-    ]
-  },
-  "implementation": {
-    "tests_run": 6,
-    "tests_passed": 6,
-    "linting": "passed",
-    "summary": "Implemented automatic backup before save in TodoStorage class. Added _backup() method that copies current file to backup location (.bak) before atomic save. Backup rotation with configurable limit (default 3). Load can optionally fallback to backup when main file is corrupted.",
-    "risks": [
-      "Backup files accumulate disk space - users should be aware of backup_limit parameter",
-      "Backup creation adds small overhead to save operations",
-      "Existing TodoStorage() calls without backup_limit parameter will use default of 3"
-    ],
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_backup.py"
-    ]
-  },
-  "verification": {
-    "commands_run": [
-      "uv run pytest tests/test_storage_backup.py -v",
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_storage_backup.py"
-    ],
-    "results": {
-      "test_storage_backup": "6 passed",
-      "test_storage_atomicity": "6 passed",
-      "ruff_check": "All checks passed"
-    },
-    "coverage": {
-      "storage_py_cover": "80%",
-      "total_cover": "39%"
-    }
+  "pr_number": 2328,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2328",
+  "generated_at": "2026-02-08T17:39:42.530023+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3537,
+    "plan": 3401,
+    "implement": 4000,
+    "verify": 2713,
+    "finalize": 804
   }
 }
