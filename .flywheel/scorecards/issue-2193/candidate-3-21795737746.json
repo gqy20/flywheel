@@ -1,0 +1,24 @@
+{
+  "issue": 2193,
+  "candidate": 3,
+  "run_id": "21795737746",
+  "stage": "PLAN",
+  "tdd_plan": {
+    "problem": "next_id() has redundant 'if todos else 1' clause since max(..., default=0) already handles empty lists",
+    "files_to_touch": [
+      "tests/test_minimal_framework.py",
+      "src/flywheel/storage.py"
+    ],
+    "test_sequence": [
+      "test_next_id_empty_list_returns_1",
+      "test_next_id_single_todo_returns_2",
+      "test_next_id_with_gap_returns_max_plus_one"
+    ],
+    "implementation": "Simplify next_id() from: return (max((todo.id for todo in todos), default=0) + 1) if todos else 1 -> return max((todo.id for todo in todos), default=0) + 1"
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_minimal_framework.py::test_next_id_empty_list_returns_1 tests/test_minimal_framework.py::test_next_id_single_todo_returns_2 tests/test_minimal_framework.py::test_next_id_with_gap_returns_max_plus_one -v",
+    "uv run pytest tests/test_minimal_framework.py -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py"
+  ]
+}
