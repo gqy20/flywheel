@@ -1,0 +1,44 @@
+{
+  "issue_number": 2264,
+  "candidate_number": 1,
+  "run_id": "21799611547",
+  "stage": "IMPLEMENT",
+  "tdd_plan": {
+    "files_to_touch": [
+      "tests/test_issue_2264_todo_text_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "failing_regression_tests": [
+      "test_todo_init_rejects_empty_string",
+      "test_todo_init_rejects_whitespace_only",
+      "test_todo_from_dict_rejects_empty_text",
+      "test_todo_from_dict_rejects_whitespace_only_text"
+    ],
+    "implementation_sequence": [
+      "Create new test file tests/test_issue_2264_todo_text_validation.py",
+      "Add failing tests for Todo.__init__ with empty/whitespace text",
+      "Add failing tests for Todo.from_dict with empty/whitespace text",
+      "Verify tests fail with current implementation",
+      "Modify Todo.__post_init__ to validate text is non-empty after stripping",
+      "Modify Todo.from_dict to validate text is non-empty after stripping",
+      "Run tests to verify they pass",
+      "Run ruff check to ensure no linting issues"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2264_todo_text_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v -k rename",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2264_todo_text_validation.py"
+    ]
+  },
+  "issue_summary": {
+    "title": "[Bug] Todo.__init__/__post_init__不验证text非空，与rename方法行为不一致",
+    "description": "Todo.__init__/__post_init__ does not validate that text is non-empty, creating inconsistency with the rename method which properly validates text.",
+    "root_cause": "__post_init__ only handles timestamp initialization, not text validation",
+    "acceptance_criteria": [
+      "Direct call Todo(id=1, text='') should raise ValueError",
+      "Direct call Todo(id=1, text=' ') should raise ValueError",
+      "Todo.from_dict({'id': 1, 'text': ''}) should raise ValueError",
+      "rename method behavior remains unchanged"
+    ]
+  }
+}
