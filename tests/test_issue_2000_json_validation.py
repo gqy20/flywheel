@@ -119,3 +119,23 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2345 - explicit int to bool conversion for clarity
+def test_todo_from_dict_int_to_bool_explicit_conversion() -> None:
+    """Issue #2345: verify int 0/1 convert correctly to bool with explicit intent."""
+    # Test int 0 converts to False
+    todo = Todo.from_dict({"id": 1, "text": "task", "done": 0})
+    assert todo.done is False
+
+    # Test int 1 converts to True
+    todo = Todo.from_dict({"id": 1, "text": "task", "done": 1})
+    assert todo.done is True
+
+    # Test int 2 raises ValueError
+    with pytest.raises(ValueError, match=r"Invalid.*'done'"):
+        Todo.from_dict({"id": 1, "text": "task", "done": 2})
+
+    # Test int -1 raises ValueError
+    with pytest.raises(ValueError, match=r"Invalid.*'done'"):
+        Todo.from_dict({"id": 1, "text": "task", "done": -1})

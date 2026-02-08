@@ -86,7 +86,8 @@ class Todo:
         if isinstance(raw_done, bool):
             done = raw_done
         elif isinstance(raw_done, int) and raw_done in (0, 1):
-            done = bool(raw_done)
+            # Explicit conversion: only 0 and 1 are valid legacy int values
+            done = True if raw_done == 1 else False  # noqa: SIM210
         else:
             raise ValueError(
                 f"Invalid value for 'done': {raw_done!r}. "
