@@ -4,8 +4,10 @@
   "run_id": "21811533812",
   "branch": "claude/issue-2431-candidate-3-21811533812",
   "generated_at": "2026-02-09T00:00:00.000000+00:00",
-  "stages_completed": ["triage", "plan", "implement"],
+  "stages_completed": ["triage", "plan", "implement", "finalize"],
   "stage_response_sizes": {},
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2440",
+  "pr_number": 2440,
   "plan": {
     "summary": "Add debug mode with logging support to TodoStorage class for tracking file operations and diagnosing storage issues",
     "files_to_modify": [
