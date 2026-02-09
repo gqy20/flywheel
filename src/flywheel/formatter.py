@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import textwrap
+
 from .todo import Todo
 
 
@@ -42,13 +44,29 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
-    def format_todo(todo: Todo) -> str:
+    def format_todo(todo: Todo, width: int = 80) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        prefix = f"[{status}] {todo.id:>3} "
+
+        if width <= len(prefix):
+            # If width is too small, just return prefix + text (no wrapping)
+            return prefix + safe_text
+
+        available_width = width - len(prefix)
+
+        if len(safe_text) <= available_width:
+            return prefix + safe_text
+
+        # Wrap the text at available_width and add indentation to continuation lines
+        wrapped_lines = textwrap.wrap(safe_text, width=available_width)
+        result = prefix + wrapped_lines[0]
+        for line in wrapped_lines[1:]:
+            result += "\n" + " " * len(prefix) + line
+        return result
 
     @classmethod
-    def format_list(cls, todos: list[Todo]) -> str:
+    def format_list(cls, todos: list[Todo], width: int = 80) -> str:
         if not todos:
             return "No todos yet."
-        return "\n".join(cls.format_todo(todo) for todo in todos)
+        return "\n".join(cls.format_todo(todo, width=width) for todo in todos)

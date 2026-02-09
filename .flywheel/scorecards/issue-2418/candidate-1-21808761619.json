@@ -1,0 +1,29 @@
+{
+  "issue_number": 2418,
+  "candidate_id": "candidate-1-21808761619",
+  "stage": "plan",
+  "branch": "claude/issue-2418-candidate-1-21808761619",
+  "plan": {
+    "summary": "Add text width/terminal width support for wrapping long todo text",
+    "files_to_modify": [
+      "src/flywheel/formatter.py",
+      "src/flywheel/cli.py"
+    ],
+    "test_files_to_create": [
+      "tests/test_issue_2418_text_width_wrapping.py"
+    ],
+    "implementation_sequence": [
+      "Create failing regression test for width parameter support",
+      "Implement format_todo with optional width parameter using textwrap",
+      "Implement format_list with optional width parameter",
+      "Add --width/-w CLI flag to list command"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2418_text_width_wrapping.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+      "uv run ruff check src/flywheel/formatter.py src/flywheel/cli.py"
+    ]
+  },
+  "test_results": [],
+  "pr_url": null
+}

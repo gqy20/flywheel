@@ -78,6 +78,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
+    p_list.add_argument(
+        "--width", "-w", type=int, default=80, help="Terminal width for text wrapping (default: 80)"
+    )
 
     p_done = sub.add_parser("done", help="Mark todo done")
     p_done.add_argument("id", type=int)
@@ -102,7 +105,7 @@ def run_command(args: argparse.Namespace) -> int:
 
         if args.command == "list":
             todos = app.list(show_all=not args.pending)
-            print(TodoFormatter.format_list(todos))
+            print(TodoFormatter.format_list(todos, width=args.width))
             return 0
 
         if args.command == "done":
