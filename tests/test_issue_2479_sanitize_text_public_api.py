@@ -100,19 +100,20 @@ def test_cli_module_imports_only_public_symbols() -> None:
     # Find all imports from the formatter module
     formatter_imports: list[str] = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
-            if node.module and "formatter" in node.module:
-                for alias in node.names:
-                    formatter_imports.append(alias.name)
+        if isinstance(node, ast.ImportFrom) and node.module and "formatter" in node.module:
+            for alias in node.names:
+                formatter_imports.append(alias.name)
 
     # Check that no private functions (starting with underscore) are imported
     private_imports = [name for name in formatter_imports if name.startswith("_")]
-    assert (
-        not private_imports
-    ), f"CLI imports private functions from formatter: {private_imports}. Use public APIs instead."
+    assert not private_imports, (
+        f"CLI imports private functions from formatter: {private_imports}. Use public APIs instead."
+    )
 
     # Verify sanitize_text is imported (public API)
-    assert "sanitize_text" in formatter_imports, "CLI should import public sanitize_text from formatter"
+    assert "sanitize_text" in formatter_imports, (
+        "CLI should import public sanitize_text from formatter"
+    )
 
 
 def test_cli_uses_public_sanitize_text_in_success_messages(tmp_path, capsys) -> None:
