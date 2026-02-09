@@ -6,9 +6,10 @@
   "test_files_added": ["tests/test_issue_2532_cli_add_whitespace_validation.py"],
   "source_files_changed": [],
   "tests_run": {
-    "pytest": "6 passed in 0.06s",
-    "ruff": "pending"
+    "pytest": "6 passed in 0.07s",
+    "ruff": "passed - All checks passed!"
   },
+  "verified": true,
   "summary": "Added comprehensive test coverage for whitespace-only input validation in CLI 'add' command. No source code changes were required as the existing TodoApp.add() method already handles these cases correctly via text.strip() and empty string validation.",
   "risks": [],
   "limitations": []
