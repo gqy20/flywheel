@@ -5,8 +5,11 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
+import shutil
 import stat
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +56,19 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    _BACKUP_PATTERN = re.compile(r"\.bak\.(\d{14})(?:_(\d+))?$")
+    _DEFAULT_BACKUP_LIMIT = 3
+
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        backup_limit: int = _DEFAULT_BACKUP_LIMIT,
+        enable_backups: bool = True,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self._backup_limit = backup_limit
+        self._enable_backups = enable_backups and backup_limit > 0
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +105,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file
+        self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +140,95 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a timestamped backup of the current file.
+
+        The backup filename format is: .todo.json.bak.YYYYMMDDHHMMSS
+        If a backup with the same timestamp already exists, appends a counter.
+        """
+        if not self._enable_backups:
+            return
+        if not self.path.exists():
+            return
+
+        # Generate timestamp for backup filename
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+        backup_path = self.path.parent / f".{self.path.name}.bak.{timestamp}"
+
+        # Handle timestamp collision: add counter suffix if needed
+        counter = 0
+        while backup_path.exists():
+            counter += 1
+            backup_path = self.path.parent / f".{self.path.name}.bak.{timestamp}_{counter}"
+
+        # Copy current file to backup
+        shutil.copy2(self.path, backup_path)
+
+        # Rotate backups: keep only the most recent _backup_limit backups
+        self._rotate_backups()
+
+    def _rotate_backups(self) -> None:
+        """Remove old backups beyond the configured limit."""
+        backups = self._list_backup_paths()
+        if len(backups) <= self._backup_limit:
+            return
+
+        # Sort by timestamp (newest first) and remove excess
+        backups.sort(key=lambda p: self._extract_timestamp(p), reverse=True)
+        for old_backup in backups[self._backup_limit :]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
+
+    def _list_backup_paths(self) -> list[Path]:
+        """Return list of backup file paths, sorted newest to oldest."""
+        if not self.path.parent.exists():
+            return []
+
+        backups = []
+        for path in self.path.parent.iterdir():
+            if (
+                path.name.startswith(f".{self.path.name}.bak.")
+                and self._BACKUP_PATTERN.search(path.name)
+            ):
+                backups.append(path)
+
+        backups.sort(key=lambda p: self._extract_timestamp(p), reverse=True)
+        return backups
+
+    def _extract_timestamp(self, backup_path: Path) -> datetime:
+        """Extract timestamp from backup filename."""
+        match = self._BACKUP_PATTERN.search(backup_path.name)
+        if not match:
+            raise ValueError(f"Invalid backup filename: {backup_path.name}")
+        return datetime.strptime(match.group(1), "%Y%m%d%H%M%S").replace(tzinfo=UTC)
+
+    def list_backups(self) -> list[Path]:
+        """Return list of available backup file paths, newest to oldest.
+
+        Returns:
+            List of Path objects pointing to backup files.
+        """
+        return self._list_backup_paths()
+
+    def restore(self, backup_path: Path) -> None:
+        """Restore todos from a backup file.
+
+        Args:
+            backup_path: Path to a backup file returned by list_backups().
+
+        Raises:
+            FileNotFoundError: If backup file doesn't exist.
+            ValueError: If backup_path is not a valid backup file.
+        """
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Copy backup to target location
+        shutil.copy2(backup_path, self.path)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
