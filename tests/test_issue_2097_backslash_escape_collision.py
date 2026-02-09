@@ -132,8 +132,8 @@ class TestBackslashEscapeCollision:
         todo = Todo(id=1, text=r"C:\path\to\file", done=False)
         result = TodoFormatter.format_todo(todo)
 
-        # Backslashes should be escaped
-        assert result == r"[ ]   1 C:\\path\\to\\file"
+        # Backslashes should be escaped (width 4 for ID after issue #2505 fix)
+        assert result == r"[ ]    1 C:\\path\\to\\file"
 
     def test_empty_string(self):
         """Empty string should remain empty."""
