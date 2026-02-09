@@ -14,6 +14,14 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Current schema version for the todo storage format
+# Increment this when making breaking changes to the JSON format
+CURRENT_SCHEMA_VERSION = 1
+
+# Migration registry for converting old schema versions to current
+# Format: {version: migration_function(data_dict) -> data_dict}
+_MIGRATION_REGISTRY: dict[int, callable] = {}
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -78,9 +86,51 @@ class TodoStorage:
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Handle new schema format with versioning
+        if isinstance(raw, dict):
+            # Validate schema version
+            if "_version" not in raw:
+                raise ValueError(
+                    "Missing required '_version' field in todo storage. "
+                    "This file may be corrupted or from an incompatible version."
+                )
+
+            version = raw["_version"]
+            if not isinstance(version, int) or version < 1:
+                raise ValueError(
+                    f"Invalid schema version: {version!r}. "
+                    f"Version must be a positive integer."
+                )
+
+            if version > CURRENT_SCHEMA_VERSION:
+                raise ValueError(
+                    f"Schema version mismatch: file has version {version}, "
+                    f"but this version of flywheel only supports up to version {CURRENT_SCHEMA_VERSION}. "
+                    f"Please upgrade flywheel to open this file."
+                )
+
+            # If version matches, extract todos
+            if version == CURRENT_SCHEMA_VERSION:
+                todos_data = raw.get("todos", [])
+            else:
+                # Version is older than current - would run migrations here
+                # For now, we only support version 1
+                raise ValueError(
+                    f"Legacy schema version {version} detected. "
+                    f"Automatic migration is not yet implemented."
+                )
+
+            return [Todo.from_dict(item) for item in todos_data]
+
+        # Handle legacy format (plain list without versioning)
+        if isinstance(raw, list):
+            raise ValueError(
+                "Legacy todo format detected (JSON list without schema version). "
+                "This file format is no longer supported. "
+                "Please use a version of flywheel that supports legacy format to migrate your data."
+            )
+
+        raise ValueError("Todo storage must be a JSON object with '_version' and 'todos' keys")
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +144,11 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Wrap todos in schema object with version
+        payload = {
+            "_version": CURRENT_SCHEMA_VERSION,
+            "todos": [todo.to_dict() for todo in todos],
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename

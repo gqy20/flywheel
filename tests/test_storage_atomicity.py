@@ -121,14 +121,18 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     storage.save(todos)
 
-    # Verify file contains valid JSON
+    # Verify file contains valid JSON with schema version
     raw_content = db.read_text(encoding="utf-8")
     parsed = json.loads(raw_content)
 
-    assert len(parsed) == 3
-    assert parsed[0]["text"] == "task with unicode: 你好"
-    assert parsed[1]["text"] == 'task with quotes: "test"'
-    assert parsed[1]["done"] is True
+    # Check schema version is present
+    assert "_version" in parsed
+    assert parsed["_version"] == 1
+    assert "todos" in parsed
+    assert len(parsed["todos"]) == 3
+    assert parsed["todos"][0]["text"] == "task with unicode: 你好"
+    assert parsed["todos"][1]["text"] == 'task with quotes: "test"'
+    assert parsed["todos"][1]["done"] is True
 
 
 def test_concurrent_write_safety(tmp_path) -> None:

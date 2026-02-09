@@ -32,8 +32,8 @@ def test_storage_load_handles_missing_id_field(tmp_path) -> None:
     db = tmp_path / "missing_id.json"
     storage = TodoStorage(str(db))
 
-    # Valid JSON but missing required 'id' field
-    db.write_text('[{"text": "task without id"}]', encoding="utf-8")
+    # Valid JSON with schema version but missing required 'id' field
+    db.write_text('{"_version": 1, "todos": [{"text": "task without id"}]}', encoding="utf-8")
 
     # Should raise clear error about missing 'id' field
     with pytest.raises(ValueError, match=r"missing.*'id'|required.*'id'"):
@@ -45,8 +45,8 @@ def test_storage_load_handles_missing_text_field(tmp_path) -> None:
     db = tmp_path / "missing_text.json"
     storage = TodoStorage(str(db))
 
-    # Valid JSON but missing required 'text' field
-    db.write_text('[{"id": 1}]', encoding="utf-8")
+    # Valid JSON with schema version but missing required 'text' field
+    db.write_text('{"_version": 1, "todos": [{"id": 1}]}', encoding="utf-8")
 
     # Should raise clear error about missing 'text' field
     with pytest.raises(ValueError, match=r"missing.*'text'|required.*'text'"):
@@ -58,8 +58,8 @@ def test_storage_load_handles_wrong_id_type(tmp_path) -> None:
     db = tmp_path / "wrong_id_type.json"
     storage = TodoStorage(str(db))
 
-    # Valid JSON but 'id' is a string instead of integer
-    db.write_text('[{"id": "not-an-int", "text": "task"}]', encoding="utf-8")
+    # Valid JSON with schema version but 'id' is a string instead of integer
+    db.write_text('{"_version": 1, "todos": [{"id": "not-an-int", "text": "task"}]}', encoding="utf-8")
 
     # Should raise clear error about wrong type for 'id' field
     with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*type|'id'.*integer"):
