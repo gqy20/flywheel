@@ -1,0 +1,44 @@
+{
+  "issue_number": 2565,
+  "issue_title": "[Security] TOCTOU race condition between exists() check and stat() call in load()",
+  "candidate_number": 2,
+  "run_id": "21839394656",
+  "branch": "claude/issue-2565-candidate-2-21839394656",
+  "commit": "83b44cb7eec5533e1cc16ca91be5ca65f43c868f",
+  "summary": "Fix TOCTOU race condition in TodoStorage.load() by replacing exists() check with try/except around stat() call",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_storage_atomicity.py -v",
+      "result": "passed",
+      "tests_run": 9,
+      "tests_failed": 0,
+      "details": [
+        "test_save_is_atomic_with_os_replace PASSED",
+        "test_write_failure_preserves_original_file PASSED",
+        "test_temp_file_created_in_same_directory PASSED",
+        "test_atomic_write_produces_valid_json PASSED",
+        "test_concurrent_write_safety PASSED",
+        "test_concurrent_save_from_multiple_processes PASSED",
+        "test_load_handles_deleted_file_between_exists_and_stat PASSED",
+        "test_load_returns_empty_list_for_nonexistent_file PASSED",
+        "test_load_simulates_race_with_mocked_delete PASSED"
+      ]
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+      "result": "passed"
+    }
+  },
+  "tests_added": [
+    "test_load_handles_deleted_file_between_exists_and_stat",
+    "test_load_returns_empty_list_for_nonexistent_file",
+    "test_load_simulates_race_with_mocked_delete"
+  ],
+  "fix_approach": "Replace exists() check with try/except around stat() to handle FileNotFoundError gracefully, eliminating the race condition window",
+  "risks_or_limitations": [],
+  "status": "verified"
+}
