@@ -8,7 +8,7 @@ import os
 import shutil
 import stat
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -98,7 +98,7 @@ class TodoStorage:
         if not self.path.exists():
             return
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         backup_path = self.path.parent / f".{self.path.name}.{timestamp}_0.bak"
 
         # Increment counter if backup file already exists (rapid saves)
