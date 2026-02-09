@@ -113,6 +113,7 @@ class TodoStorage:
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
+            # Note: os.fdopen() takes ownership of fd - it will be closed on exit
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
@@ -120,8 +121,15 @@ class TodoStorage:
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
+            # Important: If we get here before fdopen, fd is still open and owned by us.
+            # If we get here after fdopen succeeds, the context manager closes fd.
+            # We need to close fd if fdopen hasn't taken ownership yet.
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            # Explicitly close fd in case fdopen never took ownership
+            # This is safe even if fd is already closed (Python 3.9+ ignores EBADF)
+            with contextlib.suppress(OSError):
+                os.close(fd)
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
