@@ -14,6 +14,15 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Current schema version for data format validation
+CURRENT_SCHEMA_VERSION = 1
+
+
+class SchemaVersionError(ValueError):
+    """Raised when the stored data schema version is incompatible."""
+
+    pass
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -78,9 +87,42 @@ class TodoStorage:
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Validate schema version
+        if not isinstance(raw, dict):
+            # Old format: raw is a list (no version field)
+            raise SchemaVersionError(
+                f"Schema version is missing (file uses old format). "
+                f"Please upgrade your data. "
+                f"Expected version {CURRENT_SCHEMA_VERSION}, found no version information."
+            )
+
+        if "_version" not in raw:
+            raise SchemaVersionError(
+                "Schema version field '_version' is missing. "
+                "This file may be from an older version. "
+                "Please upgrade your data or contact support."
+            )
+
+        stored_version = raw.get("_version")
+        if not isinstance(stored_version, int):
+            raise ValueError(
+                f"Invalid schema version: {stored_version!r}. "
+                f"Version must be an integer."
+            )
+
+        if stored_version != CURRENT_SCHEMA_VERSION:
+            raise SchemaVersionError(
+                f"Schema version mismatch: file has version {stored_version}, "
+                f"but this version of flywheel expects version {CURRENT_SCHEMA_VERSION}. "
+                f"Please upgrade flywheel to handle this data format."
+            )
+
+        # Extract todos list
+        todos_data = raw.get("todos")
+        if not isinstance(todos_data, list):
+            raise ValueError("Todo storage must contain a 'todos' list")
+
+        return [Todo.from_dict(item) for item in todos_data]
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +136,10 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        payload = {
+            "_version": CURRENT_SCHEMA_VERSION,
+            "todos": [todo.to_dict() for todo in todos],
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
