@@ -1,0 +1,85 @@
+{
+  "issue_number": 2609,
+  "issue_title": "[Bug] Method name 'list' shadows Python built-in function",
+  "candidate": 2,
+  "run_id": 21844903566,
+  "stage": "VERIFY",
+  "commit_hash": "3d8590a",
+  "tdd_plan": {
+    "summary": "Rename TodoApp.list() method to list_todos() to avoid shadowing Python's built-in list() function",
+    "files_to_touch": [
+      "src/flywheel/cli.py",
+      "tests/test_minimal_framework.py",
+      "tests/test_issue_2112_remove_iteration_pattern.py",
+      "tests/test_issue_2609_list_builtin_shadowing.py (new)"
+    ],
+    "implementation_sequence": [
+      {
+        "step": "RED - Write failing regression test",
+        "description": "Create tests/test_issue_2609_list_builtin_shadowing.py with test demonstrating that the 'list' method name shadows Python's built-in list() function",
+        "file": "tests/test_issue_2609_list_builtin_shadowing.py"
+      },
+      {
+        "step": "GREEN - Rename method in TodoApp class",
+        "description": "Rename 'list' method to 'list_todos' in src/flywheel/cli.py line 36",
+        "file": "src/flywheel/cli.py",
+        "line": 36
+      },
+      {
+        "step": "GREEN - Update call site in run_command",
+        "description": "Update app.list(show_all=...) to app.list_todos(show_all=...) on line 104",
+        "file": "src/flywheel/cli.py",
+        "line": 104
+      },
+      {
+        "step": "GREEN - Update tests to use new method name",
+        "description": "Update all test files that call app.list() to use app.list_todos()",
+        "files": [
+          "tests/test_minimal_framework.py",
+          "tests/test_issue_2112_remove_iteration_pattern.py"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest tests/test_issue_2112_remove_iteration_pattern.py -v",
+      "uv run pytest tests/test_issue_2609_list_builtin_shadowing.py -v",
+      "uv run ruff check src/flywheel/cli.py",
+      "uv run ruff check tests/"
+    ],
+    "verification_results": {
+      "tests": "18 passed",
+      "ruff": "All checks passed"
+    }
+  },
+  "verify_results": {
+    "timestamp": "2026-02-09T00:00:00Z",
+    "commands_run": [
+      {
+        "command": "uv run pytest tests/test_minimal_framework.py -v",
+        "result": "10 passed"
+      },
+      {
+        "command": "uv run pytest tests/test_issue_2112_remove_iteration_pattern.py -v",
+        "result": "5 passed"
+      },
+      {
+        "command": "uv run pytest tests/test_issue_2609_list_builtin_shadowing.py -v",
+        "result": "3 passed"
+      },
+      {
+        "command": "uv run ruff check src/flywheel/cli.py",
+        "result": "All checks passed"
+      },
+      {
+        "command": "uv run ruff check tests/",
+        "result": "All checks passed"
+      }
+    ],
+    "total_tests_passed": 18,
+    "total_tests_failed": 0,
+    "ruff_errors": 0,
+    "status": "GREEN"
+  },
+  "status": "verified"
+}
