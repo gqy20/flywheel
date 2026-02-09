@@ -1,0 +1,109 @@
+{
+  "issue_number": 2494,
+  "candidate_id": "1-21825309930",
+  "stage": "FINALIZE",
+  "title": "[Feature] Add backup creation before overwriting file",
+  "tdd_plan": {
+    "files_to_create": [
+      "tests/test_issue_2494_backup_creation.py"
+    ],
+    "files_to_modify": [
+      "src/flywheel/storage.py"
+    ],
+    "failing_regression_tests": [
+      "test_save_creates_backup_before_overwrite",
+      "test_save_keeps_only_max_backups",
+      "test_list_backups_returns_available_backups",
+      "test_restore_from_backup_recovers_data"
+    ],
+    "implementation_sequence": [
+      "1. Add _create_backup() helper method to TodoStorage",
+      "2. Add _cleanup_old_backups() helper method to TodoStorage",
+      "3. Modify save() to call _create_backup() before os.replace()",
+      "4. Add list_backups() public method to TodoStorage",
+      "5. Add restore_from_backup() public method to TodoStorage"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2494_backup_creation.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff check tests/test_issue_2494_backup_creation.py"
+    ]
+  },
+  "minimal_implementation": {
+    "backup_path_format": "{path}.bak.{timestamp_ns}",
+    "max_backups_default": 3,
+    "new_methods": [
+      "_create_backup() -> Path | None",
+      "_cleanup_old_backups() -> None",
+      "_extract_timestamp(path: Path) -> int",
+      "list_backups() -> list[Path]",
+      "restore_from_backup(backup_path: str | Path) -> None"
+    ]
+  },
+  "risks": [
+    "Backup creation adds I/O overhead to save()",
+    "Backup files accumulate disk space",
+    "Timestamp parsing may fail across filesystems"
+  ],
+  "acceptance_criteria": [
+    "Before os.replace, existing file is copied to .bak with nanosecond timestamp",
+    "Configurable number of backups retained (default 3)",
+    "list_backups() method returns available backup files sorted newest first",
+    "restore_from_backup(backup_path) recovers data from backup",
+    "Old backups automatically cleaned up when creating new ones"
+  ],
+  "implementation_summary": {
+    "commit_hash": "1ad8045",
+    "branch": "claude/issue-2494-candidate-1-21825309930",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2494_backup_creation.py"
+    ],
+    "tests_passed": 9,
+    "tests_failed": 0,
+    "ruff_checks": "passed"
+  },
+  "verification_summary": {
+    "commands_run": [
+      "uv run pytest tests/test_issue_2494_backup_creation.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff check tests/test_issue_2494_backup_creation.py"
+    ],
+    "test_results": {
+      "test_issue_2494_backup_creation": {
+        "passed": 9,
+        "failed": 0,
+        "tests": [
+          "test_save_creates_backup_before_overwrite",
+          "test_save_creates_no_backup_when_file_doesnt_exist",
+          "test_save_keeps_only_max_backups",
+          "test_list_backups_returns_available_backups",
+          "test_restore_from_backup_recovers_data",
+          "test_restore_from_invalid_path_raises_error",
+          "test_backup_filename_contains_timestamp",
+          "test_multiple_saves_create_unique_backups",
+          "test_cleanup_old_backups_removes_oldest"
+        ]
+      },
+      "test_storage_atomicity": {
+        "passed": 6,
+        "failed": 0,
+        "tests": [
+          "test_save_is_atomic_with_os_replace",
+          "test_write_failure_preserves_original_file",
+          "test_temp_file_created_in_same_directory",
+          "test_atomic_write_produces_valid_json",
+          "test_concurrent_write_safety",
+          "test_concurrent_save_from_multiple_processes"
+        ]
+      }
+    },
+    "ruff_results": {
+      "src/flywheel/storage.py": "passed",
+      "tests/test_issue_2494_backup_creation.py": "passed"
+    },
+    "all_checks_passed": true
+  }
+}
