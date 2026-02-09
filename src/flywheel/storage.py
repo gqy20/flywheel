@@ -56,7 +56,7 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, validate_permissions: bool = False) -> list[Todo]:
         if not self.path.exists():
             return []
 
@@ -69,6 +69,24 @@ class TodoStorage:
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
+
+        # Security: Validate file permissions to detect tampering
+        if validate_permissions:
+            file_mode = stat.S_IMODE(self.path.stat().st_mode)
+            # Check if group or others have write permissions (0o022 = -w--w--)
+            if file_mode & 0o022:
+                raise ValueError(
+                    f"File has overly permissive permissions: {oct(file_mode)}. "
+                    f"Group or others have write access, which may indicate tampering. "
+                    f"Consider changing permissions to 0o600 (owner read/write only)."
+                )
+            # Check if group or others have read permissions (0o044 = -r--r--)
+            if file_mode & 0o044:
+                raise ValueError(
+                    f"File has overly permissive permissions: {oct(file_mode)}. "
+                    f"Group or others have read access. For better security, "
+                    f"consider changing permissions to 0o600 (owner read/write only)."
+                )
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
