@@ -1,54 +1,23 @@
 {
-  "issue_number": 2609,
-  "candidate_id": "3-21844903566",
-  "issue_title": "[Bug] Method name 'list' shadows Python built-in function",
+  "issue": 2609,
+  "candidate": 3,
+  "run_id": "21844903566",
   "branch": "claude/issue-2609-candidate-3-21844903566",
-  "created_at": "2026-02-09T23:50:00Z",
-  "triage": {
-    "root_cause": "Method name 'list' in TodoApp class shadows Python's built-in list() function",
-    "location": "src/flywheel/cli.py:36",
-    "affected_files": [
-      "src/flywheel/cli.py",
-      "tests/test_minimal_framework.py",
-      "tests/test_issue_2112_remove_iteration_pattern.py"
-    ],
-    "risk_points": [
-      "Method name shadows built-in list() type/constructor",
-      "Creates ambiguity and violates PEP 8 naming conventions",
-      "Could cause issues with code analysis tools and IDE autocompletion"
-    ]
-  },
-  "implementation": {
-    "method": "TDD (RED-GREEN refactor)",
-    "changes": [
-      {
-        "file": "src/flywheel/cli.py",
-        "description": "Rename method from 'list' to 'list_todos' (2 occurrences)"
-      },
-      {
-        "file": "tests/test_minimal_framework.py",
-        "description": "Update call sites to use 'list_todos' (3 occurrences)"
-      },
-      {
-        "file": "tests/test_issue_2112_remove_iteration_pattern.py",
-        "description": "Update call sites to use 'list_todos' (5 occurrences)"
-      }
-    ],
-    "total_occurrences_updated": 10
-  },
-  "verification": {
-    "tests_run": [
-      "tests/test_minimal_framework.py - 10 tests passed",
-      "tests/test_issue_2112_remove_iteration_pattern.py - 5 tests passed"
-    ],
-    "total_tests_passed": 15,
-    "linter_checks": "uv run ruff check - All checks passed",
-    "acceptance_criteria_met": true
-  },
-  "pr_info": {
-    "title_prefix": "[AUTOFIX][ISSUE-2609][CANDIDATE-3]",
-    "closes_issue": true,
-    "risk_level": "low",
-    "breaking_changes": false
+  "pr_number": 2612,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2612",
+  "generated_at": "2026-02-09T23:50:00.497075+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 1893,
+    "implement": 998,
+    "verify": 1470,
+    "finalize": 901
   }
 }
