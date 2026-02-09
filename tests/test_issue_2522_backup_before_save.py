@@ -55,7 +55,9 @@ def test_old_backups_rotated_when_limit_exceeded(tmp_path) -> None:
 
     # Verify only backup_limit backups exist
     backup_files = sorted(db.parent.glob(".todo.json.bak.*"))
-    assert len(backup_files) == 3, f"Expected 3 backup files, found {len(backup_files)}: {backup_files}"
+    assert len(backup_files) == 3, (
+        f"Expected 3 backup files, found {len(backup_files)}: {backup_files}"
+    )
 
 
 def test_list_backups_returns_available_backups(tmp_path) -> None:

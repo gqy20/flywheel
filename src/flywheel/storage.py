@@ -60,7 +60,10 @@ class TodoStorage:
     _DEFAULT_BACKUP_LIMIT = 3
 
     def __init__(
-        self, path: str | None = None, enable_backup: bool = True, backup_limit: int = _DEFAULT_BACKUP_LIMIT
+        self,
+        path: str | None = None,
+        enable_backup: bool = True,
+        backup_limit: int = _DEFAULT_BACKUP_LIMIT,
     ) -> None:
         self.path = Path(path or ".todo.json")
         self._enable_backup = enable_backup
@@ -84,8 +87,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -170,8 +172,7 @@ class TodoStorage:
         # Get all backup files for this storage (YYYYMMDDHHMMSS or YYYYMMDDHHMMSS_N format)
         backup_pattern = re.compile(rf"^\.{re.escape(self.path.name)}\.bak\.\d{{14}}(_\d+)?$")
         backup_files = [
-            f for f in self.path.parent.iterdir()
-            if f.is_file() and backup_pattern.match(f.name)
+            f for f in self.path.parent.iterdir() if f.is_file() and backup_pattern.match(f.name)
         ]
 
         # Sort by modification time (newest last)
@@ -191,8 +192,7 @@ class TodoStorage:
         """
         backup_pattern = re.compile(rf"^\.{re.escape(self.path.name)}\.bak\.\d{{14}}(_\d+)?$")
         backup_files = [
-            f for f in self.path.parent.iterdir()
-            if f.is_file() and backup_pattern.match(f.name)
+            f for f in self.path.parent.iterdir() if f.is_file() and backup_pattern.match(f.name)
         ]
 
         # Sort by modification time (oldest first)
