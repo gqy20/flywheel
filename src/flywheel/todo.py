@@ -10,6 +10,13 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# Priority levels: LOW=0, MEDIUM=1, HIGH=2, URGENT=3
+PRIORITY_LOW = 0
+PRIORITY_MEDIUM = 1
+PRIORITY_HIGH = 2
+PRIORITY_URGENT = 3
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -17,6 +24,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = PRIORITY_MEDIUM
     created_at: str = ""
     updated_at: str = ""
 
@@ -52,6 +60,27 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, level: int) -> None:
+        """Set the priority level for this todo.
+
+        Args:
+            level: Priority level (0=LOW, 1=MEDIUM, 2=HIGH, 3=URGENT)
+
+        Raises:
+            ValueError: If level is not in the valid range (0-3).
+        """
+        if not isinstance(level, int):
+            raise ValueError(
+                f"Invalid value for 'priority': {level!r}. 'priority' must be an integer."
+            )
+        if not (PRIORITY_LOW <= level <= PRIORITY_URGENT):
+            raise ValueError(
+                f"Invalid priority level: {level}. "
+                f"Priority must be between {PRIORITY_LOW} and {PRIORITY_URGENT}."
+            )
+        self.priority = level
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +122,30 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is an integer in valid range (0-3)
+        # Accept: 0, 1, 2, 3
+        # Reject: other integers, strings, or other types
+        # Default to MEDIUM (1) if not provided
+        raw_priority = data.get("priority", PRIORITY_MEDIUM)
+        if isinstance(raw_priority, int) and PRIORITY_LOW <= raw_priority <= PRIORITY_URGENT:
+            priority = raw_priority
+        elif isinstance(raw_priority, bool):
+            # Reject boolean values for priority (they are a subset of int in Python)
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                f"'priority' must be an integer between {PRIORITY_LOW} and {PRIORITY_URGENT}."
+            )
+        else:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                f"'priority' must be an integer between {PRIORITY_LOW} and {PRIORITY_URGENT}."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )

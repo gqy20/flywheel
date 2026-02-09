@@ -2,7 +2,23 @@
 
 from __future__ import annotations
 
-from .todo import Todo
+from .todo import PRIORITY_HIGH, PRIORITY_URGENT, Todo
+
+
+def _priority_indicator(priority: int) -> str:
+    """Return priority indicator string for display.
+
+    Args:
+        priority: Priority level (0=LOW, 1=MEDIUM, 2=HIGH, 3=URGENT)
+
+    Returns:
+        String indicator: '' for LOW/MEDIUM, '[!]' for HIGH, '[!!!]' for URGENT
+    """
+    if priority >= PRIORITY_URGENT:
+        return "[!!!]"
+    if priority >= PRIORITY_HIGH:
+        return "[!]"
+    return ""
 
 
 def _sanitize_text(text: str) -> str:
@@ -44,7 +60,10 @@ class TodoFormatter:
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
+        indicator = _priority_indicator(todo.priority)
         safe_text = _sanitize_text(todo.text)
+        if indicator:
+            return f"[{status}] {indicator} {todo.id:>3} {safe_text}"
         return f"[{status}] {todo.id:>3} {safe_text}"
 
     @classmethod

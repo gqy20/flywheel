@@ -1,0 +1,54 @@
+{
+  "issue_number": 2482,
+  "issue_title": "[Feature] Add priority level field to Todo model",
+  "candidate_number": 1,
+  "run_id": "21823476771",
+  "branch_name": "claude/issue-2482-candidate-1-21823476771",
+  "stage": "IMPLEMENT",
+  "created_at": "2026-02-09T11:56:00Z",
+  "tdd_plan": {
+    "failing_tests": [
+      "tests/test_issue_2482_priority_field.py::test_todo_has_priority_field",
+      "tests/test_issue_2482_priority_field.py::test_todo_from_dict_accepts_valid_priorities",
+      "tests/test_issue_2482_priority_field.py::test_todo_from_dict_defaults_to_medium",
+      "tests/test_issue_2482_priority_field.py::test_todo_from_dict_rejects_invalid_priority",
+      "tests/test_issue_2482_priority_field.py::test_todo_set_priority_updates_field_and_timestamp",
+      "tests/test_issue_2482_priority_field.py::test_todo_to_dict_includes_priority"
+    ],
+    "implementation_files": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "src/flywheel/formatter.py"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2482_priority_field.py -v",
+      "uv run ruff check src/flywheel/todo.py src/flywheel/cli.py src/flywheel/formatter.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "Todo dataclass has a priority: int = 1 field (0=low, 1=medium, 2=high, 3=urgent)",
+    "Todo.set_priority(level: int) method updates priority and updated_at timestamp",
+    "Todo.from_dict() validates priority is 0-3, defaults to 1 (MEDIUM)",
+    "CLI supports todo add --priority high 'task' and todo prioritize <id> <level>",
+    "TodoFormatter displays priority indicator: [!] 1 task for high priority"
+  ],
+  "summary": "Add priority field to Todo model with LOW=0, MEDIUM=1, HIGH=2, URGENT=3 enum values, defaulting to MEDIUM. Includes set_priority() method, from_dict() validation, CLI --priority flag and prioritize command, and formatter display.",
+  "test_results": {
+    "new_tests_added": 6,
+    "new_tests_passed": 6,
+    "all_tests_passed": true,
+    "total_tests": 118
+  },
+  "lint_results": {
+    "ruff_check_passed": true
+  },
+  "implementation": {
+    "priority_field_added": true,
+    "priority_default": 1,
+    "set_priority_method_added": true,
+    "from_dict_validation": true,
+    "cli_priority_flag": true,
+    "cli_prioritize_command": true,
+    "formatter_priority_indicators": true
+  }
+}
