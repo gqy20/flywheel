@@ -229,3 +229,82 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_verifies_file_integrity_after_replace(tmp_path) -> None:
+    """Regression test for issue #2508: File integrity verification after save.
+
+    Tests that save() verifies the file was written correctly by reading it back
+    after the atomic replace operation. This catches rare cases where os.replace
+    succeeds but the file content is corrupted or incomplete.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Mock os.replace to simulate a corrupted write scenario
+    original_replace = __import__("os").replace
+    replace_called = []
+
+    def corrupting_replace(src, dst):
+        """Simulate a corrupted file after replace."""
+        replace_called.append((src, dst))
+        # First, do the actual replace
+        result = original_replace(src, dst)
+        # Then corrupt the file (simulate disk write issue)
+        Path(dst).write_text("{corrupted json", encoding="utf-8")
+        return result
+
+    with patch("flywheel.storage.os.replace", corrupting_replace):
+        # Should raise ValueError due to corrupted JSON verification
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            storage.save([Todo(id=2, text="updated todo")])
+
+
+def test_save_detects_corrupted_json(tmp_path) -> None:
+    """Regression test for issue #2508: Detect corrupted JSON after save.
+
+    Tests that verification catches truncated/incomplete JSON files that
+    might result from system issues during write.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Mock to simulate incomplete write after replace
+    original_replace = __import__("os").replace
+
+    def truncated_replace(src, dst):
+        """Simulate a truncated file after replace."""
+        result = original_replace(src, dst)
+        # Truncate the file to simulate incomplete write
+        content = Path(dst).read_text(encoding="utf-8")
+        Path(dst).write_text(content[:len(content) // 2], encoding="utf-8")
+        return result
+
+    with patch("flywheel.storage.os.replace", truncated_replace):
+        # Should raise ValueError due to truncated JSON verification
+        with pytest.raises(ValueError, match="Invalid JSON"):
+            storage.save([Todo(id=1, text="test")])
+
+
+def test_save_verification_passes_with_valid_json(tmp_path) -> None:
+    """Test that save verification passes when file is correctly written."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [
+        Todo(id=1, text="first todo", done=False),
+        Todo(id=2, text="second todo", done=True),
+    ]
+
+    # Should not raise any error
+    storage.save(todos)
+
+    # Verify file is readable and contains correct data
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "first todo"
+    assert loaded[1].text == "second todo"
+    assert loaded[1].done is True

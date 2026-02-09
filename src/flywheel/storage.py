@@ -118,6 +118,26 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Verify file integrity: read back and validate JSON
+            # This catches rare cases where os.replace succeeds but file is corrupted
+            try:
+                json.loads(self.path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                # File is corrupted - remove it and raise an error
+                with contextlib.suppress(OSError):
+                    os.unlink(self.path)
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"File integrity check after save failed."
+                ) from e
+            except OSError as e:
+                # File read failed - remove it and raise an error
+                with contextlib.suppress(OSError):
+                    os.unlink(self.path)
+                raise ValueError(
+                    f"Failed to verify file integrity for '{self.path}': {e}"
+                ) from e
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
