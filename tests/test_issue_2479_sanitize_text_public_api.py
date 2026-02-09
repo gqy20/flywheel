@@ -15,7 +15,6 @@ The fix should:
 from __future__ import annotations
 
 import ast
-import importlib
 
 
 def test_cli_does_not_import_private_formatter_functions() -> None:
