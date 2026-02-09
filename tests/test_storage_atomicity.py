@@ -229,3 +229,97 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_verifies_written_file_integrity(tmp_path) -> None:
+    """Regression test for issue #2508: Verify file integrity after save.
+
+    Tests that save() verifies the written file can be read back as valid JSON.
+    This catches edge cases like disk full errors that only appear on flush.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Normal save should succeed and file should be verifiable
+    raw_content = db.read_text(encoding="utf-8")
+    parsed = json.loads(raw_content)
+    assert len(parsed) == 1
+    assert parsed[0]["text"] == "test todo"
+
+
+def test_save_detects_corrupted_file_after_replace(tmp_path) -> None:
+    """Regression test for issue #2508: Detect corrupted file after os.replace.
+
+    Simulates a scenario where os.replace succeeds but the file content
+    is corrupted (e.g., due to disk issues or silent data corruption).
+    The save() method should detect this and raise an error.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+
+    # Track os.replace calls to corrupt the file after atomic rename
+    original_replace = __import__("os").replace
+    corrupted_files = []
+
+    def corrupting_replace(src, dst):
+        """Call original replace, then corrupt the destination file."""
+        result = original_replace(src, dst)
+        # Simulate corruption by writing invalid JSON after replace
+        if dst not in corrupted_files:
+            Path(dst).write_text("{invalid json content", encoding="utf-8")
+            corrupted_files.append(dst)
+        return result
+
+    import os
+    original = os.replace
+
+    with (
+        patch("flywheel.storage.os.replace", corrupting_replace),
+        pytest.raises(ValueError, match="File integrity verification failed"),
+    ):
+        storage.save(todos)
+
+    # Restore original
+    os.replace = original
+
+
+def test_save_detects_partially_written_file(tmp_path) -> None:
+    """Regression test for issue #2508: Detect partially written files.
+
+    Simulates a scenario where os.replace succeeds but the file is only
+    partially written (truncated JSON).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+
+    # Track os.replace calls to truncate the file after atomic rename
+    original_replace = __import__("os").replace
+    truncated_files = []
+
+    def truncating_replace(src, dst):
+        """Call original replace, then truncate the destination file."""
+        result = original_replace(src, dst)
+        # Simulate partial write by truncating to invalid JSON
+        if dst not in truncated_files:
+            Path(dst).write_text("[{\"id\":1,\"text\":", encoding="utf-8")
+            truncated_files.append(dst)
+        return result
+
+    import os
+    original = os.replace
+
+    with (
+        patch("flywheel.storage.os.replace", truncating_replace),
+        pytest.raises(ValueError, match="File integrity verification failed"),
+    ):
+        storage.save(todos)
+
+    # Restore original
+    os.replace = original

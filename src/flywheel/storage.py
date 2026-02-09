@@ -50,6 +50,46 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _verify_saved_file(file_path: Path) -> None:
+    """Verify that a saved file contains valid JSON.
+
+    Reads back the file content and attempts to parse it as JSON.
+    This catches edge cases like disk full errors that only appear on flush,
+    silent data corruption, or partially-written files.
+
+    Args:
+        file_path: Path to the file to verify.
+
+    Raises:
+        ValueError: If the file does not contain valid JSON, with details
+            about the original error.
+        OSError: If the file cannot be read for other reasons (e.g., permissions).
+    """
+    try:
+        raw = json.loads(file_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(
+            f"File integrity verification failed for '{file_path}': {e.msg}. "
+            f"The file was written but contains invalid JSON. "
+            f"This may indicate disk corruption, disk full condition, or other storage issue. "
+            f"Check line {e.lineno}, column {e.colno}."
+        ) from e
+    except OSError as e:
+        # If we can't read the file at all, that's also a problem
+        raise ValueError(
+            f"File integrity verification failed for '{file_path}': {e}. "
+            f"The file was written but cannot be read back. "
+            f"This may indicate permission issues or filesystem problems."
+        ) from e
+
+    # Verify it's a list (as expected for todo storage)
+    if not isinstance(raw, list):
+        raise ValueError(
+            f"File integrity verification failed for '{file_path}': "
+            f"Expected a JSON list, got {type(raw).__name__}."
+        )
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
@@ -90,6 +130,9 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        After atomic rename, verifies the written file contains valid JSON
+        to detect silent data corruption or disk full conditions.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -118,6 +161,10 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Verify the saved file contains valid JSON
+            # This catches edge cases like disk full errors that only appear on flush
+            _verify_saved_file(self.path)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
