@@ -55,6 +55,11 @@
         },
         "ruff_checks": "All checks passed"
       }
+    },
+    "finalize": {
+      "status": "complete",
+      "pr_url": "https://github.com/gqy20/flywheel/pull/2475",
+      "pr_number": 2475
     }
   },
   "acceptance_criteria": {
@@ -69,5 +74,6 @@
     "None - all tests pass including 5 new regression tests"
   ],
   "limitations": [],
-  "verified_at": "2026-02-09T10:45:00Z"
+  "verified_at": "2026-02-09T10:45:00Z",
+  "finalized_at": "2026-02-09T10:50:00Z"
 }
