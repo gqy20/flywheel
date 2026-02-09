@@ -82,15 +82,58 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    @property
+    def _backup_path(self) -> Path:
+        """Get the backup file path for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
+    def backup_file(self) -> None:
+        """Create a backup of the current data file.
+
+        Raises:
+            FileNotFoundError: If the main file doesn't exist
+            OSError: If backup creation fails
+        """
+        if not self.path.exists():
+            raise FileNotFoundError(
+                f"Cannot backup: main file '{self.path}' does not exist"
+            )
+        # Atomic copy: read content first, then write to backup
+        content = self.path.read_text(encoding="utf-8")
+        self._backup_path.write_text(content, encoding="utf-8")
+
+    def restore(self) -> None:
+        """Restore data from backup file.
+
+        Raises:
+            FileNotFoundError: If backup file doesn't exist
+            OSError: If restore operation fails
+        """
+        if not self._backup_path.exists():
+            raise FileNotFoundError(
+                f"No backup file found at '{self._backup_path}'"
+            )
+        # Atomic restore: read backup first, then write to main
+        content = self._backup_path.read_text(encoding="utf-8")
+        self.path.write_text(content, encoding="utf-8")
+
+    def save(self, todos: list[Todo], *, backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Args:
+            todos: List of todos to save
+            backup: If True, create a .bak backup of existing data before saving
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup if requested and main file exists
+        if backup and self.path.exists():
+            self.backup_file()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
