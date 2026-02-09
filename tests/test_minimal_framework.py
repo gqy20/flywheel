@@ -158,3 +158,25 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_handles_null_items_in_json_array(tmp_path) -> None:
+    """Bug #2566: JSON arrays with null items should be handled gracefully.
+
+    The storage system should skip null items in JSON arrays rather than
+    crashing with TypeError: 'NoneType' object is not iterable.
+    """
+    db = tmp_path / "with_nulls.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON file with null items (simulating corrupted or partially-deleted data)
+    json_content = '[{"id":1,"text":"valid"}, null, {"id":2,"text":"also_valid"}]'
+    db.write_text(json_content, encoding="utf-8")
+
+    # Should load valid items and skip nulls
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].id == 1
+    assert loaded[0].text == "valid"
+    assert loaded[1].id == 2
+    assert loaded[1].text == "also_valid"
