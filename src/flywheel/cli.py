@@ -69,7 +69,7 @@ class TodoApp:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
-    parser.add_argument("--db", default=".todo.json", help="Path to JSON database")
+    parser.add_argument("--db", default=None, help="Path to JSON database (defaults: TODO_DB_PATH > XDG_DATA_HOME > .todo.json)")
 
     sub = parser.add_subparsers(dest="command", required=True)
 
