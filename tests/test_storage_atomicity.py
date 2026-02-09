@@ -229,3 +229,101 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_load_handles_file_deleted_between_exists_and_stat(tmp_path) -> None:
+    """Regression test for issue #2455: TOCTOU race condition in load().
+
+    Tests that load() handles the case where the file is deleted between
+    the exists() check and the stat() call. This should return an empty
+    list gracefully instead of crashing with FileNotFoundError.
+
+    This test uses a more direct approach by mocking read_text to raise
+    FileNotFoundError, simulating the file being deleted after the stat()
+    call succeeds but before read_text() is executed.
+    """
+    db = tmp_path / "race_condition.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Track that stat was called (file existed at that point)
+    stat_called = False
+
+    original_stat = Path.stat
+    def tracked_stat(self):
+        nonlocal stat_called
+        stat_called = True
+        return original_stat(self)
+
+    # Mock read_text to raise FileNotFoundError after stat succeeds
+    def failing_read_text(*args, **kwargs):
+        # This simulates the file being deleted after stat() succeeded
+        # but before read_text() could read it
+        raise FileNotFoundError("Simulated: file deleted after stat")
+
+    with (
+        patch.object(Path, "stat", tracked_stat),
+        patch.object(Path, "read_text", failing_read_text),
+    ):
+        # This should handle the race condition gracefully
+        # by catching FileNotFoundError and returning []
+        result = storage.load()
+
+    # Verify that stat was called (proving the file existed at check time)
+    assert stat_called, "stat() should have been called"
+
+    # Verify graceful handling - should return empty list
+    assert result == [], f"Expected empty list, got {result}"
+
+
+def test_load_handles_file_deleted_before_read_text(tmp_path) -> None:
+    """Regression test for issue #2455: TOCTOU race condition before read_text().
+
+    Tests that load() handles the case where the file is deleted after
+    the size check but before read_text() is called.
+    """
+    db = tmp_path / "race_before_read.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Mock read_text to raise FileNotFoundError
+    def failing_read_text(*args, **kwargs):
+        raise FileNotFoundError("File deleted during read")
+
+    with patch.object(Path, "read_text", failing_read_text):
+        # This should handle the FileNotFoundError gracefully
+        result = storage.load()
+
+    # Verify graceful handling - should return empty list
+    assert result == [], f"Expected empty list, got {result}"
+
+
+def test_load_handles_file_deleted_before_stat(tmp_path) -> None:
+    """Regression test for issue #2455: TOCTOU race condition before stat().
+
+    Tests that load() handles the case where the file is deleted after
+    exists() check but before stat() is called for the size check.
+    """
+    db = tmp_path / "race_before_stat.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Mock stat to raise FileNotFoundError
+    def failing_stat(*args, **kwargs):
+        raise FileNotFoundError("File deleted before stat")
+
+    with patch.object(Path, "stat", failing_stat):
+        # This should handle the FileNotFoundError gracefully
+        result = storage.load()
+
+    # Verify graceful handling - should return empty list
+    assert result == [], f"Expected empty list, got {result}"
