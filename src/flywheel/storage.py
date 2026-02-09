@@ -22,10 +22,12 @@ def _ensure_parent_directory(file_path: Path) -> None:
     1. All parent path components either don't exist or are directories (not files)
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
+    4. Detects symlink TOCTOU attacks between validation and directory creation
 
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
+        ValueError: If a symlink attack is detected (directory created through symlink)
     """
     parent = file_path.parent
 
@@ -40,14 +42,33 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle race condition where another process creates directory
+    # between our check and mkdir() call. This is safer than exist_ok=False.
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
             ) from e
+
+    # Security: Verify the created path is actually a directory, not a symlink.
+    # This mitigates TOCTOU attacks where an attacker creates a symlink between
+    # the exists() check and mkdir() call, causing mkdir() to follow the symlink
+    # and create directories in an unintended location.
+    if parent.is_symlink():
+        raise ValueError(
+            f"Security error: '{parent}' is a symbolic link, not a directory. "
+            f"This may indicate a symlink attack. Use a direct path instead."
+        )
+
+    # Final verification that parent is actually a directory
+    if parent.exists() and not parent.is_dir():
+        raise ValueError(
+            f"Path error: '{parent}' exists but is not a directory. "
+            f"Cannot use '{file_path}' as database path."
+        )
 
 
 class TodoStorage:
