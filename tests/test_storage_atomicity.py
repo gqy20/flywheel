@@ -56,6 +56,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -94,6 +95,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -116,7 +118,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -219,9 +221,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -314,7 +314,9 @@ def test_read_blocks_during_write_with_lock(tmp_path) -> None:
         time.sleep(0.1)  # Hold the lock briefly
         barrier.wait()  # Wait for reader to attempt read
 
-    def reader(storage_path: str, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue) -> None:
+    def reader(
+        storage_path: str, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue
+    ) -> None:
         """Reader that attempts to read during write."""
         # Wait for writer to be in progress
         barrier.wait()
