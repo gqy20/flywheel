@@ -229,3 +229,88 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_backup_created_before_overwrite(tmp_path) -> None:
+    """Regression test for issue #2494: Backup creation before overwriting file.
+
+    Tests that when a file is overwritten, a backup is created with .bak extension
+    to protect against data corruption bugs and accidental deletion.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    original_todos = [Todo(id=1, text="original data")]
+    storage.save(original_todos)
+
+    # Save new data (should create backup)
+    new_todos = [Todo(id=1, text="new data")]
+    storage.save(new_todos)
+
+    # Verify backup file was created
+    backup_files = list(tmp_path.glob("*.bak"))
+    assert len(backup_files) > 0, "Backup file should be created before overwrite"
+
+    # Verify backup contains the original data
+    backup_content = backup_files[0].read_text(encoding="utf-8")
+    backup_data = json.loads(backup_content)
+    assert len(backup_data) == 1
+    assert backup_data[0]["text"] == "original data"
+
+
+def test_backup_rotation_keeps_max_backups(tmp_path) -> None:
+    """Regression test for issue #2494: Backup rotation.
+
+    Tests that only the configured number of backups are kept (default 3).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create multiple saves to generate backups
+    for i in range(5):
+        todos = [Todo(id=1, text=f"data version {i}")]
+        storage.save(todos)
+
+    # Check that we have a method to list backups
+    assert hasattr(storage, "list_backups"), "TodoStorage should have list_backups method"
+
+    # Get backups and verify rotation
+    backups = storage.list_backups()
+    assert len(backups) <= 3, f"Should keep at most 3 backups, got {len(backups)}"
+
+
+def test_restore_from_backup(tmp_path) -> None:
+    """Regression test for issue #2494: Restore from backup.
+
+    Tests that we can restore data from a backup file.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data and save
+    original_todos = [Todo(id=1, text="important data"), Todo(id=2, text="more data")]
+    storage.save(original_todos)
+
+    # Save new data (creates backup)
+    storage.save([Todo(id=1, text="corrupted data")])
+
+    # Verify main file has new data
+    current = storage.load()
+    assert current[0].text == "corrupted data"
+
+    # Check that we have a restore method
+    assert hasattr(storage, "restore_from_backup"), "TodoStorage should have restore_from_backup method"
+
+    # Get list of backups
+    backups = storage.list_backups()
+    assert len(backups) > 0, "Should have at least one backup"
+
+    # Restore from backup
+    storage.restore_from_backup(backups[0])
+
+    # Verify data was restored
+    restored = storage.load()
+    assert len(restored) == 2
+    assert restored[0].text == "important data"
+    assert restored[1].text == "more data"

@@ -7,12 +7,16 @@ import json
 import os
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backups to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, max_backups: int = _DEFAULT_MAX_BACKUPS) -> None:
         self.path = Path(path or ".todo.json")
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,9 +95,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Before overwriting the existing file, creates a backup with .bak extension
+        to protect against data corruption bugs and accidental deletion.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if file exists
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +138,78 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file with timestamp.
+
+        Backup files are named with the pattern: <basename>.<timestamp>.bak
+        Example: .todo.json.20250209_123456.123456.bak
+        """
+        # Use microseconds to ensure unique backup filenames even within same second
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S.%f")
+        backup_name = f"{self.path.name}.{timestamp}.bak"
+        backup_path = self.path.parent / backup_name
+
+        # Copy current file to backup
+        import shutil
+        shutil.copy2(self.path, backup_path)
+
+        # Cleanup old backups, keeping only max_backups most recent
+        self._cleanup_old_backups()
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backups, keeping only max_backups most recent ones."""
+        backups = self._get_backup_files()
+        # Sort by modification time (newest first)
+        backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+        # Remove excess backups
+        for old_backup in backups[self.max_backups:]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
+
+    def _get_backup_files(self) -> list[Path]:
+        """Get all backup files for this storage, sorted by modification time (newest first)."""
+        pattern = f"{self.path.name}.*.bak"
+        backups = list(self.path.parent.glob(pattern))
+        backups.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return backups
+
+    def list_backups(self) -> list[Path]:
+        """List all backup files for this storage.
+
+        Returns:
+            List of backup file paths, sorted from newest to oldest.
+        """
+        return self._get_backup_files()
+
+    def restore_from_backup(self, backup_path: str | Path) -> None:
+        """Restore data from a backup file.
+
+        Args:
+            backup_path: Path to the backup file to restore from.
+
+        Raises:
+            FileNotFoundError: If the backup file doesn't exist.
+            ValueError: If the backup file contains invalid data.
+        """
+        backup = Path(backup_path)
+        if not backup.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Validate backup contains valid data before restoring
+        try:
+            backup_content = backup.read_text(encoding="utf-8")
+            raw = json.loads(backup_content)
+            if not isinstance(raw, list):
+                raise ValueError("Backup must contain a list of todos")
+        except (json.JSONDecodeError, OSError) as e:
+            raise ValueError(f"Invalid backup file: {e}") from e
+
+        # Create backup of current file before restoring
+        if self.path.exists():
+            self._create_backup()
+
+        # Copy backup to main file
+        import shutil
+        shutil.copy2(backup, self.path)
