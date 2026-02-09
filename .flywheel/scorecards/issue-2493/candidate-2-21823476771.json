@@ -48,7 +48,17 @@
   "verification": {
     "tests_pass": true,
     "ruff_checks_pass": true,
-    "all_existing_tests_pass": true
+    "all_existing_tests_pass": true,
+    "final_commands": [
+      "uv run pytest tests/test_issue_2493_debug_logging.py -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_2493_debug_logging.py",
+      "uv run pytest tests/test_storage_atomicity.py tests/test_minimal_framework.py tests/test_issue_2000_json_validation.py tests/test_issue_1999_symlink_protection.py -v"
+    ],
+    "final_outcomes": {
+      "new_tests": "7 passed in 0.07s",
+      "ruff": "All checks passed!",
+      "regression_tests": "34 passed in 0.27s"
+    }
   },
   "pr_url": null
 }
