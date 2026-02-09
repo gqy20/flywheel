@@ -1,18 +1,23 @@
 {
-  "issue_number": 2532,
-  "candidate_number": 1,
+  "issue": 2532,
+  "candidate": 1,
   "run_id": "21831630514",
-  "branch_name": "claude/issue-2532-candidate-1-21831630514",
-  "test_files_added": ["tests/test_issue_2532_cli_add_whitespace_validation.py"],
-  "source_files_changed": [],
-  "tests_run": {
-    "pytest": "6 passed in 0.07s",
-    "ruff": "passed - All checks passed!"
-  },
-  "verified": true,
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2540",
+  "branch": "claude/issue-2532-candidate-1-21831630514",
   "pr_number": 2540,
-  "summary": "Added comprehensive test coverage for whitespace-only input validation in CLI 'add' command. No source code changes were required as the existing TodoApp.add() method already handles these cases correctly via text.strip() and empty string validation.",
-  "risks": [],
-  "limitations": []
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2540",
+  "generated_at": "2026-02-09T16:07:16.144076+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2485,
+    "plan": 4000,
+    "implement": 1776,
+    "verify": 1970,
+    "finalize": 778
+  }
 }
