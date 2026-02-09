@@ -3,6 +3,8 @@
   "candidate_number": 1,
   "run_id": "21813380111",
   "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2449",
+  "commit_hash": "908607e",
   "tdd_plan": {
     "problem_summary": "fdopen context manager closes the file descriptor but os.unlink(temp_path) in except handler needs proper cleanup handling. If fchmod fails, the fd must be closed before unlinking the temp file.",
     "files_to_touch": [
