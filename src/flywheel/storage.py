@@ -43,7 +43,32 @@ def _ensure_parent_directory(file_path: Path) -> None:
     if not parent.exists():
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+        except FileExistsError as e:
+            # FileExistsError may indicate a TOCTOU attack where something was
+            # created between our exists() check and mkdir() call. Check what exists.
+            if parent.is_symlink():
+                raise OSError(
+                    f"Security error: Cannot create directory '{parent}' - a symlink was found at this location. "
+                    f"This may indicate a TOCTOU (time-of-check-time-of-use) race condition attack. "
+                    f"Specify a different location with --db=path/to/db.json"
+                ) from e
+            elif parent.exists() and not parent.is_dir():
+                raise ValueError(
+                    f"Path error: '{parent}' exists as a file, not a directory. "
+                    f"Cannot use '{file_path}' as database path."
+                ) from e
+            else:
+                # Something else created the directory - this is OK but unexpected
+                # It could be a benign race with another process
+                pass  # Directory now exists, which is what we wanted
         except OSError as e:
+            # Check if this might be a symlink-related error
+            if parent.is_symlink():
+                raise OSError(
+                    f"Security error: Cannot create directory '{parent}' - a symlink was found at this location. "
+                    f"This may indicate a TOCTOU (time-of-check-time-of-use) race condition attack. "
+                    f"Specify a different location with --db=path/to/db.json"
+                ) from e
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
