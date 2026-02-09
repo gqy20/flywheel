@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Module-level logger for storage operations
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,6 +62,7 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            logger.debug(f"File not found: {self.path}, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +85,9 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug(f"Loaded {len(todos)} todos from {self.path}")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,7 +98,6 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
-        # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
@@ -118,6 +124,7 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            logger.debug(f"Saved {len(todos)} todos to {self.path} (atomic write complete)")
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
