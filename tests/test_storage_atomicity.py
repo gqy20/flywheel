@@ -229,3 +229,253 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+# Tests for issue #2536: File locking for concurrent write safety
+def test_concurrent_write_with_lock_prevents_data_corruption(tmp_path) -> None:
+    """Regression test for issue #2536: File locking prevents race conditions.
+
+    Tests that when multiple processes write simultaneously, they are
+    serialized by file locks, preventing data corruption.
+    """
+    import multiprocessing
+
+    db = tmp_path / "locked_concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves and verifies data integrity."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}-data")]
+            storage.save(todos)
+
+            # Verify we can read back valid data
+            storage.load()
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 3
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    errors = [r for r in results if r[0] == "error"]
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+
+    # Final file should contain valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list)
+
+
+def test_lock_timeout_raises_timeout_error(tmp_path) -> None:
+    """Regression test for issue #2536: Lock timeout behavior.
+
+    Tests that when a lock cannot be acquired within timeout,
+    a TimeoutError is raised with a clear message.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "timeout_test.json"
+
+    def hold_lock_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that holds write lock for an extended period."""
+        try:
+            from flywheel.storage import _file_lock
+            storage = TodoStorage(str(db))
+            # Hold lock manually for extended period
+            with _file_lock(storage.path, exclusive=True, timeout=2.0):
+                storage.save([Todo(id=1, text="holding lock")])
+                # Signal we're holding the lock
+                result_queue.put(("holder", "acquired"))
+                # Hold the lock for a while
+                time.sleep(0.5)
+            result_queue.put(("holder", "released"))
+        except Exception as e:
+            result_queue.put(("holder_error", str(e)))
+
+    def competing_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that attempts to acquire lock while held."""
+        try:
+            import time
+            # Wait for holder to acquire lock
+            time.sleep(0.1)
+            storage = TodoStorage(str(db))
+            # Set a very short timeout for testing
+            storage._lock_timeout = 0.15
+            storage.save([Todo(id=2, text="competing")])
+            result_queue.put(("competitor", "success"))
+        except TimeoutError as e:
+            result_queue.put(("competitor_timeout", str(e)))
+        except Exception as e:
+            result_queue.put(("competitor_error", str(e)))
+
+    # Start holder and competing processes
+    result_queue = multiprocessing.Queue()
+    holder = multiprocessing.Process(target=hold_lock_worker, args=(result_queue,))
+    competitor = multiprocessing.Process(target=competing_worker, args=(result_queue,))
+
+    holder.start()
+    competitor.start()
+
+    holder.join(timeout=5)
+    competitor.join(timeout=5)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Verify timeout occurred
+    timeout_events = [r for r in results if r[0] == "competitor_timeout"]
+    # With proper locking, competitor should timeout
+    assert len(timeout_events) >= 1, f"Expected lock timeout to occur, got: {results}"
+
+
+def test_load_acquires_shared_lock_to_prevent_read_during_write(tmp_path) -> None:
+    """Regression test for issue #2536: Load uses shared lock.
+
+    Tests that load() acquires a shared lock to prevent reading
+    while a write is in progress.
+    """
+    import multiprocessing
+
+    db = tmp_path / "read_during_write.json"
+
+    # Initialize with data
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="initial")])
+
+    def write_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that performs a slow write."""
+        try:
+            storage = TodoStorage(str(db))
+            storage._lock_timeout = 2.0
+            storage.save([Todo(id=2, text="written"), Todo(id=3, text="data")])
+            result_queue.put(("write", "success"))
+        except Exception as e:
+            result_queue.put(("write_error", str(e)))
+
+    def read_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that reads while write may be in progress."""
+        try:
+            storage = TodoStorage(str(db))
+            storage._lock_timeout = 2.0
+            # Small delay to potentially race with write
+            import time
+            time.sleep(0.05)
+            todos = storage.load()
+            result_queue.put(("read", len(todos)))
+        except Exception as e:
+            result_queue.put(("read_error", str(e)))
+
+    result_queue = multiprocessing.Queue()
+    writer = multiprocessing.Process(target=write_worker, args=(result_queue,))
+    reader = multiprocessing.Process(target=read_worker, args=(result_queue,))
+
+    writer.start()
+    reader.start()
+
+    writer.join(timeout=5)
+    reader.join(timeout=5)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Both should succeed without corruption errors
+    write_errors = [r for r in results if r[0] == "write_error"]
+    read_errors = [r for r in results if r[0] == "read_error"]
+    assert len(write_errors) == 0, f"Write failed: {write_errors}"
+    assert len(read_errors) == 0, f"Read failed: {read_errors}"
+
+    # Final data should be valid
+    storage = TodoStorage(str(db))
+    final = storage.load()
+    assert isinstance(final, list)
+
+
+def test_lock_released_on_exception_during_save(tmp_path) -> None:
+    """Regression test for issue #2536: Lock released on exception.
+
+    Tests that file locks are properly released even when an
+    exception occurs during save operation.
+    """
+    import multiprocessing
+
+    db = tmp_path / "exception_lock.json"
+
+    def failing_save_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that triggers an exception during save."""
+        try:
+            from unittest.mock import patch
+
+            storage = TodoStorage(str(db))
+            storage._lock_timeout = 2.0
+
+            # Mock json.dumps to fail
+            def failing_dumps(*args, **kwargs):
+                raise ValueError("Simulated serialization failure")
+
+            with patch("flywheel.storage.json.dumps", failing_dumps):
+                storage.save([Todo(id=1, text="test")])
+
+            result_queue.put(("save", "unexpected_success"))
+        except ValueError:
+            result_queue.put(("save", "expected_error"))
+        except Exception as e:
+            result_queue.put(("save_error", str(e)))
+
+    def subsequent_save_worker(result_queue: multiprocessing.Queue) -> None:
+        """Worker that attempts to save after exception."""
+        try:
+            import time
+            time.sleep(0.2)  # Wait for first worker to fail
+            storage = TodoStorage(str(db))
+            storage._lock_timeout = 2.0
+            storage.save([Todo(id=2, text="recovery")])
+            result_queue.put(("recovery", "success"))
+        except TimeoutError as e:
+            result_queue.put(("recovery_timeout", str(e)))
+        except Exception as e:
+            result_queue.put(("recovery_error", str(e)))
+
+    result_queue = multiprocessing.Queue()
+    failer = multiprocessing.Process(target=failing_save_worker, args=(result_queue,))
+    recovery = multiprocessing.Process(target=subsequent_save_worker, args=(result_queue,))
+
+    failer.start()
+    recovery.start()
+
+    failer.join(timeout=5)
+    recovery.join(timeout=5)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # First worker should have error, recovery should succeed (lock was released)
+    recovery_results = [r for r in results if r[0].startswith("recovery")]
+    assert len(recovery_results) > 0, "Recovery worker should have completed"
+    # Recovery should NOT timeout (lock was properly released)
+    recovery_timeouts = [r for r in recovery_results if r[0] == "recovery_timeout"]
+    assert len(recovery_timeouts) == 0, "Lock should have been released after exception"
