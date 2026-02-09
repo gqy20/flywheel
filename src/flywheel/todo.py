@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 
 def _utc_now_iso() -> str:
@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,46 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str | None) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date_str: Due date in YYYY-MM-DD format, or None to clear.
+
+        Raises:
+            ValueError: If date_str is not a valid ISO date format.
+        """
+        if date_str is None:
+            self.due_date = None
+            self.updated_at = _utc_now_iso()
+            return
+
+        # Validate ISO date format (YYYY-MM-DD)
+        try:
+            datetime.fromisoformat(date_str)
+        except ValueError as e:
+            raise ValueError(f"Invalid due date format: {date_str!r}. Expected YYYY-MM-DD.") from e
+
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if this todo is overdue.
+
+        Returns:
+            True if the todo has a due date in the past and is not done.
+        """
+        if self.due_date is None or self.done:
+            return False
+
+        try:
+            due = date.fromisoformat(self.due_date)
+            return due < date.today()
+        except ValueError:
+            # If due_date is invalid, don't consider it overdue
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +140,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date")) if data.get("due_date") else None,
         )

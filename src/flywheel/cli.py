@@ -22,13 +22,13 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
-    def add(self, text: str) -> Todo:
+    def add(self, text: str, due_date: str | None = None) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
         todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
+        todo = Todo(id=self.storage.next_id(todos), text=text, due_date=due_date)
         todos.append(todo)
         self._save(todos)
         return todo
@@ -66,6 +66,15 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def set_due_date(self, todo_id: int, due_date: str) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.set_due_date(due_date)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -75,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_add = sub.add_parser("add", help="Add a todo")
     p_add.add_argument("text", help="Todo text")
+    p_add.add_argument("--due", help="Due date in YYYY-MM-DD format")
 
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
@@ -88,6 +98,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_due = sub.add_parser("due", help="Set due date for a todo")
+    p_due.add_argument("id", type=int, help="Todo ID")
+    p_due.add_argument("date", help="Due date in YYYY-MM-DD format")
+
     return parser
 
 
@@ -96,7 +110,7 @@ def run_command(args: argparse.Namespace) -> int:
 
     try:
         if args.command == "add":
-            todo = app.add(args.text)
+            todo = app.add(args.text, due_date=args.due)
             print(f"Added #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 
@@ -118,6 +132,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "due":
+            todo = app.set_due_date(args.id, args.date)
+            print(f"Due date set for #{todo.id}: {_sanitize_text(todo.text)} -> {todo.due_date}")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")

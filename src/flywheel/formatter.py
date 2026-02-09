@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from .todo import Todo
 
 
@@ -45,7 +47,21 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        output = f"[{status}] {todo.id:>3} {safe_text}"
+
+        # Add due date indicator for pending todos with due dates
+        if todo.due_date and not todo.done:
+            try:
+                due = date.fromisoformat(todo.due_date)
+                if due < date.today():
+                    output += " [OVERDUE]"
+                else:
+                    output += f" ({todo.due_date})"
+            except ValueError:
+                # If due_date is invalid, just show it as-is
+                output += f" ({todo.due_date})"
+
+        return output
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
