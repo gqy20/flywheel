@@ -45,7 +45,13 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+
+        # Add due date or overdue indicator
+        suffix = ""
+        if todo.due_date:
+            suffix = " [OVERDUE]" if todo.is_overdue() else f" [due: {todo.due_date}]"
+
+        return f"[{status}] {todo.id:>3} {safe_text}{suffix}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

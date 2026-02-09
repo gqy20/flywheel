@@ -3,11 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _validate_iso_date(date_str: str) -> date:
+    """Validate ISO date format (YYYY-MM-DD) and return date object.
+
+    Args:
+        date_str: Date string in ISO format (YYYY-MM-DD)
+
+    Returns:
+        date object parsed from the string
+
+    Raises:
+        ValueError: If date_str is not in valid ISO format (YYYY-MM-DD)
+    """
+    try:
+        return date.fromisoformat(date_str)
+    except ValueError as e:
+        raise ValueError(f"Invalid date format: {date_str!r}. Expected YYYY-MM-DD format.") from e
 
 
 @dataclass(slots=True)
@@ -17,6 +35,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    due_date: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -53,6 +72,36 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date_str: Due date in ISO format (YYYY-MM-DD)
+
+        Raises:
+            ValueError: If date_str is not in valid ISO format
+        """
+        _validate_iso_date(date_str)  # Validate format
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    def is_overdue(self) -> bool:
+        """Check if this todo is overdue.
+
+        Returns:
+            True if the todo has a due_date in the past and is not done.
+            False otherwise.
+        """
+        if self.due_date is None or self.done:
+            return False
+
+        try:
+            due = date.fromisoformat(self.due_date)
+            return due < date.today()
+        except ValueError:
+            # Invalid date format, treat as not overdue
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -93,10 +142,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'due_date' if present
+        due_date = data.get("due_date")
+        if due_date is not None and due_date != "":
+            if not isinstance(due_date, str):
+                raise ValueError(
+                    f"Invalid value for 'due_date': {due_date!r}. 'due_date' must be a string."
+                )
+            # Validate ISO date format
+            _validate_iso_date(due_date)
+        else:
+            due_date = None
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            due_date=due_date,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
