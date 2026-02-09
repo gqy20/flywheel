@@ -2,7 +2,7 @@
   "issue_number": 2581,
   "candidate_id": "candidate-3-21841344125",
   "branch": "claude/issue-2581-candidate-3-21841344125",
-  "stage": "complete",
+  "stage": "finalized",
   "created_at": "2026-02-09T22:00:00Z",
   "summary": {
     "title": "[AUTOFIX][ISSUE-2581][CANDIDATE-3] Fix overly broad exception handler in run_command",
@@ -64,6 +64,6 @@
       "mitigation": "This is the intended behavior - programming errors should fail fast with full tracebacks for easier debugging"
     }
   ],
-  "pr_created": false,
-  "pr_url": null
+  "pr_created": true,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2585"
 }
