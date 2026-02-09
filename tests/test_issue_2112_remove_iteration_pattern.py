@@ -29,7 +29,7 @@ def test_remove_uses_explicit_iteration_valid_id(tmp_path) -> None:
     app.remove(todo.id)
 
     # Verify it's gone
-    remaining = app.list()
+    remaining = app.list_todos()
     assert len(remaining) == 0
     assert all(t.id != todo.id for t in remaining)
 
@@ -52,7 +52,7 @@ def test_remove_uses_explicit_iteration_invalid_id(tmp_path) -> None:
         app.remove(999)
 
     # Original todo should still exist
-    remaining = app.list()
+    remaining = app.list_todos()
     assert len(remaining) == 1
     assert remaining[0].id == todo.id
 
@@ -74,17 +74,17 @@ def test_remove_consistent_with_mark_done_undone_pattern(tmp_path) -> None:
     # All three methods should work consistently
     # mark_done modifies in-place and saves
     app.mark_done(todo1.id)
-    todos = app.list()
+    todos = app.list_todos()
     assert todos[0].done
 
     # mark_undone modifies in-place and saves
     app.mark_undone(todo1.id)
-    todos = app.list()
+    todos = app.list_todos()
     assert not todos[0].done
 
     # remove should work with the same pattern
     app.remove(todo2.id)
-    todos = app.list()
+    todos = app.list_todos()
     assert len(todos) == 2
     assert all(t.id != todo2.id for t in todos)
 
