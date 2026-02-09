@@ -56,12 +56,32 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, strict_permissions: bool = False) -> list[Todo]:
         if not self.path.exists():
             return []
 
+        # Security: Check file permissions before loading sensitive data
+        file_stat = self.path.stat()
+        file_mode = stat.S_IMODE(file_stat.st_mode)
+
+        # Check for overly permissive permissions
+        # 0o077 = rwxrwxrwx (group+other permissions)
+        # In strict mode: reject any group/other permissions (read or write)
+        # In normal mode: only reject world-writable (security risk)
+        if strict_permissions:
+            if file_mode & 0o077:  # Any group or other permissions
+                raise ValueError(
+                    f"File '{self.path}' has overly permissive permissions: {oct(file_mode)}. "
+                    f"This could indicate tampering. Use chmod 600 to restrict to owner-only."
+                )
+        elif file_mode & 0o002:  # World-writable (always a security risk)
+            raise ValueError(
+                f"File '{self.path}' is world-writable: {oct(file_mode)}. "
+                f"This is a security risk. Use chmod 600 to restrict to owner-only."
+            )
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
