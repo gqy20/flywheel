@@ -110,14 +110,8 @@ class TodoStorage:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
             # Note: os.fchmod is Unix-only; on Windows this is skipped gracefully
-            try:
+            with contextlib.suppress(AttributeError, OSError):
                 os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
-            except (AttributeError, OSError):
-                # On Windows, os.fchmod doesn't exist (AttributeError)
-                # On some systems, fchmod may fail with OSError
-                # In both cases, we proceed without setting permissions
-                # The temp file is still in a secure directory with unpredictable name
-                pass
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control

@@ -14,7 +14,6 @@ This test FAILS before the fix and PASSES after the fix.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from unittest.mock import patch
 
 from flywheel.storage import TodoStorage
@@ -45,7 +44,7 @@ def test_fchmod_windows_compatibility(tmp_path) -> None:
                 raise AssertionError(
                     f"Code crashed on Windows due to os.fchmod: {e}. "
                     "The code should handle Windows gracefully."
-                )
+                ) from e
             raise
 
     # Verify the save actually worked
