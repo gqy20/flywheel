@@ -1,0 +1,23 @@
+{
+  "candidate_id": "candidate-3-21808761619",
+  "issue_number": 2415,
+  "issue_title": "[Bug] next_id() contains redundant conditional logic",
+  "branch": "claude/issue-2415-candidate-3-21808761619",
+  "summary": "Simplified next_id() by removing redundant conditional logic. The 'if todos else 1' was unnecessary because max(..., default=0) + 1 already returns 1 for empty input.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": [
+    "test_next_id_empty_list_returns_1",
+    "test_next_id_single_todo_returns_2",
+    "test_next_id_multiple_todos_returns_max_plus_one"
+  ],
+  "tests_run": [
+    "uv run pytest tests/test_minimal_framework.py -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ],
+  "tests_status": "all_passed",
+  "risks": [],
+  "limitations": []
+}
