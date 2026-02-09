@@ -165,14 +165,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT) -> None:
+    def __init__(
+        self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT
+    ) -> None:
         self.path = Path(path or ".todo.json")
         self._lock_timeout = lock_timeout
 
     def load(self) -> list[Todo]:
+        # For reading, we need the parent directory to exist for the lock
+        # If the file or its parent directory doesn't exist, return empty list without locking
+        if not self.path.exists():
+            return []
+
         # Acquire shared lock for reading (allows concurrent reads)
+        # Parent directory exists because the file exists
         with _file_lock(self.path, exclusive=False, timeout=self._lock_timeout):
+            # File may have been deleted between exists check and lock acquisition
             if not self.path.exists():
+                return []
+
+            # Return empty list for empty files
+            if self.path.stat().st_size == 0:
                 return []
 
             # Security: Check file size before loading to prevent DoS
@@ -209,11 +222,12 @@ class TodoStorage:
         Uses exclusive file locking to prevent concurrent writes and read-during-write
         race conditions.
         """
+        # Ensure parent directory exists (lazy creation, validated)
+        # Must do this before acquiring lock since lock requires file path to be valid
+        _ensure_parent_directory(self.path)
+
         # Acquire exclusive lock for writing (prevents concurrent writes and reads)
         with _file_lock(self.path, exclusive=True, timeout=self._lock_timeout):
-            # Ensure parent directory exists (lazy creation, validated)
-            _ensure_parent_directory(self.path)
-
             payload = [todo.to_dict() for todo in todos]
             content = json.dumps(payload, ensure_ascii=False, indent=2)
 

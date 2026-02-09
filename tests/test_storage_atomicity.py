@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -299,6 +299,7 @@ def test_lock_timeout_raises_timeout_error(tmp_path) -> None:
         """Worker that holds write lock for an extended period."""
         try:
             from flywheel.storage import _file_lock
+
             storage = TodoStorage(str(db))
             # Hold lock manually for extended period
             with _file_lock(storage.path, exclusive=True, timeout=2.0):
@@ -315,6 +316,7 @@ def test_lock_timeout_raises_timeout_error(tmp_path) -> None:
         """Worker that attempts to acquire lock while held."""
         try:
             import time
+
             # Wait for holder to acquire lock
             time.sleep(0.1)
             storage = TodoStorage(str(db))
@@ -380,6 +382,7 @@ def test_load_acquires_shared_lock_to_prevent_read_during_write(tmp_path) -> Non
             storage._lock_timeout = 2.0
             # Small delay to potentially race with write
             import time
+
             time.sleep(0.05)
             todos = storage.load()
             result_queue.put(("read", len(todos)))
@@ -448,6 +451,7 @@ def test_lock_released_on_exception_during_save(tmp_path) -> None:
         """Worker that attempts to save after exception."""
         try:
             import time
+
             time.sleep(0.2)  # Wait for first worker to fail
             storage = TodoStorage(str(db))
             storage._lock_timeout = 2.0
