@@ -13,8 +13,8 @@ from .todo import Todo
 class TodoApp:
     """Simple in-process todo application."""
 
-    def __init__(self, db_path: str | None = None) -> None:
-        self.storage = TodoStorage(db_path)
+    def __init__(self, db_path: str | None = None, *, backup_enabled: bool = True) -> None:
+        self.storage = TodoStorage(db_path, backup_enabled=backup_enabled)
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -70,6 +70,11 @@ class TodoApp:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
     parser.add_argument("--db", default=".todo.json", help="Path to JSON database")
+    parser.add_argument(
+        "--no-backup",
+        action="store_true",
+        help="Disable backup creation before overwriting existing data",
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -92,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
-    app = TodoApp(db_path=args.db)
+    app = TodoApp(db_path=args.db, backup_enabled=not args.no_backup)
 
     try:
         if args.command == "add":

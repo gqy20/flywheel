@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backup files to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        backup_enabled: bool = True,
+        max_backups: int = _DEFAULT_MAX_BACKUPS,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_enabled = backup_enabled
+        self.max_backups = max(1, max_backups)  # Ensure at least 1
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,15 +94,81 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        Uses shutil.copy2 to preserve metadata and permissions.
+        Backup failures are suppressed to not prevent the main save operation.
+        """
+        if not self.backup_enabled:
+            return
+
+        if not self.path.exists():
+            return  # Nothing to backup
+
+        # Rotate existing backups first
+        self._rotate_backups()
+
+        # Create new backup from current file
+        backup_path = self._get_backup_path(0)
+        try:
+            shutil.copy2(self.path, backup_path)
+            # Set restrictive permissions on backup (owner read/write only)
+            backup_path.chmod(0o600)
+        except OSError:
+            # Backup failure should not prevent the main save operation
+            pass
+
+    def _get_backup_path(self, index: int) -> Path:
+        """Get the backup path for a given index.
+
+        Args:
+            index: 0 for newest backup, 1 for second newest, etc.
+
+        Returns:
+            Path object for the backup file.
+        """
+        if index == 0:
+            # Newest backup has no suffix
+            return self.path.with_suffix(f"{self.path.suffix}.bak")
+        else:
+            # Older backups have numeric suffixes
+            return self.path.with_suffix(f"{self.path.suffix}.bak.{index}")
+
+    def _rotate_backups(self) -> None:
+        """Rotate backup files to keep only max_backups.
+
+        Removes the oldest backup if we would exceed max_backups,
+        then shifts all backups up by one (.bak.1 -> .bak.2, etc.).
+        """
+        # Remove oldest backup if it would exceed limit
+        oldest_backup = self._get_backup_path(self.max_backups - 1)
+        with contextlib.suppress(OSError):
+            oldest_backup.unlink()
+
+        # Rotate backups from oldest to newest (reverse order)
+        # .bak.2 -> .bak.3, .bak.1 -> .bak.2, .bak -> .bak.1
+        for i in range(self.max_backups - 2, -1, -1):
+            current = self._get_backup_path(i)
+            if current.exists():
+                new_backup = self._get_backup_path(i + 1)
+                with contextlib.suppress(OSError):
+                    current.replace(new_backup)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup of the existing file before overwriting if enabled.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup of existing file before overwriting
+        self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
