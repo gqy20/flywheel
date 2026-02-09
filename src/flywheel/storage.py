@@ -56,6 +56,10 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def _backup_path(self) -> Path:
+        """Get the backup file path with .bak extension."""
+        return self.path.parent / f"{self.path.name}.bak"
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -82,15 +86,66 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def backup_file(self) -> None:
+        """Create a backup of the current storage file.
+
+        Copies the existing storage file to a .bak file. If the storage file
+        doesn't exist, no backup is created. If a backup already exists, it will
+        be replaced with the new backup.
+        """
+        if not self.path.exists():
+            return
+
+        backup = self._backup_path()
+        # Copy the file content to backup
+        backup.write_bytes(self.path.read_bytes())
+
+    def restore(self) -> None:
+        """Restore data from backup file.
+
+        Copies the backup file to the main storage file, recovering from
+        corruption or bad writes.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+        """
+        backup = self._backup_path()
+        if not backup.exists():
+            raise FileNotFoundError(f"No backup file found at {backup}")
+
+        # Copy backup to main file
+        _ensure_parent_directory(self.path)
+        self.path.write_bytes(backup.read_bytes())
+
+    def cleanup_backup(self, retention: int = 0) -> None:
+        """Clean up backup file.
+
+        Args:
+            retention: Number of backup saves to retain (0 = remove immediately).
+                       If retention > 0, this is a no-op (future enhancement).
+        """
+        if retention == 0:
+            backup = self._backup_path()
+            with contextlib.suppress(OSError):
+                backup.unlink()
+
+    def save(self, todos: list[Todo], *, backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Args:
+            todos: List of todos to save.
+            backup: If True, creates a .bak backup of existing data before writing.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup of existing data before writing if requested
+        if backup and self.path.exists():
+            self.backup_file()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
