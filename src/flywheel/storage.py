@@ -39,6 +39,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
+    # Security: Check if parent path is a symlink before attempting directory creation.
+    # This prevents symlink attacks where an attacker could redirect directory creation.
+    # We check this BEFORE mkdir() because mkdir follows symlinks.
+    if parent.is_symlink():
+        raise OSError(
+            f"Security error: '{parent}' is a symbolic link pointing to '{parent.resolve()}'. "
+            f"This may indicate a symlink attack. "
+            f"For security, symbolic links are not allowed in database parent paths. "
+            f"Specify a different location with --db=path/to/db.json"
+        )
+
     # Create parent directory if it doesn't exist
     if not parent.exists():
         try:
