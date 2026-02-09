@@ -4,8 +4,8 @@
   "run_id": "21831630514",
   "branch": "claude/issue-2536-candidate-2-21831630514",
   "commit": "14578a4",
-  "pr_number": null,
-  "pr_url": null,
+  "pr_number": 2543,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2543",
   "generated_at": "2026-02-09T16:03:20.000000+00:00",
   "stages_completed": [
     "triage",
