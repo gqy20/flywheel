@@ -1,0 +1,28 @@
+{
+  "issue_number": 2597,
+  "candidate_number": 1,
+  "run_id": "21843134948",
+  "branch": "claude/issue-2597-candidate-1-21843134948",
+  "stage": "finalized",
+  "plan_summary": "Implement file backup/rotation before os.replace() overwrites existing data. Files: src/flywheel/storage.py, src/flywheel/cli.py, tests/test_issue_2597_file_backup_rotation.py. TDD approach with RED (failing tests) then GREEN (implementation).",
+  "tests_created": ["tests/test_issue_2597_file_backup_rotation.py"],
+  "tests_modified": [],
+  "source_modified": ["src/flywheel/storage.py", "src/flywheel/cli.py"],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2597_file_backup_rotation.py -v",
+    "uv run pytest tests/test_storage_atomicity.py tests/test_issue_2597_file_backup_rotation.py -v",
+    "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_2597_file_backup_rotation.py",
+    "uv run pytest"
+  ],
+  "status": "completed",
+  "created_at": "2026-02-09T22:34:00Z",
+  "test_results": {
+    "total_tests": 121,
+    "passed": 121,
+    "failed": 0
+  },
+  "implementation_summary": {
+    "storage.py": "Added backup_enabled and max_backups parameters to TodoStorage.__init__(), added _create_backup() method with rotation scheme (.bak, .bak1, .bak2, ...), modified save() to call _create_backup() before os.replace()",
+    "cli.py": "Added --no-backup flag to build_parser(), modified TodoApp.__init__() to accept backup_enabled parameter, modified run_command() to pass backup_enabled=not args.no_backup to TodoApp"
+  }
+}

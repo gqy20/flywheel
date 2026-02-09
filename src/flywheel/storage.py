@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backup files to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,23 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        backup_enabled: bool = True,
+        max_backups: int = _DEFAULT_MAX_BACKUPS,
+    ) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to ".todo.json".
+            backup_enabled: Whether to create backups before overwriting. Defaults to True.
+            max_backups: Maximum number of backup files to keep. Defaults to 3.
+        """
         self.path = Path(path or ".todo.json")
+        self.backup_enabled = backup_enabled
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,17 +101,79 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        Implements rotation scheme:
+        - .bak{N} is deleted (if N >= max_backups)
+        - .bak{N-1} → .bak{N}
+        - ...
+        - .bak → .bak1
+        - current → .bak
+
+        Backup creation failures are silently suppressed to ensure the main
+        save operation always succeeds. This follows the principle that backup
+        is a safety feature, not a critical requirement.
+        """
+        if not self.backup_enabled:
+            return
+
+        if not self.path.exists():
+            # No existing file to backup
+            return
+
+        # Get current file's permissions to apply to backup
+        current_stat = self.path.stat()
+        current_mode = stat.S_IMODE(current_stat.st_mode)
+
+        # Rotate existing backups: .bak{N-1} → .bak{N}
+        # Start from the highest numbered backup and work down
+        for i in range(self.max_backups - 1, 0, -1):
+            old_backup = Path(str(self.path) + f".bak{i}")
+            new_backup = Path(str(self.path) + f".bak{i + 1}")
+
+            if old_backup.exists():
+                with contextlib.suppress(OSError):
+                    os.replace(old_backup, new_backup)
+
+        # Rotate .bak → .bak1
+        bak_path = Path(str(self.path) + ".bak")
+        bak1_path = Path(str(self.path) + ".bak1")
+        if bak_path.exists():
+            with contextlib.suppress(OSError):
+                os.replace(bak_path, bak1_path)
+
+        # Delete the oldest backup if it exceeds max_backups
+        # After rotation, .bak{max_backups} is the oldest and should be deleted
+        oldest_backup = Path(str(self.path) + f".bak{self.max_backups}")
+        with contextlib.suppress(OSError):
+            oldest_backup.unlink()
+
+        # Create new backup: current → .bak
+        # Use shutil.copy2 to preserve metadata, then set exact permissions
+        with contextlib.suppress(OSError):
+            shutil.copy2(self.path, bak_path)
+            # Ensure backup has exactly the same permissions as original
+            os.chmod(bak_path, current_mode)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before overwriting, creates a backup of the existing file if backups
+        are enabled (see _create_backup for rotation scheme).
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before overwriting existing file
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
