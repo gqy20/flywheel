@@ -1,0 +1,28 @@
+{
+  "issue_number": 2504,
+  "candidate_number": 2,
+  "run_id": "21825309930",
+  "title": "[Bug] TodoApp.list() method name shadows Python built-in list() function",
+  "summary": "Renamed TodoApp.list() method to list_todos() to avoid shadowing Python's built-in list() function.",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_2504_list_method_shadowing.py",
+    "tests/test_issue_2112_remove_iteration_pattern.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "test_results": {
+    "total": 117,
+    "passed": 117,
+    "failed": 0,
+    "skipped": 0
+  },
+  "lint_results": "All checks passed",
+  "risks": [
+    "The list() method was renamed to list_todos(), which is a breaking change for any external consumers of this API. However, the TodoApp class appears to be internal to this project."
+  ],
+  "verification_steps": [
+    "All call sites of app.list() were updated to app.list_todos() in cli.py and test files",
+    "New regression test file added to verify list_todos() works correctly",
+    "All 117 tests pass with the changes"
+  ]
+}
