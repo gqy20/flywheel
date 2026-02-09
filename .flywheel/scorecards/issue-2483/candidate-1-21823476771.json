@@ -1,0 +1,53 @@
+{
+  "issue": 2483,
+  "candidate": 1,
+  "run_id": "21823476771",
+  "stage": "FINALIZE",
+  "summary": "Add due date/deadline field to Todo model - Implementation complete",
+  "files": {
+    "modified": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "src/flywheel/formatter.py"
+    ],
+    "tests_added": [
+      "tests/test_issue_2483_due_date.py",
+      "tests/test_issue_2483_cli_integration.py"
+    ]
+  },
+  "implementation": {
+    "todo_model": {
+      "due_date_field": "Added optional due_date: str | None = None field",
+      "set_due_date_method": "Implemented with ISO format validation (YYYY-MM-DD)",
+      "is_overdue_property": "Returns True if due_date < today and done is False",
+      "from_dict_validation": "Validates due_date format on deserialization"
+    },
+    "cli": {
+      "add_due_flag": "Supports --due flag on add command",
+      "due_command": "New 'due <id> <date>' command to set due date on existing todos"
+    },
+    "formatter": {
+      "overdue_indicator": "Shows [OVERDUE] for past-due incomplete tasks",
+      "due_date_display": "Shows [due: YYYY-MM-DD] for tasks with due dates"
+    }
+  },
+  "test_results": {
+    "total": 26,
+    "passed": 26,
+    "failed": 0
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2483_due_date.py tests/test_issue_2483_cli_integration.py -v",
+    "uv run ruff check src/flywheel/todo.py src/flywheel/cli.py src/flywheel/formatter.py"
+  ],
+  "acceptance_criteria_met": [
+    "Todo dataclass has due_date: str | None = None field",
+    "Todo.set_due_date() validates ISO format (YYYY-MM-DD) and updates timestamp",
+    "Todo.is_overdue() returns True if due_date < today and done is False",
+    "Todo.is_overdue() returns False for completed tasks regardless of due_date",
+    "CLI supports add --due and due commands",
+    "TodoFormatter shows [OVERDUE] indicator or due date for todos with due_date"
+  ],
+  "risks": [],
+  "limitations": []
+}
