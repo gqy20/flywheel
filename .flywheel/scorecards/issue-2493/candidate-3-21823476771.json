@@ -1,0 +1,28 @@
+{
+  "issue_number": 2493,
+  "candidate_id": "3-21823476771",
+  "stage": "finalize",
+  "branch_name": "claude/issue-2493-candidate-3-21823476771",
+  "created_at": "2026-02-09T12:00:00Z",
+  "title": "[Feature] Add debug logging for storage operations",
+  "summary": "Add optional debug logging for storage operations using Python's logging module. Logging is activated via FLYWHEEL_DEBUG environment variable and logs key operations (load/save/next_id) with DEBUG level.",
+  "changes": [
+    "src/flywheel/storage.py: Added logging import and module-level logger",
+    "src/flywheel/storage.py: Added _is_debug_enabled() helper function",
+    "src/flywheel/storage.py: Added debug logging to load() method",
+    "src/flywheel/storage.py: Added debug logging to save() method",
+    "src/flywheel/storage.py: Added debug logging to next_id() method",
+    "tests/test_issue_2493_debug_logging.py: Added comprehensive test suite for debug logging"
+  ],
+  "tests_run": [
+    "tests/test_issue_2493_debug_logging.py: 7 tests passed",
+    "tests/test_storage_atomicity.py: 6 tests passed (no regression)"
+  ],
+  "acceptance_criteria_met": [
+    "Import logging module and create module-level logger",
+    "Log load operations with file path and todo count",
+    "Log save operations with file path, temp file path, and todo count",
+    "Logging only active when FLYWHEEL_DEBUG=1",
+    "Does not affect existing functionality or output when disabled"
+  ]
+}
