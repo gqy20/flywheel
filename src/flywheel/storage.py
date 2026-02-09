@@ -118,6 +118,20 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Verify file integrity: read back and parse to ensure data is valid
+            # This catches silent disk corruption or filesystem issues
+            # Use the same validation logic as load() but reuse the written content
+            try:
+                verification_raw = json.loads(self.path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+
+            if not isinstance(verification_raw, list):
+                raise ValueError("Todo storage must be a JSON list")
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):

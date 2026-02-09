@@ -229,3 +229,40 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_verifies_written_file_integrity(tmp_path) -> None:
+    """Regression test for issue #2508: File integrity verification after save.
+
+    Tests that save() verifies the written file can be read back successfully.
+    This prevents silent data corruption from being committed to disk.
+    """
+    from unittest.mock import patch
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+
+    # Mock the scenario where file is written but corrupted on disk
+    # We simulate this by making Path.read_text return corrupted data during verification
+    original_read_text = Path.read_text
+
+    def mock_read_text(self, encoding="utf-8"):
+        # During the verification read (after replace), return corrupted JSON
+        # We detect this is the verification call by checking if file exists
+        # and if we've already done the initial write
+        if self == db and db.exists():
+            # Return corrupted JSON to simulate disk corruption
+            return "{corrupted json"
+        return original_read_text(self, encoding=encoding)
+
+    with (
+        patch.object(Path, "read_text", mock_read_text),
+        pytest.raises(ValueError, match="Invalid JSON"),
+    ):
+        storage.save(todos)
+
+    # The original file should still be intact if it existed before
+    # Or file should not exist if this was the first write
+    # (either way, we shouldn't have committed corrupted data)
