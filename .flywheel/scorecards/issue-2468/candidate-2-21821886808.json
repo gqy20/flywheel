@@ -1,0 +1,33 @@
+{
+  "issue_number": 2468,
+  "candidate_id": "candidate-2-21821886808",
+  "stage": "implement",
+  "created_at": "2026-02-09T11:30:00Z",
+  "tdd_plan": {
+    "target_files": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2468_backup_feature.py"
+    ],
+    "red_phase_tests": [
+      "test_backup_file_created_when_saving_to_existing_file",
+      "test_backup_disabled_when_backup_false_in_constructor",
+      "test_backup_file_has_correct_timestamp_format",
+      "test_save_succeeds_even_when_backup_creation_fails",
+      "test_backup_not_created_on_first_save_when_file_does_not_exist",
+      "test_backup_uses_shutil_copy2_for_metadata_preservation"
+    ],
+    "green_phase_implementation": [
+      "Add backup parameter to TodoStorage.__init__",
+      "Add _backup() method using shutil.copy2",
+      "Add _generate_backup_path() method for timestamp suffix",
+      "Call _backup() in save() before os.replace",
+      "Ensure backup failures don't prevent save"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2468_backup_feature.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "branch": "claude/issue-2468-candidate-2-21821886808"
+}

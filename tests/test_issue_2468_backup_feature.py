@@ -13,11 +13,8 @@ Feature requirements:
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -60,7 +57,7 @@ def test_backup_disabled_when_backup_false_in_constructor(tmp_path) -> None:
 
     # Verify no backup file exists
     backups = list(db.parent.glob("todo.json.*.bak"))
-    assert len(backups) == 0, f"Expected 0 backup files, found {len(backacks)}"
+    assert len(backups) == 0, f"Expected 0 backup files, found {len(backups)}"
 
 
 def test_backup_file_has_correct_timestamp_format(tmp_path) -> None:
