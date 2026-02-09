@@ -34,5 +34,7 @@
   ],
   "limitations": "The TOCTOU protection is best-effort - while bounded reading prevents memory exhaustion, an attacker could still cause repeated read operations",
   "security_assessment": "The fix effectively mitigates the TOCTOU vulnerability by ensuring that even if a file grows between stat() check and read() operation, we never process more than _MAX_JSON_SIZE_BYTES of data",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2590",
+  "pr_number": 2590,
   "timestamp": "2026-02-09T21:40:47Z"
 }
