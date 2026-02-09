@@ -1,0 +1,48 @@
+{
+  "issue_number": 2581,
+  "candidate_number": 2,
+  "run_id": "21841344125",
+  "branch_name": "claude/issue-2581-candidate-2-21841344125",
+  "stage": "plan",
+  "started_at": "2026-02-09T21:40:00Z",
+  "plan": {
+    "summary": "Replace bare Exception catch with specific exception types (ValueError, OSError, json.JSONDecodeError) to let programming errors propagate and surface bugs early.",
+    "files_to_touch": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2581_specific_exception_handling.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing regression test that passes None to trigger AttributeError - should crash, not return 1"
+      },
+      {
+        "step": "RED",
+        "description": "Add test for OSError case (permission denied) - should return 1 with error message"
+      },
+      {
+        "step": "RED",
+        "description": "Add test for ValueError case (invalid todo id) - should return 1 with error message"
+      },
+      {
+        "step": "GREEN",
+        "description": "Modify cli.py:124 to catch only (ValueError, OSError, json.JSONDecodeError) instead of bare Exception"
+      },
+      {
+        "step": "GREEN",
+        "description": "Verify existing tests still pass (test_issue_2015_cli_exception_handling.py)"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2581_specific_exception_handling.py -v",
+      "uv run pytest tests/test_issue_2015_cli_exception_handling.py -v",
+      "uv run ruff check src/flywheel/cli.py"
+    ],
+    "acceptance_criteria": [
+      "Only ValueError, OSError, and json.JSONDecodeError are caught",
+      "Programming errors (AttributeError, TypeError, NameError, etc.) propagate and crash",
+      "All existing tests still pass",
+      "Error messages to stderr remain the same for caught exceptions"
+    ]
+  }
+}
