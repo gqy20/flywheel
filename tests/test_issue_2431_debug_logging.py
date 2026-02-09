@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-from pathlib import Path
 
 import pytest
 
@@ -158,9 +157,11 @@ def test_json_decode_failure_logs_warning(tmp_path, caplog) -> None:
         storage = TodoStorage(str(db))
 
         # Configure capture at WARNING level
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises(ValueError, match="Invalid JSON"):
-                storage.load()
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises(ValueError, match="Invalid JSON"),
+        ):
+            storage.load()
 
         # Verify WARNING log was emitted
         warning_logs = [r for r in caplog.records if r.levelno == logging.WARNING]
@@ -200,9 +201,11 @@ def test_file_too_large_logs_warning(tmp_path, caplog) -> None:
         assert db.stat().st_size > 10 * 1024 * 1024
 
         # Configure capture at WARNING level
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises(ValueError, match="too large"):
-                storage.load()
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises(ValueError, match="too large"),
+        ):
+            storage.load()
 
         # Verify WARNING log was emitted
         warning_logs = [r for r in caplog.records if r.levelno == logging.WARNING]
