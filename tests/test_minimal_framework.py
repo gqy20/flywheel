@@ -158,3 +158,17 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #2594: next_id() should return 1 for an empty todo list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_returns_max_plus_one() -> None:
+    """Bug #2594: next_id() should return max(id) + 1 for non-empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="a")]) == 2
+    assert storage.next_id([Todo(id=1, text="a"), Todo(id=2, text="b")]) == 3
+    assert storage.next_id([Todo(id=1, text="a"), Todo(id=5, text="b")]) == 6
