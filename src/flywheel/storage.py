@@ -80,6 +80,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        # Check for null items and provide clear error with index
+        for idx, item in enumerate(raw):
+            if item is None:
+                raise ValueError(
+                    f"Invalid todo item at index {idx}: null value found. "
+                    f"Todo items cannot be null."
+                )
+
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
