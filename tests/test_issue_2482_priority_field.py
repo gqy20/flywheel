@@ -20,7 +20,6 @@ import pytest
 
 from flywheel.todo import Todo
 
-
 # Priority level constants
 LOW = 0
 MEDIUM = 1
