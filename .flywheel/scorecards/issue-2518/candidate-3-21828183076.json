@@ -2,8 +2,10 @@
   "issue_id": 2518,
   "candidate_id": 3,
   "run_id": "21828183076",
-  "stage": "VERIFY",
-  "status": "verified",
+  "stage": "FINALIZE",
+  "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2525",
+  "pr_number": 2525,
   "triage": {
     "summary": "load() does not validate file permissions before reading sensitive data",
     "root_cause": "Missing permission validation in load() method at storage.py:74",
