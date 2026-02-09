@@ -5,8 +5,10 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +55,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -91,6 +94,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file
+        if self.backup and self.path.exists():
+            self._backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +133,25 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _backup(self) -> None:
+        """Create a timestamped backup of the existing file.
+
+        Backup filename format: <original>.<timestamp>.bak
+        Uses shutil.copy2 to preserve file metadata.
+
+        Silently ignores errors to prevent backup failures from blocking saves.
+        """
+        try:
+            backup_path = self._generate_backup_path()
+            shutil.copy2(self.path, backup_path)
+        except OSError:
+            # Silently ignore backup failures - don't prevent save
+            pass
+
+    def _generate_backup_path(self) -> Path:
+        """Generate backup path with ISO timestamp."""
+        timestamp = datetime.now(UTC).isoformat()
+        # Replace colons with dashes for filesystem compatibility
+        timestamp = timestamp.replace(":", "-")
+        return self.path.parent / f"{self.path.name}.{timestamp}.bak"
