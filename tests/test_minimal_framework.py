@@ -158,3 +158,47 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_handles_negative_ids_correctly() -> None:
+    """Bug #2414: next_id() should return at least 1 even when todos contain negative IDs."""
+    storage = TodoStorage()
+
+    # If all todos have negative IDs, next_id should still return a positive ID
+    todos = [Todo(id=-1, text="negative one"), Todo(id=-2, text="negative two")]
+    assert storage.next_id(todos) == 1, "next_id should return 1 when all IDs are negative"
+
+    # Mixed positive and negative IDs should work correctly
+    todos = [Todo(id=-5, text="negative"), Todo(id=3, text="positive")]
+    assert storage.next_id(todos) == 4, "next_id should return max + 1 for mixed IDs"
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1, "next_id should return 1 for empty list"
+
+    # Normal case with only positive IDs
+    todos = [Todo(id=1, text="first"), Todo(id=2, text="second")]
+    assert storage.next_id(todos) == 3
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #2414: Todo.from_dict() should reject negative IDs."""
+    with pytest.raises(ValueError, match="must be a positive integer"):
+        Todo.from_dict({"id": -1, "text": "bad todo"})
+
+    with pytest.raises(ValueError, match="must be a positive integer"):
+        Todo.from_dict({"id": -999, "text": "very bad todo"})
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Bug #2414: Todo.from_dict() should reject zero ID."""
+    with pytest.raises(ValueError, match="must be a positive integer"):
+        Todo.from_dict({"id": 0, "text": "zero id todo"})
+
+
+def test_todo_from_dict_accepts_positive_ids() -> None:
+    """Bug #2414: Todo.from_dict() should still accept positive IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "valid"})
+    assert todo.id == 1
+
+    todo = Todo.from_dict({"id": 100, "text": "large id"})
+    assert todo.id == 100

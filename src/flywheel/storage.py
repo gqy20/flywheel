@@ -125,4 +125,5 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        max_id = max((todo.id for todo in todos), default=-1)
+        return max(max_id, 0) + 1
