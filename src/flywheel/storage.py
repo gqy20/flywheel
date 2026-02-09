@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
@@ -11,8 +12,33 @@ from pathlib import Path
 
 from .todo import Todo
 
+# Module logger with NullHandler to prevent warnings when unconfigured
+_logger = logging.getLogger(__name__)
+if not _logger.handlers:
+    _logger.addHandler(logging.NullHandler())
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _is_debug_enabled() -> bool:
+    """Check if debug logging is enabled via FLYWHEEL_DEBUG environment variable.
+
+    Returns:
+        True if FLYWHEEL_DEBUG is set to a non-empty value, False otherwise.
+    """
+    return bool(os.environ.get("FLYWHEEL_DEBUG"))
+
+
+def _configure_debug_logging() -> None:
+    """Configure debug logging if FLYWHEEL_DEBUG environment variable is set."""
+    if _is_debug_enabled() and not any(isinstance(h, logging.StreamHandler) for h in _logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        _logger.setLevel(logging.DEBUG)
+        # Remove NullHandler and add StreamHandler
+        _logger.handlers.clear()
+        _logger.addHandler(handler)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -57,7 +83,10 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        _configure_debug_logging()
         if not self.path.exists():
+            if _is_debug_enabled():
+                _logger.debug("Storage file does not exist: %s", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,6 +94,11 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            if _is_debug_enabled():
+                _logger.warning(
+                    "File size exceeded: %s (%.1fMB > %.0fMB limit)",
+                    self.path, size_mb, limit_mb
+                )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,6 +107,11 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            if _is_debug_enabled():
+                _logger.warning(
+                    "JSON decode error in %s: %s (line %s, column %s)",
+                    self.path, e.msg, e.lineno, e.colno
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -80,7 +119,13 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        if _is_debug_enabled():
+            _logger.debug(
+                "Loaded %d todos from %s (%d bytes)",
+                len(todos), self.path, file_size
+            )
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +136,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        _configure_debug_logging()
+        if _is_debug_enabled():
+            _logger.debug("Saving %d todos to %s", len(todos), self.path)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -117,6 +166,8 @@ class TodoStorage:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
+            if _is_debug_enabled():
+                _logger.debug("Atomic rename: %s -> %s", temp_path, self.path)
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
@@ -125,4 +176,8 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        _configure_debug_logging()
+        next_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        if _is_debug_enabled():
+            _logger.debug("Computed next_id: %d (from %d existing todos)", next_id, len(todos))
+        return next_id
