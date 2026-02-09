@@ -1,0 +1,82 @@
+{
+  "issue_number": 2457,
+  "candidate_id": "candidate-1-21820017329",
+  "stage": "IMPLEMENT",
+  "title": "[Bug] Overly broad exception catching masks unexpected errors",
+  "triage": {
+    "root_cause": "cli.py:124 catches all Exception types (including KeyboardInterrupt, SystemExit) in run_command() function",
+    "evidence": [
+      "src/flywheel/cli.py:124 - 'except Exception as exc:' catches all exceptions including KeyboardInterrupt and SystemExit",
+      "src/flywheel/storage.py:76 - Raises ValueError for JSON decode errors (should be caught)",
+      "src/flywheel/storage.py:47 - Raises OSError for permission errors (should be caught)"
+    ],
+    "risk_points": [
+      "KeyboardInterrupt is caught - prevents Ctrl+C from working properly",
+      "SystemExit is caught - interferes with program exit behavior",
+      "Unexpected errors are masked - makes debugging harder"
+    ]
+  },
+  "plan": {
+    "tdd_approach": "RED-GREEN-REFACTOR",
+    "files_to_modify": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2457_keyboard_interrupt.py"
+    ],
+    "red_phase": {
+      "description": "Added test_cli_unexpected_runtime_error_propagates to verify RuntimeError propagates (not caught)",
+      "failing_tests": [
+        "test_cli_unexpected_runtime_error_propagates - FAILED before fix (RuntimeError was caught)"
+      ],
+      "test_fix_required": "Change patch('flywheel.cli.TodoApp.load') to patch('flywheel.cli.TodoApp.list') - correct method to mock"
+    },
+    "green_phase": {
+      "description": "Minimal fix to cli.py line 124 - change exception catching",
+      "change": "Replaced 'except Exception as exc:' with 'except (ValueError, OSError, json.JSONDecodeError) as exc:'",
+      "requires_import": "Added 'import json' to cli.py for json.JSONDecodeError"
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2457_keyboard_interrupt.py -v",
+      "uv run pytest tests/ -k 'cli' -v",
+      "uv run ruff check src/flywheel/cli.py",
+      "uv run ruff check tests/test_issue_2457_keyboard_interrupt.py"
+    ],
+    "implementation_sequence": [
+      "1. RED: Fixed test mocking in test_issue_2457_keyboard_interrupt.py - patch 'list' method directly",
+      "2. RED: Added test_cli_unexpected_runtime_error_propagates - FAILED before fix",
+      "3. GREEN: Added 'import json' to cli.py imports",
+      "4. GREEN: Changed cli.py line 124 from 'except Exception as exc:' to 'except (ValueError, OSError, json.JSONDecodeError) as exc:'",
+      "5. GREEN: All tests PASS (6/6)",
+      "6. Full test suite: 118/118 passed, no regressions"
+    ],
+    "expected_outcome": {
+      "keyboard_interrupt": "Propagates (allows Ctrl+C)",
+      "system_exit": "Propagates (proper exit handling)",
+      "value_error": "Still caught and handled gracefully",
+      "os_error": "Still caught and handled gracefully",
+      "json_decode_error": "Still caught and handled gracefully",
+      "runtime_error": "Propagates (not caught by specific exception handlers)"
+    }
+  },
+  "implementation": {
+    "status": "COMPLETE",
+    "changes": [
+      {
+        "file": "src/flywheel/cli.py",
+        "change": "Added 'import json' and changed 'except Exception as exc:' to 'except (ValueError, OSError, json.JSONDecodeError) as exc:'"
+      },
+      {
+        "file": "tests/test_issue_2457_keyboard_interrupt.py",
+        "change": "Fixed test mocking (patch 'list' instead of 'load') and added test_cli_unexpected_runtime_error_propagates test"
+      }
+    ],
+    "test_results": {
+      "new_tests": 6,
+      "new_tests_passed": 6,
+      "total_tests": 118,
+      "total_passed": 118
+    },
+    "lint_results": {
+      "ruff": "All checks passed"
+    }
+  }
+}
