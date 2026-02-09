@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .todo import Todo
+from .todo import HIGH, URGENT, Todo
 
 
 def _sanitize_text(text: str) -> str:
@@ -42,9 +42,25 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
+    def _priority_indicator(level: int) -> str:
+        """Return visual indicator for priority level.
+
+        Only shows indicators for HIGH and URGENT priorities.
+        LOW and MEDIUM (default) show no indicator.
+        """
+        if level >= URGENT:
+            return "[!!!]"
+        if level >= HIGH:
+            return "[!!]"
+        return ""
+
+    @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
+        priority = TodoFormatter._priority_indicator(todo.priority)
         safe_text = _sanitize_text(todo.text)
+        if priority:
+            return f"[{status}] {todo.id:>3} {priority} {safe_text}"
         return f"[{status}] {todo.id:>3} {safe_text}"
 
     @classmethod

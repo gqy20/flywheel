@@ -5,6 +5,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Priority levels
+LOW = 0
+MEDIUM = 1
+HIGH = 2
+URGENT = 3
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -17,6 +23,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = MEDIUM
     created_at: str = ""
     updated_at: str = ""
 
@@ -45,6 +52,18 @@ class Todo:
 
     def mark_undone(self) -> None:
         self.done = False
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, level: int) -> None:
+        if not isinstance(level, int):
+            raise ValueError(
+                f"Invalid value for 'priority': {level!r}. 'priority' must be an integer."
+            )
+        if level < LOW or level > URGENT:
+            raise ValueError(
+                f"Invalid priority value: {level}. 'priority' must be between {LOW} and {URGENT}."
+            )
+        self.priority = level
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
@@ -93,10 +112,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is an integer in valid range (0-3)
+        # Default to MEDIUM (1) for backward compatibility
+        raw_priority = data.get("priority", MEDIUM)
+        if isinstance(raw_priority, int):
+            priority = raw_priority
+        else:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. 'priority' must be an integer."
+            )
+        if priority < LOW or priority > URGENT:
+            raise ValueError(
+                f"Invalid priority value: {priority}. 'priority' must be between {LOW} and {URGENT}."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )

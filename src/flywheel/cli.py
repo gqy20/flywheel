@@ -7,7 +7,7 @@ import sys
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
-from .todo import Todo
+from .todo import HIGH, LOW, MEDIUM, URGENT, Todo
 
 
 class TodoApp:
@@ -22,13 +22,13 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
-    def add(self, text: str) -> Todo:
+    def add(self, text: str, priority: int = MEDIUM) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
         todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
+        todo = Todo(id=self.storage.next_id(todos), text=text, priority=priority)
         todos.append(todo)
         self._save(todos)
         return todo
@@ -66,6 +66,15 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def set_priority(self, todo_id: int, level: int) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.set_priority(level)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -75,6 +84,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_add = sub.add_parser("add", help="Add a todo")
     p_add.add_argument("text", help="Todo text")
+    p_add.add_argument(
+        "--priority",
+        type=int,
+        default=MEDIUM,
+        choices=[LOW, MEDIUM, HIGH, URGENT],
+        help=f"Priority level ({LOW}=low, {MEDIUM}=medium, {HIGH}=high, {URGENT}=urgent)",
+    )
 
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
@@ -84,6 +100,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_undone = sub.add_parser("undone", help="Mark todo undone")
     p_undone.add_argument("id", type=int)
+
+    p_prioritize = sub.add_parser("prioritize", help="Set todo priority")
+    p_prioritize.add_argument("id", type=int, help="Todo ID")
+    p_prioritize.add_argument(
+        "level",
+        type=int,
+        choices=[LOW, MEDIUM, HIGH, URGENT],
+        help=f"Priority level ({LOW}=low, {MEDIUM}=medium, {HIGH}=high, {URGENT}=urgent)",
+    )
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
@@ -96,7 +121,7 @@ def run_command(args: argparse.Namespace) -> int:
 
     try:
         if args.command == "add":
-            todo = app.add(args.text)
+            todo = app.add(args.text, priority=args.priority)
             print(f"Added #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 
@@ -113,6 +138,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "undone":
             todo = app.mark_undone(args.id)
             print(f"Undone #{todo.id}: {_sanitize_text(todo.text)}")
+            return 0
+
+        if args.command == "prioritize":
+            todo = app.set_priority(args.id, args.level)
+            print(f"Priority updated for #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 
         if args.command == "rm":

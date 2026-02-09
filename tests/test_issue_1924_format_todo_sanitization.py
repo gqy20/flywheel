@@ -7,12 +7,12 @@ to prevent terminal output manipulation.
 from __future__ import annotations
 
 from flywheel.formatter import TodoFormatter
-from flywheel.todo import Todo
+from flywheel.todo import LOW, Todo
 
 
 def test_format_todo_escapes_newline_in_text() -> None:
     """Todo with \\n in text should output escaped newline, not actual newline."""
-    todo = Todo(id=1, text="Buy milk\n[ ] FAKE_TODO")
+    todo = Todo(id=1, text="Buy milk\n[ ] FAKE_TODO", priority=LOW)
     result = TodoFormatter.format_todo(todo)
     # Should contain escaped representation, not actual newline
     assert "\\n" in result
@@ -75,7 +75,7 @@ def test_format_todo_escapes_null_byte() -> None:
 
 def test_format_todo_normal_text_unchanged() -> None:
     """Normal todo text without control characters should be unchanged."""
-    todo = Todo(id=1, text="Buy groceries")
+    todo = Todo(id=1, text="Buy groceries", priority=LOW)
     result = TodoFormatter.format_todo(todo)
     assert result == "[ ]   1 Buy groceries"
 

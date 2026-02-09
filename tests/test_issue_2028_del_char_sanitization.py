@@ -7,7 +7,7 @@ to prevent terminal output manipulation.
 from __future__ import annotations
 
 from flywheel.formatter import TodoFormatter, _sanitize_text
-from flywheel.todo import Todo
+from flywheel.todo import LOW, Todo
 
 
 def test_sanitize_text_escapes_del_char() -> None:
