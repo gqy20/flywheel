@@ -1,0 +1,39 @@
+{
+  "issue_number": 2566,
+  "candidate_id": 3,
+  "run_id": "21839394656",
+  "stage": "implement",
+  "created_at": "2026-02-09T20:45:00Z",
+  "completed_at": "2026-02-09T20:50:00Z",
+  "plan": {
+    "test_files_to_create": ["tests/test_issue_2566_null_item_handling.py"],
+    "source_files_to_modify": ["src/flywheel/storage.py"],
+    "implementation_approach": "Add null check in list comprehension at line 83 to raise clear ValueError with index information"
+  },
+  "implementation": {
+    "test_files_created": ["tests/test_issue_2566_null_items_in_array.py"],
+    "source_files_modified": ["src/flywheel/storage.py", "src/flywheel/todo.py"],
+    "changes": [
+      {
+        "file": "src/flywheel/todo.py",
+        "description": "Add None validation in from_dict classmethod to raise clear ValueError when data is None"
+      },
+      {
+        "file": "src/flywheel/storage.py",
+        "description": "Filter out null items in load() list comprehension before calling Todo.from_dict"
+      }
+    ],
+    "tests_pass": true,
+    "ruff_checks_pass": true
+  },
+  "commit": {
+    "branch": "claude/issue-2566-candidate-3-21839394656",
+    "hash": "b9cd94b",
+    "message": "fix: handle null items in JSON array gracefully (fixes #2566)"
+  },
+  "risks": [
+    "Silent filtering of null items may hide data corruption issues",
+    "Users with JSON files containing nulls will have those items silently removed on next save"
+  ],
+  "summary": "Candidate #3 implements null item handling by filtering out None values in the storage layer and adding explicit None validation in Todo.from_dict. This approach prioritizes data recovery (loading valid items) over strict validation (rejecting the entire file)."
+}
