@@ -1,41 +1,23 @@
 {
-  "issue_number": 2567,
-  "candidate_id": "candidate-1-21841344125",
+  "issue": 2567,
+  "candidate": 1,
   "run_id": "21841344125",
-  "branch_name": "claude/issue-2567-candidate-1-21841344125",
-  "summary": "Add explicit type and None item validation to format_list() to prevent silent failures and unclear crashes",
-  "files_modified": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_2567_format_list_none_handling.py"
+  "branch": "claude/issue-2567-candidate-1-21841344125",
+  "pr_number": 2588,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2588",
+  "generated_at": "2026-02-09T21:50:24.972877+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_issue_2567_format_list_none_handling.py",
-    "tests/test_issue_1924_format_todo_sanitization.py"
-  ],
-  "tests_pass": true,
-  "ruff_check_pass": true,
-  "tdd_approach": "RED-GREEN",
-  "changes": [
-    {
-      "file": "src/flywheel/formatter.py",
-      "change_type": "modified",
-      "description": "Added isinstance() check for todos parameter and validation for None items in list"
-    },
-    {
-      "file": "tests/test_issue_2567_format_list_none_handling.py",
-      "change_type": "added",
-      "description": "Added 5 regression tests for None input handling"
-    }
-  ],
-  "acceptance_criteria_met": [
-    "format_list(None) raises TypeError instead of returning 'No todos yet.'",
-    "format_list([None]) raises clear ValueError about None items",
-    "format_list([]) still returns 'No todos yet.'",
-    "All existing formatter tests still pass"
-  ],
-  "risks": [
-    "Breaking change: code that previously called format_list(None) will now raise TypeError instead of returning 'No todos yet.'",
-    "Minimal performance impact: additional type check and None item validation on each format_list call"
-  ],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2617,
+    "plan": 4000,
+    "implement": 1860,
+    "verify": 3546,
+    "finalize": 1362
+  }
 }
