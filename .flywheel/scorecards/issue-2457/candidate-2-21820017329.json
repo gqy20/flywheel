@@ -1,79 +1,23 @@
 {
-  "issue_number": 2457,
-  "issue_title": "[Bug] Overly broad exception catching masks unexpected errors",
-  "candidate_number": 2,
+  "issue": 2457,
+  "candidate": 2,
   "run_id": "21820017329",
-  "branch_name": "claude/issue-2457-candidate-2-21820017329",
-  "commit_hash": "68460d4",
-  "stages": {
-    "triage": {
-      "status": "complete",
-      "root_cause": "In src/flywheel/cli.py at line 124, 'except Exception as exc:' catches ALL exceptions including KeyboardInterrupt, SystemExit, and MemoryError",
-      "risk_points": [
-        "User cannot use Ctrl+C to terminate - KeyboardInterrupt is caught",
-        "Unexpected exceptions masked with generic error message",
-        "SystemExit being caught prevents proper program termination"
-      ],
-      "proposed_fix": "Change 'except Exception as exc:' to 'except (ValueError, OSError, json.JSONDecodeError) as exc:'"
-    },
-    "plan": {
-      "status": "complete",
-      "test_file": "tests/test_issue_2457_keyboard_interrupt_propagation.py",
-      "test_count": 5,
-      "source_file": "src/flywheel/cli.py"
-    },
-    "implement": {
-      "status": "complete",
-      "files_changed": [
-        "src/flywheel/cli.py",
-        "tests/test_issue_2457_keyboard_interrupt_propagation.py"
-      ],
-      "commit_message": "fix: replace overly broad exception catching with specific types for issue 2457"
-    },
-    "verify": {
-      "status": "complete",
-      "verification_commands": [
-        "uv run pytest tests/test_issue_2457_keyboard_interrupt_propagation.py -v",
-        "uv run ruff check src/flywheel/cli.py tests/test_issue_2457_keyboard_interrupt_propagation.py",
-        "uv run pytest tests/ -v"
-      ],
-      "results": {
-        "targeted_tests": {
-          "passed": 5,
-          "total": 5,
-          "details": [
-            "test_keyboard_interrupt_propagates - PASSED",
-            "test_system_exit_propagates - PASSED",
-            "test_value_error_still_caught - PASSED",
-            "test_os_error_still_caught - PASSED",
-            "test_json_decode_error_still_caught - PASSED"
-          ]
-        },
-        "full_suite": {
-          "passed": 117,
-          "total": 117
-        },
-        "ruff_checks": "All checks passed"
-      }
-    },
-    "finalize": {
-      "status": "complete",
-      "pr_url": "https://github.com/gqy20/flywheel/pull/2475",
-      "pr_number": 2475
-    }
-  },
-  "acceptance_criteria": {
-    "keyboard_interrupt_propagates": true,
-    "system_exit_propagates": true,
-    "value_error_still_caught": true,
-    "os_error_still_caught": true,
-    "json_decode_error_still_caught": true,
-    "all_existing_tests_pass": true
-  },
-  "risks": [
-    "None - all tests pass including 5 new regression tests"
+  "branch": "claude/issue-2457-candidate-2-21820017329",
+  "pr_number": 2475,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2475",
+  "generated_at": "2026-02-09T10:48:56.271505+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": [],
-  "verified_at": "2026-02-09T10:45:00Z",
-  "finalized_at": "2026-02-09T10:50:00Z"
+  "stage_response_sizes": {
+    "triage": 2529,
+    "plan": 2237,
+    "implement": 2205,
+    "verify": 1673,
+    "finalize": 1771
+  }
 }
