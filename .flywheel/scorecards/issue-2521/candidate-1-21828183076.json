@@ -39,8 +39,9 @@
     "A migration registry placeholder exists (validation logic in place)",
     "Existing tests pass and new version validation tests are added"
   ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2530",
   "verification_summary": {
-    "stage": "VERIFY",
+    "stage": "FINALIZE",
     "pytest_commands_run": [
       "uv run pytest tests/test_issue_2521_schema_validation.py tests/test_storage_atomicity.py -v",
       "uv run pytest tests/ -k storage -v",
