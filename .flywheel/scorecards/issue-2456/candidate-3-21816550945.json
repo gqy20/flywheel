@@ -1,0 +1,24 @@
+{
+  "issue_number": 2456,
+  "candidate_number": 3,
+  "run_id": "21816550945",
+  "branch": "claude/issue-2456-candidate-3-21816550945",
+  "status": "completed",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ],
+    "files_added": [
+      "tests/test_issue_2456_timestamp_validation.py"
+    ],
+    "lines_added": 90,
+    "lines_removed": 2
+  },
+  "tests": {
+    "file": "tests/test_issue_2456_timestamp_validation.py",
+    "test_count": 11,
+    "all_passed": true
+  },
+  "fix_summary": "Add validation to reject non-string/non-None values for created_at/updated_at fields in Todo.from_dict",
+  "timestamp": "2026-02-09T09:00:00Z"
+}
