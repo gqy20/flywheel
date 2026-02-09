@@ -4,12 +4,47 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Module-level logger with NullHandler (no output by default)
+_logger = logging.getLogger(__name__)
+_logger.addHandler(logging.NullHandler())
+_logger.setLevel(logging.DEBUG)  # Capture all levels, handler filters output
+
+
+def _configure_debug_logging() -> None:
+    """Configure debug logging output if FLYWHEEL_DEBUG is enabled.
+
+    This function is safe to call multiple times - it will only add
+    the debug handler once. Call this after importing the module
+    to enable debug output via FLYWHEEL_DEBUG environment variable.
+
+    The debug handler uses stderr to avoid polluting stdout.
+    """
+    if os.environ.get("FLYWHEEL_DEBUG", "").lower() not in ("1", "true", "yes"):
+        return
+
+    # Only add handler if not already present
+    for handler in _logger.handlers:
+        if isinstance(handler, logging.StreamHandler) and not isinstance(
+            handler, logging.NullHandler
+        ):
+            return  # Already configured
+
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter("%(name)s - %(levelname)s - %(message)s"))
+    _logger.addHandler(handler)
+
+
+# Auto-configure debug logging on module import
+_configure_debug_logging()
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,6 +93,7 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            _logger.debug("Storage file '%s' does not exist, returning empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,14 +101,29 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            _logger.warning(
+                "File '%s' too large: %.1fMB > %.0fMB limit",
+                self.path,
+                size_mb,
+                limit_mb,
+            )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
 
+        _logger.debug("Loading from '%s' (%d bytes)", self.path, file_size)
+
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            _logger.warning(
+                "Failed to parse JSON in '%s': %s at line %s, column %s",
+                self.path,
+                e.msg,
+                e.lineno,
+                e.colno,
+            )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -80,7 +131,10 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+        _logger.debug("Loaded %d todos from '%s'", len(result), self.path)
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +145,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        _logger.debug("Saving %d todos to '%s'", len(todos), self.path)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -117,6 +173,7 @@ class TodoStorage:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
+            _logger.debug("Atomic rename: '%s' -> '%s'", temp_path, self.path)
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
