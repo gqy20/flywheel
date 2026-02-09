@@ -3,11 +3,29 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _parse_iso_date(date_str: str) -> date:
+    """Parse ISO date string (YYYY-MM-DD) and return date object.
+
+    Args:
+        date_str: Date string in ISO 8601 format (YYYY-MM-DD).
+
+    Returns:
+        date object parsed from the string.
+
+    Raises:
+        ValueError: If the date string is not in valid ISO format or represents an invalid date.
+    """
+    try:
+        return date.fromisoformat(date_str)
+    except ValueError as e:
+        raise ValueError(f"Invalid date: {date_str!r}") from e
 
 
 @dataclass(slots=True)
@@ -17,6 +35,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    due_date: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -53,6 +72,49 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date_str: Due date in ISO 8601 format (YYYY-MM-DD).
+
+        Raises:
+            ValueError: If the date string is not in valid ISO format or represents an invalid date.
+        """
+        # Validate ISO date format (YYYY-MM-DD)
+        if not isinstance(date_str, str):
+            raise ValueError("Invalid date format: due date must be a string")
+
+        # Check for basic ISO date format (YYYY-MM-DD) before parsing
+        # This ensures we reject formats like YYYY/MM/DD or datetime strings
+        import re
+
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
+            raise ValueError(f"Invalid date format: {date_str!r}. Expected YYYY-MM-DD format.")
+
+        # Parse and validate the date
+        _parse_iso_date(date_str)
+
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if this todo is overdue.
+
+        Returns:
+            True if the todo has a due_date in the past and is not done, False otherwise.
+        """
+        if self.due_date is None or self.done:
+            return False
+
+        try:
+            due = _parse_iso_date(self.due_date)
+            today = datetime.now(UTC).date()
+            return due < today
+        except ValueError:
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -93,10 +155,29 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'due_date' if provided (optional field)
+        due_date = data.get("due_date")
+        if due_date is not None and due_date != "":
+            if not isinstance(due_date, str):
+                raise ValueError(
+                    f"Invalid value for 'due_date': {due_date!r}. 'due_date' must be a string."
+                )
+            # Validate ISO date format
+            import re
+
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", due_date):
+                raise ValueError(f"Invalid date format: {due_date!r}. Expected YYYY-MM-DD format.")
+
+            # Validate the date is valid
+            _parse_iso_date(due_date)
+        else:
+            due_date = None
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            due_date=due_date,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
