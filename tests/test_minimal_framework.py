@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #2415: next_id() should return 1 for an empty todo list."""
+    storage = TodoStorage("/dev/null")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_returns_max_plus_one() -> None:
+    """Bug #2415: next_id() should return max_id + 1 for existing todos."""
+    storage = TodoStorage("/dev/null")
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=5, text="fifth"),
+        Todo(id=3, text="third"),
+    ]
+    assert storage.next_id(todos) == 6
+
+
+def test_next_id_with_single_todo() -> None:
+    """Bug #2415: next_id() should return 2 for a single todo with id=1."""
+    storage = TodoStorage("/dev/null")
+    todos = [Todo(id=1, text="only")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_with_non_consecutive_ids() -> None:
+    """Bug #2415: next_id() should handle non-consecutive IDs correctly."""
+    storage = TodoStorage("/dev/null")
+    todos = [
+        Todo(id=10, text="ten"),
+        Todo(id=100, text="hundred"),
+        Todo(id=50, text="fifty"),
+    ]
+    assert storage.next_id(todos) == 101
