@@ -5,8 +5,10 @@
   "title": "[Bug] TodoApp.list() method name shadows Python built-in list() function",
   "issue_url": "https://github.com/gqy20/flywheel/issues/2504",
   "branch": "claude/issue-2504-candidate-2-21825309930",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "summary": "Renamed TodoApp.list() method to list_todos() to avoid shadowing Python's built-in list() function.",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2509",
+  "pr_number": 2509,
   "files_changed": [
     "src/flywheel/cli.py",
     "tests/test_issue_2504_list_method_shadowing.py",
