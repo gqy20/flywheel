@@ -9,6 +9,8 @@ import stat
 import tempfile
 from pathlib import Path
 
+from filelock import FileLock, Timeout
+
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
@@ -53,10 +55,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    _DEFAULT_LOCK_TIMEOUT = 5.0
+
+    def __init__(self, path: str | None = None, lock_timeout: float | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self.lock_timeout = lock_timeout if lock_timeout is not None else self._DEFAULT_LOCK_TIMEOUT
+        self._lock_file = Path(str(self.path) + ".lock")
 
     def load(self) -> list[Todo]:
+        # Acquire lock to prevent concurrent modification during read
+        try:
+            with FileLock(self._lock_file, timeout=self.lock_timeout):
+                return self._load_unlocked()
+        except Timeout as e:
+            raise TimeoutError(
+                f"Could not acquire lock on '{self.path}' "
+                f"after {self.lock_timeout} seconds. "
+                f"Another process may be holding the lock."
+            ) from e
+
+    def _load_unlocked(self) -> list[Todo]:
+        """Internal load method that assumes lock is already held."""
         if not self.path.exists():
             return []
 
@@ -88,9 +107,25 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Acquires an exclusive lock during write to prevent concurrent writes
+        from other processes.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Acquire exclusive lock before writing
+        try:
+            with FileLock(self._lock_file, timeout=self.lock_timeout):
+                self._save_unlocked(todos)
+        except Timeout as e:
+            raise TimeoutError(
+                f"Could not acquire lock on '{self.path}' "
+                f"after {self.lock_timeout} seconds. "
+                f"Another process may be holding the lock."
+            ) from e
+
+    def _save_unlocked(self, todos: list[Todo]) -> None:
+        """Internal save method that assumes lock is already held."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
