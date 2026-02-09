@@ -1,7 +1,7 @@
 {
   "issue_number": 2457,
   "candidate_id": "candidate-1-21820017329",
-  "stage": "IMPLEMENT",
+  "stage": "VERIFY",
   "title": "[Bug] Overly broad exception catching masks unexpected errors",
   "triage": {
     "root_cause": "cli.py:124 catches all Exception types (including KeyboardInterrupt, SystemExit) in run_command() function",
@@ -78,5 +78,22 @@
     "lint_results": {
       "ruff": "All checks passed"
     }
+  },
+  "verification": {
+    "stage": "VERIFY",
+    "commands_run": [
+      "uv run pytest tests/test_issue_2457_keyboard_interrupt.py -v",
+      "uv run pytest tests/ -k 'cli' -v",
+      "uv run ruff check src/flywheel/cli.py",
+      "uv run ruff check tests/test_issue_2457_keyboard_interrupt.py"
+    ],
+    "results": {
+      "targeted_tests": "6 passed",
+      "cli_tests": "32 passed, 86 deselected",
+      "ruff_cli_py": "All checks passed!",
+      "ruff_test_file": "All checks passed!"
+    },
+    "status": "COMPLETE",
+    "summary": "All verification checks passed. The fix correctly changes 'except Exception' to catch only specific exception types (ValueError, OSError, json.JSONDecodeError), allowing KeyboardInterrupt, SystemExit, and other unexpected errors like RuntimeError to propagate properly."
   }
 }
