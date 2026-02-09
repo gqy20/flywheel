@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+# Module-level logger for storage operations
+# Can be enabled via FLYWHEEL_LOG=debug environment variable
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -57,7 +63,10 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter()
+
         if not self.path.exists():
+            logger.debug(f"File not found: {self.path}, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +89,14 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        elapsed = (time.perf_counter() - start_time) * 1000  # Convert to milliseconds
+        logger.debug(
+            f"Loaded {len(todos)} todo(s) from {self.path} "
+            f"({file_size} bytes, {elapsed:.2f}ms)"
+        )
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +134,7 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            logger.debug(f"Saved {len(todos)} todo(s) to {self.path} via atomic write")
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
