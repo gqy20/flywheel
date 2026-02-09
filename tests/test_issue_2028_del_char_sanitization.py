@@ -6,28 +6,28 @@ to prevent terminal output manipulation.
 
 from __future__ import annotations
 
-from flywheel.formatter import TodoFormatter, _sanitize_text
+from flywheel.formatter import TodoFormatter, sanitize_text
 from flywheel.todo import Todo
 
 
-def test_sanitize_text_escapes_del_char() -> None:
+def testsanitize_text_escapes_del_char() -> None:
     """DEL character (0x7f) should be escaped to \\x7f."""
-    result = _sanitize_text("Normal\x7fAfter")
+    result = sanitize_text("Normal\x7fAfter")
     assert result == "Normal\\x7fAfter"
     # Should not contain actual DEL character
     assert "\x7f" not in result
 
 
-def test_sanitize_text_just_del_char() -> None:
+def testsanitize_text_just_del_char() -> None:
     """Just DEL character should be escaped."""
-    result = _sanitize_text("\x7f")
+    result = sanitize_text("\x7f")
     assert result == "\\x7f"
     assert "\x7f" not in result
 
 
-def test_sanitize_text_multiple_del_chars() -> None:
+def testsanitize_text_multiple_del_chars() -> None:
     """Multiple DEL characters should all be escaped."""
-    result = _sanitize_text("\x7f\x7f\x7f")
+    result = sanitize_text("\x7f\x7f\x7f")
     assert result == "\\x7f\\x7f\\x7f"
     assert "\x7f" not in result
 
@@ -44,9 +44,9 @@ def test_format_todo_escapes_del_char_in_text() -> None:
     assert result == "[ ]   1 Buy milk\\x7f[ ] FAKE_TODO"
 
 
-def test_sanitize_text_mixed_control_and_del() -> None:
+def testsanitize_text_mixed_control_and_del() -> None:
     """DEL with other control characters should all be escaped."""
-    result = _sanitize_text("Before\x1f\x7f\x00After")
+    result = sanitize_text("Before\x1f\x7f\x00After")
     assert "\\x1f" in result
     assert "\\x7f" in result
     assert "\\x00" in result
