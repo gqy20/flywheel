@@ -7,12 +7,16 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default maximum number of backups to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, max_backups: int = _DEFAULT_MAX_BACKUPS) -> None:
         self.path = Path(path or ".todo.json")
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,15 +87,112 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _create_backup(self) -> Path | None:
+        """Create a backup of the existing file.
+
+        Returns:
+            Path to the backup file if backup was created, None otherwise.
+        """
+        if not self.path.exists():
+            return None
+
+        # Create backup with timestamp (using nanoseconds for uniqueness)
+        timestamp = time.time_ns()
+        backup_path = self.path.parent / f"{self.path.name}.bak.{timestamp}"
+
+        # Copy existing file to backup
+        import shutil
+        shutil.copy2(self.path, backup_path)
+
+        # Clean up old backups
+        self._cleanup_old_backups()
+
+        return backup_path
+
+    def _cleanup_old_backups(self) -> None:
+        """Remove old backup files, keeping only the most recent max_backups."""
+        backup_pattern = f"{self.path.name}.bak.*"
+        backup_files = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=self._extract_timestamp,
+            reverse=True  # Newest first
+        )
+
+        # Remove oldest backups beyond the limit
+        for old_backup in backup_files[self.max_backups:]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
+
+    def _extract_timestamp(self, path: Path) -> int:
+        """Extract timestamp from backup filename.
+
+        Args:
+            path: Path to a backup file with format <name>.bak.<timestamp>
+
+        Returns:
+            The timestamp as an integer, or 0 if not found.
+        """
+        try:
+            # Filename format: <name>.bak.<timestamp>
+            timestamp_str = path.name.split(".")[-1]
+            return int(timestamp_str)
+        except (ValueError, IndexError):
+            return 0
+
+    def list_backups(self) -> list[Path]:
+        """List all available backup files for this storage.
+
+        Returns:
+            List of Path objects for existing backup files, sorted by creation time
+            (newest first).
+        """
+        backup_pattern = f"{self.path.name}.bak.*"
+        backups = sorted(
+            [b for b in self.path.parent.glob(backup_pattern) if b.exists()],
+            key=self._extract_timestamp,
+            reverse=True  # Newest first
+        )
+        return backups
+
+    def restore_from_backup(self, backup_path: str | Path) -> None:
+        """Restore data from a backup file.
+
+        Args:
+            backup_path: Path to the backup file to restore from.
+
+        Raises:
+            FileNotFoundError: If the backup file doesn't exist.
+            ValueError: If the backup file is not a valid backup for this storage.
+        """
+        backup_path = Path(backup_path)
+
+        if not backup_path.exists():
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Verify this is a backup for our storage file
+        if not backup_path.name.startswith(f"{self.path.name}.bak."):
+            raise ValueError(
+                f"File '{backup_path}' is not a valid backup for '{self.path}'"
+            )
+
+        # Copy backup to main file
+        import shutil
+        shutil.copy2(backup_path, self.path)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before overwriting, creates a backup of the existing file for recovery.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup before overwriting existing file
+        self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
