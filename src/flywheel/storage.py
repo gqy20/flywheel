@@ -7,12 +7,21 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Current schema version
+_CURRENT_SCHEMA_VERSION = 1
+
+
+# Migration registry: maps from version -> (version, migration_function)
+# migration_function takes raw JSON dict and returns migrated dict
+_MIGRATION_REGISTRY: dict[int, tuple[int, Callable[[dict], dict]]] = {}
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -56,6 +65,56 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def _validate_and_migrate_schema(self, raw: dict) -> dict:
+        """Validate schema version and apply migrations if needed.
+
+        Args:
+            raw: The parsed JSON data as a dict
+
+        Returns:
+            The migrated data dict
+
+        Raises:
+            ValueError: If version is missing, invalid, or unsupported
+        """
+        if "_version" not in raw:
+            raise ValueError(
+                "Schema version is missing. The data file may be outdated or corrupted. "
+                f"Expected version {_CURRENT_SCHEMA_VERSION}. "
+                "Please check your data file or reinitialize."
+            )
+
+        try:
+            version = int(raw["_version"])
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid schema version: {raw['_version']!r}. "
+                f"Version must be an integer."
+            ) from e
+
+        if version > _CURRENT_SCHEMA_VERSION:
+            raise ValueError(
+                f"Schema version {version} is newer than supported version {_CURRENT_SCHEMA_VERSION}. "
+                "This data was created with a newer version of the application. "
+                "Please update to the latest version."
+            )
+
+        if version < _CURRENT_SCHEMA_VERSION:
+            # Apply migrations
+            current = raw
+            for v in range(version, _CURRENT_SCHEMA_VERSION):
+                if v in _MIGRATION_REGISTRY:
+                    target_version, migrate_fn = _MIGRATION_REGISTRY[v]
+                    current = migrate_fn(current)
+                else:
+                    raise ValueError(
+                        f"No migration found from version {v} to {target_version}. "
+                        "Cannot load this data file."
+                    )
+            return current
+
+        return raw
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -78,9 +137,29 @@ class TodoStorage:
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Validate and migrate schema (handles both old list format and new dict format)
+        if isinstance(raw, list):
+            # Old format without version - this is outdated
+            raise ValueError(
+                "Schema version is missing. The data file appears to be in an outdated format "
+                f"(plain list). Current version is {_CURRENT_SCHEMA_VERSION}. "
+                "Please reinitialize or migrate your data."
+            )
+
+        if not isinstance(raw, dict):
+            raise ValueError("Todo storage must be a JSON object or list")
+
+        # Validate schema version and apply migrations
+        raw = self._validate_and_migrate_schema(raw)
+
+        # Extract todos list
+        if "todos" not in raw:
+            raise ValueError("Todo storage missing 'todos' field")
+
+        if not isinstance(raw["todos"], list):
+            raise ValueError("Todo storage 'todos' field must be a list")
+
+        return [Todo.from_dict(item) for item in raw["todos"]]
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +173,11 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Structure data with schema version
+        payload = {
+            "_version": _CURRENT_SCHEMA_VERSION,
+            "todos": [todo.to_dict() for todo in todos],
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
