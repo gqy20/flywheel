@@ -1,1 +1,23 @@
-{"status": "completed", "candidate": 3, "issue": 2494, "branch": "claude/issue-2494-candidate-3-21825309930", "commit": "c9233ff", "pr_number": 2517, "pr_url": "https://github.com/gqy20/flywheel/pull/2517", "summary": "Add backup creation before overwriting file (#2494)", "tests_run": ["test_backup_created_before_overwrite", "test_backup_rotation_keeps_max_backups", "test_restore_from_backup"], "test_results": "3 new tests passed, 115 total tests passed", "ruff_check": "passed"}
+{
+  "issue": 2494,
+  "candidate": 3,
+  "run_id": "21825309930",
+  "branch": "claude/issue-2494-candidate-3-21825309930",
+  "pr_number": 2517,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2517",
+  "generated_at": "2026-02-09T13:07:26.314345+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2694,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2467,
+    "finalize": 380
+  }
+}
