@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,9 +60,46 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(
+        self, *, validate_permissions: bool = False, strict: bool = False
+    ) -> list[Todo]:
         if not self.path.exists():
             return []
+
+        # Security: Check file permissions to detect potentially tampered files
+        # This detects if an attacker has made the file world/group writable
+        if validate_permissions:
+            file_stat = self.path.stat()
+            file_mode = file_stat.st_mode
+
+            # Check for overly permissive permissions (group/other writable)
+            # Mask: 0o022 checks for group write (0o020) and other write (0o002)
+            permissive_mask = file_mode & 0o022
+
+            if permissive_mask:
+                permissive_desc = []
+                if file_mode & stat.S_IWGRP:
+                    permissive_desc.append("group-writable")
+                if file_mode & stat.S_IWOTH:
+                    permissive_desc.append("world-writable")
+
+                if strict:
+                    raise ValueError(
+                        f"Refusing to load '{self.path}': file has overly permissive "
+                        f"permissions ({' and '.join(permissive_desc)}). "
+                        f"This could indicate tampering. "
+                        f"Current mode: 0o{stat.S_IMODE(file_mode):o}, "
+                        f"recommended: 0o600 (owner read/write only)."
+                    )
+                else:
+                    msg = (
+                        f"Security warning: '{self.path}' has overly permissive "
+                        f"permissions ({' and '.join(permissive_desc)}). "
+                        f"Current mode: 0o{stat.S_IMODE(file_mode):o}, "
+                        f"recommended: 0o600 (owner read/write only)."
+                    )
+                    warnings.warn(msg, stacklevel=2)
+                    logger.warning(msg)
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size

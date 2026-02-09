@@ -1,0 +1,27 @@
+{
+  "issue_id": 2518,
+  "candidate_id": 3,
+  "run_id": "21828183076",
+  "stage": "RED",
+  "status": "complete",
+  "triage": {
+    "summary": "load() does not validate file permissions before reading sensitive data",
+    "root_cause": "Missing permission validation in load() method at storage.py:74",
+    "severity": "P0",
+    "verified_targets": [
+      "File with 0o644 permissions",
+      "File with 0o600 permissions",
+      "File with 0o666 permissions",
+      "Strict vs non-strict mode behavior"
+    ]
+  },
+  "red": {
+    "test_file": "tests/test_issue_2518_load_permissions.py",
+    "test_count": 6,
+    "failing_count": 5,
+    "expected_failures": [
+      "TypeError: load() got unexpected keyword argument 'validate_permissions'",
+      "Tests require validate_permissions and strict parameters"
+    ]
+  }
+}
