@@ -1,23 +1,23 @@
 {
-  "issue_number": 2610,
-  "candidate_id": "2",
+  "issue": 2610,
+  "candidate": 2,
   "run_id": "21844903566",
   "branch": "claude/issue-2610-candidate-2-21844903566",
-  "created_at": "2026-02-09T23:42:00Z",
-  "tests": [
-    "test_load_logs_debug_info",
-    "test_load_logs_empty_file_handling",
-    "test_save_logs_atomic_write",
-    "test_logger_module_level_exists"
+  "pr_number": 2619,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2619",
+  "generated_at": "2026-02-09T23:51:42.734371+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "test_results": "4 passed",
-  "linting": "passed",
-  "changes": {
-    "modified": [
-      "src/flywheel/storage.py"
-    ],
-    "added": [
-      "tests/test_issue_2610_storage_logging.py"
-    ]
+  "stage_response_sizes": {
+    "triage": 2182,
+    "plan": 3469,
+    "implement": 2698,
+    "verify": 1121,
+    "finalize": 961
   }
 }
