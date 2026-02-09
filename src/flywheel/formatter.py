@@ -49,6 +49,10 @@ class TodoFormatter:
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
+        if not isinstance(todos, list):
+            raise TypeError("todos must be a list")
         if not todos:
             return "No todos yet."
+        if any(todo is None for todo in todos):
+            raise ValueError("todo list contains None items")
         return "\n".join(cls.format_todo(todo) for todo in todos)
