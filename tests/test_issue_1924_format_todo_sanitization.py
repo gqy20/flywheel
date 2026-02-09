@@ -110,3 +110,35 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_todo_with_4_digit_id() -> None:
+    """Todo with 4-digit ID (>= 1000) should format correctly without truncating text.
+
+    Regression test for Issue #2505: format_todo silently truncates todo text
+    longer than ID width (3 chars). When ID has 4 digits, the text should not
+    be misaligned or truncated.
+    """
+    todo = Todo(id=1000, text="Long task name that should not be truncated")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain the full ID (1000)
+    assert "1000" in result
+    # Should contain the full text without truncation
+    assert "Long task name that should not be truncated" in result
+    # Should be properly formatted with 4-char width for ID
+    assert result == "[ ] 1000 Long task name that should not be truncated"
+
+
+def test_format_todo_with_5_digit_id() -> None:
+    """Todo with 5-digit ID (>= 10000) should format correctly.
+
+    Regression test for Issue #2505: ensure the fix scales beyond 4 digits.
+    """
+    todo = Todo(id=10000, text="Very long todo text for five digit ID")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain the full ID (10000)
+    assert "10000" in result
+    # Should contain the full text without truncation
+    assert "Very long todo text for five digit ID" in result
+    # Should be properly formatted with 5-char width for ID
+    assert result == "[ ] 10000 Very long todo text for five digit ID"
