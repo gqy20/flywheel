@@ -57,21 +57,34 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
-            return []
+        """Load todos from file, handling concurrent file deletion gracefully.
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        This method is designed to handle TOCTOU (Time-of-Check to Time-of-Use)
+        race conditions where the file may be deleted between the exists() check
+        and subsequent file operations. If any file operation fails due to the
+        file not existing, we return an empty list (semantically equivalent to
+        "file doesn't exist").
 
+        Returns:
+            Empty list if file doesn't exist or cannot be accessed, otherwise
+            the list of todos loaded from the file.
+        """
         try:
+            # Security: Check file size before loading to prevent DoS
+            file_size = self.path.stat().st_size
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            # File was deleted between exists check and read (TOCTOU race)
+            # or file simply doesn't exist. Return empty list in both cases.
+            return []
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
