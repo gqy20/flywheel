@@ -1,39 +1,23 @@
 {
-  "issue_id": 2518,
-  "candidate_id": 3,
+  "issue": 2518,
+  "candidate": 3,
   "run_id": "21828183076",
-  "stage": "FINALIZE",
-  "status": "completed",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2525",
+  "branch": "claude/issue-2518-candidate-3-21828183076",
   "pr_number": 2525,
-  "triage": {
-    "summary": "load() does not validate file permissions before reading sensitive data",
-    "root_cause": "Missing permission validation in load() method at storage.py:74",
-    "severity": "P0",
-    "verified_targets": [
-      "File with 0o644 permissions",
-      "File with 0o600 permissions",
-      "File with 0o666 permissions",
-      "Strict vs non-strict mode behavior"
-    ]
-  },
-  "red": {
-    "test_file": "tests/test_issue_2518_load_permissions.py",
-    "test_count": 6,
-    "failing_count": 5,
-    "expected_failures": [
-      "TypeError: load() got unexpected keyword argument 'validate_permissions'",
-      "Tests require validate_permissions and strict parameters"
-    ]
-  },
-  "green": {
-    "implementation": "Added validate_permissions and strict parameters to load() method in storage.py",
-    "files_modified": ["src/flywheel/storage.py"],
-    "lines_changed": 45
-  },
-  "verification": {
-    "pytest_results": "118 passed, 1 warning",
-    "ruff_results": "All checks passed",
-    "coverage": "92%"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2525",
+  "generated_at": "2026-02-09T14:31:58.113781+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2846,
+    "implement": 1983,
+    "verify": 1525,
+    "finalize": 546
   }
 }
