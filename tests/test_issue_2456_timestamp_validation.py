@@ -7,37 +7,37 @@ from flywheel.todo import Todo
 
 def test_from_dict_rejects_int_created_at():
     """from_dict should reject integer created_at values."""
-    with pytest.raises(ValueError, match="created_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"created_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "created_at": 123})
 
 
 def test_from_dict_rejects_list_created_at():
     """from_dict should reject list created_at values."""
-    with pytest.raises(ValueError, match="created_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"created_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "created_at": ["2024-01-01"]})
 
 
 def test_from_dict_rejects_dict_created_at():
     """from_dict should reject dict created_at values."""
-    with pytest.raises(ValueError, match="created_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"created_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "created_at": {"date": "2024-01-01"}})
 
 
 def test_from_dict_rejects_int_updated_at():
     """from_dict should reject integer updated_at values."""
-    with pytest.raises(ValueError, match="updated_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"updated_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "updated_at": 123})
 
 
 def test_from_dict_rejects_list_updated_at():
     """from_dict should reject list updated_at values."""
-    with pytest.raises(ValueError, match="updated_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"updated_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "updated_at": ["2024-01-01"]})
 
 
 def test_from_dict_rejects_dict_updated_at():
     """from_dict should reject dict updated_at values."""
-    with pytest.raises(ValueError, match="updated_at.*must be a string"):
+    with pytest.raises(ValueError, match=r"updated_at.*must be a string"):
         Todo.from_dict({"id": 1, "text": "test", "updated_at": {"date": "2024-01-01"}})
 
 
