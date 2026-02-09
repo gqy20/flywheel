@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_rejects_null_items(tmp_path) -> None:
+    """Bug #2566: JSON arrays with null items should raise clear error."""
+    db = tmp_path / "with_null.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with null item in the middle
+    db.write_text(
+        '[{"id": 1, "text": "valid"}, null, {"id": 2, "text": "also_valid"}]',
+        encoding="utf-8",
+    )
+
+    # Should raise ValueError with clear message including index
+    with pytest.raises(ValueError, match="Invalid todo item at index 1"):
+        storage.load()
+
+
+def test_storage_load_rejects_null_at_start(tmp_path) -> None:
+    """Bug #2566: Null items at start of array should be caught."""
+    db = tmp_path / "null_start.json"
+    storage = TodoStorage(str(db))
+
+    db.write_text('[null, {"id": 1, "text": "valid"}]', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid todo item at index 0"):
+        storage.load()
+
+
+def test_storage_load_rejects_null_at_end(tmp_path) -> None:
+    """Bug #2566: Null items at end of array should be caught."""
+    db = tmp_path / "null_end.json"
+    storage = TodoStorage(str(db))
+
+    db.write_text('[{"id": 1, "text": "valid"}, null]', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid todo item at index 1"):
+        storage.load()
