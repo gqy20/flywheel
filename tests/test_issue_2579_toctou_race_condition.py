@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from flywheel.storage import TodoStorage, _MAX_JSON_SIZE_BYTES
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 
 
 def test_toctou_vulnerability_exploit(tmp_path) -> None:
@@ -36,7 +36,7 @@ def test_toctou_vulnerability_exploit(tmp_path) -> None:
     db.write_text(initial_content, encoding="utf-8")
 
     # Create oversized content that exceeds the limit
-    oversized_todos = [{"id": i, "text": f"x" * 1000} for i in range(15000)]
+    oversized_todos = [{"id": i, "text": "x" * 1000} for i in range(15000)]
     oversized_content_bytes = json.dumps(oversized_todos, ensure_ascii=False, indent=2).encode("utf-8")
     oversized_size = len(oversized_content_bytes)
 
@@ -52,8 +52,6 @@ def test_toctou_vulnerability_exploit(tmp_path) -> None:
         mock_stat.return_value = mock_stat_result
 
         # Mock the file read to return oversized content
-        original_open = Path.open
-
         def oversized_open(self, *args, **kwargs):
             # Return a file-like object that returns oversized content
             mock_file = MagicMock()
@@ -62,10 +60,9 @@ def test_toctou_vulnerability_exploit(tmp_path) -> None:
             mock_file.__exit__ = lambda s, *args: None
             return mock_file
 
-        with patch.object(Path, "open", oversized_open):
+        with patch.object(Path, "open", oversized_open), pytest.raises(ValueError, match=r"too large"):
             # Fixed code: should detect oversized read and raise ValueError
-            with pytest.raises(ValueError, match="too large"):
-                storage.load()
+            storage.load()
 
 
 def test_toctou_with_incomplete_json(tmp_path) -> None:
@@ -90,8 +87,6 @@ def test_toctou_with_incomplete_json(tmp_path) -> None:
         mock_stat_result.st_size = _MAX_JSON_SIZE_BYTES // 2
         mock_stat.return_value = mock_stat_result
 
-        original_open = Path.open
-
         def oversized_open(self, *args, **kwargs):
             mock_file = MagicMock()
             mock_file.read.return_value = incomplete_bytes
@@ -99,10 +94,9 @@ def test_toctou_with_incomplete_json(tmp_path) -> None:
             mock_file.__exit__ = lambda s, *args: None
             return mock_file
 
-        with patch.object(Path, "open", oversized_open):
+        with patch.object(Path, "open", oversized_open), pytest.raises(ValueError, match=r"too large"):
             # Should catch oversized read even before JSON parsing
-            with pytest.raises(ValueError, match="too large"):
-                storage.load()
+            storage.load()
 
 
 def test_legitimate_large_file_under_limit_still_works(tmp_path) -> None:
@@ -137,5 +131,5 @@ def test_size_limit_protection_without_toctou(tmp_path) -> None:
     db.write_text(oversized_content, encoding="utf-8")
 
     # Should raise ValueError about file size
-    with pytest.raises(ValueError, match="too large.*MB limit"):
+    with pytest.raises(ValueError, match=r"too large.*MB limit"):
         storage.load()
