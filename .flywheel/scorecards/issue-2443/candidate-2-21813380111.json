@@ -4,7 +4,9 @@
   "run_id": "21813380111",
   "issue_title": "[Bug] fdopen context manager closes the file descriptor but os.unlink(temp_path) in ex",
   "branch": "claude/issue-2443-candidate-2-21813380111",
-  "stage": "VERIFY_COMPLETE",
+  "stage": "FINALIZE_COMPLETE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2451",
+  "pr_number": 2451,
   "verification_results": {
     "pytest_specific": {
       "command": "uv run pytest tests/test_issue_2443_fchmod_cleanup.py -v",
