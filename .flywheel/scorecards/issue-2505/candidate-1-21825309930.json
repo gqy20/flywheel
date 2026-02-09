@@ -2,36 +2,22 @@
   "issue": 2505,
   "candidate": 1,
   "run_id": "21825309930",
-  "stage": "complete",
-  "plan": {
-    "test_file": "tests/test_issue_2505_format_todo_large_id.py",
-    "source_file": "src/flywheel/formatter.py",
-    "tests_to_add": [
-      "test_format_todo_with_small_id",
-      "test_format_todo_with_two_digit_id",
-      "test_format_todo_with_three_digit_id",
-      "test_format_todo_with_id_1000",
-      "test_format_todo_with_id_9999",
-      "test_format_list_with_large_ids"
-    ],
-    "implementation": "Change {todo.id:>3} to {todo.id:>4} in format_todo",
-    "verification_commands": [
-      "uv run pytest tests/ -v",
-      "uv run ruff check src/flywheel/formatter.py tests/test_issue_2505_format_todo_large_id.py"
-    ],
-    "result": "All 118 tests pass, ruff checks pass"
-  },
-  "changes": {
-    "files_added": [
-      "tests/test_issue_2505_format_todo_large_id.py"
-    ],
-    "files_modified": [
-      "src/flywheel/formatter.py",
-      "tests/test_issue_1924_format_todo_sanitization.py",
-      "tests/test_issue_2028_del_char_sanitization.py",
-      "tests/test_issue_2057_c1_control_sanitization.py",
-      "tests/test_issue_2097_backslash_escape_collision.py"
-    ]
-  },
-  "summary": "Fixed ID field width from 3 to 4 to support todo IDs >= 1000. The fix is minimal - a single character change in the format string. All existing tests updated to reflect new width, and new regression tests added specifically for large IDs."
+  "branch": "claude/issue-2505-candidate-1-21825309930",
+  "pr_number": 2513,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2513",
+  "generated_at": "2026-02-09T13:05:10.128880+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2109,
+    "plan": 4000,
+    "implement": 1951,
+    "verify": 2824,
+    "finalize": 2302
+  }
 }
