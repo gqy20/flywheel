@@ -4,7 +4,14 @@
   "candidate_number": 1,
   "run_id": "21823476771",
   "branch_name": "claude/issue-2482-candidate-1-21823476771",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
+  "verified_at": "2026-02-09T12:00:00Z",
+  "verification_summary": {
+    "targeted_tests": "6 passed in 0.06s",
+    "full_suite": "118 passed in 0.45s",
+    "ruff_check": "All checks passed",
+    "coverage": "87% overall, 95% for todo.py"
+  },
   "created_at": "2026-02-09T11:56:00Z",
   "tdd_plan": {
     "failing_tests": [
