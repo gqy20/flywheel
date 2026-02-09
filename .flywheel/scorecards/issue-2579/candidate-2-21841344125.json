@@ -1,0 +1,46 @@
+{
+  "issue_number": 2579,
+  "candidate_number": 2,
+  "run_id": "21841344125",
+  "title": "[Security] TOCTOU race condition between stat().st_size check and read_text() in load()",
+  "stage": "IMPLEMENT",
+  "branch_name": "claude/issue-2579-candidate-2-21841344125",
+  "files_to_touch": {
+    "source": [
+      "src/flywheel/storage.py"
+    ],
+    "test": [
+      "tests/test_issue_2579_toctou_race_condition.py"
+    ]
+  },
+  "tdd_plan": {
+    "phase_red": [
+      "Create regression test that demonstrates TOCTOU vulnerability scenario",
+      "Test simulates file growth between stat() and read_text() operations",
+      "Test should verify current behavior allows bypassing size limit"
+    ],
+    "phase_green": [
+      "Implement bounded read using read(size_limit) to prevent TOCTOU",
+      "Alternative: Read first then validate size, catch oversized reads",
+      "Minimal change to maintain existing error messages and behavior"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2579_toctou_race_condition.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run pytest tests/ -k storage -v"
+    ]
+  },
+  "implementation_approach": "bounded_read_first",
+  "risk_assessment": {
+    "complexity": "low",
+    "breakage_risk": "low",
+    "performance_impact": "neutral",
+    "test_coverage": "high"
+  },
+  "alternatives_considered": [
+    "chunked_json_parsing - Too complex for simple DoS protection",
+    "accept_current_behavior - Not acceptable for security issue",
+    "file_locking - Overkill for this use case"
+  ]
+}

@@ -14,6 +14,11 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Read limit includes 1 byte extra to detect files that are exactly at the limit
+# We read _MAX_JSON_SIZE_BYTES + 1, and if we read more than _MAX_JSON_SIZE_BYTES,
+# we know the file was too large (TOCTOU protection)
+_READ_LIMIT = _MAX_JSON_SIZE_BYTES + 1
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -60,7 +65,7 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
+        # Security: Check file size first to catch obvious oversized files early
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
@@ -70,8 +75,27 @@ class TodoStorage:
                 f"This protects against denial-of-service attacks."
             )
 
+        # Security: Read with bounded size to prevent TOCTOU race condition.
+        # Even if stat() check passes, an attacker could grow the file before
+        # read_text() completes. By reading with a limit and validating actual
+        # bytes read, we ensure we never process more than _MAX_JSON_SIZE_BYTES.
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Open file and read with byte limit to prevent TOCTOU
+            with self.path.open("rb") as f:
+                content_bytes = f.read(_READ_LIMIT)
+                actual_bytes_read = len(content_bytes)
+
+            # Check if we hit the read limit (file is larger than limit)
+            if actual_bytes_read > _MAX_JSON_SIZE_BYTES:
+                size_mb = actual_bytes_read / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            # Decode and parse JSON
+            raw = json.loads(content_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
