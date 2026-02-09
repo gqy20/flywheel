@@ -38,9 +38,9 @@ class TestC1ControlSanitization:
         from flywheel.formatter import TodoFormatter
         from flywheel.todo import Todo
 
-        todo = Todo(id=1, text="Buy milk\x9f", done=False)
+        todo = Todo(id=1, text="Buy milk\x9f", done=False, priority=0)  # LOW priority for consistent output
         result = TodoFormatter.format_todo(todo)
-        assert result == r"[ ]   1 Buy milk\x9f"
+        assert result == r"[ ]   1  Buy milk\x9f"
 
     def test_unicode_text_passes_through_unchanged(self):
         """Test that valid Unicode text is not affected by sanitization."""

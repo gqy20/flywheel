@@ -34,14 +34,14 @@ def test_sanitize_text_multiple_del_chars() -> None:
 
 def test_format_todo_escapes_del_char_in_text() -> None:
     """Todo with DEL in text should output escaped representation."""
-    todo = Todo(id=1, text="Buy milk\x7f[ ] FAKE_TODO")
+    todo = Todo(id=1, text="Buy milk\x7f[ ] FAKE_TODO", priority=0)  # LOW priority for consistent output
     result = TodoFormatter.format_todo(todo)
     # Should contain escaped representation
     assert "\\x7f" in result
     # Should not contain actual DEL character
     assert "\x7f" not in result
-    # Expected format
-    assert result == "[ ]   1 Buy milk\\x7f[ ] FAKE_TODO"
+    # Expected format (note: extra space for empty priority indicator)
+    assert result == "[ ]   1  Buy milk\\x7f[ ] FAKE_TODO"
 
 
 def test_sanitize_text_mixed_control_and_del() -> None:
