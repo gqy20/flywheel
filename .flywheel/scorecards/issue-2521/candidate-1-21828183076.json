@@ -6,10 +6,11 @@
   "files_changed": [
     "src/flywheel/storage.py",
     "tests/test_issue_2521_schema_validation.py",
-    "tests/test_storage_atomicity.py"
+    "tests/test_storage_atomicity.py",
+    "tests/test_issue_2000_json_validation.py"
   ],
   "tests_added": 6,
-  "tests_passed": 12,
+  "tests_passed": 24,
   "tests_failed": 0,
   "implementation_notes": [
     "Added CURRENT_SCHEMA_VERSION constant (currently set to 1)",
@@ -18,7 +19,8 @@
     "Modified load() to validate schema version before parsing todos",
     "Old format (plain list) is rejected with clear error message",
     "Future versions are rejected with clear error message indicating version mismatch",
-    "Updated existing test to match new JSON structure"
+    "Updated existing test to match new JSON structure",
+    "Updated test_issue_2000_json_validation.py to use new schema format"
   ],
   "risks": [
     "Breaking change: Old data files (without _version field) will no longer load",
@@ -36,5 +38,20 @@
     "TodoStorage.load() raises clear error when version mismatch is detected",
     "A migration registry placeholder exists (validation logic in place)",
     "Existing tests pass and new version validation tests are added"
-  ]
+  ],
+  "verification_summary": {
+    "stage": "VERIFY",
+    "pytest_commands_run": [
+      "uv run pytest tests/test_issue_2521_schema_validation.py tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/ -k storage -v",
+      "uv run pytest tests/test_issue_2521_schema_validation.py tests/test_storage_atomicity.py tests/test_issue_2000_json_validation.py -v"
+    ],
+    "ruff_commands_run": [
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_2521_schema_validation.py tests/test_storage_atomicity.py",
+      "uv run ruff check tests/test_issue_2000_json_validation.py"
+    ],
+    "all_checks_passed": true,
+    "total_tests_passed": 24,
+    "total_tests_failed": 0
+  }
 }
