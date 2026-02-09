@@ -89,7 +89,8 @@ class TodoStorage:
         if the process crashes during write.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
-        and sets restrictive permissions (0o600) to protect against symlink attacks.
+        and sets restrictive permissions (stat.S_IRUSR | stat.S_IWUSR, i.e., 0o600)
+        to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
