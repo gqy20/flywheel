@@ -3,7 +3,7 @@
   "candidate": 2,
   "run_id": "21834831095",
   "branch": "claude/issue-2546-candidate-2-21834831095",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "tests_run": [
     "tests/test_issue_2546_windows_compat.py",
     "tests/test_issue_2027_permissions.py"
