@@ -1,0 +1,24 @@
+{
+  "issue_number": 2430,
+  "candidate_id": 1,
+  "run_id": "21811533812",
+  "stage": "COMPLETE",
+  "created_at": "2026-02-09T04:17:00Z",
+  "resolution": "FALSE_POSITIVE",
+  "findings": "The current code in src/flywheel/todo.py:100-101 already handles None correctly. The expression `str(data.get('created_at') or '')` ensures that None values are converted to empty strings, not the literal string 'None'. The issue was a false positive from the AI scanner.",
+  "files_touched": [
+    "tests/test_issue_2430_from_dict_none_handling.py"
+  ],
+  "tests_added": 6,
+  "tests_passing": 6,
+  "tests_failing": 0,
+  "source_changes_required": false,
+  "verification_commands_run": [
+    "uv run pytest tests/test_issue_2430_from_dict_none_handling.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2430_from_dict_none_handling.py"
+  ],
+  "verification_results": {
+    "tests": "6 passed",
+    "ruff_check": "No issues found"
+  }
+}
