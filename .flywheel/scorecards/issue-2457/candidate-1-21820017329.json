@@ -1,7 +1,9 @@
 {
   "issue_number": 2457,
   "candidate_id": "candidate-1-21820017329",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2471",
+  "pr_title": "[AUTOFIX][ISSUE-2457][CANDIDATE-1] fix: catch only specific exception types in run_command",
   "title": "[Bug] Overly broad exception catching masks unexpected errors",
   "triage": {
     "root_cause": "cli.py:124 catches all Exception types (including KeyboardInterrupt, SystemExit) in run_command() function",
@@ -80,7 +82,7 @@
     }
   },
   "verification": {
-    "stage": "VERIFY",
+    "stage": "COMPLETE",
     "commands_run": [
       "uv run pytest tests/test_issue_2457_keyboard_interrupt.py -v",
       "uv run pytest tests/ -k 'cli' -v",
@@ -95,5 +97,14 @@
     },
     "status": "COMPLETE",
     "summary": "All verification checks passed. The fix correctly changes 'except Exception' to catch only specific exception types (ValueError, OSError, json.JSONDecodeError), allowing KeyboardInterrupt, SystemExit, and other unexpected errors like RuntimeError to propagate properly."
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "branch": "claude/issue-2457-candidate-1-21820017329",
+    "branch_exists": true,
+    "changes_committed": true,
+    "pr_status": "OPEN",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2471",
+    "summary": "Candidate #1 for issue #2457 is complete. PR #2471 is open and ready for review."
   }
 }
