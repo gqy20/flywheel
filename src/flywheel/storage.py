@@ -15,6 +15,42 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _resolve_default_path() -> Path:
+    """Resolve default todo database path with priority hierarchy.
+
+    Priority order:
+    1. TODO_DB_PATH environment variable (highest priority)
+    2. XDG_DATA_HOME environment variable with 'todo/todo.json' subdirectory
+    3. ~/.local/share/todo/todo.json (XDG default)
+    4. ./.todo.json (current directory, lowest priority)
+
+    Returns:
+        Path object pointing to the resolved database location.
+    """
+    # 1. Check TODO_DB_PATH environment variable (highest priority)
+    todo_db_path = os.environ.get("TODO_DB_PATH")
+    if todo_db_path:
+        return Path(todo_db_path)
+
+    # 2. Check XDG_DATA_HOME environment variable
+    xdg_data_home = os.environ.get("XDG_DATA_HOME")
+    if xdg_data_home:
+        return Path(xdg_data_home) / "todo" / "todo.json"
+
+    # 3. Try to use XDG default ~/.local/share/todo/todo.json
+    try:
+        home = Path.home()
+        xdg_default = home / ".local" / "share" / "todo" / "todo.json"
+        # Return XDG default path (will be created on save if needed)
+        return xdg_default
+    except (RuntimeError, OSError):
+        # 4. Fall back to current directory if home is not accessible
+        pass
+
+    # 5. Final fallback to current directory (resolve to absolute path)
+    return (Path.cwd() / ".todo.json").resolve()
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -54,7 +90,7 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        self.path = Path(path) if path is not None else _resolve_default_path()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
