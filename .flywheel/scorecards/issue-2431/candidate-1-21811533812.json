@@ -2,7 +2,7 @@
   "issue_number": 2431,
   "candidate_id": "candidate-1-21811533812",
   "timestamp": "2026-02-09T04:00:00Z",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "summary": "Add debug mode logging support to TodoStorage class",
   "acceptance_criteria": {
     "passed": [
