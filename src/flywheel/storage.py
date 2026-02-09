@@ -4,12 +4,25 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Module-level logger for storage operations
+_logger = logging.getLogger(__name__)
+
+# Enable debug logging when FLYWHEEL_DEBUG environment variable is set
+if os.environ.get("FLYWHEEL_DEBUG") == "1":
+    _logger.setLevel(logging.DEBUG)
+    # Add a handler if none exists
+    if not _logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.DEBUG)
+        _logger.addHandler(handler)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,6 +71,7 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            _logger.debug("Load: file '%s' does not exist, returning empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +94,10 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        _logger.debug("Load: loaded %d todos from '%s'", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -97,6 +114,8 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
+        _logger.debug("Save: saving %d todos to '%s'", len(todos), self.path)
+
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
         fd, temp_path = tempfile.mkstemp(
@@ -105,6 +124,8 @@ class TodoStorage:
             suffix=".tmp",
             text=False,  # We'll write binary data to control encoding
         )
+
+        _logger.debug("Save: created temp file '%s'", temp_path)
 
         try:
             # Set restrictive permissions (owner read/write only)
@@ -118,6 +139,7 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            _logger.debug("Save: atomically renamed '%s' to '%s'", temp_path, self.path)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
@@ -125,4 +147,6 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        next_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        _logger.debug("Next ID: returning %d for %d todos", next_id, len(todos))
+        return next_id
