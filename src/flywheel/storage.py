@@ -61,7 +61,14 @@ class TodoStorage:
             return []
 
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        # Wrap in try-except to handle TOCTOU race condition where file is deleted
+        # between exists() check and stat() call (issue #2455)
+        try:
+            file_size = self.path.stat().st_size
+        except FileNotFoundError:
+            # File was deleted between exists() check and stat() call
+            return []
+
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
@@ -72,6 +79,9 @@ class TodoStorage:
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            # File was deleted between stat() and read_text() calls (issue #2455)
+            return []
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
