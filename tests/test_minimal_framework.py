@@ -158,3 +158,37 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_empty_list() -> None:
+    """Issue #2593: next_id should return 1 for empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_single_todo() -> None:
+    """Issue #2593: next_id should return max(id) + 1 for single todo."""
+    storage = TodoStorage()
+    todos = [Todo(id=1, text="task1")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_multiple_sequential_ids() -> None:
+    """Issue #2593: next_id should return max + 1 for sequential ids."""
+    storage = TodoStorage()
+    todos = [Todo(id=1, text="task1"), Todo(id=2, text="task2"), Todo(id=3, text="task3")]
+    assert storage.next_id(todos) == 4
+
+
+def test_next_id_non_sequential_ids() -> None:
+    """Issue #2593: next_id should return max + 1 for non-sequential ids."""
+    storage = TodoStorage()
+    todos = [Todo(id=1, text="task1"), Todo(id=100, text="task100")]
+    assert storage.next_id(todos) == 101
+
+
+def test_next_id_large_gap_ids() -> None:
+    """Issue #2593: next_id should handle large gaps correctly."""
+    storage = TodoStorage()
+    todos = [Todo(id=5, text="task5"), Todo(id=1000, text="task1000")]
+    assert storage.next_id(todos) == 1001

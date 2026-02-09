@@ -1,0 +1,29 @@
+{
+  "issue_number": 2593,
+  "candidate_id": "3",
+  "run_id": "21843134948",
+  "stage": "TRIAGE",
+  "triage": {
+    "summary": "Redundant conditional in next_id() - if/else produces same result",
+    "root_cause": "max(..., default=0) + 1 when todos is empty equals 1, making else branch redundant",
+    "fix_approach": "Simplify to single return: max((todo.id for todo in todos), default=0) + 1",
+    "risk_level": "LOW",
+    "affected_files": ["src/flywheel/storage.py:128"],
+    "verification_targets": [
+      "Empty todos list returns 1",
+      "Single todo returns max(id) + 1",
+      "Multiple todos with sequential IDs returns max + 1",
+      "Multiple todos with non-sequential IDs returns max + 1"
+    ]
+  },
+  "implementation": {
+    "test_added": "tests/test_minimal_framework.py:164-185 (5 new tests for next_id edge cases)",
+    "source_changes": "src/flywheel/storage.py:128 (simplified redundant conditional)",
+    "tests_run": "15/15 passed (pytest), 0/0 ruff violations"
+  },
+  "finalization": {
+    "branch_created": false,
+    "pr_created": false,
+    "pr_url": null
+  }
+}
