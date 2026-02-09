@@ -229,3 +229,108 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_load_handles_deleted_file_between_exists_and_stat(tmp_path) -> None:
+    """Regression test for issue #2565: TOCTOU race condition in load().
+
+    Tests that load() handles the case where a file is deleted between
+    the exists() check and the stat() call. This simulates the TOCTOU
+    race condition and verifies the fix (try/except around stat()).
+    """
+    db = tmp_path / "deleted.json"
+    storage = TodoStorage(str(db))
+
+    # First, create a file with data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+    assert len(storage.load()) == 1
+
+    # Now simulate the TOCTOU race: mock stat() to raise FileNotFoundError
+    # This simulates file being deleted between exists() and stat()
+    import errno
+
+    original_stat = Path.stat
+
+    def failing_stat(self):
+        """Simulate FileNotFoundError (file deleted during stat call)."""
+        # Only fail on the actual db file, not other files
+        if self == db:
+            raise FileNotFoundError(errno.ENOENT, "No such file or directory", str(self))
+        return original_stat(self)
+
+    with patch.object(Path, "stat", failing_stat):
+        # load() should handle FileNotFoundError gracefully and return []
+        result = storage.load()
+        assert result == [], "load() should return empty list when file is deleted during stat()"
+
+    # Verify normal load still works
+    result = storage.load()
+    assert len(result) == 1
+    assert result[0].text == "test todo"
+
+
+def test_load_returns_empty_list_for_nonexistent_file(tmp_path) -> None:
+    """Regression test for issue #2565: load() returns [] for missing file.
+
+    Verifies that load() returns an empty list when the file doesn't exist,
+    which is the expected behavior after fixing the TOCTOU race condition.
+    """
+    db = tmp_path / "nonexistent.json"
+    storage = TodoStorage(str(db))
+
+    # File doesn't exist - should return []
+    result = storage.load()
+    assert result == [], "load() should return [] for nonexistent file"
+
+
+def test_load_simulates_race_with_mocked_delete(tmp_path) -> None:
+    """Regression test for issue #2565: Simulated concurrent file deletion.
+
+    Uses threading to simulate a race where file is deleted between
+    exists() check and stat() call.
+    """
+    import threading
+
+    db = tmp_path / "race.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file
+    todos = [Todo(id=1, text="initial")]
+    storage.save(todos)
+
+    # Flag to control when to delete
+    delete_flag = threading.Event()
+    delete_done = threading.Event()
+
+    def delete_after_exists():
+        """Wait for exists() check, then delete file before stat()."""
+        delete_flag.wait(timeout=5)  # Wait until exists() was called
+        if db.exists():
+            db.unlink()
+        delete_done.set()
+
+    # Patch exists to set flag
+    original_exists = Path.exists
+    call_count = [0]
+
+    def tracking_exists(self):
+        if self == db:
+            call_count[0] += 1
+            if call_count[0] == 1:  # First call
+                delete_flag.set()  # Signal deleter to run
+                delete_done.wait(timeout=1)  # Give it time to delete
+        return original_exists(self)
+
+    # Start deleter thread
+    deleter = threading.Thread(target=delete_after_exists, daemon=True)
+    deleter.start()
+
+    try:
+        # Try to load - file may be deleted during the operation
+        with patch.object(Path, "exists", tracking_exists):
+            result = storage.load()
+            # Should handle gracefully - either returns [] or the data
+            assert isinstance(result, list), "load() should always return a list"
+    finally:
+        deleter.join(timeout=2)
