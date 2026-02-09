@@ -109,7 +109,19 @@ class TodoStorage:
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # IMPORTANT: fchmod must be called BEFORE fdopen transfers ownership of fd
+            try:
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            except OSError as e:
+                # Close fd before cleanup since fdopen hasn't taken ownership yet
+                os.close(fd)
+                # Clean up temp file
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+                # Re-raise with clearer context
+                raise OSError(
+                    f"Failed to set secure permissions (0o600) on temp file '{temp_path}': {e}"
+                ) from e
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
