@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import logging
+import os
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
@@ -70,6 +72,7 @@ class TodoApp:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
     parser.add_argument("--db", default=".todo.json", help="Path to JSON database")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -92,6 +95,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
+    # Configure debug logging if --debug flag or FLYWHEEL_DEBUG env var is set
+    if args.debug or os.environ.get("FLYWHEEL_DEBUG") == "1":
+        logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+
     app = TodoApp(db_path=args.db)
 
     try:
