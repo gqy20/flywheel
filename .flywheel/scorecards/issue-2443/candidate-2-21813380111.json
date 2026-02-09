@@ -4,7 +4,27 @@
   "run_id": "21813380111",
   "issue_title": "[Bug] fdopen context manager closes the file descriptor but os.unlink(temp_path) in ex",
   "branch": "claude/issue-2443-candidate-2-21813380111",
-  "stage": "IMPLEMENT",
+  "stage": "VERIFY_COMPLETE",
+  "verification_results": {
+    "pytest_specific": {
+      "command": "uv run pytest tests/test_issue_2443_fchmod_cleanup.py -v",
+      "result": "PASS - 3/3 tests passed",
+      "tests": [
+        "test_fchmod_failure_raises_oserror PASSED",
+        "test_fchmod_failure_cleans_up_temp_file PASSED",
+        "test_fchmod_called_before_fdopen PASSED"
+      ]
+    },
+    "pytest_related": {
+      "command": "uv run pytest tests/test_storage*.py tests/test_issue_2027_permissions.py tests/test_issue_2443_fchmod_cleanup.py -v",
+      "result": "PASS - 11/11 tests passed",
+      "coverage": "71% for storage.py"
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2443_fchmod_cleanup.py",
+      "result": "All checks passed!"
+    }
+  },
   "summary": {
     "problem_statement": "fdopen context manager closes the file descriptor but os.unlink(temp_path) in except handler may fail silently with suppress. The concern is that if fchmod fails after fdopen, fd ownership has already been transferred.",
     "root_cause": "The fchmod call was not wrapped in proper error handling to ensure cleanup on failure. While the order of fchmod before fdopen was correct, fchmod failures would leave the fd open and temp file uncleaned.",
@@ -58,7 +78,7 @@
     "tests_added": true,
     "tests_passing": true,
     "ruff_clean": true,
-    "stage": "PLAN_COMPLETE"
+    "stage": "VERIFY_COMPLETE"
   },
   "implementation_notes": [
     "The fix is minimal and focused on proper error handling",
