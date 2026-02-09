@@ -21,5 +21,6 @@
     "Existing code calling load() without arguments will work (default strict_permissions=False)",
     "World-writable files will now be rejected even in non-strict mode"
   ],
-  "commit": "0a5bb66"
+  "commit": "0a5bb66",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2527"
 }
