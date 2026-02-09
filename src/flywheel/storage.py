@@ -20,12 +20,13 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    2. No parent path component is a symlink (prevents TOCTOU symlink attacks)
+    3. Creates parent directories if needed
+    4. Provides clear error messages for permission issues
 
     Raises:
         ValueError: If any parent path component exists but is a file
-        OSError: If directory creation fails due to permissions
+        OSError: If directory creation fails due to permissions or symlink is detected
     """
     parent = file_path.parent
 
@@ -39,16 +40,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Security: Check if parent path is a symlink before attempting directory creation.
-    # This prevents symlink attacks where an attacker could redirect directory creation.
-    # We check this BEFORE mkdir() because mkdir follows symlinks.
-    if parent.is_symlink():
-        raise OSError(
-            f"Security error: '{parent}' is a symbolic link pointing to '{parent.resolve()}'. "
-            f"This may indicate a symlink attack. "
-            f"For security, symbolic links are not allowed in database parent paths. "
-            f"Specify a different location with --db=path/to/db.json"
-        )
+    # Security: Check ALL parent components for symlinks before directory creation.
+    # This prevents TOCTOU symlink attacks where an attacker could redirect directory creation.
+    # We must check this BEFORE mkdir() because mkdir follows symlinks.
+    for part in list(file_path.parents):  # Only check parents, not file_path itself
+        if part.is_symlink():
+            raise OSError(
+                f"Security error: '{part}' is a symbolic link pointing to '{part.resolve()}'. "
+                f"This may indicate a symlink attack. "
+                f"For security, symbolic links are not allowed in database parent paths. "
+                f"Specify a different location with --db=path/to/db.json"
+            )
 
     # Create parent directory if it doesn't exist
     if not parent.exists():
@@ -59,6 +61,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
             ) from e
+
+    # Security: Post-mkdir validation - verify parent is actually a directory, not a symlink.
+    # This prevents TOCTOU attacks where a symlink is created between exists() and mkdir().
+    if parent.is_symlink():
+        raise OSError(
+            f"Security error: '{parent}' is a symbolic link pointing to '{parent.resolve()}'. "
+            f"This may indicate a TOCTOU symlink attack. "
+            f"For security, symbolic links are not allowed in database parent paths. "
+            f"Specify a different location with --db=path/to/db.json"
+        )
 
 
 class TodoStorage:
