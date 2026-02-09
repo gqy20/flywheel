@@ -40,6 +40,18 @@ def test_storage_roundtrip(tmp_path) -> None:
     assert storage.next_id(loaded) == 3
 
 
+def test_next_id_empty_list() -> None:
+    """Bug #2594: next_id() should return 1 for an empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_single_todo() -> None:
+    """Bug #2594: next_id() should return 2 for a list with id=1."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=1, text="x")]) == 2
+
+
 def test_app_add_done_remove(tmp_path) -> None:
     app = TodoApp(str(tmp_path / "db.json"))
 
