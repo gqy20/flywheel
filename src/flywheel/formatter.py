@@ -45,7 +45,9 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        # Use width 5 to support IDs up to 99999 with consistent alignment
+        # (fixes issue #2505 where width 3 caused misalignment for IDs >= 1000)
+        return f"[{status}] {todo.id:>5} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
