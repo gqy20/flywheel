@@ -13,8 +13,8 @@
     "tests/test_issue_2597_file_backup_rotation.py::TestBackupContentValidity::test_backup_matches_previous_state PASSED",
     "tests/test_issue_2597_file_backup_rotation.py::TestBackupFailureHandling::test_backup_failure_doesnt_prevent_main_save PASSED",
     "tests/test_issue_2597_file_backup_rotation.py::TestNoBackupFlag::test_no_backup_when_disabled PASSED",
-    "All 116 tests passed including 6 existing storage atomicity tests",
-    "uv run ruff check passed with no errors"
+    "All 15 storage-related tests passed (including 6 existing storage atomicity tests)",
+    "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_2597_file_backup_rotation.py - passed with no errors"
   ],
   "risks": [
     "Backup files are created in the same directory as the main file, which could fail if the directory is read-only",
