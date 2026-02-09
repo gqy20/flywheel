@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
@@ -11,8 +12,24 @@ from pathlib import Path
 
 from .todo import Todo
 
+logger = logging.getLogger(__name__)
+
+# Add NullHandler to prevent warnings if logging is not configured
+logger.addHandler(logging.NullHandler())
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _setup_debug_logging() -> None:
+    """Configure logging level based on FLYWHEEL_DEBUG environment variable.
+
+    If FLYWHEEL_DEBUG is set to '1' or 'true', enables DEBUG level logging.
+    Otherwise uses WARNING level (only warnings and errors are shown).
+    """
+    debug_mode = os.environ.get("FLYWHEEL_DEBUG", "").lower() in ("1", "true", "yes")
+    level = logging.DEBUG if debug_mode else logging.WARNING
+    logger.setLevel(level)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -54,10 +71,12 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
+        _setup_debug_logging()
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            logger.debug(f"File not found, returning empty list: {self.path}")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,6 +84,9 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            logger.warning(
+                f"File too large: {self.path} ({size_mb:.1f}MB > {limit_mb:.0f}MB limit)"
+            )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,14 +95,21 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            logger.warning(
+                f"Invalid JSON in '{self.path}': {e.msg} at line {e.lineno}, column {e.colno}"
+            )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            logger.warning(f"Invalid storage format in '{self.path}': not a JSON list")
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug(f"Loaded {len(todos)} todos from {self.path} ({file_size} bytes)")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +120,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        logger.debug(f"Saving {len(todos)} todos to {self.path}")
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -117,7 +148,9 @@ class TodoStorage:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
+            logger.debug(f"Atomic rename: {temp_path} -> {self.path}")
             os.replace(temp_path, self.path)
+            logger.debug(f"Successfully saved {len(todos)} todos to {self.path}")
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
@@ -125,4 +158,6 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        next_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        logger.debug(f"Calculated next_id: {next_id} from {len(todos)} todos")
+        return next_id
