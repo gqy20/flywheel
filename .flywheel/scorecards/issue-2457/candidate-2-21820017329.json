@@ -1,45 +1,73 @@
 {
   "issue_number": 2457,
-  "candidate_id": "candidate-2-21820017329",
-  "title": "[Bug] Overly broad exception catching masks unexpected errors",
-  "tdd_plan": {
-    "test_files_created": [
-      "tests/test_issue_2457_keyboard_interrupt_propagation.py"
-    ],
-    "source_files_modified": [
-      "src/flywheel/cli.py"
-    ],
-    "tests_run": [
-      "uv run pytest tests/test_issue_2457_keyboard_interrupt_propagation.py -v",
-      "uv run pytest tests/test_issue_2015_cli_exception_handling.py -v",
-      "uv run pytest tests/ -v",
-      "uv run ruff check src/flywheel/cli.py tests/test_issue_2457_keyboard_interrupt_propagation.py"
-    ],
-    "all_tests_passed": true,
-    "all_lint_checks_passed": true
-  },
-  "changes_summary": {
-    "description": "Fixed overly broad exception catching in run_command() by replacing 'except Exception' with specific exception types (ValueError, OSError, json.JSONDecodeError). This allows KeyboardInterrupt and SystemExit to propagate properly.",
-    "files_changed": {
-      "src/flywheel/cli.py": "Added 'import json' and changed 'except Exception as exc:' to 'except (ValueError, OSError, json.JSONDecodeError) as exc:' on line 125"
+  "issue_title": "[Bug] Overly broad exception catching masks unexpected errors",
+  "candidate_number": 2,
+  "run_id": "21820017329",
+  "branch_name": "claude/issue-2457-candidate-2-21820017329",
+  "commit_hash": "68460d4",
+  "stages": {
+    "triage": {
+      "status": "complete",
+      "root_cause": "In src/flywheel/cli.py at line 124, 'except Exception as exc:' catches ALL exceptions including KeyboardInterrupt, SystemExit, and MemoryError",
+      "risk_points": [
+        "User cannot use Ctrl+C to terminate - KeyboardInterrupt is caught",
+        "Unexpected exceptions masked with generic error message",
+        "SystemExit being caught prevents proper program termination"
+      ],
+      "proposed_fix": "Change 'except Exception as exc:' to 'except (ValueError, OSError, json.JSONDecodeError) as exc:'"
     },
-    "risks": [
-      "None identified - the change is minimal and well-tested"
-    ],
-    "limitations": [
-      "None identified - the fix addresses the issue completely"
-    ]
+    "plan": {
+      "status": "complete",
+      "test_file": "tests/test_issue_2457_keyboard_interrupt_propagation.py",
+      "test_count": 5,
+      "source_file": "src/flywheel/cli.py"
+    },
+    "implement": {
+      "status": "complete",
+      "files_changed": [
+        "src/flywheel/cli.py",
+        "tests/test_issue_2457_keyboard_interrupt_propagation.py"
+      ],
+      "commit_message": "fix: replace overly broad exception catching with specific types for issue 2457"
+    },
+    "verify": {
+      "status": "complete",
+      "verification_commands": [
+        "uv run pytest tests/test_issue_2457_keyboard_interrupt_propagation.py -v",
+        "uv run ruff check src/flywheel/cli.py tests/test_issue_2457_keyboard_interrupt_propagation.py",
+        "uv run pytest tests/ -v"
+      ],
+      "results": {
+        "targeted_tests": {
+          "passed": 5,
+          "total": 5,
+          "details": [
+            "test_keyboard_interrupt_propagates - PASSED",
+            "test_system_exit_propagates - PASSED",
+            "test_value_error_still_caught - PASSED",
+            "test_os_error_still_caught - PASSED",
+            "test_json_decode_error_still_caught - PASSED"
+          ]
+        },
+        "full_suite": {
+          "passed": 117,
+          "total": 117
+        },
+        "ruff_checks": "All checks passed"
+      }
+    }
   },
-  "verification": {
-    "new_tests_added": 5,
-    "new_tests_passed": 5,
-    "regression_tests_passed": 5,
-    "total_tests_passed": 112
+  "acceptance_criteria": {
+    "keyboard_interrupt_propagates": true,
+    "system_exit_propagates": true,
+    "value_error_still_caught": true,
+    "os_error_still_caught": true,
+    "json_decode_error_still_caught": true,
+    "all_existing_tests_pass": true
   },
-  "acceptance_criteria_met": [
-    "Only catch expected exception types: ValueError, OSError, json.JSONDecodeError",
-    "KeyboardInterrupt is allowed to propagate (user can Ctrl+C)",
-    "SystemExit is not caught",
-    "All existing tests still pass"
-  ]
+  "risks": [
+    "None - all tests pass including 5 new regression tests"
+  ],
+  "limitations": [],
+  "verified_at": "2026-02-09T10:45:00Z"
 }
