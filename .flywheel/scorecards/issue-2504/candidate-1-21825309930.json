@@ -1,0 +1,33 @@
+{
+  "issue": 2504,
+  "candidate": 1,
+  "run_id": "21825309930",
+  "branch": "claude/issue-2504-candidate-1-21825309930",
+  "stage": "VERIFY",
+  "completed": true,
+  "tests": {
+    "regression_tests_added": 4,
+    "all_tests_passing": true,
+    "total_tests_run": 116,
+    "linter_checks_passed": true,
+    "verify_commands": [
+      "uv run pytest tests/test_issue_2504_list_shadowing.py -v",
+      "uv run ruff check src/flywheel/cli.py tests/test_issue_2504_list_shadowing.py",
+      "uv run pytest tests/test_minimal_framework.py tests/test_issue_2112_remove_iteration_pattern.py -v"
+    ],
+    "verify_results": {
+      "test_issue_2504": "4 passed in 0.06s",
+      "ruff_check": "All checks passed!",
+      "related_tests": "15 passed in 0.20s"
+    }
+  },
+  "changes": {
+    "files_modified": 3,
+    "files_added": 2,
+    "methods_renamed": 1,
+    "call_sites_updated": 9
+  },
+  "summary": "Renamed TodoApp.list() to list_todos() to avoid shadowing Python built-in list() function. Updated 9 call sites across source and test files. Added 4 regression tests.",
+  "risks": [],
+  "commit_hash": "55bd139"
+}
