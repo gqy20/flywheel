@@ -1,0 +1,21 @@
+{
+  "candidate_id": "candidate-1-21821886808",
+  "issue_number": 2468,
+  "issue_title": "[Feature] Add file backup before overwrites",
+  "run_id": "21821886808",
+  "status": "implemented",
+  "tests_passed": 9,
+  "tests_failed": 0,
+  "ruff_check_passed": true,
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2468_file_backup.py"
+  ],
+  "summary": "Add file backup before overwrites - creates timestamped backups (.todo.json.YYYYMMDD_HHMMSS.bak) before each save operation to prevent data loss from accidental deletion/corruption.",
+  "implementation": {
+    "backup_enabled_by_default": true,
+    "backup_format": ".todo.json.YYYYMMDD_HHMMSS.bak",
+    "backup_method": "_backup()",
+    "failure_handling": "silent - save continues even if backup fails"
+  }
+}

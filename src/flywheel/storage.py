@@ -5,8 +5,10 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +55,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +85,24 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _backup(self) -> None:
+        """Create a timestamped backup of the existing file.
+
+        Creates a backup with format: .todo.json.YYYYMMDD_HHMMSS.bak
+        Backup creation failure does not raise an exception - it's silently
+        ignored to ensure the save operation can proceed.
+        """
+        if not self.path.exists():
+            return
+
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = self.path.parent / f".{self.path.name}.{timestamp}.bak"
+            shutil.copy2(self.path, backup_path)
+        except OSError:
+            # Silently ignore backup failures - save should still succeed
+            pass
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -91,6 +112,10 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Create backup if enabled and file exists
+        if self.backup:
+            self._backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
