@@ -1,1 +1,1 @@
-{"status": "in_progress", "candidate": 3, "issue": 2494}
+{"status": "completed", "candidate": 3, "issue": 2494, "branch": "claude/issue-2494-candidate-3-21825309930", "commit": "c9233ff", "summary": "Add backup creation before overwriting file (#2494)", "tests_run": ["test_backup_created_before_overwrite", "test_backup_rotation_keeps_max_backups", "test_restore_from_backup"], "test_results": "3 new tests passed, 115 total tests passed", "ruff_check": "passed"}
