@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .formatter import TodoFormatter, _sanitize_text
+from .formatter import TodoFormatter
 from .storage import TodoStorage
 from .todo import Todo
 
@@ -97,7 +97,7 @@ def run_command(args: argparse.Namespace) -> int:
     try:
         if args.command == "add":
             todo = app.add(args.text)
-            print(f"Added #{todo.id}: {_sanitize_text(todo.text)}")
+            print(f"Added #{todo.id}: {TodoFormatter.sanitize_text(todo.text)}")
             return 0
 
         if args.command == "list":
@@ -107,12 +107,12 @@ def run_command(args: argparse.Namespace) -> int:
 
         if args.command == "done":
             todo = app.mark_done(args.id)
-            print(f"Done #{todo.id}: {_sanitize_text(todo.text)}")
+            print(f"Done #{todo.id}: {TodoFormatter.sanitize_text(todo.text)}")
             return 0
 
         if args.command == "undone":
             todo = app.mark_undone(args.id)
-            print(f"Undone #{todo.id}: {_sanitize_text(todo.text)}")
+            print(f"Undone #{todo.id}: {TodoFormatter.sanitize_text(todo.text)}")
             return 0
 
         if args.command == "rm":

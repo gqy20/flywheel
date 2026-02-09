@@ -1,0 +1,49 @@
+{
+  "issue_id": 2479,
+  "candidate_id": "candidate-2-21821886808",
+  "created_at": "2025-02-09T12:00:00Z",
+  "stage": "FINALIZED",
+  "triage_summary": {
+    "issue_title": "[Security] _sanitize_text private function is exported and used externally by CLI, breaking",
+    "issue_type": "security/encapsulation",
+    "root_cause": "CLI module directly imports _sanitize_text (a private function) from formatter module, breaking encapsulation conventions",
+    "affected_files": [
+      "src/flywheel/formatter.py",
+      "src/flywheel/cli.py"
+    ],
+    "risk_assessment": {
+      "security": "Low - sanitization works correctly but encapsulation is violated",
+      "maintainability": "Medium - tight coupling makes refactoring risky",
+      "api_design": "Unclear public vs private API boundaries"
+    }
+  },
+  "fix_approach": {
+    "strategy": "Add public API method to TodoFormatter class",
+    "description": "Added TodoFormatter.sanitize_text() as a public static method that wraps the private _sanitize_text() function. Updated cli.py to use the public API instead of importing the private function directly.",
+    "files_modified": [
+      "src/flywheel/formatter.py",
+      "src/flywheel/cli.py"
+    ]
+  },
+  "tests": {
+    "new_test_file": "tests/test_issue_2479_private_function_encapsulation.py",
+    "new_tests_added": 2,
+    "existing_tests_verified": [
+      "tests/test_issue_2083_cli_success_message_sanitization.py"
+    ],
+    "total_tests_run": 114,
+    "tests_passed": 114,
+    "tests_failed": 0
+  },
+  "code_quality": {
+    "ruff_check": "passed",
+    "coverage_achieved": "92%"
+  },
+  "verification": {
+    "cli_imports_only_public_symbols": true,
+    "all_todo_text_sanitized_correctly": true,
+    "existing_behavior_preserved": true
+  },
+  "risks_limitations": [],
+  "ready_for_merge": true
+}

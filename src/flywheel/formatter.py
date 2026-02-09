@@ -42,6 +42,21 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
+    def sanitize_text(text: str) -> str:
+        """Escape control characters to prevent terminal output manipulation.
+
+        Public API method for text sanitization. Use this method to sanitize
+        any user-provided text before outputting to a terminal.
+
+        Args:
+            text: The user-provided text to sanitize
+
+        Returns:
+            Text with control characters escaped to prevent terminal injection
+        """
+        return _sanitize_text(text)
+
+    @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
