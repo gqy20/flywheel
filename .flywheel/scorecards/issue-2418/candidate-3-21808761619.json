@@ -1,0 +1,42 @@
+{
+  "issue_number": 2418,
+  "candidate_number": 3,
+  "run_id": "21808761619",
+  "branch": "claude/issue-2418-candidate-3-21808761619",
+  "commit": "a0f9efe",
+  "status": "completed",
+  "summary": "Add text width/terminal width support for wrapping long todo text using Python's textwrap module",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "src/flywheel/formatter.py",
+    "tests/test_issue_2418_text_width.py"
+  ],
+  "tests_added": 10,
+  "tests_passing": true,
+  "ruff_check_passing": true,
+  "implementation": {
+    "format_todo_width_param": true,
+    "format_list_width_param": true,
+    "cli_width_flag": true,
+    "default_width_80": true,
+    "text_wrapping": true,
+    "indentation_preserved": true
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2418_text_width.py -v",
+    "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+    "uv run ruff check src/flywheel/formatter.py src/flywheel/cli.py"
+  ],
+  "risks_limitations": [
+    "Edge case: Very narrow widths (< 10 chars + prefix) fall back to no wrapping",
+    "textwrap.break_long_words=True may break words in narrow terminals",
+    "CLI width flag requires user to know their terminal width"
+  ],
+  "acceptance_criteria_met": [
+    "format_todo() accepts optional width: int parameter",
+    "Text longer than width-prefix_len wraps to multiple lines with proper indentation",
+    "CLI --list gains --width/-w flag for custom terminal width",
+    "Default width of 80 maintains backward compatibility"
+  ],
+  "created_at": "2026-02-09T00:00:00Z"
+}
