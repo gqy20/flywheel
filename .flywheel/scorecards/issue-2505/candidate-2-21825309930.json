@@ -1,32 +1,23 @@
 {
-  "issue_number": 2505,
-  "candidate_number": 2,
+  "issue": 2505,
+  "candidate": 2,
   "run_id": "21825309930",
-  "stage": "complete",
-  "files_touched": [
-    "tests/test_issue_2505_id_width_truncation.py",
-    "src/flywheel/formatter.py",
-    "tests/test_issue_1924_format_todo_sanitization.py",
-    "tests/test_issue_2028_del_char_sanitization.py",
-    "tests/test_issue_2057_c1_control_sanitization.py",
-    "tests/test_issue_2097_backslash_escape_collision.py"
+  "branch": "claude/issue-2505-candidate-2-21825309930",
+  "pr_number": 2515,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2515",
+  "generated_at": "2026-02-09T13:05:36.989444+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation": {
-    "approach": "Increased fixed width from 3 to 5 characters",
-    "change": "Changed format string from `{todo.id:>3}` to `{todo.id:>5}` in formatter.py",
-    "rationale": "Simpler than dynamic width, supports IDs up to 99999, aligns with common CLI practices"
-  },
-  "tests_added": 6,
-  "tests_modified": 5,
-  "test_results": {
-    "total_tests": 38,
-    "passed": 38,
-    "failed": 0
-  },
-  "verification_commands_run": [
-    "uv run pytest tests/test_issue_2505_id_width_truncation.py tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
-    "uv run ruff check src/flywheel/formatter.py tests/test_issue_2505_id_width_truncation.py"
-  ],
-  "created_at": "2026-02-09T12:55:00Z",
-  "completed_at": "2026-02-09T13:00:00Z"
+  "stage_response_sizes": {
+    "triage": 3928,
+    "plan": 4000,
+    "implement": 2548,
+    "verify": 1702,
+    "finalize": 254
+  }
 }
