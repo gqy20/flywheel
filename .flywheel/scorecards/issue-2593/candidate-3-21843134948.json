@@ -22,8 +22,8 @@
     "tests_run": "15/15 passed (pytest), 0/0 ruff violations"
   },
   "finalization": {
-    "branch_created": false,
-    "pr_created": false,
-    "pr_url": null
+    "branch_created": true,
+    "pr_created": true,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2598"
   }
 }
