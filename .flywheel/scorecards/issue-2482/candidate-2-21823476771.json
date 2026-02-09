@@ -6,8 +6,9 @@
   "title": "[Feature] Add priority level field to Todo model",
   "branch": "claude/issue-2482-candidate-2-21823476771",
   "commit": "0556a584fc85cd5c2f59bfb02bc77630c8332b51",
-  "status": "verified",
-  "stage": "VERIFY",
+  "status": "finalized",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2502",
   "summary": "Fix formatter priority indicator to only show for HIGH and URGENT priorities. The Todo model already had the priority field implemented, but the formatter was incorrectly showing [!] for MEDIUM priority (default), which broke existing tests.",
   "files_modified": [
     "src/flywheel/todo.py",
