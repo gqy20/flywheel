@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -56,6 +57,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def _backup_path(self) -> Path:
+        """Get the backup file path (.bak extension)."""
+        return self.path.parent / f"{self.path.name}.bak"
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -82,17 +88,25 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Args:
+            todos: List of todos to save.
+            backup: If True, creates a .bak backup of existing file before saving.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if requested and file exists
+        if backup and self.path.exists():
+            self._backup_file()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +137,29 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _backup_file(self) -> None:
+        """Create a backup of the current file.
+
+        Copies the existing file to a .bak backup file.
+        Raises OSError if the backup operation fails.
+        """
+        shutil.copy(self.path, self._backup_path)
+
+    def restore(self) -> None:
+        """Restore data from backup file.
+
+        Copies the .bak backup file to the main file location,
+        then removes the backup file.
+
+        Raises:
+            OSError: If no backup file exists.
+        """
+        if not self._backup_path.exists():
+            raise OSError(f"No backup file found at {self._backup_path}")
+
+        shutil.copy(self._backup_path, self.path)
+        self._backup_path.unlink()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
