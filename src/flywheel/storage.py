@@ -5,8 +5,10 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +55,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, backup: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,6 +85,31 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    def _backup(self) -> None:
+        """Create a backup of the existing file before overwriting.
+
+        Creates a backup file with timestamp suffix in format:
+        .todo.json.YYYYMMDD_HHMMSS_N.bak
+
+        The counter N is incremented if multiple backups have the same timestamp.
+
+        Backup failures are silently ignored to allow save to succeed.
+        """
+        if not self.path.exists():
+            return
+
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        backup_path = self.path.parent / f".{self.path.name}.{timestamp}_0.bak"
+
+        # Increment counter if backup file already exists (rapid saves)
+        counter = 0
+        while backup_path.exists():
+            counter += 1
+            backup_path = self.path.parent / f".{self.path.name}.{timestamp}_{counter}.bak"
+
+        with contextlib.suppress(OSError):
+            shutil.copy2(self.path, backup_path)
+
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
 
@@ -93,6 +121,10 @@ class TodoStorage:
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before overwriting existing file
+        if self.backup:
+            self._backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
