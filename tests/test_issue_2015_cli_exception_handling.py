@@ -114,3 +114,70 @@ def test_cli_run_command_handles_corrupt_json_not_value_error(tmp_path, capsys) 
     captured = capsys.readouterr()
     # Some error message should be present
     assert captured.err or captured.out
+
+
+def test_cli_run_attribute_error_propagates(tmp_path) -> None:
+    """Programming errors like AttributeError should propagate, not be caught.
+
+    This test ensures that bugs in the code (like accessing None.nonexistent_attr)
+    cause immediate crashes with full tracebacks rather than being silently
+    handled as return code 1.
+    """
+    import pytest
+
+    db = tmp_path / "db.json"
+
+    # Monkey-patch TodoApp.add to trigger AttributeError
+    from flywheel.cli import TodoApp
+
+    original_add = TodoApp.add
+
+    def broken_add(self, text: str):
+        # Trigger AttributeError by accessing attribute of None
+        return None.some_nonexistent_attribute  # type: ignore
+
+    TodoApp.add = broken_add  # type: ignore
+
+    try:
+        parser = build_parser()
+        args = parser.parse_args(["--db", str(db), "add", "test"])
+
+        # Should raise AttributeError, NOT return 1
+        with pytest.raises(AttributeError):
+            run_command(args)
+    finally:
+        # Restore original method
+        TodoApp.add = original_add
+
+
+def test_cli_run_type_error_propagates(tmp_path) -> None:
+    """Programming errors like TypeError should propagate, not be caught.
+
+    This test ensures that type-related bugs cause immediate crashes rather
+    than being silently handled as return code 1.
+    """
+    import pytest
+
+    db = tmp_path / "db.json"
+
+    # Monkey-patch TodoApp.list to trigger TypeError
+    from flywheel.cli import TodoApp
+
+    original_list = TodoApp.list
+
+    def broken_list(self, show_all: bool = True):
+        # Trigger TypeError by calling len on None (not a valid type for len)
+        return len(None)  # type: ignore
+
+    TodoApp.list = broken_list  # type: ignore
+
+    try:
+        parser = build_parser()
+        args = parser.parse_args(["--db", str(db), "list"])
+
+        # Should raise TypeError, NOT return 1
+        with pytest.raises(TypeError):
+            run_command(args)
+    finally:
+        # Restore original method
+        TodoApp.list = original_list
