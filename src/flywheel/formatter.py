@@ -5,12 +5,30 @@ from __future__ import annotations
 from .todo import Todo
 
 
-def _sanitize_text(text: str) -> str:
+def sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
+
+    Public API for sanitizing user-provided text before output.
 
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Args:
+        text: The user-provided text to sanitize.
+
+    Returns:
+        The sanitized text with control characters escaped.
+    """
+    return _sanitize_text(text)
+
+
+def _sanitize_text(text: str) -> str:
+    """Internal implementation of text sanitization.
+
+    This private function contains the actual sanitization logic.
+    It is kept for backward compatibility but new code should use
+    the public sanitize_text() function instead.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -31,7 +49,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
