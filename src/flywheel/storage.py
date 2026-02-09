@@ -106,11 +106,19 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        # Set restrictive permissions (owner read/write only)
+        # This protects against other users reading temp file before rename
+        # IMPORTANT: This must be done BEFORE fdopen, which transfers fd ownership
         try:
-            # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+        except OSError:
+            # If fchmod fails, close fd and clean up temp file before raising
+            os.close(fd)
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
 
+        try:
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
@@ -120,6 +128,8 @@ class TodoStorage:
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
+            # Note: if fdopen succeeded, fd is already closed by context manager exit
+            # os.unlink operates on the path, not the fd, so this is safe
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise

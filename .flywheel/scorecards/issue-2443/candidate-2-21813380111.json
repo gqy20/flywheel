@@ -1,0 +1,69 @@
+{
+  "issue_number": 2443,
+  "candidate_number": 2,
+  "run_id": "21813380111",
+  "issue_title": "[Bug] fdopen context manager closes the file descriptor but os.unlink(temp_path) in ex",
+  "branch": "claude/issue-2443-candidate-2-21813380111",
+  "stage": "IMPLEMENT",
+  "summary": {
+    "problem_statement": "fdopen context manager closes the file descriptor but os.unlink(temp_path) in except handler may fail silently with suppress. The concern is that if fchmod fails after fdopen, fd ownership has already been transferred.",
+    "root_cause": "The fchmod call was not wrapped in proper error handling to ensure cleanup on failure. While the order of fchmod before fdopen was correct, fchmod failures would leave the fd open and temp file uncleaned.",
+    "solution_approach": "Wrap os.fchmod() in a try-except block that properly handles OSError by closing the fd and cleaning up the temp file before re-raising. Also add clarifying comments about fd ownership transfer."
+  },
+  "files_to_modify": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2443_fchmod_cleanup.py"
+  ],
+  "test_plan": [
+    {
+      "phase": "RED",
+      "description": "Add regression test that verifies fchmod failure properly raises OSError",
+      "test_file": "tests/test_issue_2443_fchmod_cleanup.py",
+      "test_function": "test_fchmod_failure_raises_oserror"
+    },
+    {
+      "phase": "RED",
+      "description": "Add regression test that verifies temp file cleanup on fchmod failure",
+      "test_file": "tests/test_issue_2443_fchmod_cleanup.py",
+      "test_function": "test_fchmod_failure_cleans_up_temp_file"
+    },
+    {
+      "phase": "GREEN",
+      "description": "Implement fchmod error handling with proper cleanup",
+      "source_file": "src/flywheel/storage.py",
+      "changes": [
+        "Wrap os.fchmod() in try-except block",
+        "On OSError: close fd, unlink temp_path, re-raise",
+        "Add clarifying comments about fd ownership"
+      ]
+    },
+    {
+      "phase": "VERIFY",
+      "description": "Run all storage-related tests",
+      "command": "uv run pytest tests/test_storage*.py tests/test_issue_2027_permissions.py tests/test_issue_2443_fchmod_cleanup.py -v"
+    },
+    {
+      "phase": "VERIFY",
+      "description": "Run ruff linter on modified files",
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2443_fchmod_cleanup.py"
+    }
+  ],
+  "verification_commands": {
+    "pytest_specific": "uv run pytest tests/test_issue_2443_fchmod_cleanup.py -v",
+    "pytest_related": "uv run pytest tests/test_storage*.py tests/test_issue_2027_permissions.py tests/test_issue_2443_fchmod_cleanup.py -v",
+    "ruff": "uv run ruff check src/flywheel/storage.py tests/test_issue_2443_fchmod_cleanup.py"
+  },
+  "current_status": {
+    "code_modified": true,
+    "tests_added": true,
+    "tests_passing": true,
+    "ruff_clean": true,
+    "stage": "PLAN_COMPLETE"
+  },
+  "implementation_notes": [
+    "The fix is minimal and focused on proper error handling",
+    "fchmod was already called before fdopen (correct order)",
+    "New error handling prevents resource leaks on fchmod failure",
+    "Temp file cleanup happens in all error paths"
+  ]
+}
