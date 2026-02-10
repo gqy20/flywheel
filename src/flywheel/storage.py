@@ -20,19 +20,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    2. No parent path component is a symlink (prevents symlink attacks)
+    3. Creates parent directories if needed
+    4. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file or symlink
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
-    # This handles cases like: /path/to/file.json/subdir/db.json
-    # where 'file.json' exists as a file but we need it to be a directory
+    # and symlink attacks. This handles cases like:
+    # - /path/to/file.json/subdir/db.json where 'file.json' is a file
+    # - /path/to/symlink/db.json where 'symlink' is a symlink (security risk)
     for part in list(file_path.parents):  # Only check parents, not file_path itself
+        if part.is_symlink():
+            raise ValueError(
+                f"Security error: '{part}' is a symbolic link. "
+                f"Refusing to follow symlink to prevent directory confusion attacks. "
+                f"Cannot use '{file_path}' as database path."
+            )
         if part.exists() and not part.is_dir():
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
