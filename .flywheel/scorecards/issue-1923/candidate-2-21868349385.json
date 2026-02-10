@@ -1,49 +1,23 @@
 {
-  "candidate_id": "candidate-2-21868349385",
-  "issue_number": 1923,
+  "issue": 1923,
+  "candidate": 2,
+  "run_id": "21868349385",
   "branch": "claude/issue-1923-candidate-2-21868349385",
-  "stage": "FINALIZE",
-  "verification": {
-    "pytest_summary": {
-      "command": "uv run pytest tests/test_issue_1923_json_schema_validation.py -v",
-      "status": "PASS",
-      "tests_run": 10,
-      "tests_passed": 10,
-      "tests_failed": 0,
-      "duration_seconds": 0.07
-    },
-    "storage_tests_summary": {
-      "command": "uv run pytest tests/ -k 'storage' -v",
-      "status": "PASS",
-      "tests_run": 25,
-      "tests_passed": 25,
-      "tests_failed": 0
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_1923_json_schema_validation.py",
-      "status": "PASS"
-    }
-  },
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_1923_json_schema_validation.py"
-    ],
-    "lines_added": 9,
-    "lines_deleted": 0
-  },
-  "fix_summary": {
-    "description": "Add schema validation in TodoStorage.load() to check each list item is a dict before passing to Todo.from_dict(). This provides defense-in-depth security by catching malformed data with clear error messages at the storage layer.",
-    "acceptance_criteria_met": [
-      "Malformed JSON returns clear error message instead of unhandled exception",
-      "Invalid field types (e.g., id as string) are caught at storage level",
-      "Missing required fields produce actionable error messages"
-    ]
-  },
-  "risks": [
-    "None identified - all tests pass, ruff checks pass"
+  "pr_number": 2676,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2676",
+  "generated_at": "2026-02-10T15:19:57.806083+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "timestamp": "2026-02-10T15:12:00Z"
+  "stage_response_sizes": {
+    "triage": 2944,
+    "plan": 4000,
+    "implement": 3981,
+    "verify": 2027,
+    "finalize": 695
+  }
 }
