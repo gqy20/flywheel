@@ -1,7 +1,7 @@
 {
   "issue_number": 2400,
   "candidate_id": "3-21868349385",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "title": "Escape Unicode bidirectional control characters to prevent trojan source attacks",
   "files_to_touch": [
     "src/flywheel/formatter.py",
@@ -25,6 +25,14 @@
       "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
       "uv run pytest tests/test_issue_2057_c1_control_sanitization.py -v",
       "uv run ruff check src/flywheel/formatter.py"
-    ]
+    ],
+    "verification_results": {
+      "test_issue_2400": "15 passed in 0.06s",
+      "test_issue_1924": "10 passed in 0.05s",
+      "test_issue_2057": "6 passed in 0.05s",
+      "ruff_check": "All checks passed!",
+      "total_tests": 31,
+      "status": "GREEN"
+    }
   }
 }
