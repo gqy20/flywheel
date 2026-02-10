@@ -15,6 +15,25 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _cleanup_stale_temp_files(file_path: Path) -> None:
+    """Clean up stale temp files from previous crashed writes.
+
+    This removes any .tmp files matching the target file pattern that may
+    have been left behind by processes that crashed after creating a temp
+    file but before completing the atomic rename.
+
+    Args:
+        file_path: The target file path for which to clean up temp files.
+    """
+    # Pattern: .{filename}.*.tmp (matches temp files created by our atomic save)
+    temp_pattern = f".{file_path.name}.*.tmp"
+    for stale_temp in file_path.parent.glob(temp_pattern):
+        # Only remove files (not directories, in case of weird symlinks)
+        if stale_temp.is_file():
+            with contextlib.suppress(OSError):
+                stale_temp.unlink()
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -93,6 +112,10 @@ class TodoStorage:
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Clean up any stale temp files from previous crashed writes
+        # This prevents clutter and potential issues with orphaned temp files
+        _cleanup_stale_temp_files(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)

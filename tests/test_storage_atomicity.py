@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -229,3 +230,141 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_with_stale_temp_file_from_previous_crash(tmp_path) -> None:
+    """Regression test for issue #1986: Cleanup stale temp files from previous crashes.
+
+    Before fix: If a temp file from a previous crash exists, it may interfere
+    with subsequent writes or clutter the directory.
+    After fix: Stale temp files matching our pattern are cleaned up before write.
+    """
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a stale temp file as if from a previous crash
+    # This simulates a temp file that was created but never renamed
+    original_mkstemp = tempfile.mkstemp
+    stale_temp_paths = []
+
+    def create_stale_temp(*args, **kwargs):
+        """Create temp file and track it, but don't complete the save."""
+        fd, path = original_mkstemp(*args, **kwargs)
+        stale_temp_paths.append(Path(path))
+        # Write some content to the temp file
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write('{"stale": "data"}')
+        # Return a new fd/path for the actual save
+        return original_mkstemp(*args, **kwargs)
+
+    with patch("tempfile.mkstemp", side_effect=create_stale_temp):
+        # First save that will create and abandon a temp file
+        storage.save([Todo(id=1, text="first")])
+
+    # Verify stale temp file exists
+    stale_temps = list(db.parent.glob(f".{db.name}.*.tmp"))
+    assert len(stale_temps) > 0, "Should have stale temp files for testing"
+
+    # Now do another save - this should clean up the stale temp files
+    storage.save([Todo(id=2, text="second")])
+
+    # After successful save, stale temp files should be cleaned up
+    remaining_temps = list(db.parent.glob(f".{db.name}.*.tmp"))
+
+    # The temp files from previous crashed writes should be removed
+    # (we may still have a temp file from the current write in progress,
+    # but after save completes it should be renamed or cleaned up)
+    assert len(remaining_temps) == 0, (
+        f"Stale temp files should be cleaned up after successful save. "
+        f"Found: {remaining_temps}"
+    )
+
+    # Verify the data was written correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "second"
+
+
+def test_save_with_multiple_stale_temp_files(tmp_path) -> None:
+    """Regression test for issue #1986: Multiple stale temp files from crashed processes.
+
+    Tests that if multiple processes crashed leaving various .tmp files,
+    a new save cleans them all up.
+    """
+    db = tmp_path / "todo.json"
+
+    # Create multiple stale temp files as if from multiple crashed processes
+    stale_files = []
+    for i in range(3):
+        stale = db.parent / f".{db.name}.{i}.tmp"
+        stale.write_text(f'{{"stale_{i}": "data"}}', encoding="utf-8")
+        stale_files.append(stale)
+
+    # Verify all stale files exist
+    for f in stale_files:
+        assert f.exists(), f"Stale temp file {f} should exist"
+
+    # Now do a save - this should clean up all stale temp files
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="clean save")])
+
+    # All stale temp files should be cleaned up
+    remaining_temps = list(db.parent.glob(f".{db.name}.*.tmp"))
+    assert len(remaining_temps) == 0, (
+        f"All stale temp files should be cleaned up. Found: {remaining_temps}"
+    )
+
+    # Verify the data was written correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "clean save"
+
+
+def test_temp_file_cleanup_on_save_failure(tmp_path) -> None:
+    """Regression test for issue #1986: Temp file cleanup when os.replace fails.
+
+    Before fix: If os.replace fails, temp file might not be cleaned up.
+    After fix: Temp file is always cleaned up via try/except.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    storage.save([Todo(id=1, text="initial")])
+
+    # Track temp files created during save
+    temp_files_created = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    # Make os.replace fail to test cleanup
+    def failing_replace(src, dst):
+        raise OSError("Simulated replace failure")
+
+    with (
+        patch("tempfile.mkstemp", side_effect=tracking_mkstemp),
+        patch("flywheel.storage.os.replace", side_effect=failing_replace),
+        pytest.raises(OSError, match="Simulated replace failure"),
+    ):
+        storage.save([Todo(id=2, text="should not save")])
+
+    # Temp file created by the failed save should be cleaned up
+    # Give a small delay for cleanup to complete
+    import time
+    time.sleep(0.1)
+
+    remaining_temps = [p for p in temp_files_created if p.exists()]
+    assert len(remaining_temps) == 0, (
+        f"Temp file should be cleaned up after failed save. Found: {remaining_temps}"
+    )
+
+    # Original data should be intact
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "initial"
