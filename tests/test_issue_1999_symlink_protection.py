@@ -26,7 +26,7 @@ def test_save_fails_when_symlink_exists_at_temp_path(tmp_path) -> None:
     After fix: mkstemp fails with OSError because it uses O_EXCL
     """
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Create a target file that attacker wants us to write to
     attack_target = tmp_path / "sensitive_data.txt"
@@ -73,7 +73,7 @@ def test_temp_file_has_restrictive_permissions(tmp_path) -> None:
     import tempfile as tempfile_module
 
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Track permissions of created temp files
     permissions_seen = []
@@ -117,7 +117,7 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
     After fix: Temp file name should vary between saves
     """
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Track created temp file names
     temp_file_names = []
@@ -152,7 +152,7 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
 def test_save_succeeds_when_no_symlink_exists(tmp_path) -> None:
     """Issue #1999: Normal save should still work correctly."""
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     todos = [
         Todo(id=1, text="first todo"),
@@ -173,7 +173,7 @@ def test_save_succeeds_when_no_symlink_exists(tmp_path) -> None:
 def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
     """Issue #1999: Verify atomic rename behavior is preserved after the fix."""
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Create initial data
     original = [Todo(id=1, text="original")]
@@ -195,7 +195,7 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
     """Issue #1999: Temp file should be cleaned up if save fails."""
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Track created temp files
     temp_files = []

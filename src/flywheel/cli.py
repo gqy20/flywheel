@@ -92,9 +92,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
-    app = TodoApp(db_path=args.db)
-
     try:
+        app = TodoApp(db_path=args.db)
+
         if args.command == "add":
             todo = app.add(args.text)
             print(f"Added #{todo.id}: {_sanitize_text(todo.text)}")

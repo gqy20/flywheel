@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -27,8 +28,8 @@ def test_todo_lifecycle_updates_state() -> None:
 
 
 def test_storage_roundtrip(tmp_path) -> None:
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db = "test-roundtrip-todo.json"
+    storage = TodoStorage(db)
 
     todos = [Todo(id=1, text="x"), Todo(id=2, text="y", done=True)]
     storage.save(todos)
@@ -39,9 +40,13 @@ def test_storage_roundtrip(tmp_path) -> None:
     assert loaded[1].done is True
     assert storage.next_id(loaded) == 3
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_app_add_done_remove(tmp_path) -> None:
-    app = TodoApp(str(tmp_path / "db.json"))
+    db = "test-add-done-db.json"
+    app = TodoApp(db)
 
     added = app.add("demo")
     assert added.id == 1
@@ -53,9 +58,12 @@ def test_app_add_done_remove(tmp_path) -> None:
     app.remove(1)
     assert app.list() == []
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_cli_run_command_flow(tmp_path, capsys) -> None:
-    db = str(tmp_path / "cli.json")
+    db = "test-cli-flow.json"
     parser = build_parser()
 
     args = parser.parse_args(["--db", db, "add", "task"])
@@ -66,9 +74,12 @@ def test_cli_run_command_flow(tmp_path, capsys) -> None:
     out = capsys.readouterr().out
     assert "task" in out
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
-    db = str(tmp_path / "cli.json")
+    db = "test-missing-todo.json"
     parser = build_parser()
 
     args = parser.parse_args(["--db", db, "done", "99"])
@@ -76,11 +87,14 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     captured = capsys.readouterr()
     assert "not found" in captured.out or "not found" in captured.err
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_storage_load_rejects_oversized_json(tmp_path) -> None:
     """Security: JSON files larger than 10MB should be rejected to prevent DoS."""
-    db = tmp_path / "large.json"
-    storage = TodoStorage(str(db))
+    db = "test-large-oversized.json"
+    storage = TodoStorage(db)
 
     # Create a JSON file larger than 10MB (~11MB of data)
     # Using a simple repeated pattern to ensure sufficient size
@@ -88,10 +102,10 @@ def test_storage_load_rejects_oversized_json(tmp_path) -> None:
         {"id": i, "text": "x" * 100, "description": "y" * 100, "metadata": "z" * 50}
         for i in range(65000)
     ]
-    db.write_text(json.dumps(large_payload), encoding="utf-8")
+    Path(db).write_text(json.dumps(large_payload), encoding="utf-8")
 
     # Verify the file is actually larger than 10MB
-    assert db.stat().st_size > 10 * 1024 * 1024
+    assert Path(db).stat().st_size > 10 * 1024 * 1024
 
     # Should raise ValueError for oversized file
     try:
@@ -100,11 +114,14 @@ def test_storage_load_rejects_oversized_json(tmp_path) -> None:
     except ValueError as e:
         assert "too large" in str(e).lower() or "size" in str(e).lower()
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     """Verify normal-sized JSON files are still accepted."""
-    db = tmp_path / "normal.json"
-    storage = TodoStorage(str(db))
+    db = "test-normal-sized.json"
+    storage = TodoStorage(db)
 
     # Create a normal small JSON file
     todos = [Todo(id=1, text="normal todo")]
@@ -114,6 +131,9 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     loaded = storage.load()
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
+
+    # Clean up
+    Path(db).unlink(missing_ok=True)
 
 
 def test_todo_rename_rejects_empty_string() -> None:

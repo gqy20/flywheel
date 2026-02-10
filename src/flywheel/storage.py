@@ -15,6 +15,59 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_safe_path(path: str | Path, base_dir: Path | None = None) -> Path:
+    """Validate that path is safe and doesn't escape the base directory.
+
+    Security: Prevents path traversal attacks by ensuring:
+    1. Path doesn't contain '..' components that escape the base directory
+    2. Absolute paths are within the base directory tree
+    3. Resolved path is relative to base_dir (defaults to current working directory)
+
+    Args:
+        path: User-provided path to validate
+        base_dir: Base directory that paths must be contained within.
+                  Defaults to current working directory.
+
+    Returns:
+        The validated Path object
+
+    Raises:
+        ValueError: If path escapes base_dir or contains dangerous components
+    """
+    if base_dir is None:
+        base_dir = Path.cwd()
+
+    path_obj = Path(path)
+
+    # Check for explicit '..' components in the path
+    # This catches obvious traversal attempts like '../etc/passwd'
+    if '..' in path_obj.parts:
+        raise ValueError(
+            f"Invalid path '{path}': Path contains '..' component. "
+            "For security, paths cannot escape the current working directory."
+        )
+
+    # Resolve to absolute path to catch any hidden traversal
+    try:
+        resolved_path = path_obj.resolve(strict=False)
+    except OSError as e:
+        raise ValueError(f"Invalid path '{path}': {e}") from e
+
+    # Resolve base directory to absolute for comparison
+    resolved_base = base_dir.resolve(strict=False)
+
+    # Verify resolved path is within base directory
+    try:
+        resolved_path.relative_to(resolved_base)
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid path '{path}': Path must be within '{resolved_base}'. "
+            "For security, absolute paths outside the current working directory are not allowed."
+        ) from e
+
+    return path_obj
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -53,8 +106,10 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+    def __init__(
+        self, path: str | None = None, *, _base_dir: Path | None = None
+    ) -> None:
+        self.path = _validate_safe_path(path or ".todo.json", base_dir=_base_dir)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

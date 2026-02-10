@@ -16,54 +16,70 @@ from flywheel.todo import Todo
 
 def test_storage_load_handles_malformed_json(tmp_path) -> None:
     """Malformed JSON should produce clear error message instead of raw traceback."""
-    db = tmp_path / "malformed.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-malformed.json"
+    storage = TodoStorage(db_path)
 
     # Create a file with invalid JSON syntax (truncated/unmatched brackets)
-    db.write_text('[{"id": 1, "text": "task1"}', encoding="utf-8")
+    from pathlib import Path
+    Path(db_path).write_text('[{"id": 1, "text": "task1"}', encoding="utf-8")
 
     # Should raise ValueError with clear message, not JSONDecodeError
     with pytest.raises(ValueError, match=r"invalid json|malformed|parse error"):
         storage.load()
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_storage_load_handles_missing_id_field(tmp_path) -> None:
     """Valid JSON but missing 'id' field should produce clear error message."""
-    db = tmp_path / "missing_id.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-missing-id.json"
+    storage = TodoStorage(db_path)
 
     # Valid JSON but missing required 'id' field
-    db.write_text('[{"text": "task without id"}]', encoding="utf-8")
+    from pathlib import Path
+    Path(db_path).write_text('[{"text": "task without id"}]', encoding="utf-8")
 
     # Should raise clear error about missing 'id' field
     with pytest.raises(ValueError, match=r"missing.*'id'|required.*'id'"):
         storage.load()
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_storage_load_handles_missing_text_field(tmp_path) -> None:
     """Valid JSON but missing 'text' field should produce clear error message."""
-    db = tmp_path / "missing_text.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-missing-text.json"
+    storage = TodoStorage(db_path)
 
     # Valid JSON but missing required 'text' field
-    db.write_text('[{"id": 1}]', encoding="utf-8")
+    from pathlib import Path
+    Path(db_path).write_text('[{"id": 1}]', encoding="utf-8")
 
     # Should raise clear error about missing 'text' field
     with pytest.raises(ValueError, match=r"missing.*'text'|required.*'text'"):
         storage.load()
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_storage_load_handles_wrong_id_type(tmp_path) -> None:
     """Valid JSON but 'id' is not an integer should produce clear error message."""
-    db = tmp_path / "wrong_id_type.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-wrong-id-type.json"
+    storage = TodoStorage(db_path)
 
     # Valid JSON but 'id' is a string instead of integer
-    db.write_text('[{"id": "not-an-int", "text": "task"}]', encoding="utf-8")
+    from pathlib import Path
+    Path(db_path).write_text('[{"id": "not-an-int", "text": "task"}]', encoding="utf-8")
 
     # Should raise clear error about wrong type for 'id' field
     with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*type|'id'.*integer"):
         storage.load()
+
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
 
 
 def test_todo_from_dict_handles_missing_id() -> None:

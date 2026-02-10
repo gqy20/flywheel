@@ -31,7 +31,7 @@ def test_temp_file_has_no_execute_bit(tmp_path) -> None:
     import tempfile as tempfile_module
 
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     # Track permissions of created temp files
     permissions_seen = []
@@ -89,7 +89,7 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
     import tempfile as tempfile_module
 
     db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(str(db), _base_dir=tmp_path)
 
     temp_files_created = []
 

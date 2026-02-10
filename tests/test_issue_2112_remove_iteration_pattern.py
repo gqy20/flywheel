@@ -18,8 +18,8 @@ def test_remove_uses_explicit_iteration_valid_id(tmp_path) -> None:
     and saved to storage. The method should use explicit iteration pattern
     consistent with mark_done() and mark_undone().
     """
-    db = tmp_path / "test.json"
-    app = TodoApp(db_path=str(db))
+    db = "test-remove-valid.json"
+    app = TodoApp(db_path=db)
 
     # Add a todo
     todo = app.add("test todo")
@@ -33,6 +33,10 @@ def test_remove_uses_explicit_iteration_valid_id(tmp_path) -> None:
     assert len(remaining) == 0
     assert all(t.id != todo.id for t in remaining)
 
+    # Clean up
+    from pathlib import Path
+    Path(db).unlink(missing_ok=True)
+
 
 def test_remove_uses_explicit_iteration_invalid_id(tmp_path) -> None:
     """remove() should raise ValueError when todo ID doesn't exist.
@@ -41,8 +45,8 @@ def test_remove_uses_explicit_iteration_invalid_id(tmp_path) -> None:
     all todos and raise ValueError with appropriate message, consistent with
     mark_done() and mark_undone() behavior.
     """
-    db = tmp_path / "test.json"
-    app = TodoApp(db_path=str(db))
+    db = "test-remove-invalid.json"
+    app = TodoApp(db_path=db)
 
     # Add a todo
     todo = app.add("test todo")
@@ -56,6 +60,10 @@ def test_remove_uses_explicit_iteration_invalid_id(tmp_path) -> None:
     assert len(remaining) == 1
     assert remaining[0].id == todo.id
 
+    # Clean up
+    from pathlib import Path
+    Path(db).unlink(missing_ok=True)
+
 
 def test_remove_consistent_with_mark_done_undone_pattern(tmp_path) -> None:
     """remove() should use the same iteration pattern as mark_done()/mark_undone().
@@ -63,8 +71,8 @@ def test_remove_consistent_with_mark_done_undone_pattern(tmp_path) -> None:
     This test verifies code consistency - all three methods (mark_done, mark_undone,
     remove) should use the same explicit iteration with early return pattern.
     """
-    db = tmp_path / "test.json"
-    app = TodoApp(db_path=str(db))
+    db = "test-remove-consistent.json"
+    app = TodoApp(db_path=db)
 
     # Add multiple todos
     todo1 = app.add("first todo")
@@ -88,6 +96,10 @@ def test_remove_consistent_with_mark_done_undone_pattern(tmp_path) -> None:
     assert len(todos) == 2
     assert all(t.id != todo2.id for t in todos)
 
+    # Clean up
+    from pathlib import Path
+    Path(db).unlink(missing_ok=True)
+
 
 def test_remove_non_existent_id_error_message(tmp_path) -> None:
     """remove() should raise ValueError with consistent error message format.
@@ -95,19 +107,27 @@ def test_remove_non_existent_id_error_message(tmp_path) -> None:
     Error message should match the format used by mark_done() and mark_undone():
     'Todo #{id} not found'
     """
-    db = tmp_path / "test.json"
-    app = TodoApp(db_path=str(db))
+    db = "test-remove-error-msg.json"
+    app = TodoApp(db_path=db)
 
     # Test the error message format
     with pytest.raises(ValueError, match=r"Todo #42 not found"):
         app.remove(42)
 
+    # Clean up
+    from pathlib import Path
+    Path(db).unlink(missing_ok=True)
+
 
 def test_remove_from_empty_list(tmp_path) -> None:
     """remove() should raise ValueError when trying to remove from empty list."""
-    db = tmp_path / "test.json"
-    app = TodoApp(db_path=str(db))
+    db = "test-remove-empty.json"
+    app = TodoApp(db_path=db)
 
     # Try to remove from empty database
     with pytest.raises(ValueError, match=r"Todo #1 not found"):
         app.remove(1)
+
+    # Clean up
+    from pathlib import Path
+    Path(db).unlink(missing_ok=True)

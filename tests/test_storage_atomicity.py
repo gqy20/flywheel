@@ -18,8 +18,8 @@ from flywheel.todo import Todo
 
 def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     """Test that save uses atomic os.replace instead of non-atomic write_text."""
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db = "test-atomic-replace.json"
+    storage = TodoStorage(db)
 
     # Create initial valid data
     todos = [Todo(id=1, text="initial")]
@@ -36,18 +36,21 @@ def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     assert len(loaded) == 1
     assert loaded[0].text == "initial"
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
 
 def test_write_failure_preserves_original_file(tmp_path) -> None:
     """Test that if write fails, original file remains intact."""
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-failure-preserve.json"
+    storage = TodoStorage(db_path)
 
     # Create initial valid data
     original_todos = [Todo(id=1, text="original"), Todo(id=2, text="data")]
     storage.save(original_todos)
 
     # Get the original file content
-    original_content = db.read_text(encoding="utf-8")
+    original_content = Path(db_path).read_text(encoding="utf-8")
 
     # Simulate write failure by making temp file write fail
     def failing_mkstemp(*args, **kwargs):
@@ -67,7 +70,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     tempfile.mkstemp = original
 
     # Verify original file is unchanged
-    assert db.read_text(encoding="utf-8") == original_content
+    assert Path(db_path).read_text(encoding="utf-8") == original_content
 
     # Verify we can still load the original data
     loaded = storage.load()
@@ -75,11 +78,14 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     assert loaded[0].text == "original"
     assert loaded[1].text == "data"
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_temp_file_created_in_same_directory(tmp_path) -> None:
     """Test that temp file is created in same directory as target for atomic rename."""
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-tempfile-samedir.json"
+    storage = TodoStorage(db_path)
 
     todos = [Todo(id=1, text="test")]
 
@@ -101,17 +107,22 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
     # Restore original
     tempfile.mkstemp = original
 
-    # Verify temp file was created in same directory
+    # Verify temp file was created in same directory as target file
     assert len(temp_files_created) >= 1
-    assert temp_files_created[0].parent == db.parent
+    # Both should be in current working directory (relative paths resolve to cwd)
+    assert temp_files_created[0].parent.resolve() == Path.cwd()
+    assert Path(db_path).parent.resolve() == Path.cwd()
     # Temp file should start with the base filename
-    assert temp_files_created[0].name.startswith(".todo.json.")
+    assert temp_files_created[0].name.startswith(".test-tempfile-samedir.json.")
+
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
 
 
 def test_atomic_write_produces_valid_json(tmp_path) -> None:
     """Test that atomic write produces valid, parseable JSON."""
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-valid-json.json"
+    storage = TodoStorage(db_path)
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
@@ -122,7 +133,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
     storage.save(todos)
 
     # Verify file contains valid JSON
-    raw_content = db.read_text(encoding="utf-8")
+    raw_content = Path(db_path).read_text(encoding="utf-8")
     parsed = json.loads(raw_content)
 
     assert len(parsed) == 3
@@ -130,11 +141,14 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
     assert parsed[1]["text"] == 'task with quotes: "test"'
     assert parsed[1]["done"] is True
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_concurrent_write_safety(tmp_path) -> None:
     """Test that atomic write provides safety against concurrent writes."""
-    db = tmp_path / "todo.json"
-    storage = TodoStorage(str(db))
+    db_path = "test-concurrent-safety.json"
+    storage = TodoStorage(db_path)
 
     # Initial write
     todos1 = [Todo(id=1, text="first")]
@@ -150,6 +164,9 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
 
+    # Clean up
+    Path(db_path).unlink(missing_ok=True)
+
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
@@ -162,12 +179,12 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     import multiprocessing
     import time
 
-    db = tmp_path / "concurrent.json"
+    db = "test-concurrent-multiproc.json"
 
     def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
         """Worker function that saves todos and reports success."""
         try:
-            storage = TodoStorage(str(db))
+            storage = TodoStorage(db)
             # Each worker creates unique todos with worker_id in text
             todos = [
                 Todo(id=i, text=f"worker-{worker_id}-todo-{i}"),
@@ -203,6 +220,9 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     while not result_queue.empty():
         results.append(result_queue.get())
 
+    # Clean up
+    Path(db).unlink(missing_ok=True)
+
     # All workers should have succeeded without errors
     successes = [r for r in results if r[0] == "success"]
     errors = [r for r in results if r[0] == "error"]
@@ -212,7 +232,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
 
     # Final verification: file should contain valid JSON
     # (not necessarily all data due to last-writer-wins, but definitely valid JSON)
-    storage = TodoStorage(str(db))
+    storage = TodoStorage(db)
 
     # This should not raise json.JSONDecodeError or ValueError
     try:
