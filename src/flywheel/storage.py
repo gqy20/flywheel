@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -56,6 +57,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def _backup_path(self) -> Path:
+        """Get the backup file path (.bak suffix)."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -93,6 +99,10 @@ class TodoStorage:
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if original file exists
+        if self.path.exists():
+            shutil.copy2(self.path, self._backup_path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
