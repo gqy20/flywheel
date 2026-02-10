@@ -1,30 +1,23 @@
 {
-  "issue_number": 2669,
-  "candidate_id": 1,
+  "issue": 2669,
+  "candidate": 1,
   "run_id": "21874061014",
-  "stage": "complete",
-  "title": "[Security] TOCTOU vulnerability in load() - file size check and read are separate operation",
-  "approach": "Replace separate stat() + read_text() with atomic bounded read using open() and read() with byte limit",
-  "files_to_modify": [
-    "tests/test_issue_2669_toctou_file_size.py",
-    "src/flywheel/storage.py"
-  ],
-  "test_plan": [
-    "Test that files larger than 10MB are rejected",
-    "Test that files at exactly 10MB boundary work correctly",
-    "Test that normal load() behavior is not regressed"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2669_toctou_file_size.py -v",
-    "uv run pytest tests/test_storage*.py -v",
-    "uv run ruff check src/flywheel/storage.py"
-  ],
-  "test_results": {
-    "new_tests": "6 passed",
-    "storage_tests": "6 passed",
-    "ruff": "All checks passed"
-  },
+  "branch": "claude/issue-2669-candidate-1-21874061014",
+  "pr_number": 2698,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2698",
-  "created_at": "2026-02-10T14:27:00Z",
-  "completed_at": "2026-02-10T14:35:00Z"
+  "generated_at": "2026-02-10T18:11:10.173609+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1758,
+    "plan": 3904,
+    "implement": 2154,
+    "verify": 1712,
+    "finalize": 346
+  }
 }
