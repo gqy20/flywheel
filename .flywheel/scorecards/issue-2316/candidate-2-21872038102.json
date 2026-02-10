@@ -1,0 +1,35 @@
+{
+  "issue": 2316,
+  "candidate": 2,
+  "run_id": "21872038102",
+  "status": "verified",
+  "branch": "claude/issue-2316-candidate-2-21872038102",
+  "stage": "FINALIZE",
+  "commit": "500c71c",
+  "files_changed": [
+    "tests/test_issue_2316_unicode_control_sanitization.py",
+    "src/flywheel/formatter.py"
+  ],
+  "summary": "Fixes #2316 - Escapes Unicode bidirectional override characters (U+202A-U+202E) and zero-width characters (U+200B-U+200D) to prevent text spoofing attacks.",
+  "test_commands_run": [
+    "uv run pytest tests/test_issue_2316_unicode_control_sanitization.py -v",
+    "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
+    "uv run ruff check src/flywheel/formatter.py tests/test_issue_2316_unicode_control_sanitization.py"
+  ],
+  "test_results": {
+    "new_tests_added": 13,
+    "new_tests_pass": 13,
+    "regression_tests_pass": 27,
+    "all_tests_pass": true
+  },
+  "lint_results": {
+    "ruff_check": "passed"
+  },
+  "risks": [
+    "None - normal RTL text (Arabic, Hebrew) passes through unchanged"
+  ],
+  "limitations": [
+    "Only escapes specific Unicode bidirectional and zero-width control characters as specified in the issue"
+  ],
+  "started_at": "2026-02-10T00:00:00Z"
+}
