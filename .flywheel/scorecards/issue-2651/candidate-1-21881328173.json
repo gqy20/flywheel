@@ -1,18 +1,23 @@
 {
-  "issue_number": 2651,
-  "candidate_id": "candidate-1-21881328173",
-  "tests_created": [
-    "tests/test_issue_2000_json_validation.py::test_todo_from_dict_rejects_excessively_long_text",
-    "tests/test_issue_2000_json_validation.py::test_todo_from_dict_accepts_max_length_text",
-    "tests/test_issue_2000_json_validation.py::test_todo_from_dict_accepts_normal_length_text",
-    "tests/test_issue_2000_json_validation.py::test_todo_from_dict_error_message_includes_length_info"
+  "issue": 2651,
+  "candidate": 1,
+  "run_id": "21881328173",
+  "branch": "claude/issue-2651-candidate-1-21881328173",
+  "pr_number": 2722,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2722",
+  "generated_at": "2026-02-10T21:26:10.569842+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/todo.py"
-  ],
-  "max_length_defined": 1048576,
-  "validation_implemented": true,
-  "error_message_includes_length_info": true,
-  "all_tests_pass": true,
-  "ruff_checks_pass": true
+  "stage_response_sizes": {
+    "triage": 1865,
+    "plan": 4000,
+    "implement": 2025,
+    "verify": 1599,
+    "finalize": 947
+  }
 }
