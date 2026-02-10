@@ -54,7 +54,23 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        # Security: Resolve path and validate against directory traversal
+        raw_path = Path(path or ".todo.json")
+        self.path = raw_path.resolve()
+
+        # Reject paths that escape current working directory via '..' (path traversal)
+        # This prevents attacks like: --db '../../../etc/passwd'
+        # We check if the resolved path is outside CWD AND the raw path contains '..'
+        cwd = Path.cwd()
+        try:
+            self.path.relative_to(cwd)
+        except ValueError as err:
+            # Path resolves outside cwd - check if it contains '..' (potential traversal)
+            if ".." in raw_path.parts:
+                raise ValueError(
+                    f"Database path '{raw_path}' (resolved to '{self.path}') is outside "
+                    f"the current working directory '{cwd}'. Path traversal via '..' is not allowed."
+                ) from err
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
