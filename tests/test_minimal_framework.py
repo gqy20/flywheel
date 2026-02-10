@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_without_timestamps_populates_via_post_init() -> None:
+    """Bug #2622: from_dict should populate missing timestamps via __post_init__."""
+    # Test with no timestamp fields - should populate via __post_init__
+    todo = Todo.from_dict({"id": 1, "text": "test"})
+    assert todo.created_at != "", "created_at should be populated by __post_init__"
+    assert todo.updated_at != "", "updated_at should be populated by __post_init__"
+    # Verify ISO format (contains 'T' and timezone indicator)
+    assert "T" in todo.created_at, "created_at should be in ISO format"
+    assert "+" in todo.created_at or "Z" in todo.created_at, "created_at should have timezone"
+
+
+def test_from_dict_with_explicit_none_populates_via_post_init() -> None:
+    """Bug #2622: from_dict with explicit None should populate timestamps."""
+    todo = Todo.from_dict({"id": 1, "text": "test", "created_at": None, "updated_at": None})
+    assert todo.created_at != "", "created_at should be populated by __post_init__"
+    assert todo.updated_at != "", "updated_at should be populated by __post_init__"
+    # Verify ISO format
+    assert "T" in todo.created_at, "created_at should be in ISO format"
+
+
+def test_from_dict_preserves_valid_timestamps() -> None:
+    """Bug #2622: from_dict should preserve valid ISO timestamps."""
+    fixed_timestamp = "2024-01-01T00:00:00+00:00"
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "test",
+        "created_at": fixed_timestamp,
+        "updated_at": fixed_timestamp
+    })
+    assert todo.created_at == fixed_timestamp, "created_at should be preserved"
+    assert todo.updated_at == fixed_timestamp, "updated_at should be preserved"
