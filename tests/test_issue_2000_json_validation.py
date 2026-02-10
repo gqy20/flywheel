@@ -119,3 +119,36 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2704 - handle invalid UTF-8 encoding
+def test_storage_load_handles_invalid_utf_8(tmp_path) -> None:
+    """Invalid UTF-8 bytes should produce clear ValueError with encoding message."""
+    db = tmp_path / "invalid_utf8.json"
+    storage = TodoStorage(str(db))
+
+    # Write invalid UTF-8 byte sequence (0xFF is not valid UTF-8)
+    db.write_bytes(b'[{"id": 1, "text": "task"}\xff')
+
+    # Should raise ValueError with clear encoding message, not UnicodeDecodeError
+    with pytest.raises(ValueError) as exc_info:
+        storage.load()
+    assert "encoding" in str(exc_info.value).lower() or "utf-8" in str(exc_info.value).lower()
+    # Verify it's not a raw UnicodeDecodeError
+    assert type(exc_info.value) is ValueError
+
+
+def test_storage_load_handles_truncated_multibyte_utf_8(tmp_path) -> None:
+    """Truncated multi-byte UTF-8 sequence should produce clear ValueError."""
+    db = tmp_path / "truncated_utf8.json"
+    storage = TodoStorage(str(db))
+
+    # Write truncated multi-byte UTF-8 sequence (0xC2 starts 2-byte sequence but no continuation)
+    db.write_bytes(b'[{"id": 1, "text": "task"}\xc2')
+
+    # Should raise ValueError with clear encoding message
+    with pytest.raises(ValueError) as exc_info:
+        storage.load()
+    assert "encoding" in str(exc_info.value).lower() or "utf-8" in str(exc_info.value).lower()
+    # Verify it's not a raw UnicodeDecodeError
+    assert type(exc_info.value) is ValueError
