@@ -1,20 +1,23 @@
 {
-  "issue_number": 2660,
-  "candidate_id": "candidate-1-21872038102",
-  "status": "passed",
-  "summary": "Added exception message sanitization in run_command to prevent information disclosure through filesystem paths",
-  "files_modified": [
-    "src/flywheel/cli.py"
+  "issue": 2660,
+  "candidate": 1,
+  "run_id": "21872038102",
+  "branch": "claude/issue-2660-candidate-1-21872038102",
+  "pr_number": 2686,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2686",
+  "generated_at": "2026-02-10T16:56:15.695475+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "tests/test_issue_2660_exception_message_sanitization.py"
-  ],
-  "tests_run": 115,
-  "tests_passed": 115,
-  "tests_failed": 0,
-  "lint_status": "passed",
-  "risk_assessment": "low",
-  "limitations": [
-    "Path sanitization uses regex pattern matching which may not catch all edge cases of path formats"
-  ]
+  "stage_response_sizes": {
+    "triage": 2372,
+    "plan": 2696,
+    "implement": 2828,
+    "verify": 2996,
+    "finalize": 685
+  }
 }
