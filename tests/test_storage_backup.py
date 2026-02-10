@@ -9,9 +9,6 @@ Issue: #2611
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
-import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -161,9 +158,6 @@ def test_backup_preserves_file_metadata(tmp_path) -> None:
 
     # Create initial file
     storage.save([Todo(id=1, text="original")])
-
-    # Get file stat before backup
-    original_stat = db.stat()
 
     # Modify file and create backup
     storage.save([Todo(id=1, text="modified")])
