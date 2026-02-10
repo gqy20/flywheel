@@ -72,6 +72,11 @@ class TodoStorage:
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError as e:
+            raise ValueError(
+                f"Invalid UTF-8 encoding in '{self.path}': {e.reason}. "
+                f"Position {e.start}: byte {hex(e.object[e.start])}."
+            ) from e
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
