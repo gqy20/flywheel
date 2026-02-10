@@ -1,53 +1,23 @@
 {
-  "issue_number": 1986,
-  "candidate_id": "candidate-2-21868349385",
-  "stage": "COMPLETE",
-  "created_at": "2026-02-10T00:00:00Z",
-  "tests_planned": [
-    "test_save_succeeds_with_stale_temp_file_from_crash",
-    "test_save_succeeds_with_multiple_stale_temp_files",
-    "test_save_cleans_only_related_temp_files",
-    "test_temp_file_cleanup_on_replace_failure",
-    "test_atomic_write_with_race_condition_simulation",
-    "test_save_creates_unique_temp_names"
+  "issue": 1986,
+  "candidate": 2,
+  "run_id": "21868349385",
+  "branch": "claude/issue-1986-candidate-2-21868349385",
+  "pr_number": 2678,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2678",
+  "generated_at": "2026-02-10T15:21:50.132063+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_to_modify": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_1986_stale_temp_file.py"
-  ],
-  "acceptance_criteria": [
-    "Temp file name includes process-unique component (via tempfile.mkstemp)",
-    "Stale temp files from crashed processes are cleaned up before new write",
-    "If os.replace fails, temp file is cleaned up in exception handler",
-    "Tests added for concurrent multi-process write scenarios"
-  ],
-  "implementation_plan": [
-    "RED: Add failing regression tests for issue #1986",
-    "GREEN: Implement minimal fix to make tests pass",
-    "REFACTOR: Clean up if needed",
-    "VERIFY: Run tests and linters"
-  ],
-  "fix_approach": {
-    "summary": "Use tempfile.mkstemp for unique temp filenames and cleanup only stale (old) temps before write",
-    "changes": [
-      "Replace deterministic temp file naming with tempfile.mkstemp",
-      "Add _cleanup_stale_temp_files() method to remove OLD temp files only (age > 5s)",
-      "Call cleanup before each write operation",
-      "Add exception handler to clean up temp file if os.replace fails",
-      "Update tests to use _make_file_old() to simulate truly stale files"
-    ]
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_issue_1986_stale_temp_file.py -v",
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run ruff check src/flywheel/storage.py tests/test_issue_1986_stale_temp_file.py"
-  ],
-  "verification_results": {
-    "test_issue_1986_stale_temp_file": "6 passed",
-    "test_storage_atomicity": "6 passed",
-    "ruff_check": "All checks passed"
-  },
-  "implementation_complete": true,
-  "all_tests_passing": true,
-  "all_linters_passing": true
+  "stage_response_sizes": {
+    "triage": 3997,
+    "plan": 4000,
+    "implement": 2595,
+    "verify": 3586,
+    "finalize": 2379
+  }
 }
