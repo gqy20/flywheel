@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .formatter import TodoFormatter, _sanitize_text
+from .formatter import TodoFormatter, _sanitize_error_message, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
 
@@ -122,7 +122,7 @@ def run_command(args: argparse.Namespace) -> int:
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        print(f"Error: {_sanitize_error_message(exc)}", file=sys.stderr)
         return 1
 
 
