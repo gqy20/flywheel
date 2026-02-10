@@ -28,11 +28,15 @@ def _sanitize_text(text: str) -> str:
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
     # Replace with \\xNN escape sequences
+    # Unicode bidirectional control characters (U+202A-U+202E, U+2066-U+2069)
+    # Replace with \\uNNNN escape sequences to prevent trojan source attacks
     result = []
     for char in text:
         code = ord(char)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        elif 0x202a <= code <= 0x202e or 0x2066 <= code <= 0x2069:
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
