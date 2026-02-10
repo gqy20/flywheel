@@ -1,0 +1,16 @@
+{
+  "issue": 1948,
+  "candidate": 2,
+  "run_id": "21863396618",
+  "stage": "PLAN",
+  "summary": "Security: Control characters in todo.text are not sanitized, allowing terminal injection",
+  "approach": "The fix is already implemented in formatter.py with _sanitize_text(). Candidate #2 focuses on comprehensive test coverage to ensure the fix addresses all attack vectors mentioned in issue #1948.",
+  "files_to_touch": [
+    "tests/test_issue_1948_terminal_injection_sanitization.py"
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_1948_terminal_injection_sanitization.py -v",
+    "uv run pytest tests/ -k 'sanitize' -v",
+    "uv run ruff check src/flywheel/ tests/"
+  ]
+}
