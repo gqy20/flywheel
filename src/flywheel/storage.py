@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -88,6 +89,9 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup (.bak) file before overwriting the existing file
+        to provide recovery from user errors or JSON corruption.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
@@ -96,6 +100,12 @@ class TodoStorage:
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file before overwriting
+        # This allows recovery from accidental bulk deletion or JSON corruption
+        if self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            shutil.copy2(self.path, backup_path)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
