@@ -3,11 +3,34 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
+
+
+def _sanitize_error_message(error_msg: str) -> str:
+    """Sanitize error messages to prevent information disclosure.
+
+    Removes or redacts filesystem paths from error messages while
+    preserving useful debugging information.
+
+    Args:
+        error_msg: The original error message.
+
+    Returns:
+        A sanitized error message with paths removed.
+    """
+    # Remove patterns that look like Unix/Windows file paths
+    # This handles paths like /home/user/secret/file.json or C:\\Users\\...
+    sanitized = re.sub(
+        r"[/\\][a-zA-Z0-9_\-\\.]+[\\/][a-zA-Z0-9_\-\\.\\/]*",
+        "[path]",
+        error_msg,
+    )
+    return sanitized
 
 
 class TodoApp:
@@ -122,7 +145,9 @@ def run_command(args: argparse.Namespace) -> int:
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        # Sanitize error message to prevent information disclosure
+        sanitized_msg = _sanitize_error_message(str(exc))
+        print(f"Error: {sanitized_msg}", file=sys.stderr)
         return 1
 
 
