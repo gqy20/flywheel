@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
@@ -131,24 +132,45 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
-    def _cleanup_stale_temp_files(self) -> None:
+    def _cleanup_stale_temp_files(self, stale_age_seconds: float = 5.0) -> None:
         """Clean up stale temp files from previous crashed processes.
 
         Looks for temp files matching the pattern used by this storage instance
-        and removes them. This prevents issues where a previous process crash
+        and removes OLD ones. This prevents issues where a previous process crash
         left temp files that could interfere with new writes.
+
+        Only removes temp files older than stale_age_seconds to avoid removing
+        temp files that are actively being used by other concurrent processes.
+
+        Args:
+            stale_age_seconds: Minimum age in seconds for a temp file to be
+                considered stale. Default is 5 seconds, which is much longer
+                than the expected time for a successful atomic write.
         """
         # Pattern: .{filename}.*.tmp
         # e.g., for todo.json -> .todo.json.*.tmp
         pattern = f".{self.path.name}.*.tmp"
         stale_files = self.path.parent.glob(pattern)
+        current_time = time.time()
 
         for stale_file in stale_files:
             # Only remove files (not directories), and ignore the target file itself
-            # Also skip our own temp file if we're in a retry scenario
-            if stale_file.is_file() and stale_file != self.path:
-                with contextlib.suppress(OSError):
+            if not stale_file.is_file() or stale_file == self.path:
+                continue
+
+            try:
+                # Get file mtime to check age
+                file_mtime = stale_file.stat().st_mtime
+                file_age = current_time - file_mtime
+
+                # Only remove files older than the stale threshold
+                # This prevents removing temp files actively used by other processes
+                if file_age > stale_age_seconds:
                     stale_file.unlink()
+            except OSError:
+                # If we can't stat or unlink the file, skip it
+                # Another process may be actively using it
+                pass
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

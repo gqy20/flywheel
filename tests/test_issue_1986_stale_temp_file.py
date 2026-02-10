@@ -9,6 +9,7 @@ These tests should FAIL before the fix and PASS after the fix.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +17,23 @@ import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
+
+
+def _make_file_old(file_path: Path, age_seconds: float = 10.0) -> None:
+    """Make a file appear old by setting its mtime to the past.
+
+    This is used to simulate stale temp files from crashed processes.
+    The cleanup only removes files older than a threshold, so we need
+    to make test files appear old enough to be cleaned up.
+
+    Args:
+        file_path: Path to the file to age
+        age_seconds: How old to make the file appear (default 10 seconds)
+    """
+    # Set file modification time to age_seconds in the past
+    old_time = time.time() - age_seconds
+    import os
+    os.utime(file_path, (old_time, old_time))
 
 
 def test_save_succeeds_with_stale_temp_file_from_crash(tmp_path) -> None:
@@ -32,6 +50,8 @@ def test_save_succeeds_with_stale_temp_file_from_crash(tmp_path) -> None:
     # Create a stale temp file simulating a previous crash
     stale_temp = tmp_path / ".todo.json.12345.tmp"
     stale_temp.write_text('{"stale": "data from crashed process"}')
+    # Make it appear old so it will be cleaned up
+    _make_file_old(stale_temp)
 
     # Try to save new data - this should succeed
     storage = TodoStorage(str(db))
@@ -63,6 +83,7 @@ def test_save_succeeds_with_multiple_stale_temp_files(tmp_path) -> None:
 
     for stale_file in stale_files:
         stale_file.write_text('{"stale": "data"}')
+        _make_file_old(stale_file)
 
     # Save should succeed
     storage = TodoStorage(str(db))
@@ -86,6 +107,7 @@ def test_save_cleans_only_related_temp_files(tmp_path) -> None:
     # Create a stale temp file for this storage
     relevant_stale = tmp_path / ".todo.json.old.tmp"
     relevant_stale.write_text('{"relevant": "stale"}')
+    _make_file_old(relevant_stale)
 
     # Create temp files for OTHER files (should NOT be cleaned up)
     other_stale = tmp_path / ".other.json.old.tmp"
@@ -151,6 +173,8 @@ def test_atomic_write_with_race_condition_simulation(tmp_path) -> None:
     # We use the actual prefix pattern that TodoStorage uses
     crashed_temp = tmp_path / ".todo.json.crashed_pid.tmp"
     crashed_temp.write_text('{"from": "crashed process"}')
+    # Make it old to simulate being from a crashed process
+    _make_file_old(crashed_temp)
 
     # New process tries to save
     storage = TodoStorage(str(db))
