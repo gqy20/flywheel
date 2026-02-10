@@ -1,0 +1,40 @@
+{
+  "issue_id": 2622,
+  "issue_title": "[Bug] from_dict creates non-empty strings for missing timestamps, breaking __post_init",
+  "candidate_number": 3,
+  "run_id": "21847430335",
+  "branch_name": "claude/issue-2622-candidate-3-21847430335",
+  "stage": "implement",
+  "tdd_plan": {
+    "summary": "Fix str(None) returning 'None' string which is truthy, preventing __post_init__ from initializing timestamps",
+    "root_cause": "src/flywheel/todo.py:100-101 - str(data.get('created_at') or '') converts None to 'None' string instead of empty string",
+    "files_to_modify": [
+      {
+        "path": "tests/test_minimal_framework.py",
+        "changes": "Add regression tests for from_dict timestamp handling"
+      },
+      {
+        "path": "src/flywheel/todo.py",
+        "changes": "Remove str() wrapper from created_at and updated_at in from_dict method"
+      }
+    ],
+    "test_plan": {
+      "failing_tests": [
+        "test_from_dict_without_timestamps_populates_via_post_init",
+        "test_from_dict_with_explicit_none_populates_via_post_init",
+        "test_from_dict_preserves_valid_iso_timestamps"
+      ],
+      "implementation_sequence": [
+        "1. Add failing tests to tests/test_minimal_framework.py",
+        "2. Remove str() wrapper from lines 100-101 in src/flywheel/todo.py"
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "status": "implemented",
+  "created_at": "2026-02-10T01:21:11Z",
+  "implemented_at": "2026-02-10T01:30:00Z"
+}
