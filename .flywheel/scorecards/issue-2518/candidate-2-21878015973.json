@@ -37,5 +37,6 @@
     "Users must opt-in to strict mode to get enforcement",
     "Permission check only validates group/other writable bits, not all security concerns"
   ],
-  "implementation_notes": "TDD approach followed: RED (failing tests) -> GREEN (minimal fix) -> REFACTOR (formatting). All existing tests pass with no changes needed."
+  "implementation_notes": "TDD approach followed: RED (failing tests) -> GREEN (minimal fix) -> REFACTOR (formatting). All existing tests pass with no changes needed.",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2711"
 }
