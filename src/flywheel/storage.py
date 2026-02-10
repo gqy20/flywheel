@@ -60,18 +60,27 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
-
+        # Security: Read file with bounded byte count to prevent DoS
+        # This fixes TOCTOU vulnerability where stat() + read_text() allowed
+        # file to be replaced between size check and read operation.
+        # We use atomic read with byte limit instead of separate operations.
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Read in binary mode with explicit byte limit
+            with self.path.open("rb") as f:
+                # Read one byte more than limit to detect oversized files
+                raw_bytes = f.read(_MAX_JSON_SIZE_BYTES + 1)
+
+                # If we read more than the limit, file is too large
+                if len(raw_bytes) > _MAX_JSON_SIZE_BYTES:
+                    size_mb = len(raw_bytes) / (1024 * 1024)
+                    limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                    raise ValueError(
+                        f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                        f"This protects against denial-of-service attacks."
+                    )
+
+                # Decode and parse JSON
+                raw = json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
