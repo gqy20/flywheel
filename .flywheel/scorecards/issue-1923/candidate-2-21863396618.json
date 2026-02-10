@@ -2,7 +2,7 @@
   "issue_number": 1923,
   "candidate": 2,
   "run_id": "21863396618",
-  "stage": "implement",
+  "stage": "complete",
   "plan": {
     "test_files": ["tests/test_issue_1923_schema_validation.py"],
     "source_files": ["src/flywheel/storage.py"],
