@@ -3,8 +3,9 @@
   "issue_title": "[Security] Control characters in todo.text are not sanitized, allowing terminal injection v",
   "candidate_number": 1,
   "run_id": "21863396618",
-  "stage": "FINALIZE",
+  "stage": "COMPLETE",
   "status": "verified_existing_fix",
+  "pr_number": 2666,
   "tdd_plan": {
     "test_file": "tests/test_issue_1948_format_todo_control_char_sanitization.py",
     "source_files": ["src/flywheel/formatter.py"],
