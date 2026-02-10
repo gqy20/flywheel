@@ -1,0 +1,43 @@
+{
+  "issue_number": 2316,
+  "candidate_id": "candidate-1-21872038102",
+  "issue_title": "[Security] _sanitize_text() does not escape Unicode control characters that could affect terminal display",
+  "triage": {
+    "root_cause": "_sanitize_text() only escapes ASCII/C1 control chars, not Unicode bidirectional controls (U+202A-U+202E) or zero-width chars (U+200B-U+200D)",
+    "security_impact": "Text spoofing attacks possible via RTL override and other bidi control characters",
+    "affected_file": "src/flywheel/formatter.py",
+    "affected_function": "_sanitize_text()",
+    "proposed_fix": "Add Unicode bidi controls (U+202A-U+202E) and zero-width chars (U+200B-U+200D) to escape condition"
+  },
+  "test_results": {
+    "red_phase": "complete - 8/10 tests failing as expected",
+    "green_phase": "complete - 10/10 new tests passing",
+    "tests_run": [
+      "tests/test_issue_2316_unicode_control_sanitization.py (10 tests)",
+      "tests/test_issue_1924_format_todo_sanitization.py (11 tests)",
+      "tests/test_issue_2028_del_char_sanitization.py (5 tests)",
+      "tests/test_issue_2057_c1_control_sanitization.py (6 tests)",
+      "tests/test_issue_2097_backslash_escape_collision.py (12 tests)",
+      "tests/test_issue_2083_cli_success_message_sanitization.py (4 tests)",
+      "tests/test_issue_2084_cli_output_sanitization.py (9 tests)"
+    ],
+    "test_status": "57 passed, 0 failed",
+    "linter_status": "ruff check passed"
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/formatter.py",
+      "tests/test_issue_2316_unicode_control_sanitization.py (new)",
+      ".flywheel/scorecards/issue-2316/candidate-1-21872038102.json (new)"
+    ],
+    "lines_added": 153,
+    "lines_removed": 3
+  },
+  "risks": [
+    "None identified - normal Arabic/Hebrew text correctly passes through unchanged"
+  ],
+  "branch": "claude/issue-2316-candidate-1-21872038102",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2685",
+  "commit": "9b93f6f",
+  "status": "complete"
+}
