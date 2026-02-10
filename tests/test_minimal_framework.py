@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_initializes_missing_timestamps() -> None:
+    """Bug #2622: from_dict should populate missing timestamps via __post_init__."""
+    # No timestamp fields - should populate via __post_init__
+    todo = Todo.from_dict({"id": 1, "text": "test"})
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+    assert todo.created_at == todo.updated_at
+
+    # Explicit None timestamps - should also populate via __post_init__
+    todo2 = Todo.from_dict({"id": 2, "text": "test2", "created_at": None, "updated_at": None})
+    assert todo2.created_at != ""
+    assert todo2.updated_at != ""
+    assert todo2.created_at == todo2.updated_at
+
+    # Valid ISO timestamps - should preserve as-is
+    iso_time = "2024-01-01T00:00:00+00:00"
+    todo3 = Todo.from_dict({"id": 3, "text": "test3", "created_at": iso_time, "updated_at": iso_time})
+    assert todo3.created_at == iso_time
+    assert todo3.updated_at == iso_time
