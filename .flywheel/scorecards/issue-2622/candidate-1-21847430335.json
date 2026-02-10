@@ -1,0 +1,22 @@
+{
+  "issue_number": 2622,
+  "candidate_number": 1,
+  "run_id": "21847430335",
+  "branch": "claude/issue-2622-candidate-1-21847430335",
+  "summary": "Remove unnecessary str() wrapper in from_dict timestamp handling to fix __post_init__ initialization",
+  "fix_type": "bug_fix",
+  "files_changed": ["src/flywheel/todo.py"],
+  "tests_added": [
+    "test_from_dict_without_timestamps_populates_via_post_init",
+    "test_from_dict_with_explicit_none_populates_via_post_init",
+    "test_from_dict_preserves_valid_timestamps"
+  ],
+  "tests_run": [
+    "test_from_dict_without_timestamps_populates_via_post_init PASSED",
+    "test_from_dict_with_explicit_none_populates_via_post_init PASSED",
+    "test_from_dict_preserves_valid_timestamps PASSED"
+  ],
+  "lint_checks": "uv run ruff check src/flywheel/todo.py - All checks passed!",
+  "risks": "None - minimal fix removing unnecessary str() wrapper that was converting None to 'None' string",
+  "status": "ready"
+}
