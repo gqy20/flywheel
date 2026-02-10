@@ -3,11 +3,41 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
+
+
+def _sanitize_error_message(error_msg: str) -> str:
+    """Sanitize error messages to prevent information disclosure.
+
+    Removes or obscures full filesystem paths that could leak sensitive
+    information about directory structure, user names, or system configuration.
+
+    Args:
+        error_msg: Raw error message that may contain paths
+
+    Returns:
+        Sanitized error message with paths replaced by generic placeholders
+    """
+    # Replace full paths with generic placeholder
+    # Match both Unix (/home/user/...) and Windows (C:\Users\...) paths
+    # Look for paths with at least 2 directory separators
+    # Use word boundaries to ensure we match complete path segments
+    path_pattern = r"[/\\][^/\\\s:\"'<>]+[/\\][^/\\\s:\"'<>]+(?:[/\\][^/\\\s:\"'<>]+)*"
+
+    def replace_path(match: re.Match[str]) -> str:
+        path = match.group(0)
+        # Use appropriate placeholder based on context
+        if ".json" in path.lower():
+            return "<database_path>"
+        return "<file_path>"
+
+    sanitized = re.sub(path_pattern, replace_path, error_msg)
+    return sanitized
 
 
 class TodoApp:
@@ -122,7 +152,9 @@ def run_command(args: argparse.Namespace) -> int:
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
-        print(f"Error: {exc}", file=sys.stderr)
+        # Sanitize error message to prevent information disclosure
+        sanitized_msg = _sanitize_error_message(str(exc))
+        print(f"Error: {sanitized_msg}", file=sys.stderr)
         return 1
 
 
