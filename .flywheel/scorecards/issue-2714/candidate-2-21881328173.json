@@ -1,0 +1,41 @@
+{
+  "issue_number": 2714,
+  "candidate_number": 2,
+  "run_id": "21881328173",
+  "branch_name": "claude/issue-2714-candidate-2-21881328173",
+  "summary": "Add MAX_TODO_TEXT_LENGTH validation to prevent unbounded memory consumption",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "src/flywheel/cli.py",
+    "tests/test_issue_2714_text_length_validation.py"
+  ],
+  "tests_added": 13,
+  "tests_passing": 125,
+  "validation_points": [
+    "Todo.__post_init__ validates text length on direct instantiation",
+    "Todo.rename() validates text length with clear error message",
+    "Todo.from_dict() validates text length for deserialization",
+    "TodoApp.add() validates text length for CLI input",
+    "Error message shows actual length and limit for debugging"
+  ],
+  "limit_set": 10000,
+  "risk_assessment": {
+    "breaking_change": false,
+    "backward_compatible": true,
+    "test_coverage": "comprehensive",
+    "edge_cases_covered": [
+      "text at exactly limit succeeds",
+      "text exceeding limit raises ValueError",
+      "whitespace stripped before length check",
+      "multibyte unicode counted as characters",
+      "clear error messages"
+    ]
+  },
+  "acceptance_criteria_met": [
+    "Define MAX_TODO_TEXT_LENGTH constant (10000 chars)",
+    "Todo.rename() raises ValueError if text exceeds max length",
+    "Todo.from_dict() raises ValueError if text exceeds max length",
+    "TodoApp.add() raises ValueError if text exceeds max length"
+  ],
+  "status": "ready_for_review"
+}

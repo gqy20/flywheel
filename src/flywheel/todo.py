@@ -5,9 +5,37 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Maximum allowed length for todo text to prevent DoS attacks via unbounded memory
+# This limit prevents malicious users from creating todos with extremely long text
+# that could exhaust memory or cause display issues.
+MAX_TODO_TEXT_LENGTH = 10000
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def _validate_todo_text(text: str) -> str:
+    """Validate todo text content and length.
+
+    Args:
+        text: The text to validate (will be stripped before validation).
+
+    Returns:
+        The stripped text if valid.
+
+    Raises:
+        ValueError: If text is empty or exceeds MAX_TODO_TEXT_LENGTH.
+    """
+    text = text.strip()
+    if not text:
+        raise ValueError("Todo text cannot be empty")
+    if len(text) > MAX_TODO_TEXT_LENGTH:
+        raise ValueError(
+            f"Todo text too long ({len(text)} chars). "
+            f"Maximum allowed is {MAX_TODO_TEXT_LENGTH} characters."
+        )
+    return text
 
 
 @dataclass(slots=True)
@@ -34,6 +62,12 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text length to catch direct instantiation with oversized text
+        if len(self.text) > MAX_TODO_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text too long ({len(self.text)} chars). "
+                f"Maximum allowed is {MAX_TODO_TEXT_LENGTH} characters."
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -48,10 +82,8 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        validated_text = _validate_todo_text(text)
+        self.text = validated_text
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -78,6 +110,9 @@ class Todo:
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
+
+        # Validate 'text' length
+        _validate_todo_text(data["text"])
 
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
