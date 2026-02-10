@@ -1,31 +1,23 @@
 {
-  "issue_number": 1918,
-  "candidate_id": "candidate-2-21861588009",
+  "issue": 1918,
+  "candidate": 2,
   "run_id": "21861588009",
-  "issue_title": "[Security] load()未限制文件大小，可能导致内存耗尽（DoS）",
-  "status": "already_fixed",
-  "summary": "Issue requested file size limit to prevent DoS attacks. The fix is already implemented in src/flywheel/storage.py with a 10MB threshold and comprehensive tests.",
-  "files_touched": [
-    "src/flywheel/storage.py",
-    "tests/test_minimal_framework.py"
+  "branch": "claude/issue-1918-candidate-2-21861588009",
+  "pr_number": 2656,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2656",
+  "generated_at": "2026-02-10T12:17:13.652801+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_minimal_framework.py::test_storage_load_rejects_oversized_json",
-    "tests/test_minimal_framework.py::test_storage_load_accepts_normal_sized_json",
-    "tests/test_storage_atomicity.py (6 tests)"
-  ],
-  "tests_passed": true,
-  "ruff_check": true,
-  "implementation": {
-    "file_size_limit_bytes": 10485760,
-    "error_message_includes_size": true,
-    "error_message_includes_protection_explanation": true,
-    "has_regression_tests": true
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_minimal_framework.py::test_storage_load_rejects_oversized_json -v",
-    "uv run pytest tests/test_minimal_framework.py::test_storage_load_accepts_normal_sized_json -v",
-    "uv run ruff check src/flywheel/storage.py"
-  ],
-  "created_at": "2026-02-10T00:00:00Z"
+  "stage_response_sizes": {
+    "triage": 2139,
+    "plan": 1210,
+    "implement": 3117,
+    "verify": 1859,
+    "finalize": 1149
+  }
 }
