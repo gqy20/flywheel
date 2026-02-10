@@ -1,43 +1,23 @@
 {
-  "issue_number": 1948,
-  "issue_title": "[Security] Control characters in todo.text are not sanitized, allowing terminal injection v",
-  "candidate_number": 1,
+  "issue": 1948,
+  "candidate": 1,
   "run_id": "21863396618",
-  "stage": "COMPLETE",
-  "status": "verified_existing_fix",
+  "branch": "claude/issue-1948-candidate-1-21863396618",
   "pr_number": 2666,
-  "tdd_plan": {
-    "test_file": "tests/test_issue_1948_format_todo_control_char_sanitization.py",
-    "source_files": ["src/flywheel/formatter.py"],
-    "implementation": [
-      "1. Failing test: Add tests for control character sanitization (\\n, \\r, \\t, \\x00, \\x1b)",
-      "2. Implementation: Add _sanitize_text() function to escape control characters",
-      "3. Integration: Update format_todo() to use _sanitize_text() on todo.text",
-      "4. Verification: Run pytest and ruff to confirm fix"
-    ]
-  },
-  "test_results": {
-    "pytest": "12 passed in 0.06s",
-    "ruff": "All checks passed"
-  },
-  "files_modified": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_1948_format_todo_control_char_sanitization.py"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2666",
+  "generated_at": "2026-02-10T13:37:21.130731+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": [
-    "Formatter escapes newline (\\n)",
-    "Formatter escapes carriage return (\\r)",
-    "Formatter escapes tab (\\t)",
-    "Formatter escapes null byte (\\x00)",
-    "Formatter escapes ANSI escape sequences (\\x1b)",
-    "Formatted output renders safely without breaking terminal display"
-  ],
-  "risks": [
-    "Escaping backslash first could affect legitimate backslashes in user text",
-    "Control chars are shown as escape sequences in output which may affect readability"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_1948_format_todo_control_char_sanitization.py -v",
-    "uv run ruff check src/flywheel/formatter.py tests/test_issue_1948_format_todo_control_char_sanitization.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 3469,
+    "plan": 4000,
+    "implement": 2043,
+    "verify": 2436,
+    "finalize": 284
+  }
 }
