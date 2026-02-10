@@ -97,11 +97,10 @@ def test_bounded_read_prevents_memory_exhaustion(tmp_path) -> None:
             pass
 
     # Patch builtins.open to use our fake file
-    with patch('builtins.open', FakeFile):
+    with patch('builtins.open', FakeFile), pytest.raises(ValueError, match=r"too large"):
         # Should fail because after reading the initial content,
         # we detect there's more data (TOCTOU indicator)
-        with pytest.raises(ValueError, match=r"too large"):
-            storage.load()
+        storage.load()
 
 
 def test_max_size_boundary_case(tmp_path) -> None:
@@ -249,10 +248,9 @@ def test_memory_bounded_during_read(tmp_path) -> None:
         def __exit__(self, *args):
             return self._file.__exit__(*args)
 
-    with patch('builtins.open', TrackingFile):
+    with patch('builtins.open', TrackingFile), pytest.raises(ValueError, match=r"too large"):
         # This should fail due to size limit
-        with pytest.raises(ValueError, match=r"too large"):
-            storage.load()
+        storage.load()
 
     # Verify that no single read requested more than the limit + 1
     # The implementation uses read(_MAX_JSON_SIZE_BYTES + 1)
