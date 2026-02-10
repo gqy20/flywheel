@@ -16,7 +16,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
@@ -35,10 +35,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@v20
+        uses: DavidAnson/markdownlint-cli2-action@v22
         with:
           config: .markdownlint-cli2.yaml
 
@@ -48,13 +48,14 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Enforce docs updates when workflows/scripts change
         env:
           BASE_REF: ${{ github.base_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         shell: bash
         run: |
           set -euo pipefail
@@ -69,6 +70,27 @@ jobs:
 
           echo "Changed files:"
           echo "$changed_files"
+
+          if ! echo "$changed_files" | grep -Eq '^(scripts/|\.github/workflows/)'; then
+            echo "No scripts/workflows changes requiring docs updates."
+            exit 0
+          fi
+
+          # Dependabot workflow version bumps can be high-volume and low-risk.
+          # Allow these through without docs changes when they only touch workflow files.
+          if echo "$PR_AUTHOR" | grep -Eq '^(dependabot\[bot\]|app/dependabot)$' \
+            && echo "$changed_files" | grep -Eq '^\.github/workflows/' \
+            && ! echo "$changed_files" | grep -Eq '^scripts/'; then
+            non_workflow_changes="$(
+              echo "$changed_files" \
+                | grep -Ev '^(\.github/workflows/.*|\.github/dependabot\.yml)$' \
+                || true
+            )"
+            if [ -z "$non_workflow_changes" ]; then
+              echo "Dependabot workflow-only update detected; skip docs change requirement."
+              exit 0
+            fi
+          fi
 
           if echo "$changed_files" | grep -Eq '^(scripts/|\.github/workflows/)'; then
             if echo "$changed_files" | grep -Eq '^(README\.md|\.github/FLYWHEEL\.md|docs/)'; then

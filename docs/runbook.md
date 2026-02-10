@@ -93,3 +93,9 @@ This runbook describes how to operate and recover Flywheel automation safely.
    uv run python scripts/check_docs_sync.py --check
    ```
 3. Keep `.github/FLYWHEEL.md` aligned with policy and `README.md` aligned with operator entrypoints.
+
+### Dependabot Workflow Exemption
+
+- `docs-change-policy` treats both `dependabot[bot]` and `app/dependabot` as Dependabot actors.
+- Workflow-only means files under `.github/workflows/*` and optional `.github/dependabot.yml`.
+- These workflow-only bot updates are auto-exempt from docs update requirements.
