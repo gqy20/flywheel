@@ -2,6 +2,8 @@
   "issue_number": 2400,
   "candidate_id": "3-21868349385",
   "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2675",
+  "pr_number": 2675,
   "title": "Escape Unicode bidirectional control characters to prevent trojan source attacks",
   "files_to_touch": [
     "src/flywheel/formatter.py",
