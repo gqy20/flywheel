@@ -15,6 +15,88 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_db_path(path: str | Path | None) -> Path:
+    """Validate that the database path is within the allowed directory.
+
+    This prevents path traversal attacks where users could specify paths like
+    '../../../etc/passwd' to access files outside the intended directory.
+
+    The primary security check is rejecting paths with '..' components,
+    which prevents directory traversal attacks. Absolute paths are allowed
+    for programmatic use (e.g., tests), but CLI usage has additional
+    validation to reject absolute paths outside the working directory.
+
+    Args:
+        path: The user-provided database path.
+
+    Returns:
+        The validated and resolved Path object.
+
+    Raises:
+        ValueError: If the path contains traversal patterns.
+    """
+    path = Path(".todo.json") if path is None else Path(path)
+
+    # Convert to string for pattern checking (handles both Path and str inputs)
+    path_str = str(path)
+
+    # The allowed base directory is the current working directory
+    allowed_base = Path.cwd()
+
+    # Check for backslashes (Windows-style path separators) - these could be
+    # path traversal attempts on Windows or create weird filenames on Unix
+    if '\\' in path_str:
+        raise ValueError(
+            f"Security error: Path '{path}' contains backslashes which are not allowed. "
+            f"Use forward slashes (/) for path separators. "
+            f"This protects against path traversal attacks."
+        )
+
+    # Check for path traversal patterns before resolving
+    # This catches things like '../../../etc/passwd' before they resolve
+    path_parts = Path(path).parts
+
+    # Check for explicit '..' components - reject these regardless of whether
+    # the path is relative or absolute. This is the key security check.
+    if '..' in path_parts:
+        raise ValueError(
+            f"Security error: Path '{path}' contains '..' component which is not allowed. "
+            f"This protects against path traversal attacks."
+        )
+
+    # Check for obfuscated dot patterns that could be used for evasion
+    # (e.g., '....', '.....', etc.) - these are often used to bypass '..' checks
+    for part in path_parts:
+        if part and all(c == '.' for c in part):
+            raise ValueError(
+                f"Security error: Path '{path}' contains invalid component '{part}' which is not allowed. "
+                f"This protects against path traversal attacks."
+            )
+
+    # Resolve to absolute path
+    # For absolute paths, this just returns the resolved absolute path
+    # For relative paths, this resolves relative to cwd
+    resolved = path.resolve()
+
+    # For relative paths, verify the resolved path is within the allowed base directory
+    # This prevents relative path traversal (e.g., '../../../etc/passwd')
+    if not path.is_absolute():
+        try:
+            resolved.relative_to(allowed_base)
+        except ValueError:
+            raise ValueError(
+                f"Security error: Database path '{path}' resolves outside the allowed directory. "
+                f"Path must be within the current working directory ('{allowed_base}'). "
+                f"This protects against path traversal attacks."
+            ) from None
+
+    # For absolute paths, we've already verified no '..' components in the path,
+    # which is the main security concern at the storage layer.
+    # Additional validation for CLI-provided absolute paths happens in cli.py.
+
+    return resolved
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -54,7 +136,7 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        self.path = _validate_db_path(path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

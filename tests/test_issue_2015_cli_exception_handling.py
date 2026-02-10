@@ -37,11 +37,18 @@ def test_cli_run_command_handles_os_error_permission_denied(tmp_path, capsys) ->
 
     When file operations fail due to permissions or other OS issues,
     OSError should be caught and handled gracefully.
+
+    Note: After issue #1883 fix, paths like /root/flywheel-test-db.json are
+    rejected by security validation before reaching the file operations layer.
+    This test now uses a directory path to trigger OSError instead.
     """
-    # Use a path that likely won't have write permissions
-    # On Unix systems, /root/ typically requires root access
+    # Create a directory at the db path to trigger OSError when trying to write
+    # (can't write a file where a directory exists)
+    db = tmp_path / "blocking_dir"
+    db.mkdir()
+
     parser = build_parser()
-    args = parser.parse_args(["--db", "/root/flywheel-test-db.json", "add", "test"])
+    args = parser.parse_args(["--db", str(db), "add", "test"])
 
     # Should return 1, not crash with unhandled OSError
     result = run_command(args)

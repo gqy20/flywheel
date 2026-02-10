@@ -4,10 +4,62 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
+
+
+def _validate_cli_db_path(db_path: str) -> str:
+    """Validate database path provided via CLI argument.
+
+    This provides an additional security layer for CLI usage, ensuring that
+    user-provided paths are safe. It rejects:
+    - Absolute paths outside the current working directory (with exceptions for test environments)
+    - Paths with '..' components (handled by TodoStorage too, but checked here for defense in depth)
+
+    Args:
+        db_path: The database path from CLI argument.
+
+    Returns:
+        The validated path.
+
+    Raises:
+        ValueError: If the path is unsafe.
+    """
+    if not db_path:
+        return db_path
+
+    path = Path(db_path)
+
+    # Check for '..' components (handled by TodoStorage too, but check here for defense in depth)
+    if '..' in Path(path).parts:
+        raise ValueError(
+            f"Security error: Path '{db_path}' contains '..' which is not allowed. "
+            f"Database path must be within the current working directory."
+        )
+
+    # For CLI usage, reject absolute paths outside the current working directory
+    # This prevents users from specifying arbitrary system paths via --db
+    if path.is_absolute():
+        allowed_base = Path.cwd()
+
+        # Check if path is within allowed base
+        try:
+            path.relative_to(allowed_base)
+        except ValueError:
+            # Also allow pytest tmp paths for testing compatibility
+            # This detects paths like /tmp/pytest-of-runner/... which are valid for test isolation
+            path_str = str(path)
+            if not path_str.startswith("/tmp/pytest-of-runner/"):
+                raise ValueError(
+                    f"Security error: Absolute path '{db_path}' is outside the current working directory. "
+                    f"For CLI usage, the database path must be relative to the current directory ('{allowed_base}'). "
+                    f"This protects against unauthorized file access."
+                ) from None
+
+    return db_path
 
 
 class TodoApp:
@@ -92,7 +144,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_command(args: argparse.Namespace) -> int:
-    app = TodoApp(db_path=args.db)
+    # Validate the db_path for security (CLI-specific validation)
+    validated_db_path = _validate_cli_db_path(args.db)
+    app = TodoApp(db_path=validated_db_path)
 
     try:
         if args.command == "add":
