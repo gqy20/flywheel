@@ -1,38 +1,23 @@
 {
-  "issue_number": 2565,
-  "candidate_id": "3",
+  "issue": 2565,
+  "candidate": 3,
   "run_id": "21878015973",
   "branch": "claude/issue-2565-candidate-3-21878015973",
-  "stage": "FINALIZED",
   "pr_number": 2709,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2709",
-  "title": "[Security] TOCTOU race condition between exists() check and stat() call in load()",
-  "description": "Fix TOCTOU race condition by replacing check-then-act pattern with try-except around stat() call",
-  "files_to_touch": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_2565_toctou_race_condition.py"
+  "generated_at": "2026-02-10T19:42:19.184885+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "test_plan": {
-    "failing_regression_test": "tests/test_issue_2565_toctou_race_condition.py::test_load_handles_file_deleted_between_exists_and_stat",
-    "implementation_sequence": [
-      "Add try-except around stat() call in load() method",
-      "Return empty list on FileNotFoundError"
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2565_toctou_race_condition.py -v",
-      "uv run ruff check src/flywheel/storage.py"
-    ]
-  },
-  "created_at": "2026-02-10T19:17:00Z",
-  "updated_at": "2026-02-10T19:17:00Z",
-  "verification_results": {
-    "targeted_tests": "3/3 passed",
-    "full_suite": "115/115 passed",
-    "ruff_check": "All checks passed",
-    "commands_executed": [
-      "uv run pytest tests/test_issue_2565_toctou_race_condition.py -v",
-      "uv run ruff check src/flywheel/storage.py",
-      "uv run pytest tests/ -v --tb=short"
-    ]
+  "stage_response_sizes": {
+    "triage": 2409,
+    "plan": 2454,
+    "implement": 1623,
+    "verify": 1445,
+    "finalize": 554
   }
 }
