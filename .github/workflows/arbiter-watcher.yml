@@ -1,0 +1,81 @@
+name: Arbiter Watcher
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # Every hour
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only report without triggering merge"
+        required: false
+        default: true
+        type: boolean
+      min_age_hours:
+        description: "Only consider candidates older than this (hours)"
+        required: false
+        default: "1"
+        type: string
+      require_mergeable:
+        description: "Only consider mergeable PRs"
+        required: false
+        default: "true"
+        type: boolean
+      require_checks_success:
+        description: "Only consider PRs with passing CI checks"
+        required: false
+        default: "true"
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  actions: write
+
+concurrency:
+  group: arbiter-watcher
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
+      MIN_AGE_HOURS: ${{ inputs.min_age_hours || '1' }}
+      REQUIRE_MERGEABLE: ${{ inputs.require_mergeable || 'true' }}
+      REQUIRE_CHECKS_SUCCESS: ${{ inputs.require_checks_success || 'true' }}
+      GH_PAGER: cat
+      PAGER: cat
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Run arbiter watcher
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "=== Arbiter Watcher ==="
+          echo "Dry run: $DRY_RUN"
+          echo "Min age: $MIN_AGE_HOURS hours"
+          echo "Require mergeable: $REQUIRE_MERGEABLE"
+          echo "Require checks success: $REQUIRE_CHECKS_SUCCESS"
+          echo ""
+
+          uv run python scripts/shared/arbiter_watcher.py \
+            --repo "$REPO" \
+            --token "$GH_TOKEN" \
+            --min-age-hours "$MIN_AGE_HOURS" \
+            --limit 200 \
+            $(if [ "$DRY_RUN" = "true" ]; then echo "--dry-run"; fi) \
+            $(if [ "$REQUIRE_MERGEABLE" = "true" ]; then echo "--require-mergeable"; fi) \
+            $(if [ "$REQUIRE_CHECKS_SUCCESS" = "true" ]; then echo "--require-checks-success"; fi)

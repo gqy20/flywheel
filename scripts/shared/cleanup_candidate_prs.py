@@ -104,13 +104,51 @@ def _select_to_close(
     return keep, sorted(close, key=lambda x: x.updated_at)
 
 
-def _close_pr(pr: CandidatePR) -> None:
+def _close_pr(pr: CandidatePR, delete_branch: bool = True) -> None:
+    """Close PR and optionally delete its branch."""
     body = (
         "Auto hygiene: close stale duplicate candidate PR to reduce queue pressure.\n\n"
         "Policy: keep newest candidate PR(s) per issue and close older duplicates."
     )
     _run(["gh", "pr", "comment", str(pr.number), "--body", body])
     _run(["gh", "pr", "close", str(pr.number)])
+
+    if delete_branch:
+        _delete_branch(pr.head_ref)
+
+
+def _delete_branch(branch: str) -> None:
+    """Delete a remote branch."""
+    try:
+        _run(["gh", "repo", "delete", "--yes", "--branch", branch])
+        print(f"deleted branch: {branch}")
+    except subprocess.CalledProcessError:
+        print(f"warning: failed to delete branch {branch}")
+
+
+def _list_orphan_branches() -> list[str]:
+    """List candidate branches that don't have open PRs.
+
+    These are branches that were created but their PRs were closed/merged
+    or branches that were never linked to a PR.
+    """
+    # Get all candidate branches
+    out = _run(["gh", "api", "repos/{owner}/{repo}/branches", "--jq", ".[].name"])
+    branches = [b.strip() for b in out.split("\n") if b.strip()]
+
+    # Get open PR heads
+    pr_out = _run(
+        ["gh", "pr", "list", "--state", "open", "--json", "headRefName", "-q", ".[].headRefName"]
+    )
+    pr_heads = set(pr_out.split("\n"))
+
+    # Filter to candidate branches without PRs
+    orphan_branches = []
+    for branch in branches:
+        if branch.startswith("claude/issue-") and branch not in pr_heads:
+            orphan_branches.append(branch)
+
+    return orphan_branches
 
 
 def main() -> None:
@@ -120,6 +158,11 @@ def main() -> None:
     parser.add_argument("--close-singleton-after-hours", type=int, default=72)
     parser.add_argument("--limit", type=int, default=200)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--cleanup-orphan-branches",
+        action="store_true",
+        help="Also delete branches without open PRs",
+    )
     args = parser.parse_args()
 
     if args.keep_per_issue < 1:
@@ -147,6 +190,19 @@ def main() -> None:
             f"close_candidate pr={pr.number} issue={pr.issue} head={pr.head_ref} "
             f"updated_at={pr.updated_at.isoformat()}"
         )
+
+    # Clean up orphan branches
+    if args.cleanup_orphan_branches:
+        orphan_branches = _list_orphan_branches()
+        print(f"\norphan_branches_count={len(orphan_branches)}")
+        for branch in orphan_branches[:20]:
+            print(f"  - {branch}")
+        if len(orphan_branches) > 20:
+            print(f"  ... and {len(orphan_branches) - 20} more")
+
+        if not args.dry_run:
+            for branch in orphan_branches:
+                _delete_branch(branch)
 
     if args.dry_run:
         return
