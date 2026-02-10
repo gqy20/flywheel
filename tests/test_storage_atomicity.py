@@ -229,3 +229,83 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_load_handles_concurrent_file_deletion(tmp_path) -> None:
+    """Regression test for issue #2455: TOCTOU race condition in load method.
+
+    Tests that load() gracefully handles FileNotFoundError when the file is
+    deleted between the exists() check and the stat()/read_text() calls.
+    This simulates a race condition where another process deletes the file
+    during the load operation.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Verify file exists and can be loaded normally
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test todo"
+
+    # Now simulate file deletion between exists() and stat()
+    # We'll patch exists() to return True initially, then delete the file
+    # This mimics the race condition where file exists at check time but is
+    # deleted before stat() or read_text() can be called
+    original_exists = Path.exists
+    call_count = [0]
+
+    def race_condition_exists(self):
+        call_count[0] += 1
+        # On first call (exists() check), return True
+        if call_count[0] == 1:
+            return True
+        # On subsequent calls, use real behavior
+        return original_exists(self)
+
+    with patch.object(Path, "exists", race_condition_exists):
+        # Delete the file after the exists() check would pass
+        db.unlink()
+
+        # This should handle the FileNotFoundError gracefully and return []
+        # instead of crashing
+        result = storage.load()
+
+    # Verify the function returns empty list instead of raising FileNotFoundError
+    assert result == []
+
+
+def test_load_handles_file_deleted_after_stat_check(tmp_path) -> None:
+    """Regression test for issue #2455: File deleted between stat() and read_text().
+
+    Tests that load() gracefully handles FileNotFoundError when the file is
+    deleted after the size check (stat) but before read_text() is called.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Patch read_text() to simulate file deletion after stat()
+    original_read_text = Path.read_text
+    call_count = [0]
+
+    def read_text_then_delete(self, *args, **kwargs):
+        call_count[0] += 1
+        # On first call to read_text(), delete the file first then fail
+        if call_count[0] == 1:
+            db.unlink()
+        # This will raise FileNotFoundError since file was deleted
+        return original_read_text(self, *args, **kwargs)
+
+    with patch.object(Path, "read_text", read_text_then_delete):
+        # This should handle the FileNotFoundError gracefully
+        result = storage.load()
+
+    # Verify the function returns empty list instead of crashing
+    assert result == []
