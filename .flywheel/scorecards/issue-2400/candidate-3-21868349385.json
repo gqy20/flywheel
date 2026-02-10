@@ -1,0 +1,30 @@
+{
+  "issue_number": 2400,
+  "candidate_id": "3-21868349385",
+  "stage": "IMPLEMENT",
+  "title": "Escape Unicode bidirectional control characters to prevent trojan source attacks",
+  "files_to_touch": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_2400_bidi_sanitization.py"
+  ],
+  "tdd_plan": {
+    "phase_red": [
+      "Create test_issue_2400_bidi_sanitization.py with failing tests for U+202A-U+202E and U+2066-U+2069",
+      "Test that _sanitize_text('hello\\u202eTROLL') returns 'hello\\\\u202eTROLL'",
+      "Test that _sanitize_text('\\u202a\\u202b\\u202c\\u202d\\u202e') escapes all 5 chars in U+202A-U+202E",
+      "Test that _sanitize_text('\\u2066\\u2067\\u2068\\u2069') escapes all 4 chars in U+2066-U+2069",
+      "Test that normal Unicode (你好, 🎉, café) passes through unchanged"
+    ],
+    "phase_green": [
+      "Modify _sanitize_text() to add condition: 0x202a <= code <= 0x202e or 0x2066 <= code <= 0x2069",
+      "Use \\uXXXX escape format for Unicode bidi chars (4-digit hex)",
+      "Keep \\xNN format for existing control character ranges"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2400_bidi_sanitization.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+      "uv run pytest tests/test_issue_2057_c1_control_sanitization.py -v",
+      "uv run ruff check src/flywheel/formatter.py"
+    ]
+  }
+}
