@@ -1,0 +1,15 @@
+{
+  "issue": 2681,
+  "candidate": 3,
+  "run_id": "21878015973",
+  "branch": "claude/issue-2681-candidate-3-21878015973",
+  "generated_at": "2026-02-10T00:00:00.000000+00:00",
+  "stages_completed": ["plan", "implement"],
+  "stage_response_sizes": {
+    "plan": 2500,
+    "implement": 1500
+  },
+  "tests_run": 5,
+  "tests_passed": 5,
+  "lint_checks_passed": true
+}

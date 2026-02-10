@@ -60,23 +60,33 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
-
+        # Security: Use bounded read to prevent DoS via TOCTOU race condition
+        # Opens file descriptor and reads with explicit byte limit, ensuring
+        # memory usage is bounded even if file grows between stat and read
+        fd = os.open(self.path, os.O_RDONLY)
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            # Read with explicit byte limit to bound memory usage
+            data = os.read(fd, _MAX_JSON_SIZE_BYTES + 1)
+
+            # If we read more than the limit, file is too large
+            if len(data) > _MAX_JSON_SIZE_BYTES:
+                size_mb = len(data) / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            # Decode JSON from bounded read
+            try:
+                raw = json.loads(data.decode("utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+        finally:
+            os.close(fd)
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
