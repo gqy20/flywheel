@@ -1,0 +1,19 @@
+{
+  "issue_number": 2565,
+  "candidate_number": 2,
+  "run_id": "21878015973",
+  "branch_name": "claude/issue-2565-candidate-2-21878015973",
+  "issue_title": "[Security] TOCTOU race condition between exists() check and stat() call in load()",
+  "fix_summary": "Eliminated TOCTOU race condition by combining exists() check and stat() call into a single try/except block. Instead of checking if file exists first then calling stat(), the fix directly calls stat() and catches FileNotFoundError, returning empty list when file doesn't exist.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2565_toctou_load_race.py"
+  ],
+  "tests_run": "117 tests passed",
+  "tests_added": 5,
+  "code_quality_checks_passed": true,
+  "risks": [
+    "Minimal risk - the change is a simple refactoring that preserves existing behavior"
+  ],
+  "limitations": []
+}
