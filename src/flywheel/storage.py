@@ -50,11 +50,41 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _validate_path_safe(path: Path, base_dir: Path) -> None:
+    """Validate that path does not use path traversal sequences.
+
+    This prevents path traversal attacks via '../' sequences while allowing:
+    - Absolute paths (e.g., '/tmp/db.json', '/home/user/todos.json')
+    - Safe relative paths within or under base directory (e.g., 'todos.json', 'data/db.json')
+
+    Raises:
+        ValueError: If path contains '../' sequences that would escape the base directory.
+    """
+    # Convert to string to check for traversal patterns
+    path_str = str(path)
+
+    # Check for path traversal sequences ('../' or '..\\')
+    if ("../" in path_str or "..\\" in path_str) and not path.is_absolute():
+        # For relative paths with '../', verify they don't escape base directory
+        resolved = path.resolve()
+        resolved_base = base_dir.resolve()
+        try:
+            resolved.relative_to(resolved_base)
+        except ValueError:
+            raise ValueError(
+                f"Invalid path '{path}': path traversal sequences like '../' are not allowed."
+            ) from None
+
+    # Note: Absolute paths are allowed as they are explicitly specified by the user
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        input_path = Path(path or ".todo.json")
+        _validate_path_safe(input_path, Path.cwd())
+        self.path = input_path
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
