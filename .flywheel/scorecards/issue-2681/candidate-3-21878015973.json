@@ -3,13 +3,21 @@
   "candidate": 3,
   "run_id": "21878015973",
   "branch": "claude/issue-2681-candidate-3-21878015973",
-  "generated_at": "2026-02-10T00:00:00.000000+00:00",
-  "stages_completed": ["plan", "implement"],
+  "pr_number": 2707,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2707",
+  "generated_at": "2026-02-10T19:44:02.749261+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
   "stage_response_sizes": {
-    "plan": 2500,
-    "implement": 1500
-  },
-  "tests_run": 5,
-  "tests_passed": 5,
-  "lint_checks_passed": true
+    "triage": 2448,
+    "plan": 4000,
+    "implement": 2085,
+    "verify": 1666,
+    "finalize": 500
+  }
 }
