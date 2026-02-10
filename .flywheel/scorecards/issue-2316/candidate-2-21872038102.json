@@ -31,5 +31,6 @@
   "limitations": [
     "Only escapes specific Unicode bidirectional and zero-width control characters as specified in the issue"
   ],
-  "started_at": "2026-02-10T00:00:00Z"
+  "started_at": "2026-02-10T00:00:00Z",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2690"
 }
