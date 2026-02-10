@@ -128,16 +128,26 @@ def _list_open_issues(repo: str, token: str, limit: int = 100) -> list[IssueCand
     return result[:limit]
 
 
-def _select_best_issue(issues: list[IssueCandidate], busy: set[int]) -> list[IssueCandidate]:
+def _select_best_issue(
+    issues: list[IssueCandidate], busy: set[int]
+) -> tuple[list[IssueCandidate], list[int]]:
+    """Select best eligible issues for new candidate generation.
+
+    Returns:
+        eligible: Issues without open candidates (for new candidate generation)
+        busy_needing_arbiter: Issue numbers with open candidates that need arbitration
+    """
     eligible: list[IssueCandidate] = []
     for issue in issues:
         if issue.number in busy:
+            # Issue has open candidates - mark as needing arbitration
+            # Don't add to eligible for new candidates
             continue
         if issue.labels & EXCLUDED_LABELS:
             continue
         eligible.append(issue)
     eligible.sort(key=lambda i: (i.priority, i.number))
-    return eligible
+    return eligible, list(busy)
 
 
 def _write_output(path: Path, values: dict[str, str]) -> None:
@@ -160,7 +170,13 @@ def main() -> int:
     open_pr_titles = _list_open_pr_titles(repo, token, limit=200)
     busy_issue_numbers = _busy_issue_numbers_from_titles(open_pr_titles)
     issues = _list_open_issues(repo, token, limit=100)
-    eligible = _select_best_issue(issues, busy_issue_numbers)
+    eligible, busy_needing_arbiter = _select_best_issue(issues, busy_issue_numbers)
+
+    # Output busy issues for arbiter watcher (NEW)
+    busy_issues_json = json.dumps(
+        [{"number": str(n)} for n in busy_needing_arbiter],
+        ensure_ascii=True,
+    )
 
     if len(eligible) < min_fixable_issues:
         print(
@@ -168,7 +184,12 @@ def main() -> int:
         )
         _write_output(
             Path(output_file),
-            {"should_run": "false", "issues_json": "[]", "selected_count": "0"},
+            {
+                "should_run": "false",
+                "issues_json": "[]",
+                "selected_count": "0",
+                "busy_issues_json": busy_issues_json,
+            },
         )
         return 0
 
@@ -176,7 +197,12 @@ def main() -> int:
         print("No eligible issue found.")
         _write_output(
             Path(output_file),
-            {"should_run": "false", "issues_json": "[]", "selected_count": "0"},
+            {
+                "should_run": "false",
+                "issues_json": "[]",
+                "selected_count": "0",
+                "busy_issues_json": busy_issues_json,
+            },
         )
         return 0
 
@@ -203,8 +229,22 @@ def main() -> int:
             "issue_url": best.url,
             "issues_json": issues_json,
             "selected_count": str(len(selected)),
+            "busy_issues_json": busy_issues_json,
         },
     )
+
+    # Also log busy issues for arbiter watcher
+    print("\n=== Issue Selection Summary ===")
+    print(f"Eligible for new candidates: {len(eligible)}")
+    print(f"Busy (has open candidates): {len(busy_needing_arbiter)}")
+    print(f"Selected for this run: {len(selected)}")
+    if busy_needing_arbiter:
+        print("\nIssues needing arbitration:")
+        for n in sorted(busy_needing_arbiter)[:10]:
+            print(f"  - #{n}")
+        if len(busy_needing_arbiter) > 10:
+            print(f"  ... and {len(busy_needing_arbiter) - 10} more")
+
     return 0
 
 

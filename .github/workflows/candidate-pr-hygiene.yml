@@ -2,11 +2,11 @@ name: Candidate PR Hygiene
 
 on:
   schedule:
-    - cron: "15 * * * *"
+    - cron: "15 * * * *"  # Every hour
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Only report close candidates without closing PRs"
+        description: "Only report without making changes"
         required: false
         default: true
         type: boolean
@@ -21,13 +21,18 @@ on:
         default: "12"
         type: string
       close_singleton_after_hours:
-        description: "Close even single remaining candidate PR per issue after this age (hours)"
+        description: "Close single remaining candidate PR per issue after this age (hours)"
         required: false
         default: "72"
         type: string
+      cleanup_orphan_branches:
+        description: "Also delete branches without open PRs"
+        required: false
+        default: "true"
+        type: boolean
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
 
@@ -38,12 +43,13 @@ concurrency:
 jobs:
   cleanup:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       KEEP_PER_ISSUE: ${{ inputs.keep_per_issue || '1' }}
       MIN_AGE_HOURS: ${{ inputs.min_age_hours || '12' }}
       CLOSE_SINGLETON_AFTER_HOURS: ${{ inputs.close_singleton_after_hours || '72' }}
+      CLEANUP_ORPHAN_BRANCHES: ${{ inputs.cleanup_orphan_branches || 'true' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
       GH_PAGER: cat
       PAGER: cat
@@ -51,18 +57,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
       - name: Run candidate PR hygiene
         shell: bash
         run: |
           set -euo pipefail
 
-          cmd=(python scripts/shared/cleanup_candidate_prs.py \
+          echo "=== Candidate PR Hygiene ==="
+          echo "Dry run: $DRY_RUN"
+          echo "Keep per issue: $KEEP_PER_ISSUE"
+          echo "Min age for duplicates: $MIN_AGE_HOURS hours"
+          echo "Close singleton after: $CLOSE_SINGLETON_AFTER_HOURS hours"
+          echo "Cleanup orphan branches: $CLEANUP_ORPHAN_BRANCHES"
+          echo ""
+
+          cmd=(uv run python scripts/shared/cleanup_candidate_prs.py \
             --keep-per-issue "$KEEP_PER_ISSUE" \
             --min-age-hours "$MIN_AGE_HOURS" \
             --close-singleton-after-hours "$CLOSE_SINGLETON_AFTER_HOURS")
 
           if [[ "$DRY_RUN" == "true" ]]; then
             cmd+=(--dry-run)
+          fi
+
+          if [[ "$CLEANUP_ORPHAN_BRANCHES" == "true" ]]; then
+            cmd+=(--cleanup-orphan-branches)
           fi
 
           echo "Running: ${cmd[*]}"
