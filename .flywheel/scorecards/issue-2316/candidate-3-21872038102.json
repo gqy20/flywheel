@@ -1,39 +1,23 @@
 {
-  "issue_number": 2316,
-  "candidate_id": "3-21872038102",
+  "issue": 2316,
+  "candidate": 3,
+  "run_id": "21872038102",
   "branch": "claude/issue-2316-candidate-3-21872038102",
-  "test_results": {
-    "tests_pass": true,
-    "test_file": "tests/test_issue_2316_unicode_control_sanitization.py",
-    "total_tests": 10,
-    "passed_tests": 10,
-    "failed_tests": 0
-  },
-  "lint_results": {
-    "ruff_check": "passed",
-    "issues_fixed": 1
-  },
-  "changes": {
-    "files_modified": [
-      "src/flywheel/formatter.py"
-    ],
-    "files_added": [
-      "tests/test_issue_2316_unicode_control_sanitization.py"
-    ]
-  },
-  "approach": "Added Unicode bidirectional override (U+202A-U+202E) and zero-width character (U+200B-U+200D) escaping to _sanitize_text() using \\uNNNN escape sequences.",
-  "test_cases": [
-    "RTL override (U+202E) escaping",
-    "LTR override (U+202D) escaping",
-    "Zero-width space (U+200B) escaping",
-    "All bidirectional overrides (U+202A-U+202E) escaping",
-    "All zero-width characters (U+200B-U+200D) escaping",
-    "Normal Arabic/Hebrew text preservation",
-    "Normal Unicode preservation",
-    "TodoFormatter integration with bidi overrides",
-    "TodoFormatter integration with zero-width spaces",
-    "Mixed ASCII controls and bidi overrides"
+  "pr_number": 2688,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2688",
+  "generated_at": "2026-02-10T17:02:21.318568+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2254,
+    "plan": 2912,
+    "implement": 1578,
+    "verify": 2050,
+    "finalize": 876
+  }
 }
