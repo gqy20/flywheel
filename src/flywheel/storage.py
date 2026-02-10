@@ -53,8 +53,56 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+    def __init__(self, path: str | None = None, *, validate: bool = False) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON database file. Defaults to ".todo.json".
+            validate: If True, validates that the path is within the current
+                working directory to prevent path traversal attacks. This is
+                opt-in for backward compatibility.
+
+        Raises:
+            ValueError: If validate=True and the path escapes the current
+                working directory.
+        """
+        self._raw_path = Path(path or ".todo.json")
+        self._validate = validate
+        self.path = self._raw_path
+        if validate:
+            self.path = self._validate_path(self._raw_path)
+
+    def _validate_path(self, path: Path) -> Path:
+        """Validate that path is within the current working directory.
+
+        Resolves the path to its absolute form and ensures it doesn't escape
+        the current working directory. This prevents path traversal attacks.
+
+        Args:
+            path: The path to validate.
+
+        Returns:
+            The resolved absolute path.
+
+        Raises:
+            ValueError: If the resolved path is outside the current working directory.
+        """
+        # Resolve to absolute path (follows symlinks)
+        resolved = path.resolve()
+
+        # Get the current working directory
+        cwd = Path.cwd().resolve()
+
+        # Check if the resolved path is within cwd
+        try:
+            resolved.relative_to(cwd)
+        except ValueError:
+            raise ValueError(
+                f"Invalid database path '{path}': path is outside the working directory. "
+                "For security, the database must be within the current directory tree."
+            ) from None
+
+        return resolved
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

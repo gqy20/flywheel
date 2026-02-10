@@ -14,7 +14,9 @@ class TodoApp:
     """Simple in-process todo application."""
 
     def __init__(self, db_path: str | None = None) -> None:
-        self.storage = TodoStorage(db_path)
+        # Enable validation to prevent path traversal attacks via --db argument
+        # This validates that the resolved path is within the current working directory
+        self.storage = TodoStorage(db_path, validate=True)
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
