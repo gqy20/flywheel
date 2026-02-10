@@ -15,6 +15,54 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_path(path: Path) -> None:
+    """Validate that path does not escape via '../' traversal sequences.
+
+    Security: Prevents path traversal attacks where '../' sequences
+    are used to escape the current directory context.
+
+    This validates relative paths for parent directory traversal.
+    Absolute paths are allowed - users have full control over where
+    to store their data file.
+
+    Args:
+        path: The path to validate
+
+    Raises:
+        ValueError: If the path contains '../' sequences that escape CWD
+    """
+    cwd = Path.cwd()
+
+    # For relative paths, check for parent directory traversal
+    if not path.is_absolute():
+        # Check each part of the path for parent directory references
+        parts = path.parts
+        depth = 0
+        for part in parts:
+            if part == "..":
+                depth -= 1
+                if depth < 0:
+                    # Path would escape CWD via '../' traversal
+                    raise ValueError(
+                        f"Invalid path '{path}': Relative paths using '../' to escape "
+                        f"the current directory are not allowed for security reasons."
+                    )
+            elif part != ".":
+                depth += 1
+
+        # Also verify by actually resolving the path and checking if it stays within CWD
+        resolved_path = (cwd / path).resolve()
+        try:
+            resolved_path.relative_to(cwd)
+        except ValueError:
+            raise ValueError(
+                f"Invalid path '{path}': Path must be within current working directory. "
+                f"Relative paths cannot escape outside the current directory."
+            ) from None
+    # Note: Absolute paths are explicitly allowed - the user has full control
+    # over where they want to store their data file via --db argument
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -55,6 +103,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        _validate_path(self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

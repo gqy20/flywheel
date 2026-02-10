@@ -1,0 +1,43 @@
+{
+  "issue_number": 1873,
+  "issue_title": "[Security] Path traversal via path parameter - no validation against '../' sequences",
+  "candidate_number": 1,
+  "run_id": "21851562158",
+  "branch_name": "claude/issue-1873-candidate-1-21851562158",
+  "stage": "PLAN",
+  "plan": {
+    "files_to_create": [
+      "tests/test_issue_1873_path_traversal_fix.py"
+    ],
+    "files_to_modify": [
+      "src/flywheel/storage.py"
+    ],
+    "red_phase_tests": [
+      "test_path_traversal_with_parent_directory_sequences_raises_value_error",
+      "test_absolute_path_outside_cwd_raises_value_error",
+      "test_single_parent_directory_raises_value_error",
+      "test_safe_relative_path_works_normally",
+      "test_subdirectory_path_works_normally",
+      "test_normalized_parent_directory_path_works"
+    ],
+    "implementation_steps": [
+      "Add _validate_path() helper function",
+      "Call _validate_path() in TodoStorage.__init__",
+      "Use Path.resolve() to normalize paths",
+      "Check resolved path stays within CWD"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_1873_path_traversal_fix.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_1873_path_traversal_fix.py"
+    ]
+  },
+  "execution": {
+    "tests_created": [],
+    "tests_passing": null,
+    "implementation_complete": false,
+    "verification_passed": null,
+    "pr_created": false
+  },
+  "summary": "Minimal fix for path traversal vulnerability using path resolution and CWD boundary validation"
+}
