@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -56,9 +57,40 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, check_permissions: bool | str = False) -> list[Todo]:
         if not self.path.exists():
             return []
+
+        # Security: Validate file permissions before loading sensitive data
+        if check_permissions:
+            file_stat = self.path.stat()
+            file_mode = stat.S_IMODE(file_stat.st_mode)
+            issues = []
+
+            # Check for group writable (bit 1 at position 16)
+            if file_mode & stat.S_IWGRP:
+                issues.append("group writable")
+
+            # Check for world writable (bit 1 at position 8)
+            if file_mode & stat.S_IWOTH:
+                issues.append("world writable")
+
+            if issues:
+                issue_desc = " and ".join(issues)
+                perm_octal = oct(file_mode)
+                if check_permissions == "strict":
+                    raise ValueError(
+                        f"File '{self.path}' has {issue_desc} permissions ({perm_octal}). "
+                        f"This may indicate tampering. Run: chmod 600 {self.path}"
+                    )
+                else:
+                    warnings.warn(
+                        f"File '{self.path}' has {issue_desc} permissions ({perm_octal}). "
+                        f"This is a security risk for sensitive data. "
+                        f"Consider running: chmod 600 {self.path}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
