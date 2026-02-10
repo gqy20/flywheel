@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -56,9 +57,31 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, strict: bool = False) -> list[Todo]:
+        """Load todos from file.
+
+        Args:
+            strict: If True, raises ValueError for files with overly permissive permissions
+                   (group or world writable). If False (default), emits a warning instead.
+
+        Returns:
+            List of todos, or empty list if file doesn't exist.
+        """
         if not self.path.exists():
             return []
+
+        # Security: Check file permissions to detect potentially tampered files
+        # Reject files with group or world writable bits set (mode & 0o077)
+        file_mode = stat.S_IMODE(self.path.stat().st_mode)
+        permissive_bits = file_mode & 0o077
+        if permissive_bits:
+            msg = (
+                f"File '{self.path}' has overly permissive permissions: {oct(file_mode)}. "
+                f"Group or world writable bits are set. This may indicate file tampering."
+            )
+            if strict:
+                raise ValueError(msg)
+            warnings.warn(msg, stacklevel=2)
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -74,8 +97,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
