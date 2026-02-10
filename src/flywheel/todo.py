@@ -5,9 +5,14 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Maximum text length to prevent DoS attacks (10KB)
+# This is 1000x smaller than the 10MB file limit in storage.py,
+# allowing for many todos while still preventing abuse
+_MAX_TODO_TEXT_LENGTH = 10_000
+
 
 def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+  return datetime.now(UTC).isoformat()
 
 
 @dataclass(slots=True)
@@ -77,6 +82,14 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Validate 'text' length to prevent DoS attacks
+        text_length = len(data["text"])
+        if text_length > _MAX_TODO_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text is too long ({text_length:,} characters). "
+                f"Maximum allowed is {_MAX_TODO_TEXT_LENGTH:,} characters."
             )
 
         # Validate 'done' is a proper boolean value
