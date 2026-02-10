@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -56,6 +57,15 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def _backup_path(self) -> Path:
+        """Get the backup file path for this storage.
+
+        Returns a Path object pointing to the .bak backup file in the same
+        directory as the main storage file.
+        """
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -88,11 +98,18 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before overwriting an existing file, creates a .bak backup copy
+        to allow recovery from user errors or JSON corruption.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting (if it exists)
+        if self.path.exists():
+            shutil.copy2(self.path, self._backup_path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
