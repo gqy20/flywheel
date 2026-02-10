@@ -119,3 +119,41 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2651 - validate text field length to prevent DoS
+def test_todo_from_dict_rejects_excessively_long_text() -> None:
+    """Todo.from_dict should reject text fields exceeding MAX_TEXT_LENGTH (1MB)."""
+    # Create a text string that exceeds 1MB
+    long_text = "a" * (1_048_576 + 1)  # 1MB + 1 character
+
+    with pytest.raises(ValueError, match=r"text.*too long|exceeds.*maximum"):
+        Todo.from_dict({"id": 1, "text": long_text})
+
+
+def test_todo_from_dict_accepts_max_length_text() -> None:
+    """Todo.from_dict should accept text fields at exactly MAX_TEXT_LENGTH (1MB)."""
+    # Create a text string that is exactly 1MB
+    max_text = "a" * 1_048_576
+
+    todo = Todo.from_dict({"id": 1, "text": max_text})
+    assert todo.text == max_text
+
+
+def test_todo_from_dict_accepts_normal_length_text() -> None:
+    """Todo.from_dict should accept normal length text fields."""
+    normal_text = "This is a normal todo item"
+
+    todo = Todo.from_dict({"id": 1, "text": normal_text})
+    assert todo.text == normal_text
+
+
+def test_todo_from_dict_error_message_includes_length_info() -> None:
+    """Error message should include both max length and actual length."""
+    long_text = "a" * (1_048_576 + 100)  # 1MB + 100 characters
+
+    with pytest.raises(ValueError) as exc_info:
+        Todo.from_dict({"id": 1, "text": long_text})
+
+    error_msg = str(exc_info.value)
+    assert "1048576" in error_msg  # Max length should be in error message

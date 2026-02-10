@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Maximum text length to prevent DoS via extremely long strings (1MB)
+# Aligns with storage's 10MB file limit at field level
+_MAX_TODO_TEXT_LENGTH = 1_048_576  # 1MB in bytes
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -77,6 +81,14 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Validate 'text' length to prevent DoS via extremely long strings
+        text_length = len(data["text"])
+        if text_length > _MAX_TODO_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text is too long ({text_length} characters). "
+                f"Maximum allowed is {_MAX_TODO_TEXT_LENGTH} characters."
             )
 
         # Validate 'done' is a proper boolean value
