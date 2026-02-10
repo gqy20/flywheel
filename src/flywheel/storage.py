@@ -90,9 +90,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Handles stale temp files from previous crashed processes by cleaning them up
+        before creating a new temp file.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Clean up any stale temp files from previous crashed processes
+        # This prevents issues where old temp files might interfere with new writes
+        self._cleanup_stale_temp_files()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +130,25 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _cleanup_stale_temp_files(self) -> None:
+        """Clean up stale temp files from previous crashed processes.
+
+        Looks for temp files matching the pattern used by this storage instance
+        and removes them. This prevents issues where a previous process crash
+        left temp files that could interfere with new writes.
+        """
+        # Pattern: .{filename}.*.tmp
+        # e.g., for todo.json -> .todo.json.*.tmp
+        pattern = f".{self.path.name}.*.tmp"
+        stale_files = self.path.parent.glob(pattern)
+
+        for stale_file in stale_files:
+            # Only remove files (not directories), and ignore the target file itself
+            # Also skip our own temp file if we're in a retry scenario
+            if stale_file.is_file() and stale_file != self.path:
+                with contextlib.suppress(OSError):
+                    stale_file.unlink()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
