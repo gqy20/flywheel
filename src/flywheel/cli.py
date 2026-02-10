@@ -7,7 +7,7 @@ import sys
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
-from .todo import Todo
+from .todo import MAX_TODO_TEXT_LENGTH, Todo
 
 
 class TodoApp:
@@ -26,6 +26,10 @@ class TodoApp:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > MAX_TODO_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text too long ({len(text)} chars, max {MAX_TODO_TEXT_LENGTH})"
+            )
 
         todos = self._load()
         todo = Todo(id=self.storage.next_id(todos), text=text)
