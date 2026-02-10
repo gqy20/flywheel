@@ -50,11 +50,42 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _validate_storage_path(path: Path) -> None:
+    """Validate that storage path is safe from path traversal attacks.
+
+    Security: Prevents path traversal attacks by rejecting paths with '..' components.
+
+    This addresses CVE-like scenarios where an attacker could use paths like
+    '../../../etc/passwd' to write files outside the intended directory.
+
+    Note: We don't restrict absolute paths because:
+    1. Users may legitimately want to specify absolute paths
+    2. Tests commonly use tmp_path which is an absolute path
+    3. The main threat is relative path traversal via '..'
+
+    Args:
+        path: The path to validate
+
+    Raises:
+        ValueError: If path contains '..' components (path traversal)
+    """
+    path_str = str(path)
+
+    # Check for path traversal patterns - the '../' sequence is the main threat
+    if ".." in path_str:
+        raise ValueError(
+            f"Path traversal detected: '{path}' contains '..' component. "
+            "For security, storage paths cannot contain parent directory references."
+        )
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Security: Validate path to prevent traversal attacks
+        _validate_storage_path(self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
