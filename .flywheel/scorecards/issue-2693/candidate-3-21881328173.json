@@ -1,0 +1,25 @@
+{
+  "issue": 2693,
+  "candidate": 3,
+  "stage": "IMPLEMENT",
+  "timestamp": "2026-02-10T17:30:00Z",
+  "plan": {
+    "title": "Fix os.fchmod() Windows compatibility",
+    "problem": "os.fchmod() is Unix-only and causes AttributeError on Windows",
+    "files": {
+      "test": "tests/test_issue_2693_windows_fchmod.py (NEW)",
+      "source": "src/flywheel/storage.py (MODIFY line 112)"
+    },
+    "tdd_sequence": [
+      "RED: Create test that simulates Windows environment (no os.fchmod)",
+      "GREEN: Add hasattr(os, 'fchmod') check with Windows fallback",
+      "VERIFY: Run pytest and ruff to ensure all tests pass"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2693_windows_fchmod.py -v",
+      "uv run pytest tests/test_issue_2027_permissions.py -v",
+      "uv run pytest tests/test_storage*.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_2693_windows_fchmod.py"
+    ]
+  }
+}
