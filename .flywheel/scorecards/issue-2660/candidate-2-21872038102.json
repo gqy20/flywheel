@@ -54,5 +54,28 @@
       "issue_2015_tests": "5 passed",
       "ruff_check": "All checks passed"
     }
+  },
+  "verification": {
+    "stage": "VERIFY",
+    "status": "complete",
+    "verified_at": "2026-02-10T12:45:00Z",
+    "commands_executed": [
+      "uv run pytest tests/test_issue_2660_error_message_sanitization.py -v",
+      "uv run pytest tests/test_issue_2015_cli_exception_handling.py -v",
+      "uv run ruff check src/flywheel/cli.py src/flywheel/formatter.py tests/test_issue_2660_error_message_sanitization.py"
+    ],
+    "outcomes": {
+      "issue_2660_tests": "10 passed in 0.08s",
+      "issue_2015_tests": "5 passed in 0.07s",
+      "ruff_check": "All checks passed!"
+    },
+    "summary": "All verification checks passed successfully. The fix sanitizes exception messages to prevent path leakage while preserving error context for debugging."
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "status": "complete",
+    "finalized_at": "2026-02-10T13:00:00Z",
+    "pr_number": 2687,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2687"
   }
 }
