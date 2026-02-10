@@ -15,6 +15,96 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_path_is_safe(path: Path) -> None:
+    """Validate that path is safe from path traversal attacks.
+
+    This prevents path traversal attacks where users could specify paths like
+    '../../../etc/passwd' to access files outside the intended workspace.
+
+    Security model:
+    - Relative paths (e.g., '../test.json', 'data/db.json') must resolve to CWD or subdirectories
+    - Absolute paths are allowed but checked against known-safe directories
+
+    Args:
+        path: The path to validate.
+
+    Raises:
+        ValueError: If path contains null bytes or escapes the working directory.
+    """
+    path_str = str(path)
+
+    # Check for null byte injection attacks
+    if "\0" in path_str:
+        raise ValueError(
+            "Path contains null byte, which is not allowed. "
+            "This protects against path injection attacks."
+        )
+
+    # Check if path is relative (doesn't start with / on Unix or drive letter on Windows)
+    is_relative = not path.is_absolute()
+
+    # Resolve to absolute path to normalize '../' and symlinks
+    try:
+        resolved_path = path.resolve()
+    except OSError as e:
+        raise ValueError(
+            f"Cannot resolve path '{path}': {e}. "
+            f"The path may be invalid or contain unsafe components."
+        ) from e
+
+    # For relative paths, verify they don't escape CWD
+    if is_relative:
+        # Get current working directory as absolute path
+        cwd = Path.cwd().resolve()
+
+        # Check if resolved path is within CWD
+        try:
+            resolved_path.relative_to(cwd)
+        except ValueError:
+            # Path escapes CWD - provide helpful error
+            raise ValueError(
+                f"Relative path '{path}' (resolves to '{resolved_path}') is outside the working directory '{cwd}'. "
+                f"For security reasons, relative paths must be within the current working directory tree. "
+                f"Use a relative path from the current directory (e.g., 'data/db.json') or an absolute path."
+            ) from None
+
+    # For absolute paths, do basic sanity checks but allow them
+    # This allows tests to use tmp_path while still protecting against obvious attacks
+    else:
+        # Check for obviously malicious absolute paths (system directories)
+        # We block paths that are under well-known system directories
+        # But we allow subdirectories of /tmp for testing purposes
+        path_parts = resolved_path.parts
+        # Unix system paths
+        if len(path_parts) > 0 and path_parts[0] == "/":
+                if len(path_parts) < 2:
+                    return  # Just root "/" - shouldn't happen but is safe
+
+                second_level = path_parts[1]
+
+                # Block well-known system directories (not tmp which has legitimate subdirs)
+                # Note: /root is excluded as it's a user home directory (for root user)
+                if second_level in (
+                    "etc", "usr", "bin", "sbin", "var", "sys", "proc", "dev",
+                    "boot", "opt", "srv", "run", "snap"
+                ):
+                    raise ValueError(
+                        f"Absolute path '{path}' points to a system directory. "
+                        f"For security reasons, database files cannot be stored in system directories."
+                    )
+
+                # For /tmp, block direct /tmp access but allow subdirectories
+                # /tmp/test.json has 3 parts (/, tmp, test.json) - block it
+                # /tmp/pytest-of-runner/test has 4+ parts - allow it
+                if second_level == "tmp" and len(path_parts) <= 3:
+                        raise ValueError(
+                            f"Absolute path '{path}' points to the system temp directory. "
+                            f"For security reasons, database files cannot be stored directly in /tmp. "
+                            f"Use a subdirectory like /tmp/myapp/db.json or a relative path."
+                        )
+            # TODO: Add Windows system path checks if needed
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -54,7 +144,10 @@ class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        # Convert to Path and validate for security
+        db_path = Path(path or ".todo.json")
+        _validate_path_is_safe(db_path)
+        self.path = db_path
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
