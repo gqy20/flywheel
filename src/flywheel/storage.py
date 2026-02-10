@@ -21,10 +21,11 @@ def _ensure_parent_directory(file_path: Path) -> None:
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
     2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    3. Detects and prevents symlink TOCTOU attacks
+    4. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file or symlink
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
@@ -39,15 +40,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory using exist_ok=True to handle TOCTOU race conditions.
+    # We validate the result after creation to detect symlink attacks.
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
+
+    # Security: Validate that parent is actually a directory, not a symlink.
+    # This prevents TOCTOU attacks where an attacker replaces the directory with a symlink
+    # between the exists() check and mkdir() call.
+    if parent.is_symlink():
+        target = os.readlink(parent)
+        raise ValueError(
+            f"Security: Detected symlink attack at '{parent}'. "
+            f"The parent directory is a symbolic link to '{target}'. "
+            f"This could be a TOCTOU (time-of-check to time-of-use) vulnerability. "
+            f"Use a real directory path instead."
+        )
 
 
 class TodoStorage:
