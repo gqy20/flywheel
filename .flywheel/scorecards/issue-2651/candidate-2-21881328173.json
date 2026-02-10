@@ -2,7 +2,7 @@
   "issue_number": 2651,
   "candidate_number": 2,
   "run_id": "21881328173",
-  "stage": "PLAN",
+  "stage": "FINALIZE",
   "tdd_plan": {
     "files_to_create": [
       "tests/test_issue_2651_text_length_validation.py"
@@ -27,9 +27,47 @@
         "uv run ruff check src/flywheel/todo.py tests/test_issue_2651_text_length_validation.py"
       ]
     },
-    "proposed_max_length": 1048576,
-    "rationale": "1MB max text length prevents DoS via extremely long strings while being reasonable for legitimate use. Storage has 10MB file limit, so 1MB per todo allows ~10 todos max - aligns with defense-in-depth strategy."
+    "proposed_max_length": 100000,
+    "rationale": "100KB max text length prevents DoS via extremely long strings. Storage has 10MB file limit, so 100KB per todo allows ~100 todos max - aligns with defense-in-depth strategy. Much smaller than 1MB to prevent memory exhaustion while still allowing substantial todo text."
+  },
+  "implementation": {
+    "files_created": [
+      "tests/test_issue_2651_text_length_validation.py"
+    ],
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ],
+    "changes": [
+      "Added _MAX_TODO_TEXT_LENGTH constant (100,000 characters)",
+      "Added length validation in Todo.from_dict() after string type check",
+      "Added length validation in Todo.rename() to prevent DoS via rename",
+      "Error messages include both actual length and max limit"
+    ],
+    "tests_created": 7,
+    "tests_passing": true,
+    "all_tests_passing": true,
+    "linting_passing": true
   },
   "branch_name": "claude/issue-2651-candidate-2-21881328173",
-  "created_at": "2026-02-10T20:57:00Z"
+  "commit_hash": "fdeb273",
+  "created_at": "2026-02-10T20:57:00Z",
+  "updated_at": "2026-02-10T21:00:00Z",
+  "verification": {
+    "tests_new_file_passing": true,
+    "tests_new_file_count": 7,
+    "tests_related_passing": true,
+    "tests_related_count": 41,
+    "linting_passing": true,
+    "commands_run": [
+      "uv run pytest tests/test_issue_2651_text_length_validation.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run pytest tests/ -v -k \"todo\" --tb=short",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2651_text_length_validation.py"
+    ],
+    "verified_at": "2026-02-10T21:10:00Z"
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "pr_created": true
+  }
 }
