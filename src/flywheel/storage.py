@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +59,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._backup_path = self.path.with_suffix(self.path.suffix + ".bak")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -73,6 +78,14 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            # Check if backup exists and warn user
+            if self._backup_path.exists():
+                logger.warning(
+                    "JSON file '%s' is corrupted. A backup file exists at '%s'. "
+                    "Use restore_from_backup() to recover your data.",
+                    self.path,
+                    self._backup_path,
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -90,9 +103,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Before overwriting an existing file, creates a backup with .bak suffix.
+        Only one backup is maintained (rotates on each save).
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if the file exists
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +143,25 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file.
+
+        Copies the existing file to a .bak backup. Only one backup is maintained.
+        """
+        shutil.copy2(self.path, self._backup_path)
+
+    def restore_from_backup(self) -> bool:
+        """Restore data from backup file.
+
+        Returns:
+            True if restore succeeded, False if backup doesn't exist.
+        """
+        if not self._backup_path.exists():
+            return False
+
+        shutil.copy2(self._backup_path, self.path)
+        return True
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
