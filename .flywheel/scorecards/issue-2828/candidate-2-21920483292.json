@@ -1,0 +1,16 @@
+{
+  "issue_number": 2828,
+  "candidate_number": 2,
+  "run_id": "21920483292",
+  "summary": "Add type validation for created_at/updated_at fields in Todo.from_dict()",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2828_timestamp_validation.py"
+  ],
+  "tests_added": 8,
+  "tests_passed": 8,
+  "ruff_check": "passed",
+  "acceptance_criteria_met": true,
+  "risks": [],
+  "limitations": []
+}
