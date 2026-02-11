@@ -158,3 +158,42 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_post_init_preserves_falsy_string_values() -> None:
+    """Bug #2869: __post_init__ should preserve string '0', 'False' instead of overwriting them.
+
+    The issue is that `if not self.created_at:` uses falsy check which treats
+    integer 0 and boolean False as empty, causing them to be overwritten with
+    timestamps even though they coerce to valid strings '0' and 'False'.
+    """
+    # Test integer 0 - should be preserved as string '0'
+    todo_int_zero = Todo(id=1, text="test", created_at=0, updated_at=0)
+    assert todo_int_zero.created_at == "0", "Integer 0 should be preserved as '0'"
+    assert todo_int_zero.updated_at == "0", "Integer 0 for updated_at should be preserved as '0'"
+
+    # Test boolean False - should be preserved as string 'False'
+    todo_bool_false = Todo(id=1, text="test", created_at=False, updated_at=False)
+    assert todo_bool_false.created_at == "False", "Boolean False should be preserved as 'False'"
+    assert todo_bool_false.updated_at == "False", "Boolean False for updated_at should be preserved as 'False'"
+
+    # Test empty string - should generate new timestamp (expected behavior)
+    todo_empty = Todo(id=1, text="test", created_at="", updated_at="")
+    assert todo_empty.created_at != "", "Empty string should generate timestamp"
+    assert todo_empty.updated_at == todo_empty.created_at, "Empty updated_at should use created_at"
+
+    # Test that valid ISO timestamps are preserved
+    valid_timestamp = "2024-01-01T00:00:00+00:00"
+    todo_valid = Todo(id=1, text="test", created_at=valid_timestamp, updated_at=valid_timestamp)
+    assert todo_valid.created_at == valid_timestamp, "Valid timestamp should be preserved"
+    assert todo_valid.updated_at == valid_timestamp, "Valid timestamp should be preserved"
+
+    # Test string '0' (already a string) - should be preserved
+    todo_str_zero = Todo(id=1, text="test", created_at="0", updated_at="0")
+    assert todo_str_zero.created_at == "0", "String '0' should be preserved"
+    assert todo_str_zero.updated_at == "0", "String '0' should be preserved"
+
+    # Test string 'False' (already a string) - should be preserved
+    todo_str_false = Todo(id=1, text="test", created_at="False", updated_at="False")
+    assert todo_str_false.created_at == "False", "String 'False' should be preserved"
+    assert todo_str_false.updated_at == "False", "String 'False' should be preserved"
