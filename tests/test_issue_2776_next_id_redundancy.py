@@ -9,8 +9,6 @@ max(..., default=0) already returns 0 for empty sequences, and 0 + 1 = 1.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
