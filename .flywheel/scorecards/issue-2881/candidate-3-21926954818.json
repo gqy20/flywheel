@@ -1,46 +1,23 @@
 {
-  "candidate": 3,
   "issue": 2881,
+  "candidate": 3,
   "run_id": "21926954818",
-  "status": "completed",
-  "summary": "Add validation to Todo text field to reject NUL characters and excessive length",
-  "files_changed": {
-    "src/flywheel/todo.py": {
-      "changes": "Added text validation in __post_init__ and rename() to reject NUL chars (\\x00) and text > 10000 chars"
-    },
-    "tests/test_issue_2881_from_dict_text_validation.py": {
-      "changes": "NEW - Added 10 tests for text field validation (NUL chars, length limit, normal cases)"
-    },
-    "tests/test_issue_1924_format_todo_sanitization.py": {
-      "changes": "Updated test_format_todo_escapes_null_byte to expect ValueError instead of escaped output"
-    },
-    "tests/test_issue_2083_cli_success_message_sanitization.py": {
-      "changes": "Updated test to use ANSI escape chars instead of NUL, added new test for NUL rejection"
-    },
-    "tests/test_issue_2084_cli_output_sanitization.py": {
-      "changes": "Updated test_cli_add_command_sanitizes_null_byte to expect error instead of escaped output"
-    }
-  },
-  "tests_added": 10,
-  "tests_modified": 3,
-  "implementation": {
-    "approach": "Validate in __post_init__ to catch all Todo construction paths",
-    "nul_validation": "Rejects text containing \\x00",
-    "length_limit": 10000,
-    "error_messages": "Clear ValueError messages explaining the rejection reason"
-  },
-  "verification": {
-    "pytest": "123 passed",
-    "ruff": "All checks passed",
-    "coverage": "94% for todo.py (lines 45, 70, 76, 105 not covered - edge cases)"
-  },
-  "risks": [
-    "Breaking change - existing data with NUL chars will fail to load",
-    "Acceptable for security hardening"
+  "branch": "claude/issue-2881-candidate-3-21926954818",
+  "pr_number": 2890,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2890",
+  "generated_at": "2026-02-11T23:57:10.266936+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "compliance": {
-    "conventional_commit": true,
-    "branch_naming": true,
-    "test_file_naming": true
+  "stage_response_sizes": {
+    "triage": 2838,
+    "plan": 3191,
+    "implement": 4000,
+    "verify": 2315,
+    "finalize": 1472
   }
 }
