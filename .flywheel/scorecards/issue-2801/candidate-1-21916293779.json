@@ -1,0 +1,22 @@
+{
+  "issue": 2801,
+  "candidate": 1,
+  "run_id": "21916293779",
+  "title": "[Bug] os.fchmod() is Unix-only and will crash on Windows",
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2801_windows_compat.py"
+  ],
+  "summary": "Added platform detection for os.fchmod() call using hasattr() check to gracefully handle Windows where this function doesn't exist.",
+  "tests_run": [
+    "uv run pytest tests/test_issue_2801_windows_compat.py -v (4 passed)",
+    "uv run pytest tests/ -v (116 passed)"
+  ],
+  "linting": [
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_2801_windows_compat.py (All checks passed!)"
+  ],
+  "risks": [
+    "On Unix systems, os.fchmod is still called correctly preserving security (verified by test_save_sets_restrictive_permissions_on_unix)"
+  ],
+  "limitations": []
+}
