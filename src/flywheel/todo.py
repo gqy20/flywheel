@@ -79,6 +79,15 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate text content - reject NUL characters
+        if "\x00" in data["text"]:
+            raise ValueError("text cannot contain NUL character ('\\x00')")
+
+        # Validate text length - reject excessive length
+        text_value = data["text"]
+        if len(text_value) > 10000:
+            raise ValueError(f"text length exceeds maximum of 10000 characters (got {len(text_value)})")
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
