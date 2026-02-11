@@ -72,7 +72,7 @@ def test_format_todo_escapes_null_byte() -> None:
     rejected during Todo construction as a security hardening measure.
     """
     import pytest
-    with pytest.raises(ValueError, match="NUL character|\\\\x00"):
+    with pytest.raises(ValueError, match=r"NUL character|\\x00"):
         Todo(id=1, text="Before\x00After")
 
 
