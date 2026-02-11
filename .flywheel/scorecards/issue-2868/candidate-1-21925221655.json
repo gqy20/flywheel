@@ -1,0 +1,32 @@
+{
+  "issue": 2868,
+  "candidate": 1,
+  "run_id": "21925221655",
+  "title": "[Bug] from_dict accepts non-string timestamp values but converts them to string, losing type information",
+  "summary": "Add validation to reject non-string timestamp values in Todo.from_dict",
+  "changes": {
+    "files": [
+      "tests/test_issue_2868_timestamp_type_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "tests_added": 10,
+    "source_lines_changed": 14
+  },
+  "tests": {
+    "passed": 10,
+    "failed": 0,
+    "total": 10,
+    "commands_run": [
+      "uv run pytest tests/test_issue_2868_timestamp_type_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2868_timestamp_type_validation.py"
+    ]
+  },
+  "quality_checks": {
+    "ruff": "passed",
+    "pytest": "passed"
+  },
+  "risks": [
+    "None - this is a pure validation addition that rejects invalid inputs"
+  ],
+  "limitations": []
+}
