@@ -11,8 +11,35 @@ from pathlib import Path
 
 from .todo import Todo
 
-# Maximum JSON file size to prevent DoS attacks (10MB)
-_MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+def _get_max_json_size_bytes() -> int:
+    """Get maximum JSON file size from environment variable or use default.
+
+    Reads TODO_MAX_JSON_SIZE_MB environment variable and validates it.
+    Returns size in bytes. Falls back to default 10MB if:
+    - Environment variable is not set
+    - Value is not a positive integer
+
+    Returns:
+        Maximum JSON file size in bytes (default: 10MB)
+    """
+    default_mb = 10
+    env_value = os.environ.get("TODO_MAX_JSON_SIZE_MB")
+
+    if env_value is None:
+        return default_mb * 1024 * 1024
+
+    try:
+        mb = int(env_value)
+        if mb <= 0:
+            return default_mb * 1024 * 1024
+        return mb * 1024 * 1024
+    except ValueError:
+        return default_mb * 1024 * 1024
+
+
+# Maximum JSON file size to prevent DoS attacks (configurable via TODO_MAX_JSON_SIZE_MB)
+_MAX_JSON_SIZE_BYTES = _get_max_json_size_bytes()
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
