@@ -1,18 +1,23 @@
 {
-  "issue_number": 2883,
-  "candidate_number": 2,
+  "issue": 2883,
+  "candidate": 2,
   "run_id": "21926954818",
-  "timestamp": "2026-02-11T23:45:00Z",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2883_timestamp_none_handling.py"
+  "branch": "claude/issue-2883-candidate-2-21926954818",
+  "pr_number": 2887,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2887",
+  "generated_at": "2026-02-11T23:53:33.129483+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_issue_2883_timestamp_none_handling.py - 6 passed",
-    "tests/test_issue_2000_json_validation.py - 12 passed"
-  ],
-  "linting": "ruff check - passed",
-  "summary": "Fix timestamp None handling in Todo.from_dict to prevent data corruption where None values were converted to string 'None'",
-  "fix_type": "data_validation",
-  "test_coverage": "Added 6 tests covering None values, missing keys, falsy values (0), and valid timestamp strings"
+  "stage_response_sizes": {
+    "triage": 2185,
+    "plan": 4000,
+    "implement": 1785,
+    "verify": 2421,
+    "finalize": 1773
+  }
 }
