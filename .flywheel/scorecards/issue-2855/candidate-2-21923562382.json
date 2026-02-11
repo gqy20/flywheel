@@ -18,5 +18,6 @@
   ],
   "limitations": [
     "The fix adds _sanitize_text() function to todo.py as a copy from formatter.py - could be refactored to a shared utility in the future"
-  ]
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2867"
 }
