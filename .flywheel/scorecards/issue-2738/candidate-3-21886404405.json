@@ -2,7 +2,8 @@
   "issue_number": 2738,
   "candidate_number": 3,
   "run_id": "21886404405",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2745",
   "test_plan": {
     "test_file": "tests/test_issue_2738_toctou_permissions.py",
     "files_to_modify": [
