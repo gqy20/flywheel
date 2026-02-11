@@ -1,0 +1,40 @@
+{
+  "issue_number": 2841,
+  "candidate_number": 1,
+  "run_id": "21921784204",
+  "stage": "implement",
+  "title": "[Security] __repr__() does not escape control characters, potentially allowing terminal out",
+  "tdd_plan": {
+    "files_to_modify": [
+      "tests/test_issue_2087_todo_repr.py",
+      "src/flywheel/todo.py"
+    ],
+    "red_phase": {
+      "description": "Add failing regression tests for control character escaping in __repr__",
+      "tests_to_add": [
+        "test_repr_escapes_newline_in_text - Verify literal newline is escaped to \\n",
+        "test_repr_escapes_carriage_return_in_text - Verify \\r is escaped",
+        "test_repr_escapes_tab_in_text - Verify \\t is escaped",
+        "test_repr_escapes_ansi_codes_in_text - Verify \\x1b is escaped",
+        "test_repr_escapes_null_byte_in_text - Verify \\x00 is escaped",
+        "test_repr_output_is_single_line - Verify no actual control characters in output"
+      ]
+    },
+    "green_phase": {
+      "description": "Implement fix by importing and using _sanitize_text from formatter.py",
+      "changes": [
+        "Import _sanitize_text from .formatter in todo.py",
+        "Apply _sanitize_text to display_text before using in f-string",
+        "Handle sanitization before or after truncation (sanitize before to avoid splitting multi-byte)"
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2087_todo_repr.py"
+    ]
+  },
+  "status": "completed",
+  "result": "tests_pass_existing_secure",
+  "notes": "All tests pass. Current implementation using {display_text!r} already properly escapes control characters. No code changes required - the existing __repr__ is already secure against terminal injection attacks."
+}
