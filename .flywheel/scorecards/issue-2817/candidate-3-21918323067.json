@@ -1,65 +1,23 @@
 {
-  "issue_number": 2817,
-  "candidate_id": 3,
+  "issue": 2817,
+  "candidate": 3,
   "run_id": "21918323067",
-  "stage": "FINALIZE",
-  "created_at": "2025-02-11T00:00:00Z",
-  "plan": {
-    "summary": "Add backup/rollback capability for corrupted data files",
-    "files_to_modify": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_2817_backup_rollback.py"
-    ],
-    "test_plan": {
-      "red_phase": [
-        "test_save_creates_backup_file - Verify save() creates .bak file before overwriting",
-        "test_save_rotates_backup - Verify multiple saves only keep 1 .bak file",
-        "test_restore_from_backup_success - Verify restore_from_backup() restores data",
-        "test_restore_from_backup_no_backup - Verify restore_from_backup() fails when no backup",
-        "test_load_json_error_logs_backup_warning - Verify load() logs warning when JSON corrupted and backup exists"
-      ],
-      "green_phase_implementations": [
-        "Add _backup_path property to TodoStorage",
-        "Modify save() to backup existing file before os.replace()",
-        "Add restore_from_backup() method",
-        "Modify load() to check backup file on JSON error",
-        "Add logging import for warnings"
-      ],
-      "verification_commands": [
-        "uv run pytest tests/test_issue_2817_backup_rollback.py -v",
-        "uv run pytest tests/test_storage_atomicity.py -v",
-        "uv run pytest tests/test_issue_2000_json_validation.py -v",
-        "uv run ruff check src/flywheel/storage.py"
-      ]
-    },
-    "implementation_notes": [
-      "Backup file path will be original_path + '.bak' (e.g., .todo.json.bak)",
-      "Only 1 backup kept - old backup is replaced on new save",
-      "restore_from_backup() returns bool (True=success, False=no backup)",
-      "load() will use logging.warning to notify about backup availability"
-    ]
-  },
-  "verification": {
-    "status": "passed",
-    "fixes_applied": [
-      "Fixed concurrent save race condition using contextlib.suppress(FileNotFoundError)",
-      "Changed from try/except/pass to contextlib.suppress for ruff SIM105 compliance"
-    ],
-    "test_results": {
-      "test_issue_2817_backup_rollback.py": {
-        "status": "passed",
-        "tests_run": 9,
-        "tests_failed": 0
-      },
-      "test_storage_atomicity.py": {
-        "status": "passed",
-        "tests_run": 6,
-        "tests_failed": 0
-      }
-    },
-    "ruff_check": {
-      "status": "passed",
-      "file": "src/flywheel/storage.py"
-    }
+  "branch": "claude/issue-2817-candidate-3-21918323067",
+  "pr_number": 2824,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2824",
+  "generated_at": "2026-02-11T19:38:51.218376+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2247,
+    "plan": 3544,
+    "implement": 4000,
+    "verify": 3232,
+    "finalize": 1024
   }
 }
