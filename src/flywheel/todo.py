@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+from .sanitize import sanitize_text
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -25,13 +27,16 @@ class Todo:
 
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
-        """
-        # Truncate text if longer than 50 characters
-        display_text = self.text
-        if len(display_text) > 50:
-            display_text = display_text[:47] + "..."
 
-        return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+        Control characters are sanitized to prevent terminal output manipulation.
+        """
+        # Sanitize first to prevent splitting multi-byte sequences during truncation
+        safe_text = sanitize_text(self.text)
+        # Truncate sanitized text if longer than 50 characters
+        if len(safe_text) > 50:
+            safe_text = safe_text[:47] + "..."
+
+        return f"Todo(id={self.id}, text={safe_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
         if not self.created_at:
