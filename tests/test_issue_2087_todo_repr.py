@@ -105,3 +105,80 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_escapes_ansi_escape_sequences() -> None:
+    """repr(Todo) should escape ANSI escape sequences to prevent terminal injection.
+
+    Regression test for Issue #2855.
+    """
+    # ANSI escape sequence for red text
+    todo = Todo(id=1, text="\x1b[31mRED\x1b[0m")
+    result = repr(todo)
+
+    # Should contain escaped representation, not actual ESC character
+    assert "\\x1b" in result, f"Expected escaped \\x1b in repr output: {result!r}"
+    # Should not contain actual ESC character (0x1b)
+    assert "\x1b" not in result, f"repr should not contain literal ESC character: {result!r}"
+
+
+def test_todo_repr_escapes_control_characters() -> None:
+    """repr(Todo) should escape C0/C1 control characters to prevent debugger manipulation.
+
+    Regression test for Issue #2855.
+    """
+    # Test various control characters
+    test_cases = [
+        ("\x00", "\\x00"),  # Null byte
+        ("\x07", "\\x07"),  # Bell
+        ("\x7f", "\\x7f"),  # DEL
+        ("\x80", "\\x80"),  # C1 control start
+        ("\x9f", "\\x9f"),  # C1 control end
+    ]
+
+    for control_char, expected_escape in test_cases:
+        todo = Todo(id=1, text=f"before{control_char}after")
+        result = repr(todo)
+
+        # Should contain escaped representation
+        assert expected_escape in result, f"Expected {expected_escape} in repr for char {control_char!r}: {result!r}"
+        # Should not contain actual control character
+        assert control_char not in result, f"repr should not contain literal control character {control_char!r}: {result!r}"
+
+
+def test_todo_repr_escapes_newline_carriage_return_tab() -> None:
+    """repr(Todo) should escape \n, \r, \t to prevent multiline output in debugger.
+
+    Regression test for Issue #2855.
+    """
+    # Newline injection attack
+    todo1 = Todo(id=1, text="Buy milk\nFAKE_TODO")
+    result1 = repr(todo1)
+    # Should show escaped representation
+    assert "\\n" in result1, f"Expected escaped \\n in repr: {result1!r}"
+    # Should not have actual newline (prevents fake multiline output)
+    assert "\n" not in result1, f"repr should not contain literal newline: {result1!r}"
+
+    # Carriage return injection attack
+    todo2 = Todo(id=2, text="Valid task\rFAKE_TASK")
+    result2 = repr(todo2)
+    assert "\\r" in result2, f"Expected escaped \\r in repr: {result2!r}"
+    assert "\r" not in result2, f"repr should not contain literal carriage return: {result2!r}"
+
+    # Tab injection
+    todo3 = Todo(id=3, text="Task\twith\ttabs")
+    result3 = repr(todo3)
+    assert "\\t" in result3, f"Expected escaped \\t in repr: {result3!r}"
+    assert "\t" not in result3, f"repr should not contain literal tab: {result3!r}"
+
+
+def test_todo_repr_normal_text_unchanged() -> None:
+    """repr(Todo) should not alter normal text without control characters.
+
+    Regression test for Issue #2855.
+    """
+    todo = Todo(id=1, text="Buy milk and eggs")
+    result = repr(todo)
+
+    # Normal text should be preserved
+    assert "Buy milk and eggs" in result
