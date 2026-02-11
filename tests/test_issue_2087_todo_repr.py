@@ -105,3 +105,95 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+# Regression tests for issue #2751 - control character escaping in __repr__
+
+
+def test_todo_repr_escapes_newline() -> None:
+    """repr(Todo) should escape newline characters to prevent terminal manipulation."""
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # Should contain escaped representation, not literal newline
+    assert "\\n" in result, f"repr should escape newlines: {result!r}"
+    # The string itself should not contain actual newlines (single line output)
+    assert result.count("\n") == 0, f"repr should be single line: {result!r}"
+
+
+def test_todo_repr_escapes_carriage_return() -> None:
+    """repr(Todo) should escape carriage return characters."""
+    todo = Todo(id=1, text="task\r\nFAKE")
+    result = repr(todo)
+
+    # Should contain escaped \r\n
+    assert "\\r" in result, f"repr should escape \\r: {result!r}"
+    assert "\\n" in result, f"repr should escape \\n: {result!r}"
+    # Should not contain actual carriage returns
+    assert "\r" not in result, f"repr should not have literal \\r: {result!r}"
+
+
+def test_todo_repr_escapes_tab() -> None:
+    """repr(Todo) should escape tab characters."""
+    todo = Todo(id=1, text="col1\tcol2")
+    result = repr(todo)
+
+    # Should contain escaped \t
+    assert "\\t" in result, f"repr should escape tabs: {result!r}"
+    # Should not contain actual tabs
+    assert "\t" not in result, f"repr should not have literal tabs: {result!r}"
+
+
+def test_todo_repr_escapes_ansi_codes() -> None:
+    """repr(Todo) should escape ANSI escape sequences."""
+    todo = Todo(id=1, text="\x1b[31mRED\x1b[0m")
+    result = repr(todo)
+
+    # Should escape ESC character (0x1b)
+    assert "\\x1b" in result, f"repr should escape ANSI codes: {result!r}"
+    # Should not contain actual ESC character
+    assert "\x1b" not in result, f"repr should not have literal ESC: {result!r}"
+
+
+def test_todo_repr_escapes_backslash() -> None:
+    """repr(Todo) should escape backslash to prevent collision with escape sequences."""
+    todo = Todo(id=1, text="C:\\path\\to\\file")
+    result = repr(todo)
+
+    # Should escape backslash as \\
+    assert "\\\\" in result, f"repr should escape backslashes: {result!r}"
+
+
+def test_todo_repr_escapes_null_byte() -> None:
+    """repr(Todo) should escape null bytes."""
+    todo = Todo(id=1, text="before\x00after")
+    result = repr(todo)
+
+    # Should escape null byte
+    assert "\\x00" in result, f"repr should escape null byte: {result!r}"
+    # Should not contain actual null byte
+    assert "\x00" not in result, f"repr should not have literal null: {result!r}"
+
+
+def test_todo_repr_normal_text_readable() -> None:
+    """repr(Todo) should keep normal text readable after sanitization."""
+    todo = Todo(id=1, text="buy milk")
+    result = repr(todo)
+
+    # Should be readable and contain original text
+    assert "buy milk" in result
+    assert "Todo" in result
+    assert "id=1" in result
+
+
+def test_todo_repr_escapes_multiple_controls() -> None:
+    """repr(Todo) should handle multiple control characters together."""
+    todo = Todo(id=1, text="line1\n\ttab\r\nend")
+    result = repr(todo)
+
+    # All control chars should be escaped
+    assert "\\n" in result
+    assert "\\t" in result
+    assert "\\r" in result
+    # No actual control characters in output
+    assert not any(c in result for c in "\n\t\r")
