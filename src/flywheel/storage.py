@@ -7,12 +7,34 @@ import json
 import os
 import stat
 import tempfile
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@dataclass(slots=True, frozen=True)
+class StorageLoadResult:
+    """Result of loading todos from storage with metadata.
+
+    Attributes:
+        todos: List of loaded Todo objects
+        file_size: Size of the storage file in bytes
+        load_time_ms: Time taken to load the file in milliseconds
+    """
+
+    todos: list[Todo]
+    file_size: int
+    load_time_ms: float
+
+    @property
+    def todo_count(self) -> int:
+        """Return the number of todos loaded."""
+        return len(self.todos)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -56,9 +78,30 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load_simple(self) -> list[Todo]:
+        """Load todos from file (backward compatible interface).
+
+        Returns:
+            List of Todo objects, or empty list if file doesn't exist.
+        """
+        result = self.load()
+        return result.todos
+
+    def load(self) -> StorageLoadResult:
+        """Load todos from file with statistics metadata.
+
+        Returns:
+            StorageLoadResult containing todos, file size, and load time.
+
+        Raises:
+            ValueError: If JSON is invalid or file is too large.
+        """
+        start_time = time.perf_counter()
+
         if not self.path.exists():
-            return []
+            end_time = time.perf_counter()
+            load_time_ms = (end_time - start_time) * 1000
+            return StorageLoadResult(todos=[], file_size=0, load_time_ms=load_time_ms)
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +123,13 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        end_time = time.perf_counter()
+        load_time_ms = (end_time - start_time) * 1000
+
+        return StorageLoadResult(todos=todos, file_size=file_size, load_time_ms=load_time_ms)
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.

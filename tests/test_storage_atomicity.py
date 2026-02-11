@@ -32,7 +32,7 @@ def test_save_is_atomic_with_os_replace(tmp_path) -> None:
         mock_replace.assert_called_once()
 
     # Verify file content is still valid
-    loaded = storage.load()
+    loaded = storage.load_simple()
     assert len(loaded) == 1
     assert loaded[0].text == "initial"
 
@@ -70,7 +70,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
     assert db.read_text(encoding="utf-8") == original_content
 
     # Verify we can still load the original data
-    loaded = storage.load()
+    loaded = storage.load_simple()
     assert len(loaded) == 2
     assert loaded[0].text == "original"
     assert loaded[1].text == "data"
@@ -145,7 +145,7 @@ def test_concurrent_write_safety(tmp_path) -> None:
     storage.save(todos2)
 
     # Final state should be consistent
-    loaded = storage.load()
+    loaded = storage.load_simple()
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
@@ -179,7 +179,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
             time.sleep(0.001 * (worker_id % 5))
 
             # Verify we can read back valid data
-            loaded = storage.load()
+            loaded = storage.load_simple()
             result_queue.put(("success", worker_id, len(loaded)))
         except Exception as e:
             result_queue.put(("error", worker_id, str(e)))
@@ -216,7 +216,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
 
     # This should not raise json.JSONDecodeError or ValueError
     try:
-        final_todos = storage.load()
+        final_todos = storage.load_simple()
     except (json.JSONDecodeError, ValueError) as e:
         raise AssertionError(
             f"File was corrupted by concurrent writes. Got error: {e}"
