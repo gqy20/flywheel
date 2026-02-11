@@ -97,6 +97,13 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
+        # Security: Set umask to 0o077 before creating temp file to ensure
+        # restrictive permissions (0o600) at file creation time, eliminating
+        # the TOCTOU window between file creation and permission setting.
+        # Note: Python 3.13's tempfile.mkstemp already sets 0o600, but this
+        # provides defense-in-depth.
+        old_umask = os.umask(0o077)
+
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
         fd, temp_path = tempfile.mkstemp(
@@ -106,9 +113,13 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        # Restore original umask immediately after mkstemp
+        os.umask(old_umask)
+
         try:
             # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
+            # Note: This is now redundant with umask setting above, but kept
+            # for defense-in-depth and explicit documentation.
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
             # Write content with proper encoding
