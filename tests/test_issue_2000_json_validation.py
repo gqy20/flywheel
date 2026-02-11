@@ -119,3 +119,52 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2829 - validate 'created_at' and 'updated_at' field types
+def test_todo_from_dict_rejects_dict_created_at() -> None:
+    """Todo.from_dict should reject dict type for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": {"not": "a string"}})
+
+
+def test_todo_from_dict_rejects_list_created_at() -> None:
+    """Todo.from_dict should reject list type for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": ["not", "a", "string"]})
+
+
+def test_todo_from_dict_rejects_int_created_at() -> None:
+    """Todo.from_dict should reject int type for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": 12345})
+
+
+def test_todo_from_dict_rejects_dict_updated_at() -> None:
+    """Todo.from_dict should reject dict type for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": {"not": "a string"}})
+
+
+def test_todo_from_dict_rejects_list_updated_at() -> None:
+    """Todo.from_dict should reject list type for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": ["not", "a", "string"]})
+
+
+def test_todo_from_dict_rejects_int_updated_at() -> None:
+    """Todo.from_dict should reject int type for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": 12345})
+
+
+def test_todo_from_dict_accepts_valid_string_created_at() -> None:
+    """Todo.from_dict should accept valid string for 'created_at' field."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "2025-01-01T00:00:00+00:00"})
+    assert todo.created_at == "2025-01-01T00:00:00+00:00"
+
+
+def test_todo_from_dict_accepts_valid_string_updated_at() -> None:
+    """Todo.from_dict should accept valid string for 'updated_at' field."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": "2025-01-01T00:00:00+00:00"})
+    assert todo.updated_at == "2025-01-01T00:00:00+00:00"
