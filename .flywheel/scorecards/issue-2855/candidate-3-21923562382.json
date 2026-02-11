@@ -1,0 +1,28 @@
+{
+  "issue_number": 2855,
+  "candidate_number": 3,
+  "run_id": "21923562382",
+  "branch_name": "claude/issue-2855-candidate-3-21923562382",
+  "summary": "Fix ANSI escape sequence injection in Todo.__repr__() by applying _sanitize_text()",
+  "changes": {
+    "modified_files": [
+      "src/flywheel/todo.py",
+      "src/flywheel/formatter.py"
+    ],
+    "added_files": [
+      "tests/test_issue_2855_repr_ansi_injection.py"
+    ]
+  },
+  "tests": {
+    "new_tests": 8,
+    "all_passing": true,
+    "test_file": "tests/test_issue_2855_repr_ansi_injection.py"
+  },
+  "lint_checks": {
+    "ruff": "passed"
+  },
+  "risks": [
+    "Changed repr output format from double quotes to single quotes (minor breaking change)"
+  ],
+  "limitations": []
+}
