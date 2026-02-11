@@ -4,12 +4,49 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+# Configure logger for storage operations
+_logger = logging.getLogger(__name__)
+
+
+def _ensure_logging_configured() -> None:
+    """Configure logging level based on FW_LOG_LEVEL environment variable.
+
+    If FW_LOG_LEVEL is not set, logging remains disabled (default behavior).
+    This ensures backward compatibility - no logs by default.
+
+    This function is called on each storage operation to check the current
+    environment variable state, allowing runtime configuration changes.
+    """
+    log_level_str = os.environ.get("FW_LOG_LEVEL", "").upper()
+
+    # Check if we need to (re)configure
+    has_handler = bool(_logger.handlers)
+
+    if log_level_str:
+        level = getattr(logging, log_level_str, logging.DEBUG)
+        _logger.setLevel(level)
+
+        # Only add handler if not already configured
+        if not has_handler:
+            handler = logging.StreamHandler()
+            handler.setLevel(level)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            _logger.addHandler(handler)
+    else:
+        # Explicitly disable logging by default for backward compatibility
+        _logger.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -57,7 +94,10 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        _ensure_logging_configured()
+        start_time = time.perf_counter()
         if not self.path.exists():
+            _logger.info(f"File not found: {self.path}, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,6 +105,7 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            _logger.error(f"JSON file too large: {self.path} ({size_mb:.1f}MB > {limit_mb:.0f}MB limit)")
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,14 +114,20 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            _logger.error(f"Invalid JSON in '{self.path}': {e.msg} at line {e.lineno}, column {e.colno}")
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            _logger.error(f"Invalid format in '{self.path}': expected JSON list")
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+        _logger.info(f"Loaded {len(todos)} todo(s) from {self.path} in {elapsed_ms:.2f}ms")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,8 +138,14 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        _ensure_logging_configured()
+        start_time = time.perf_counter()
         # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
+        try:
+            _ensure_parent_directory(self.path)
+        except (ValueError, OSError) as e:
+            _logger.error(f"Failed to create parent directory for {self.path}: {e}")
+            raise
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -118,10 +171,15 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.info(f"Saved {len(todos)} todo(s) to {self.path} in {elapsed_ms:.2f}ms")
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.error(f"Failed to save {len(todos)} todo(s) to {self.path} after {elapsed_ms:.2f}ms")
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
