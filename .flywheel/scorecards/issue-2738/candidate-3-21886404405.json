@@ -2,7 +2,7 @@
   "issue_number": 2738,
   "candidate_number": 3,
   "run_id": "21886404405",
-  "stage": "FINALIZE",
+  "stage": "VERIFY",
   "test_plan": {
     "test_file": "tests/test_issue_2738_toctou_permissions.py",
     "files_to_modify": [
@@ -52,5 +52,38 @@
     "Python's tempfile.mkstemp doesn't provide a direct way to set permissions at creation",
     "Umask manipulation affects the entire process, though duration is minimal"
   ],
-  "notes": "While Python 3.13's tempfile.mkstemp already creates files with 0o600 permissions via os.open(file, flags, 0o600), setting umask to 0o077 provides defense-in-depth and ensures restrictive permissions at file creation time, eliminating any potential TOCTOU window."
+  "notes": "While Python 3.13's tempfile.mkstemp already creates files with 0o600 permissions via os.open(file, flags, 0o600), setting umask to 0o077 provides defense-in-depth and ensures restrictive permissions at file creation time, eliminating any potential TOCTOU window.",
+  "verification_summary": {
+    "commands_executed": [
+      "uv run pytest tests/test_issue_2738_toctou_permissions.py -v",
+      "uv run pytest tests/test_issue_1999_symlink_protection.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ],
+    "outcomes": {
+      "new_tests": {
+        "file": "tests/test_issue_2738_toctou_permissions.py",
+        "total": 4,
+        "passed": 4,
+        "failed": 0,
+        "tests": [
+          "test_temp_file_created_with_restrictive_permissions_immediately",
+          "test_umask_restored_after_save",
+          "test_save_produces_correct_final_permissions",
+          "test_multiple_saves_maintain_restrictive_temp_permissions"
+        ]
+      },
+      "existing_tests": {
+        "file": "tests/test_issue_1999_symlink_protection.py",
+        "total": 6,
+        "passed": 6,
+        "failed": 0
+      },
+      "ruff_check": {
+        "file": "src/flywheel/storage.py",
+        "status": "pass",
+        "output": "All checks passed!"
+      }
+    },
+    "all_checks_passed": true
+  }
 }
