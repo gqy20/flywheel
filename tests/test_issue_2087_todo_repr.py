@@ -105,3 +105,56 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_escapes_ansi_codes_in_text() -> None:
+    """ANSI escape sequences should be escaped to prevent terminal injection (Issue #2855).
+
+    The repr should use _sanitize_text() to escape control characters,
+    ensuring the output cannot inject ANSI codes into the debugger.
+    """
+    todo = Todo(id=1, text="\x1b[31mRED\x1b[0m Normal")
+    result = repr(todo)
+    # Should contain escaped representation (doubled due to !r on sanitized text)
+    assert "\\\\x1b" in result
+    # Should not contain actual ESC character
+    assert "\x1b" not in result
+    # The text should be properly escaped (using _sanitize_text)
+    assert r"\\x1b[31mRED\\x1b[0m Normal" in result
+
+
+def test_todo_repr_escapes_control_chars() -> None:
+    """Control characters should be escaped in repr output (Issue #2855)."""
+    # Test newline
+    todo1 = Todo(id=1, text="Buy milk\nFake task")
+    repr1 = repr(todo1)
+    assert "\\n" in repr1
+    assert "\n" not in repr1
+
+    # Test carriage return
+    todo2 = Todo(id=2, text="Valid\r[ ] FAKE")
+    repr2 = repr(todo2)
+    assert "\\r" in repr2
+    assert "\r" not in repr2
+
+    # Test tab
+    todo3 = Todo(id=3, text="Task\twith\ttabs")
+    repr3 = repr(todo3)
+    assert "\\t" in repr3
+    assert "\t" not in repr3
+
+
+def test_todo_repr_escapes_null_byte() -> None:
+    """Null byte should be escaped in repr output (Issue #2855)."""
+    todo = Todo(id=1, text="Before\x00After")
+    result = repr(todo)
+    assert "\\x00" in result
+    assert "\x00" not in result
+
+
+def test_todo_repr_escapes_del_char() -> None:
+    """DEL character should be escaped in repr output (Issue #2855)."""
+    todo = Todo(id=1, text="Before\x7fAfter")
+    result = repr(todo)
+    assert "\\x7f" in result
+    assert "\x7f" not in result
