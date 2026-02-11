@@ -1,0 +1,58 @@
+{
+  "issue_number": 2859,
+  "candidate_number": 2,
+  "run_id": "21925221655",
+  "branch": "claude/issue-2859-candidate-2-21925221655",
+  "commit": "4dd5b13",
+  "summary": "Add Todo.copy() method for immutable cloning",
+  "changes": {
+    "files_added": [
+      "tests/test_issue_2859_todo_copy.py"
+    ],
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_2859_todo_copy.py",
+    "tests_run": 7,
+    "tests_passed": 7,
+    "tests_failed": 0
+  },
+  "implementation": {
+    "method": "copy",
+    "parameters": ["text: str | None = None", "done: bool | None = None"],
+    "returns": "Self",
+    "uses_dataclasses_replace": true,
+    "updates_timestamp_on_override": true
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed"
+  },
+  "verify_stage": {
+    "commands_run": [
+      "uv run pytest tests/test_issue_2859_todo_copy.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2859_todo_copy.py",
+      "uv run pytest tests/ -v --ignore=tests/test_cli_storage_integration.py"
+    ],
+    "outcomes": {
+      "target_tests": "7 passed in 0.07s",
+      "full_test_suite": "119 passed in 0.72s",
+      "ruff": "All checks passed!"
+    },
+    "coverage": {
+      "target_file": "src/flywheel/todo.py",
+      "coverage_pct": 98,
+      "missing_lines": "111"
+    }
+  },
+  "acceptance_criteria": [
+    "todo.copy() returns new Todo with same values - PASSED",
+    "todo.copy(text='new') returns new Todo with updated text - PASSED",
+    "Original todo unchanged after copy operations - PASSED"
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2878",
+  "pr_number": 2878,
+  "status": "pr_created"
+}
