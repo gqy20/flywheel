@@ -11,8 +11,44 @@ from pathlib import Path
 
 from .todo import Todo
 
-# Maximum JSON file size to prevent DoS attacks (10MB)
-_MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+def _get_max_json_size_mb() -> int:
+    """Get the maximum JSON file size in MB from environment variable.
+
+    Reads TODO_MAX_JSON_SIZE_MB environment variable and validates it.
+    Returns the configured value if valid, otherwise returns default 10MB.
+
+    Returns:
+        int: Maximum JSON file size in megabytes (default 10, minimum 1)
+
+    Examples:
+        >>> # Without env var
+        >>> _get_max_json_size_mb()
+        10
+        >>> # With valid env var
+        >>> os.environ['TODO_MAX_JSON_SIZE_MB'] = '20'
+        >>> _get_max_json_size_mb()
+        20
+        >>> # With invalid env var
+        >>> os.environ['TODO_MAX_JSON_SIZE_MB'] = 'invalid'
+        >>> _get_max_json_size_mb()
+        10
+    """
+    env_value = os.environ.get("TODO_MAX_JSON_SIZE_MB", "")
+    if not env_value:
+        return 10  # Default
+
+    try:
+        size_mb = int(env_value)
+        if size_mb <= 0:
+            return 10  # Fallback for non-positive values
+        return size_mb
+    except ValueError:
+        return 10  # Fallback for non-integer values
+
+
+# Maximum JSON file size to prevent DoS attacks (configurable via TODO_MAX_JSON_SIZE_MB)
+_MAX_JSON_SIZE_BYTES = _get_max_json_size_mb() * 1024 * 1024
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -61,10 +97,12 @@ class TodoStorage:
             return []
 
         # Security: Check file size before loading to prevent DoS
+        # Limit is configurable via TODO_MAX_JSON_SIZE_MB environment variable
+        max_json_size_bytes = _get_max_json_size_mb() * 1024 * 1024
         file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
+        if file_size > max_json_size_bytes:
             size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            limit_mb = max_json_size_bytes / (1024 * 1024)
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
