@@ -93,10 +93,13 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
-        return cls(
-            id=todo_id,
-            text=data["text"],
-            done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
-        )
+        # Bypass __post_init__ to avoid auto-generating timestamps during deserialization.
+        # from_dict should recreate the Todo exactly as it was serialized.
+        instance = cls.__new__(cls)
+        instance.id = todo_id
+        instance.text = data["text"]
+        instance.done = done
+        # Ensure None becomes empty string (str(None) would be "None" string)
+        instance.created_at = str(data.get("created_at") or "")
+        instance.updated_at = str(data.get("updated_at") or "")
+        return instance
