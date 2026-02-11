@@ -93,10 +93,17 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle timestamp values: None becomes empty string, other values are stringified
+        # This prevents the bug: str(None) = 'None' which would happen with str(data.get()) or ""
+        created_at_raw = data.get("created_at")
+        created_at = "" if created_at_raw is None else str(created_at_raw)
+        updated_at_raw = data.get("updated_at")
+        updated_at = "" if updated_at_raw is None else str(updated_at_raw)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
