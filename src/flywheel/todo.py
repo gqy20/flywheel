@@ -10,6 +10,24 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_and_normalize_text(text: str) -> str:
+    """Strip whitespace from text and validate it's not empty.
+
+    Args:
+        text: The text to validate and normalize
+
+    Returns:
+        The stripped text
+
+    Raises:
+        ValueError: If text is empty or contains only whitespace
+    """
+    text = text.strip()
+    if not text:
+        raise ValueError("Todo text cannot be empty")
+    return text
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -34,6 +52,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and normalize text first
+        self.text = _validate_and_normalize_text(self.text)
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -48,10 +69,7 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        self.text = _validate_and_normalize_text(text)
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -79,6 +97,9 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate and normalize text content
+        text = _validate_and_normalize_text(data["text"])
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
@@ -95,7 +116,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=text,
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
