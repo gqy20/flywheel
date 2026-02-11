@@ -93,10 +93,16 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle timestamps: convert None or missing to empty string
+        # Note: We use (data.get() or "") instead of data.get("", ) because
+        # when key exists with None value, .get(key, "") still returns None
+        created_at_raw = data.get("created_at") or ""
+        updated_at_raw = data.get("updated_at") or ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(created_at_raw),
+            updated_at=str(updated_at_raw),
         )
