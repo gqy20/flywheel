@@ -151,6 +151,29 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_works_on_windows_without_fchmod(tmp_path) -> None:
+    """Regression test for issue #2801: os.fchmod() is Unix-only.
+
+    On Windows, os.fchmod doesn't exist, so save() should handle
+    AttributeError gracefully and still work (just without setting
+    restrictive permissions).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="Windows compatibility test")]
+
+    # Mock os.fchmod to raise AttributeError (simulating Windows)
+    with patch("flywheel.storage.os.fchmod", side_effect=AttributeError("fchmod not available")):
+        # This should not raise - the save should succeed
+        storage.save(todos)
+
+    # Verify the file was actually saved
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "Windows compatibility test"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
