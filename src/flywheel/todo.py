@@ -93,10 +93,16 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle None values for timestamps - convert to empty string, not 'None'
+        # Use conditional expression to check for None explicitly
+        # This preserves falsy but valid values like 0 (converted to '0')
+        created_at_val = data.get("created_at")
+        updated_at_val = data.get("updated_at")
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at="" if created_at_val is None else str(created_at_val),
+            updated_at="" if updated_at_val is None else str(updated_at_val),
         )
