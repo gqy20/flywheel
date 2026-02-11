@@ -1,0 +1,101 @@
+{
+  "issue_number": 2757,
+  "candidate_id": "1-21894473802",
+  "stage": "FINALIZE",
+  "plan": {
+    "summary": "Fix version synchronization between __init__.py and pyproject.toml using dynamic version from __init__.py",
+    "files_to_touch": [
+      "src/flywheel/__init__.py",
+      "pyproject.toml",
+      "tests/test_issue_2757_version_synchronization.py"
+    ],
+    "test_plan": {
+      "failing_test": {
+        "file": "tests/test_issue_2757_version_synchronization.py",
+        "description": "Test that __version__ in __init__.py matches the version derived from pyproject.toml when installed via pip"
+      },
+      "implementation_sequence": [
+        {
+          "step": 1,
+          "description": "Create failing test that imports flywheel and verifies __version__ exists and is non-empty",
+          "file": "tests/test_issue_2757_version_synchronization.py",
+          "test_function": "test_flywheel_version_exists"
+        },
+        {
+          "step": 2,
+          "description": "Create test to verify version format (semver-like)",
+          "file": "tests/test_issue_2757_version_synchronization.py",
+          "test_function": "test_flywheel_version_format"
+        },
+        {
+          "step": 3,
+          "description": "Modify pyproject.toml to use dynamic version from flywheel.__version__",
+          "file": "pyproject.toml",
+          "change": "Change 'version = \"0.1.0\"' to 'dynamic = [\"version\"]'"
+        },
+        {
+          "step": 4,
+          "description": "Ensure __init__.py still has __version__ defined as single source of truth",
+          "file": "src/flywheel/__init__.py",
+          "change": "Keep existing __version__ = \"0.1.0\" but add comment explaining it's the single source"
+        }
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2757_version_synchronization.py -v",
+      "uv run ruff check src/flywheel/__init__.py tests/test_issue_2757_version_synchronization.py",
+      "python -c \"import flywheel; print(flywheel.__version__)\""
+    ]
+  },
+  "implementation": {
+    "changes": [
+      {
+        "file": "pyproject.toml",
+        "description": "Changed hardcoded version to dynamic versioning",
+        "diff": "Removed 'version = \"0.1.0\"' and added 'dynamic = [\"version\"]' to [project] section. Added [tool.hatch.version] section with path to __init__.py."
+      },
+      {
+        "file": "src/flywheel/__init__.py",
+        "description": "Added comment indicating single source of truth",
+        "diff": "Added comment '# Single source of truth for version. pyproject.toml uses dynamic versioning.' before __version__"
+      },
+      {
+        "file": "tests/test_issue_2757_version_synchronization.py",
+        "description": "Added regression tests for version synchronization",
+        "diff": "New test file with 4 tests: test_flywheel_version_exists, test_flywheel_version_format, test_version_single_source_of_truth, test_version_match_with_import"
+      }
+    ]
+  },
+  "test_results": {
+    "pytest": "4 passed",
+    "ruff": "All checks passed",
+    "import_test": "Successfully imported and accessed flywheel.__version__ = '0.1.0'"
+  },
+  "verification": {
+    "commands_run": [
+      "uv run pytest tests/test_issue_2757_version_synchronization.py -v",
+      "uv run ruff check src/flywheel/__init__.py pyproject.toml tests/test_issue_2757_version_synchronization.py"
+    ],
+    "outcomes": {
+      "pytest": {
+        "command": "uv run pytest tests/test_issue_2757_version_synchronization.py -v",
+        "result": "4 passed in 0.05s",
+        "tests": [
+          "test_flywheel_version_exists - PASSED",
+          "test_flywheel_version_format - PASSED",
+          "test_version_single_source_of_truth - PASSED",
+          "test_version_match_with_import - PASSED"
+        ],
+        "coverage": "src/flywheel/__init__.py: 100%"
+      },
+      "ruff": {
+        "command": "uv run ruff check src/flywheel/__init__.py pyproject.toml tests/test_issue_2757_version_synchronization.py",
+        "result": "All checks passed!"
+      }
+    },
+    "summary": "All targeted pytest and ruff checks passed. The fix properly implements dynamic versioning from __init__.py as the single source of truth."
+  },
+  "commit_hash": "0764963",
+  "branch": "claude/issue-2757-candidate-1-21894473802",
+  "pr_url": null
+}
