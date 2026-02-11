@@ -1,34 +1,23 @@
 {
-  "issue_number": 2828,
-  "candidate_number": 3,
+  "issue": 2828,
+  "candidate": 3,
   "run_id": "21920483292",
-  "stage": "COMPLETE",
-  "tests": {
-    "test_file": "tests/test_issue_2828.py",
-    "source_files": ["src/flywheel/todo.py"],
-    "tests_run": "uv run pytest tests/test_issue_2828.py -v",
-    "tests_passed": 13,
-    "tests_total": 13,
-    "full_suite_passed": 125,
-    "full_suite_total": 125
-  },
-  "linting": {
-    "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2828.py",
-    "status": "passed"
-  },
-  "fix_summary": {
-    "problem": "from_dict accepts non-string values (dict, list, int, float) for created_at/updated_at fields, using str() coercion which can produce unexpected values like 'dict' or '[1, 2, 3]'",
-    "solution": "Added explicit type validation for created_at and updated_at fields, accepting only str or None types, rejecting dict, list, int, float, and other incompatible types",
-    "files_changed": ["src/flywheel/todo.py"],
-    "lines_changed": 25
-  },
-  "risks": [
-    "Existing data with integer timestamps (e.g., Unix timestamps stored as numbers) will now be rejected - should be stored as strings instead",
-    "Behavior change: previously str() coercion would convert anything to string, now strict validation may break edge cases"
+  "branch": "claude/issue-2828-candidate-3-21920483292",
+  "pr_number": 2832,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2832",
+  "generated_at": "2026-02-11T20:21:35.527430+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "new_tests_added": 13,
-    "regression_tests_pass": true,
-    "coverage_for_fix": "todo.py now at 98% coverage"
+  "stage_response_sizes": {
+    "triage": 2106,
+    "plan": 3021,
+    "implement": 2231,
+    "verify": 1725,
+    "finalize": 360
   }
 }
