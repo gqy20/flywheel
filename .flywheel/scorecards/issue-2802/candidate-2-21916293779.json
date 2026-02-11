@@ -3,6 +3,7 @@
   "candidate_id": "candidate-2-21916293779",
   "branch": "claude/issue-2802-candidate-2-21916293779",
   "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2811",
   "tdd_plan": {
     "files_to_touch": [
       "src/flywheel/todo.py",
