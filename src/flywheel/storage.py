@@ -109,7 +109,11 @@ class TodoStorage:
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # Note: os.fchmod is only available on Unix systems, not on Windows
+            if hasattr(os, "fchmod"):
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # On Windows, tempfile.mkstemp already creates secure files with
+            # appropriate default permissions, so we skip the chmod call
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
