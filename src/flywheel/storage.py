@@ -7,12 +7,29 @@ import json
 import os
 import stat
 import tempfile
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@dataclass(slots=True)
+class StorageLoadResult:
+    """Result of loading todos from storage with metadata.
+
+    Attributes:
+        todos: The list of loaded Todo objects.
+        file_size: Size of the storage file in bytes (0 if file doesn't exist).
+        load_time_ms: Time taken to load the file in milliseconds.
+    """
+
+    todos: list[Todo]
+    file_size: int
+    load_time_ms: float
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -56,9 +73,17 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self) -> StorageLoadResult:
+        """Load todos from storage with metadata.
+
+        Returns:
+            StorageLoadResult containing todos list, file size, and load time.
+        """
+        start_time = time.perf_counter()
+
         if not self.path.exists():
-            return []
+            load_time_ms = (time.perf_counter() - start_time) * 1000
+            return StorageLoadResult(todos=[], file_size=0, load_time_ms=load_time_ms)
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +105,23 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        load_time_ms = (time.perf_counter() - start_time) * 1000
+
+        return StorageLoadResult(todos=todos, file_size=file_size, load_time_ms=load_time_ms)
+
+    def load_simple(self) -> list[Todo]:
+        """Load todos from storage without metadata.
+
+        This method provides backward compatibility for code that expects
+        load() to return a plain list of Todo objects.
+
+        Returns:
+            A list of Todo objects.
+        """
+        result = self.load()
+        return result.todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.

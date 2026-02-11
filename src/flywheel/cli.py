@@ -17,7 +17,8 @@ class TodoApp:
         self.storage = TodoStorage(db_path)
 
     def _load(self) -> list[Todo]:
-        return self.storage.load()
+        result = self.storage.load()
+        return result.todos
 
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)

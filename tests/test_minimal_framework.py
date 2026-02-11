@@ -33,7 +33,8 @@ def test_storage_roundtrip(tmp_path) -> None:
     todos = [Todo(id=1, text="x"), Todo(id=2, text="y", done=True)]
     storage.save(todos)
 
-    loaded = storage.load()
+    result = storage.load()
+    loaded = result.todos
     assert len(loaded) == 2
     assert loaded[0].text == "x"
     assert loaded[1].done is True
@@ -111,7 +112,8 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     storage.save(todos)
 
     # Should load successfully
-    loaded = storage.load()
+    result = storage.load()
+    loaded = result.todos
     assert len(loaded) == 1
     assert loaded[0].text == "normal todo"
 
