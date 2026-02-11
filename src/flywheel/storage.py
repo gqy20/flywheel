@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,6 +59,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def _backup_path(self) -> Path:
+        """Return the path to the backup file."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -73,10 +81,23 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            raise ValueError(
+            error_msg = (
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            )
+            # Check if backup exists and add warning
+            if self._backup_path.exists():
+                error_msg += (
+                    f" A backup file exists at '{self._backup_path}'. "
+                    f"Use restore_from_backup() to recover."
+                )
+                logger.warning(
+                    "JSON corrupted in '%s'. Backup available at '%s'. "
+                    "Use restore_from_backup() to recover.",
+                    self.path,
+                    self._backup_path,
+                )
+            raise ValueError(error_msg) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
@@ -116,6 +137,11 @@ class TodoStorage:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
+            # Backup existing file AFTER temp file write succeeds
+            # This ensures we don't lose data if temp write fails
+            if self.path.exists():
+                os.replace(self.path, self._backup_path)
+
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
@@ -123,6 +149,24 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def restore_from_backup(self) -> bool:
+        """Restore data from backup file.
+
+        Returns:
+            True if backup was restored successfully,
+            False if no backup file exists.
+
+        Raises:
+            OSError: If restoration fails for reasons other than missing backup.
+        """
+        if not self._backup_path.exists():
+            return False
+
+        # Copy backup to main file (preserves backup for future use)
+        import shutil
+        shutil.copy2(self._backup_path, self.path)
+        return True
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
