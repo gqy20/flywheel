@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Module-level logger for debugging file operations
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -43,6 +47,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
     if not parent.exists():
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            logger.debug(f"Created directory: {parent}")
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
@@ -69,6 +74,8 @@ class TodoStorage:
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
+
+        logger.debug(f"Loading file: {self.path} ({file_size} bytes)")
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
@@ -106,6 +113,8 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        logger.debug(f"Writing to temp file: {temp_path}")
+
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
@@ -117,6 +126,7 @@ class TodoStorage:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
+            logger.debug(f"Atomically replacing: {self.path}")
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
