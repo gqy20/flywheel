@@ -25,9 +25,19 @@ class Todo:
 
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
+
+        Control characters in text are escaped using _sanitize_text() to prevent
+        terminal output manipulation via debugger/repr.
         """
-        # Truncate text if longer than 50 characters
-        display_text = self.text
+        # Lazy import to avoid circular dependency
+        from .formatter import _sanitize_text
+
+        # Sanitize text first to escape control characters
+        # This must happen BEFORE truncation to avoid splitting escape sequences
+        sanitized_text = _sanitize_text(self.text)
+
+        # Truncate sanitized text if longer than 50 characters
+        display_text = sanitized_text
         if len(display_text) > 50:
             display_text = display_text[:47] + "..."
 
