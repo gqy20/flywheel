@@ -7,12 +7,31 @@ import json
 import os
 import stat
 import tempfile
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@dataclass(slots=True, frozen=True)
+class StorageLoadResult:
+    """Result of load_with_stats() operation with metadata.
+
+    Attributes:
+        todos: List of loaded Todo objects
+        file_size: Size of the JSON file in bytes (0 if file doesn't exist)
+        load_time_ms: Time taken to load the file in milliseconds
+        todo_count: Number of todos loaded
+    """
+
+    todos: list[Todo]
+    file_size: int
+    load_time_ms: float
+    todo_count: int
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -123,6 +142,57 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def load_with_stats(self) -> StorageLoadResult:
+        """Load todos with statistics metadata.
+
+        Returns:
+            StorageLoadResult containing todos list plus metadata:
+            - file_size: Size of the JSON file in bytes (0 if file doesn't exist)
+            - load_time_ms: Time taken to load the file in milliseconds
+            - todo_count: Number of todos loaded
+        """
+        start_time = time.perf_counter()
+
+        if not self.path.exists():
+            end_time = time.perf_counter()
+            return StorageLoadResult(
+                todos=[],
+                file_size=0,
+                load_time_ms=(end_time - start_time) * 1000,
+                todo_count=0,
+            )
+
+        # Security: Check file size before loading to prevent DoS
+        file_size = self.path.stat().st_size
+        if file_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = file_size / (1024 * 1024)
+            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            raise ValueError(
+                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                f"This protects against denial-of-service attacks."
+            )
+
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in '{self.path}': {e.msg}. "
+                f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError("Todo storage must be a JSON list")
+
+        todos = [Todo.from_dict(item) for item in raw]
+        end_time = time.perf_counter()
+
+        return StorageLoadResult(
+            todos=todos,
+            file_size=file_size,
+            load_time_ms=(end_time - start_time) * 1000,
+            todo_count=len(todos),
+        )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
