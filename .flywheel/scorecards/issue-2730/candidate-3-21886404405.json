@@ -1,32 +1,23 @@
 {
-  "issue_number": 2730,
-  "issue_title": "[Enhancement] Add __eq__ and __hash__ methods to Todo for comparison",
-  "candidate_number": 3,
+  "issue": 2730,
+  "candidate": 3,
   "run_id": "21886404405",
-  "branch_name": "claude/issue-2730-candidate-3-21886404405",
-  "implementation": {
-    "summary": "Added __eq__ and __hash__ methods to Todo class for id-based comparison and hashability",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2730_todo_eq_hash.py"
-    ],
-    "test_results": {
-      "status": "passed",
-      "test_file": "tests/test_issue_2730_todo_eq_hash.py",
-      "total_tests": 7,
-      "passed": 7,
-      "failed": 0
-    },
-    "linting_results": {
-      "status": "passed",
-      "tool": "ruff"
-    }
-  },
-  "approach": {
-    "comparison_behavior": "id-based equality - two Todo objects are equal if they have the same id",
-    "hash_behavior": "hash based on id field",
-    "use_cases_enabled": ["set membership/deduplication", "dict keys", "equality comparison"]
-  },
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-2730-candidate-3-21886404405",
+  "pr_number": 2747,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2747",
+  "generated_at": "2026-02-11T00:18:16.740924+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1626,
+    "plan": 2508,
+    "implement": 1913,
+    "verify": 1258,
+    "finalize": 727
+  }
 }
