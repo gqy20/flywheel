@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "21894473802",
   "branch": "claude/issue-2749-candidate-2-21894473802",
-  "status": "in_progress",
+  "status": "FINALIZE",
   "tests_added": 20,
   "tests_passing": 20,
   "lines_changed": {
