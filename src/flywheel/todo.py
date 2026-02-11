@@ -93,10 +93,15 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
-        return cls(
-            id=todo_id,
-            text=data["text"],
-            done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
-        )
+        # Create instance without triggering __post_init__ to preserve
+        # empty string timestamps from None values (issue #2883)
+        instance = cls.__new__(cls)
+        instance.id = todo_id
+        instance.text = data["text"]
+        instance.done = done
+        # Handle timestamps: convert None to empty string, preserve other values
+        created_at_val = data.get("created_at")
+        instance.created_at = "" if created_at_val is None else str(created_at_val)
+        updated_at_val = data.get("updated_at")
+        instance.updated_at = "" if updated_at_val is None else str(updated_at_val)
+        return instance
