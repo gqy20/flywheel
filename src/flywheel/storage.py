@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,31 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _should_create_backup() -> bool:
+    """Check if backup file creation is enabled via FLYWHEEL_BACKUP env var.
+
+    Returns:
+        True if FLYWHEEL_BACKUP is set to "1", False otherwise.
+    """
+    return os.environ.get("FLYWHEEL_BACKUP") == "1"
+
+
+def _create_backup(file_path: Path) -> None:
+    """Create a backup of existing file before overwrite.
+
+    Copies the existing file to a .bak extension using shutil.copy2()
+    which preserves file metadata (permissions, timestamps).
+
+    Args:
+        file_path: Path to the file to backup.
+    """
+    if not file_path.exists():
+        return
+
+    backup_path = file_path.with_suffix(file_path.suffix + ".bak")
+    shutil.copy2(file_path, backup_path)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -115,6 +141,10 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Create backup of existing file if enabled (after temp write succeeds)
+            if _should_create_backup():
+                _create_backup(self.path)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
