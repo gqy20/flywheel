@@ -7,7 +7,7 @@ import sys
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
-from .todo import Todo
+from .todo import Todo, _validate_and_normalize_text
 
 
 class TodoApp:
@@ -23,9 +23,7 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
+        text = _validate_and_normalize_text(text)
 
         todos = self._load()
         todo = Todo(id=self.storage.next_id(todos), text=text)

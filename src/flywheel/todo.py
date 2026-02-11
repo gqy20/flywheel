@@ -10,6 +10,24 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_and_normalize_text(text: str) -> str:
+    """Validate and normalize todo text by stripping whitespace.
+
+    Args:
+        text: The input text to validate.
+
+    Returns:
+        The stripped text.
+
+    Raises:
+        ValueError: If the text is empty or contains only whitespace.
+    """
+    text = text.strip()
+    if not text:
+        raise ValueError("Todo text cannot be empty")
+    return text
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -48,10 +66,7 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        self.text = _validate_and_normalize_text(text)
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
