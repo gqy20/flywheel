@@ -53,10 +53,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, enable_cache: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self._enable_cache = enable_cache
+        self._cache: list[Todo] | None = None
 
     def load(self) -> list[Todo]:
+        # Return cached result if available and caching is enabled
+        if self._enable_cache and self._cache is not None:
+            return self._cache
+
         if not self.path.exists():
             return []
 
@@ -80,7 +86,11 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        result = [Todo.from_dict(item) for item in raw]
+        # Cache the result if caching is enabled
+        if self._enable_cache:
+            self._cache = result
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -123,6 +133,19 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Update cache after successful save
+        if self._enable_cache:
+            self._cache = todos
+
+    def invalidate_cache(self) -> None:
+        """Invalidate the cached data, forcing next load() to re-read from disk.
+
+        This should be called when external modifications to the storage file
+        are suspected, or when switching between multiple TodoStorage instances
+        that share the same file.
+        """
+        self._cache = None
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
