@@ -29,7 +29,13 @@
     "save() method logs debug for atomic write steps",
     "Logging does not affect existing tests"
   ],
-  "risks": [],
-  "limitations": [],
+  "risks": [
+    "Logging is at DEBUG level, so logs are not visible in normal operation",
+    "Users must configure logging level to see debug output"
+  ],
+  "limitations": [
+    "No impact on existing API compatibility"
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2821",
   "created_at": "2026-02-11T19:00:00Z"
 }
