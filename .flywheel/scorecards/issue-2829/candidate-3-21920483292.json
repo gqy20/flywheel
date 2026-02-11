@@ -1,0 +1,27 @@
+{
+  "issue_number": 2829,
+  "candidate_number": 3,
+  "run_id": "21920483292",
+  "branch": "claude/issue-2829-candidate-3-21920483292",
+  "tests_added": 10,
+  "tests_passing": 122,
+  "tests_failing": 0,
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "implementation": {
+    "description": "Added type validation for created_at/updated_at fields in Todo.from_dict() to reject non-string types (dict, list, int, bool, etc.) while accepting None and strings",
+    "acceptance_criteria_met": [
+      "At least 3 test cases for created_at/updated_at type validation: YES (10 tests added)",
+      "Tests cover None, dict, list, int types: YES",
+      "Type validation implemented in todo.py: YES"
+    ]
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "uv run pytest",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
+  ],
+  "all_checks_passed": true
+}
