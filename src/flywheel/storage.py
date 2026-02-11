@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,6 +59,15 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def _backup_path(self) -> Path:
+        """Get the path to the backup file.
+
+        The backup file uses a .json.bak suffix to distinguish it from
+        both the main file and temporary files.
+        """
+        return self.path.with_suffix(".json.bak")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -73,6 +85,13 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            # Check if backup exists and warn user
+            if self._backup_path.exists():
+                logger.warning(
+                    f"JSON file '{self.path}' is corrupted. "
+                    f"A backup is available at '{self._backup_path}'. "
+                    f"Use restore_from_backup() to recover."
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -93,6 +112,10 @@ class TodoStorage:
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +149,31 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current data file.
+
+        This method copies the existing file to the backup location.
+        If a backup already exists, it will be replaced (rotation).
+        """
+        # Copy the current file to backup location
+        # Using shutil.copy2 to preserve metadata
+        import shutil
+        shutil.copy2(self.path, self._backup_path)
+
+    def restore_from_backup(self) -> bool:
+        """Restore data from the backup file.
+
+        Returns:
+            True if restoration was successful, False if no backup exists.
+
+        Raises:
+            OSError: If restoration fails for reasons other than missing backup.
+        """
+        if not self._backup_path.exists():
+            return False
+
+        # Copy backup to main file
+        import shutil
+        shutil.copy2(self._backup_path, self.path)
+        return True
