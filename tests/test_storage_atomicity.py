@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -229,3 +229,94 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_works_without_fchmod(tmp_path) -> None:
+    """Regression test for issue #2813: os.fchmod not available on Windows.
+
+    Tests that TodoStorage.save() works correctly even when os.fchmod
+    is not available (e.g., on Windows systems). The save operation
+    should gracefully handle the absence of fchmod and still complete
+    successfully.
+    """
+    import os as os_module
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [
+        Todo(id=1, text="task for windows compatibility"),
+        Todo(id=2, text="another task"),
+    ]
+
+    # Mock os module without fchmod attribute (simulating Windows behavior)
+    import os as real_os
+
+    # Get list of os attributes excluding fchmod to create a spec
+    os_spec = [name for name in dir(real_os) if name != "fchmod"]
+
+    # Create a mock with spec that doesn't include fchmod
+    mock_os = MagicMock(spec=os_spec)
+    # Configure the mock to delegate real function calls to the real os module
+    # This is needed for os functions we actually use (mkstemp, fdopen, replace, etc.)
+    def side_effect_factory(name):
+        def side_effect(*args, **kwargs):
+            return getattr(real_os, name)(*args, **kwargs)
+        return side_effect
+
+    for name in os_spec:
+        if callable(getattr(real_os, name, None)):
+            getattr(mock_os, name).side_effect = side_effect_factory(name)
+
+    # Ensure fchmod doesn't exist
+    assert not hasattr(mock_os, "fchmod"), "Test setup error: mock should not have fchmod"
+
+    with patch("flywheel.storage.os", mock_os):
+        # This should NOT raise AttributeError - it should handle the missing fchmod gracefully
+        storage.save(todos)
+
+    # Verify the data was actually saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "task for windows compatibility"
+    assert loaded[1].text == "another task"
+
+    # Verify file exists and contains valid JSON
+    assert db.exists()
+    raw_content = db.read_text(encoding="utf-8")
+    parsed = json.loads(raw_content)
+    assert len(parsed) == 2
+
+
+def test_save_sets_restrictive_permissions_when_fchmod_available(tmp_path) -> None:
+    """Test that save sets restrictive permissions (0o600) when fchmod is available.
+
+    On Unix-like systems, the temp file should have restrictive permissions
+    (owner read/write only) before being renamed to the final location.
+    """
+    import stat as stat_module
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="permission test")]
+
+    # Track calls to os.fchmod
+    with patch("flywheel.storage.os.fchmod") as mock_fchmod:
+        storage.save(todos)
+
+        # Verify fchmod was called with restrictive permissions
+        mock_fchmod.assert_called_once()
+        call_args = mock_fchmod.call_args
+
+        # Check the file descriptor and mode
+        # The call should be os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)
+        assert len(call_args[0]) == 2  # Should have 2 positional args: fd, mode
+        mode = call_args[0][1]
+        expected_mode = stat_module.S_IRUSR | stat_module.S_IWUSR
+        assert mode == expected_mode, f"Expected mode {oct(expected_mode)}, got {oct(mode)}"
+
+    # Verify data was saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "permission test"
