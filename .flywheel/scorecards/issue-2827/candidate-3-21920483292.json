@@ -1,23 +1,23 @@
 {
-  "candidate_id": "candidate-3-21920483292",
-  "issue_number": 2827,
-  "stages": {
-    "triage": "completed",
-    "plan": "completed",
-    "implement": "completed"
-  },
-  "test_results": {
-    "new_tests_added": 3,
-    "all_tests_passed": true,
-    "ruff_check_passed": true
-  },
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_2827_next_id_redundant_conditional.py"
-    ]
-  },
-  "fix_summary": "Removed redundant conditional in next_id() - simplified from 'return (max(..., default=0) + 1) if todos else 1' to 'return max(..., default=0) + 1'"
+  "issue": 2827,
+  "candidate": 3,
+  "run_id": "21920483292",
+  "branch": "claude/issue-2827-candidate-3-21920483292",
+  "pr_number": 2834,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2834",
+  "generated_at": "2026-02-11T20:26:45.226500+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1773,
+    "plan": 2087,
+    "implement": 2016,
+    "verify": 1937,
+    "finalize": 2294
+  }
 }
