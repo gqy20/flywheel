@@ -1,0 +1,28 @@
+{
+  "issue_number": 2791,
+  "candidate_number": 3,
+  "run_id": "21916293779",
+  "branch": "claude/issue-2791-candidate-3-21916293779",
+  "commit": "2181a39959d201eb5f546063c123feb35efc5a90",
+  "title": "[Feature] Add configurable JSON size limit via environment variable",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2812",
+  "verification": {
+    "tests_passed": 7,
+    "tests_failed": 0,
+    "ruff_checks": "passed",
+    "commands": [
+      "uv run pytest tests/test_issue_2791_json_size_limit_config.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_2791_json_size_limit_config.py"
+    ],
+    "outcomes": {
+      "pytest": "7 passed in 0.27s",
+      "ruff": "All checks passed!"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2791_json_size_limit_config.py"
+  ],
+  "summary": "Added configurable JSON size limit via TODO_MAX_JSON_SIZE_MB environment variable. Defaults to 10MB if not set or invalid value provided."
+}
