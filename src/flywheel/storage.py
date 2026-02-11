@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -28,6 +31,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
+    logger.debug("Checking parent directory for: %s", file_path)
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
     # This handles cases like: /path/to/file.json/subdir/db.json
@@ -42,7 +46,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     # Create parent directory if it doesn't exist
     if not parent.exists():
         try:
+            logger.debug("Creating parent directory: %s", parent)
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            logger.debug("Successfully created directory: %s", parent)
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
@@ -58,10 +64,12 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            logger.debug("File does not exist, returning empty list: %s", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
+        logger.debug("Loading file: %s (size: %d bytes)", self.path, file_size)
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
@@ -91,20 +99,24 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        logger.debug("Saving %d todos to: %s", len(todos), self.path)
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+        logger.debug("Serialized todos to JSON (%d bytes)", len(content))
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
+        logger.debug("Creating temp file for atomic write in: %s", self.path.parent)
         fd, temp_path = tempfile.mkstemp(
             dir=self.path.parent,
             prefix=f".{self.path.name}.",
             suffix=".tmp",
             text=False,  # We'll write binary data to control encoding
         )
+        logger.debug("Temp file created: %s", temp_path)
 
         try:
             # Set restrictive permissions (owner read/write only)
@@ -113,11 +125,14 @@ class TodoStorage:
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
+            logger.debug("Writing content to temp file")
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
+            logger.debug("Atomically replacing: %s with temp file", self.path)
             os.replace(temp_path, self.path)
+            logger.debug("Successfully saved %d todos to: %s", len(todos), self.path)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
