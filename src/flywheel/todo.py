@@ -20,6 +20,26 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    @staticmethod
+    def _validate_and_sanitize_text(text: str) -> str:
+        """Validate and sanitize todo text.
+
+        Strips leading/trailing whitespace and rejects empty/whitespace-only strings.
+
+        Args:
+            text: The text to validate
+
+        Returns:
+            The stripped text
+
+        Raises:
+            ValueError: If the text is empty or whitespace-only after stripping
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        return text
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
@@ -34,6 +54,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and sanitize text on construction
+        self.text = self._validate_and_sanitize_text(self.text)
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -48,10 +71,7 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        self.text = self._validate_and_sanitize_text(text)
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:

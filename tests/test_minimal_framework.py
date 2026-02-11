@@ -158,3 +158,66 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_construction_rejects_whitespace_only() -> None:
+    """Bug #2789: Todo.__post_init__() should validate and reject whitespace-only text.
+
+    This test demonstrates the inconsistency:
+    - Todo.rename('   ') correctly raises ValueError
+    - Todo(id=1, text='   ') incorrectly accepts whitespace
+
+    The fix should extract the validation logic used in rename() into a shared helper.
+    """
+    # Whitespace-only text should be rejected during construction
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="   ")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="\t\n")
+
+    # Empty string should also be rejected
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="")
+
+
+def test_todo_construction_strips_text() -> None:
+    """Bug #2789: Todo construction should strip leading/trailing whitespace.
+
+    Ensures consistency with rename() behavior.
+    """
+    # Whitespace should be stripped during construction
+    todo = Todo(id=1, text="  padded  ")
+    assert todo.text == "padded"
+
+    # Valid text without padding should work normally
+    todo = Todo(id=1, text="normal text")
+    assert todo.text == "normal text"
+
+
+def test_todo_validation_consistency() -> None:
+    """Bug #2789: Ensure consistent validation across all text-setting methods.
+
+    This test verifies that the same validation rules apply to:
+    - Todo construction (__post_init__)
+    - Todo.rename()
+    - TodoApp.add()
+    """
+    # All methods should reject empty/whitespace text
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="   ")
+
+    todo = Todo(id=1, text="original")
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.rename("   ")
+
+    # All methods should strip whitespace
+    todo2 = Todo(id=2, text="  test  ")
+    assert todo2.text == "test"
+
+    todo3 = Todo(id=3, text="original")
+    todo3.rename("  renamed  ")
+    assert todo3.text == "renamed"
