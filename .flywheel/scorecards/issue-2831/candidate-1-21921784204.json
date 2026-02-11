@@ -1,0 +1,59 @@
+{
+  "issue_number": 2831,
+  "candidate_number": 1,
+  "run_id": "21921784204",
+  "branch_name": "claude/issue-2831-candidate-1-21921784204",
+  "stage": "COMPLETE",
+  "created_at": "2026-02-11T19:52:04Z",
+  "tdd_plan": {
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2831_backup_on_save.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": "RED - Write failing regression test",
+        "description": "Create test file test_issue_2831_backup_on_save.py with tests that verify backup functionality controlled by FLYWHEEL_BACKUP env var",
+        "test_cases": [
+          "test_backup_created_when_env_var_enabled - With FLYWHEEL_BACKUP=1, verify .bak file is created on save",
+          "test_backup_overwritten_on_second_save - Verify only one .bak file exists (overwritten, not appended)",
+          "test_no_backup_when_env_var_disabled - Without FLYWHEEL_BACKUP, verify no .bak file created",
+          "test_backup_content_matches_previous_file - Verify backup contains the previous file content",
+          "test_backup_preserves_metadata - Verify shutil.copy2 preserves permissions and timestamps"
+        ]
+      },
+      {
+        "step": "GREEN - Implement minimal fix",
+        "description": "Modify TodoStorage.save() to check FLYWHEEL_BACKUP env var and create backup before os.replace() using shutil.copy2()",
+        "changes": [
+          "Add import shutil to storage.py",
+          "Before os.replace(temp_path, self.path), check os.getenv('FLYWHEEL_BACKUP') == '1'",
+          "If enabled and self.path exists, use shutil.copy2(self.path, backup_path) to create backup",
+          "backup_path should be self.path.with_suffix('.json.bak')"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2831_backup_on_save.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_2831_backup_on_save.py"
+    ],
+    "results": {
+      "test_issue_2831_backup_on_save": "7 passed",
+      "test_storage_atomicity": "6 passed",
+      "ruff_check": "All checks passed"
+    }
+  },
+  "acceptance_criteria": [
+    "When FLYWHEEL_BACKUP=1, existing .todo.json is copied to .todo.json.bak before save",
+    "Backup is created after temp file is successfully written",
+    "Only one backup file exists (overwritten, not appended)",
+    "Backup preserves file permissions and timestamps"
+  ],
+  "risks": [
+    "Additional disk I/O for backup creation may impact save performance",
+    "Backup file may contain sensitive data that persists after deletion",
+    "Env var check on every save adds minimal overhead"
+  ],
+  "status": "completed"
+}
