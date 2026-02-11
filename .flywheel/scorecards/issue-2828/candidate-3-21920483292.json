@@ -2,7 +2,7 @@
   "issue_number": 2828,
   "candidate_number": 3,
   "run_id": "21920483292",
-  "stage": "FINALIZE",
+  "stage": "COMPLETE",
   "tests": {
     "test_file": "tests/test_issue_2828.py",
     "source_files": ["src/flywheel/todo.py"],
@@ -14,7 +14,7 @@
   },
   "linting": {
     "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2828.py",
-    "status": "pending"
+    "status": "passed"
   },
   "fix_summary": {
     "problem": "from_dict accepts non-string values (dict, list, int, float) for created_at/updated_at fields, using str() coercion which can produce unexpected values like 'dict' or '[1, 2, 3]'",
