@@ -1,6 +1,6 @@
 [project]
 name = "flywheel"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A self-improving Todo CLI powered by AI"
 requires-python = ">=3.13"
 dependencies = [
@@ -89,6 +89,9 @@ addopts = "-v --strict-markers --cov=src --cov-report=term-missing"
 asyncio_mode = "auto"
 
 # Hatch build configuration
+[tool.hatch.version]
+path = "src/flywheel/__init__.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/flywheel", "scripts"]
 
