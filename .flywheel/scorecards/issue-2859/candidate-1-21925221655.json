@@ -2,23 +2,22 @@
   "issue": 2859,
   "candidate": 1,
   "run_id": "21925221655",
-  "stage": "plan",
   "branch": "claude/issue-2859-candidate-1-21925221655",
-  "test_file": "tests/test_issue_2859_todo_copy.py",
-  "source_files": ["src/flywheel/todo.py"],
-  "plan": {
-    "red_tests": [
-      "test_todo_copy_creates_independent_instance",
-      "test_todo_copy_with_text_override",
-      "test_todo_copy_with_done_override",
-      "test_todo_copy_original_unchanged",
-      "test_todo_copy_with_both_overrides",
-      "test_todo_copy_updates_timestamps"
-    ],
-    "green_implementation": "Add Todo.copy() using dataclasses.replace()",
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2859_todo_copy.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2859_todo_copy.py"
-    ]
+  "pr_number": 2876,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2876",
+  "generated_at": "2026-02-11T23:01:10.169228+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1478,
+    "plan": 3035,
+    "implement": 3475,
+    "verify": 2419,
+    "finalize": 477
   }
 }
