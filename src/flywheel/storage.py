@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+# Configure logger - controlled by FW_LOG_LEVEL environment variable
+_logger = logging.getLogger(__name__)
+
+# Set default log level from environment if specified
+_log_level = os.environ.get("FW_LOG_LEVEL", "").upper()
+if _log_level:
+    _logger.setLevel(getattr(logging, _log_level, logging.WARNING))
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -57,7 +67,10 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter()
+
         if not self.path.exists():
+            _logger.info(f"File not found: {self.path}, returning empty list")
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -73,14 +86,20 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            _logger.error(f"JSON decode error in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}")
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            _logger.error(f"Invalid data type in {self.path}: expected list, got {type(raw).__name__}")
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        elapsed = time.perf_counter() - start_time
+        _logger.info(f"Loaded {len(todos)} todos from {self.path} in {elapsed*1000:.2f}ms")
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +110,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -118,11 +139,15 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except OSError as e:
+            _logger.error(f"Failed to save {len(todos)} todos to {self.path}: {e}")
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        elapsed = time.perf_counter() - start_time
+        _logger.info(f"Saved {len(todos)} todos to {self.path} in {elapsed*1000:.2f}ms")
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
