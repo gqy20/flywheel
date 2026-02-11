@@ -1,16 +1,23 @@
 {
-  "issue_number": 2828,
-  "candidate_number": 1,
+  "issue": 2828,
+  "candidate": 1,
   "run_id": "21920483292",
-  "stage": "FINALIZE",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/2839",
+  "branch": "claude/issue-2828-candidate-1-21920483292",
   "pr_number": 2839,
-  "verification": {
-    "pytest_command": "uv run pytest tests/ -k todo -v",
-    "pytest_result": "34 passed",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py",
-    "ruff_result": "All checks passed",
-    "fix_commit": "18d9eb2"
-  },
-  "summary": "Fix already exists in commit 18d9eb2. The from_dict method now validates created_at/updated_at fields, rejecting dict/list/complex types while accepting str, int, float, bool, and None (which becomes empty string). All tests pass and ruff checks are clean."
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2839",
+  "generated_at": "2026-02-11T20:28:09.577464+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3121,
+    "plan": 3460,
+    "implement": 3329,
+    "verify": 2053,
+    "finalize": 731
+  }
 }
