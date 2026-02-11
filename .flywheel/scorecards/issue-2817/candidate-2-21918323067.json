@@ -1,79 +1,23 @@
 {
-  "issue_number": 2817,
-  "issue_title": "[Feature] Add backup/rollback capability for corrupted data files",
-  "candidate_number": 2,
+  "issue": 2817,
+  "candidate": 2,
   "run_id": "21918323067",
   "branch": "claude/issue-2817-candidate-2-21918323067",
-  "stage": "finalize",
-  "status": "completed",
-  "tdd_plan": {
-    "summary": "Add automatic backup and rollback capability to TodoStorage for data file corruption recovery",
-    "test_file": "tests/test_issue_2817_backup_rollback.py",
-    "source_files": ["src/flywheel/storage.py"],
-    "implementation_sequence": [
-      {
-        "step": 1,
-        "phase": "RED",
-        "description": "Write failing test for backup creation on save",
-        "test_function": "test_save_creates_backup_file"
-      },
-      {
-        "step": 2,
-        "phase": "RED",
-        "description": "Write failing test for backup rotation (only 1 .bak file)",
-        "test_function": "test_backup_rotation_keeps_only_one_backup"
-      },
-      {
-        "step": 3,
-        "phase": "RED",
-        "description": "Write failing test for restore_from_backup method",
-        "test_function": "test_restore_from_backup_succeeds"
-      },
-      {
-        "step": 4,
-        "phase": "RED",
-        "description": "Write failing test for JSON corruption handling with backup hint",
-        "test_function": "test_load_json_corruption_warns_about_backup"
-      },
-      {
-        "step": 5,
-        "phase": "GREEN",
-        "description": "Implement _backup_path property to get backup file path",
-        "implementation": "Add _backup_path property returning self.path.with_suffix('.json.bak')"
-      },
-      {
-        "step": 6,
-        "phase": "GREEN",
-        "description": "Implement backup creation in save() before os.replace",
-        "implementation": "In save(), if self.path exists, copy to _backup_path before replace"
-      },
-      {
-        "step": 7,
-        "phase": "GREEN",
-        "description": "Implement restore_from_backup() method",
-        "implementation": "Add restore_from_backup() returning bool, copying backup to main path"
-      },
-      {
-        "step": 8,
-        "phase": "GREEN",
-        "description": "Enhance load() to check backup on JSON error",
-        "implementation": "Catch JSONDecodeError, check if backup exists, log warning with backup path"
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2817_backup_rollback.py -v",
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_2817_backup_rollback.py"
-    ]
-  },
-  "results": {
-    "tests_created": ["tests/test_issue_2817_backup_rollback.py"],
-    "source_files_modified": ["src/flywheel/storage.py"],
-    "tests_passed": true,
-    "ruff_check_passed": true,
-    "pr_url": "https://github.com/gqy20/flywheel/pull/2819"
-  },
-  "created_at": "2026-02-11T19:00:00Z",
-  "updated_at": "2026-02-11T19:30:00Z"
+  "pr_number": 2819,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2819",
+  "generated_at": "2026-02-11T19:35:30.700037+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2102,
+    "plan": 1753,
+    "implement": 1371,
+    "verify": 1783,
+    "finalize": 1149
+  }
 }
