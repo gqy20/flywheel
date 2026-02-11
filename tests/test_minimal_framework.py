@@ -158,3 +158,27 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_post_init_preserves_falsy_string_timestamps() -> None:
+    """Bug #2869: __post_init__ should preserve falsy strings like '0' and 'False'."""
+    # Test with '0' - should be preserved
+    todo = Todo(id=1, text="test", created_at="0", updated_at="0")
+    assert todo.created_at == "0", f"Expected '0', got {todo.created_at!r}"
+    assert todo.updated_at == "0", f"Expected '0', got {todo.updated_at!r}"
+
+    # Test with 'False' - should be preserved
+    todo = Todo(id=2, text="test", created_at="False", updated_at="False")
+    assert todo.created_at == "False", f"Expected 'False', got {todo.created_at!r}"
+    assert todo.updated_at == "False", f"Expected 'False', got {todo.updated_at!r}"
+
+    # Test with empty string - should generate new timestamp
+    todo = Todo(id=3, text="test", created_at="", updated_at="")
+    assert todo.created_at != "", "Empty string should generate timestamp"
+    assert todo.updated_at == todo.created_at, "updated_at should equal created_at"
+
+    # Test with valid ISO timestamp - should be preserved
+    valid_ts = "2024-01-01T00:00:00+00:00"
+    todo = Todo(id=4, text="test", created_at=valid_ts, updated_at=valid_ts)
+    assert todo.created_at == valid_ts, f"Expected {valid_ts!r}, got {todo.created_at!r}"
+    assert todo.updated_at == valid_ts, f"Expected {valid_ts!r}, got {todo.updated_at!r}"
