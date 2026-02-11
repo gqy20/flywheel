@@ -5,7 +5,6 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import stat
 import tempfile
 from pathlib import Path
 
@@ -90,6 +89,9 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Note: Permissions are set at file creation time via umask to eliminate
+        the TOCTOU window that would exist if we used fchmod after mkstemp.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -97,22 +99,28 @@ class TodoStorage:
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=f".{self.path.name}.",
-            suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
-        )
+        # Security: Pre-set umask to ensure restrictive permissions at file creation time.
+        # This eliminates the TOCTOU window that exists when using fchmod after mkstemp.
+        # We save the original umask and restore it after mkstemp returns.
+        original_umask = os.umask(0o077)  # 0o077 ensures 0o600 permissions (rw-------)
 
         try:
-            # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # Create temp file in same directory as target for atomic rename
+            # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
+            # With umask=0o077, the file is created with mode 0o600 (rw-------)
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                text=False,  # We'll write binary data to control encoding
+            )
+        finally:
+            # Always restore original umask, even if mkstemp fails
+            os.umask(original_umask)
 
+        try:
             # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
+            # Note: No fchmod needed - permissions were set correctly at creation time
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
