@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Environment variable to enable backup file creation
+_BACKUP_ENV_VAR = "FLYWHEEL_BACKUP"
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -48,6 +52,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
             ) from e
+
+
+def _should_create_backup() -> bool:
+    """Check if backup file creation is enabled via environment variable.
+
+    Returns:
+        True if FLYWHEEL_BACKUP is set to "1", "true", or "yes" (case-insensitive).
+        False otherwise (including when the variable is not set).
+    """
+    env_value = os.environ.get(_BACKUP_ENV_VAR, "").lower()
+    return env_value in ("1", "true", "yes")
 
 
 class TodoStorage:
@@ -115,6 +130,12 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Create backup if enabled and original file exists
+            # This happens after temp file write succeeds but before atomic rename
+            if _should_create_backup() and self.path.exists():
+                backup_path = self.path.with_suffix(".json.bak")
+                shutil.copy2(self.path, backup_path)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
