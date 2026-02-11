@@ -1,0 +1,27 @@
+{
+  "issue": 2868,
+  "candidate": 3,
+  "run_id": "21925221655",
+  "status": "completed",
+  "tests": [
+    "test_todo_from_dict_rejects_int_created_at",
+    "test_todo_from_dict_rejects_list_created_at",
+    "test_todo_from_dict_rejects_dict_created_at",
+    "test_todo_from_dict_rejects_bool_created_at",
+    "test_todo_from_dict_rejects_int_updated_at",
+    "test_todo_from_dict_rejects_list_updated_at",
+    "test_todo_from_dict_rejects_dict_updated_at",
+    "test_todo_from_dict_rejects_bool_updated_at",
+    "test_todo_from_dict_accepts_empty_string_created_at",
+    "test_todo_from_dict_accepts_empty_string_updated_at",
+    "test_todo_from_dict_accepts_valid_iso_string_created_at",
+    "test_todo_from_dict_accepts_valid_iso_string_updated_at",
+    "test_todo_from_dict_accepts_missing_timestamps",
+    "test_todo_from_dict_rejects_both_invalid_timestamps"
+  ],
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2868_timestamp_type_validation.py"
+  ],
+  "description": "Add type validation for created_at and updated_at fields in Todo.from_dict to reject non-string values"
+}
