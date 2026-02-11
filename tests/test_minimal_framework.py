@@ -158,3 +158,26 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_next_id_edge_cases() -> None:
+    """Bug #2776: next_id() should handle edge cases correctly.
+
+    Test that the simplified version produces same results:
+    - Empty list returns 1
+    - List with id [1] returns 2
+    - List with gaps [1, 5] returns 6
+    """
+    storage = TodoStorage()
+
+    # Empty list should return 1 (first ID)
+    assert storage.next_id([]) == 1
+
+    # Single todo with id=1 should return 2
+    assert storage.next_id([Todo(id=1, text="x")]) == 2
+
+    # Gap in IDs should return max + 1
+    assert storage.next_id([Todo(id=1, text="x"), Todo(id=5, text="y")]) == 6
+
+    # Multiple sequential todos should return next ID
+    assert storage.next_id([Todo(id=1, text="x"), Todo(id=2, text="y"), Todo(id=3, text="z")]) == 4
