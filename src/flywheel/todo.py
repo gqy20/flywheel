@@ -93,10 +93,18 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
-        return cls(
-            id=todo_id,
-            text=data["text"],
-            done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
-        )
+        # Use object.__new__ to bypass __init__ and __post_init__
+        # This prevents timestamps from being overwritten when loading from JSON
+        instance = object.__new__(cls)
+        instance.id = todo_id
+        instance.text = data["text"]
+        instance.done = done
+
+        # Handle timestamp fields: convert None to empty string explicitly
+        # This avoids str(None) producing 'None' string
+        raw_created = data.get("created_at")
+        raw_updated = data.get("updated_at")
+        instance.created_at = str(raw_created) if raw_created is not None else ""
+        instance.updated_at = str(raw_updated) if raw_updated is not None else ""
+
+        return instance
