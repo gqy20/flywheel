@@ -119,3 +119,68 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #2829 - validate created_at/updated_at are proper strings
+def test_from_dict_rejects_dict_created_at() -> None:
+    """Todo.from_dict should reject dict values for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": {"iso": "2024-01-01"}})
+
+
+def test_from_dict_rejects_list_created_at() -> None:
+    """Todo.from_dict should reject list values for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": ["2024-01-01"]})
+
+
+def test_from_dict_rejects_int_created_at() -> None:
+    """Todo.from_dict should reject int values for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": 1234567890})
+
+
+def test_from_dict_accepts_none_created_at() -> None:
+    """Todo.from_dict should accept None for 'created_at' and default to current time."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": None})
+    assert todo.created_at != ""
+    assert isinstance(todo.created_at, str)
+
+
+def test_from_dict_accepts_empty_string_created_at() -> None:
+    """Todo.from_dict should accept empty string for 'created_at' and default to current time."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": ""})
+    assert todo.created_at != ""
+    assert isinstance(todo.created_at, str)
+
+
+def test_from_dict_accepts_valid_string_created_at() -> None:
+    """Todo.from_dict should accept valid ISO string for 'created_at' field."""
+    iso_time = "2024-01-01T12:00:00+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": iso_time})
+    assert todo.created_at == iso_time
+
+
+def test_from_dict_rejects_dict_updated_at() -> None:
+    """Todo.from_dict should reject dict values for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": {"iso": "2024-01-01"}})
+
+
+def test_from_dict_rejects_list_updated_at() -> None:
+    """Todo.from_dict should reject list values for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": ["2024-01-01"]})
+
+
+def test_from_dict_rejects_int_updated_at() -> None:
+    """Todo.from_dict should reject int values for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": 1234567890})
+
+
+def test_from_dict_accepts_none_updated_at() -> None:
+    """Todo.from_dict should accept None for 'updated_at' and default to created_at."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": None})
+    assert todo.updated_at != ""
+    assert isinstance(todo.updated_at, str)
