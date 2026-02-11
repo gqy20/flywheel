@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 import sys
 
-from .formatter import TodoFormatter, _sanitize_text
+from .formatter import TodoFormatter
 from .storage import TodoStorage
-from .todo import Todo
+from .todo import Todo, _sanitize_text
 
 
 class TodoApp:
