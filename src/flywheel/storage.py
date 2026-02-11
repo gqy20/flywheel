@@ -86,19 +86,22 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            _logger.error(f"JSON decode error in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}")
+            _logger.error(
+                f"JSON decode error in {self.path}: {e.msg} at line {e.lineno}, column {e.colno}"
+            )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
-            _logger.error(f"Invalid data type in {self.path}: expected list, got {type(raw).__name__}")
+            _logger.error(
+                f"Invalid data type in {self.path}: expected list, got {type(raw).__name__}"
+            )
             raise ValueError("Todo storage must be a JSON list")
 
         todos = [Todo.from_dict(item) for item in raw]
         elapsed = time.perf_counter() - start_time
-        _logger.info(f"Loaded {len(todos)} todos from {self.path} in {elapsed*1000:.2f}ms")
+        _logger.info(f"Loaded {len(todos)} todos from {self.path} in {elapsed * 1000:.2f}ms")
         return todos
 
     def save(self, todos: list[Todo]) -> None:
@@ -147,7 +150,7 @@ class TodoStorage:
             raise
 
         elapsed = time.perf_counter() - start_time
-        _logger.info(f"Saved {len(todos)} todos to {self.path} in {elapsed*1000:.2f}ms")
+        _logger.info(f"Saved {len(todos)} todos to {self.path} in {elapsed * 1000:.2f}ms")
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
