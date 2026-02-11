@@ -1,43 +1,23 @@
 {
-  "candidate_id": 2,
+  "issue": 2844,
+  "candidate": 2,
   "run_id": "21921784204",
   "branch": "claude/issue-2844-candidate-2-21921784204",
-  "issue_number": 2844,
-  "issue_title": "[Enhancement] 添加文件锁机制防止并发写冲突",
-  "status": "verified",
-  "verification": {
-    "commands_run": [
-      "uv run pytest tests/test_issue_2844_file_locking.py -v --tb=short",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_2844_file_locking.py",
-      "uv run pytest tests/ -v --tb=short -k 'storage'"
-    ],
-    "outcomes": {
-      "issue_2844_tests": "5/5 passed",
-      "ruff_linting": "All checks passed",
-      "storage_tests": "16/16 passed (all storage-related tests)"
-    }
-  },
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_2844_file_locking.py"
-    ],
-    "test_results": {
-      "tests_run": 5,
-      "tests_passed": 5,
-      "tests_failed": 0
-    },
-    "linting": {
-      "tool": "ruff",
-      "status": "passed"
-    }
-  },
-  "summary": "Implement file-based locking using the filelock library to prevent concurrent write conflicts and ensure data integrity across multiple processes accessing the todo storage.",
-  "tests_added": [
-    "test_save_without_lock_allows_overwrite",
-    "test_concurrent_save_with_locking_serializes_access",
-    "test_read_during_write_gets_consistent_data",
-    "test_storage_has_file_lock_mechanism",
-    "test_concurrent_writes_prevent_data_loss"
-  ]
+  "pr_number": 2854,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2854",
+  "generated_at": "2026-02-11T21:26:28.526563+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3796,
+    "implement": 2405,
+    "verify": 1705,
+    "finalize": 767
+  }
 }
