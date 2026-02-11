@@ -93,10 +93,34 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'created_at' is a string if provided
+        if "created_at" in data:
+            raw_created_at = data["created_at"]
+            if raw_created_at is None or not isinstance(raw_created_at, str):
+                raise ValueError(
+                    f"Invalid value for 'created_at': {raw_created_at!r}. "
+                    "'created_at' must be a string."
+                )
+            created_at = raw_created_at
+        else:
+            created_at = ""
+
+        # Validate 'updated_at' is a string if provided
+        if "updated_at" in data:
+            raw_updated_at = data["updated_at"]
+            if raw_updated_at is None or not isinstance(raw_updated_at, str):
+                raise ValueError(
+                    f"Invalid value for 'updated_at': {raw_updated_at!r}. "
+                    "'updated_at' must be a string."
+                )
+            updated_at = raw_updated_at
+        else:
+            updated_at = ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
