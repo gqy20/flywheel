@@ -1,0 +1,29 @@
+{
+  "issue_number": 2828,
+  "issue_title": "[Bug] from_dict 缺少对 created_at/updated_at 字段的类型校验，可能接受非字符串值导致序列化失败",
+  "candidate_number": 1,
+  "run_id": "21920483292",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "problem_summary": "from_dict method uses str() for created_at/updated_at which accepts dict/list/None types that should be rejected",
+    "affected_file": "src/flywheel/todo.py:100-101",
+    "solution_approach": "Add isinstance(str) validation for created_at and updated_at similar to text field validation",
+    "files_to_touch": [
+      "tests/test_issue_2828_timestamp_type_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "test_file": "tests/test_issue_2828_timestamp_type_validation.py",
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2828_timestamp_type_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2828_timestamp_type_validation.py"
+    ]
+  },
+  "implementation": {
+    "tests_added": 11,
+    "tests_passing": true,
+    "ruff_check_passing": true,
+    "summary": "Add type validation for created_at/updated_at fields in Todo.from_dict to reject dict/list types that would cause serialization failures.",
+    "risks": [],
+    "limitations": []
+  }
+}

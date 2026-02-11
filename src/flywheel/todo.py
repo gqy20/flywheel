@@ -93,6 +93,17 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'created_at' and 'updated_at' are string or None
+        # Accept: str, None (which becomes empty string)
+        # Reject: dict, list, or other complex types that would cause serialization issues
+        for field_name in ("created_at", "updated_at"):
+            raw_value = data.get(field_name)
+            if raw_value is not None and not isinstance(raw_value, (str, int, float, bool)):
+                raise ValueError(
+                    f"Invalid value for '{field_name}': {raw_value!r}. "
+                    f"'{field_name}' must be a string, number, boolean, or null."
+                )
+
         return cls(
             id=todo_id,
             text=data["text"],
