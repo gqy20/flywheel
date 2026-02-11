@@ -26,5 +26,7 @@
     "ruff_check": "All checks passed"
   },
   "recommendation": "Close issue #2856 as 'works as intended' with added regression tests for documentation.",
-  "created_at": "2026-02-11T21:48:55Z"
+  "created_at": "2026-02-11T21:48:55Z",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2860",
+  "pr_number": 2860
 }
