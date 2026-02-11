@@ -1,0 +1,35 @@
+{
+  "candidate_id": "candidate-1-21918323067",
+  "issue_number": 2816,
+  "issue_title": "[Enhancement] Add logging module for debugging file operations",
+  "branch": "claude/issue-2816-candidate-1-21918323067",
+  "commit": "1f4e90a",
+  "summary": "Add debug-level logging to storage.py for file operations visibility",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "description": "Added logging import and logger, added debug logs to load(), save(), and _ensure_parent_directory()"
+    },
+    {
+      "file": "tests/test_issue_2816_logging.py",
+      "description": "Added regression tests to verify logging functionality"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_2816_logging.py - 6 tests passed",
+    "tests/test_storage_atomicity.py - 6 tests passed"
+  ],
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed"
+  },
+  "acceptance_criteria_met": [
+    "storage.py imports logging module and creates logger",
+    "load() method logs debug level with file size",
+    "save() method logs debug for atomic write steps",
+    "Logging does not affect existing tests"
+  ],
+  "risks": [],
+  "limitations": [],
+  "created_at": "2026-02-11T19:00:00Z"
+}
