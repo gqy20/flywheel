@@ -99,32 +99,57 @@ def test_cli_all_commands_use_sanitize_text(tmp_path, capsys) -> None:
 
     Issue #2083 acceptance criteria: Terminal control characters in todo text
     are escaped in CLI output for add, done, and undone commands.
+
+    Note: NUL characters are now rejected at input time (Issue #2881),
+    so this test uses ANSI escape sequences instead.
     """
     db = tmp_path / "db.json"
     parser = build_parser()
 
-    # Test add command with multiple control characters
-    add_args = parser.parse_args(["--db", str(db), "add", "Task\n\r\tWith\x00Controls"])
-    run_command(add_args)
+    # Test add command with multiple control characters (NUL excluded per #2881)
+    add_args = parser.parse_args(["--db", str(db), "add", "Task\n\r\tWith\x1b[31mRed\x1b[0m"])
+    result = run_command(add_args)
+    assert result == 0, "add command should succeed"
     captured = capsys.readouterr()
     assert "\\n" in captured.out
     assert "\\r" in captured.out
     assert "\\t" in captured.out
-    assert "\\x00" in captured.out
+    assert "\\x1b" in captured.out
     assert "\n" not in captured.out.strip()
     assert "\r" not in captured.out
-    assert "\x00" not in captured.out
+    assert "\x1b" not in captured.out
 
     # Test done command
     done_args = parser.parse_args(["--db", str(db), "done", "1"])
-    run_command(done_args)
+    result = run_command(done_args)
+    assert result == 0, "done command should succeed"
     captured = capsys.readouterr()
     assert "\\n" in captured.out
     assert "\n" not in captured.out.strip()
 
     # Test undone command
     undone_args = parser.parse_args(["--db", str(db), "undone", "1"])
-    run_command(undone_args)
+    result = run_command(undone_args)
+    assert result == 0, "undone command should succeed"
     captured = capsys.readouterr()
     assert "\\n" in captured.out
     assert "\n" not in captured.out.strip()
+
+
+def test_cli_add_command_rejects_null_byte(tmp_path, capsys) -> None:
+    """add command should reject NUL characters per Issue #2881.
+
+    This is a defense-in-depth improvement over #2083 - NUL characters
+    are now rejected at input time rather than just escaped in output.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+
+    # Test add command with NUL character - should be rejected
+    add_args = parser.parse_args(["--db", str(db), "add", "Task\x00WithNUL"])
+    result = run_command(add_args)
+    assert result != 0, "add command should fail with NUL character"
+
+    captured = capsys.readouterr()
+    # Should error to stderr
+    assert "NUL" in captured.err or "\\x00" in captured.err

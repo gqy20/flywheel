@@ -191,19 +191,21 @@ def test_cli_add_command_sanitizes_ansi_escape_sequences(tmp_path, capsys) -> No
 
 
 def test_cli_add_command_sanitizes_null_byte(tmp_path, capsys) -> None:
-    """add command should escape null bytes."""
+    """add command rejects null bytes per Issue #2881.
+
+    Previously, null bytes were escaped in output. Now they are
+    rejected during Todo construction as a security hardening measure.
+    """
     db = tmp_path / "db.json"
     parser = build_parser()
     args = parser.parse_args(["--db", str(db), "add", "Before\x00After"])
 
     result = run_command(args)
-    assert result == 0, "add command should succeed"
+    assert result != 0, "add command should fail with null byte"
 
     captured = capsys.readouterr()
-    # Output should contain escaped representation
-    assert "\\x00" in captured.out
-    # Output should NOT contain actual null byte
-    assert "\x00" not in captured.out
+    # Should error to stderr
+    assert "NUL" in captured.err or "\\x00" in captured.err
 
 
 def test_cli_add_command_normal_text_unchanged(tmp_path, capsys) -> None:

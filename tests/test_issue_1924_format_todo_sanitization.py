@@ -66,11 +66,14 @@ def test_format_todo_escapes_ansi_codes_in_text() -> None:
 
 
 def test_format_todo_escapes_null_byte() -> None:
-    """Null byte should be escaped."""
-    todo = Todo(id=1, text="Before\x00After")
-    result = TodoFormatter.format_todo(todo)
-    assert "\\x00" in result
-    assert "\x00" not in result
+    """Null bytes are rejected at input time per Issue #2881.
+
+    Previously, null bytes were escaped in output. Now they are
+    rejected during Todo construction as a security hardening measure.
+    """
+    import pytest
+    with pytest.raises(ValueError, match="NUL character|\\\\x00"):
+        Todo(id=1, text="Before\x00After")
 
 
 def test_format_todo_normal_text_unchanged() -> None:

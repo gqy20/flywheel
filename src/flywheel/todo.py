@@ -34,6 +34,19 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text content: reject NUL characters
+        if "\x00" in self.text:
+            raise ValueError(
+                "Todo text cannot contain NUL characters (\\x00)."
+            )
+
+        # Validate text length: reject excessive length (>10000 chars)
+        if len(self.text) > 10_000:
+            raise ValueError(
+                f"Todo text too long: {len(self.text)} characters. "
+                "Maximum allowed is 10000 characters."
+            )
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -51,6 +64,20 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+
+        # Validate text content: reject NUL characters
+        if "\x00" in text:
+            raise ValueError(
+                "Todo text cannot contain NUL characters (\\x00)."
+            )
+
+        # Validate text length: reject excessive length (>10000 chars)
+        if len(text) > 10_000:
+            raise ValueError(
+                f"Todo text too long: {len(text)} characters. "
+                "Maximum allowed is 10000 characters."
+            )
+
         self.text = text
         self.updated_at = _utc_now_iso()
 
@@ -77,6 +104,19 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Validate text content: reject NUL characters
+        if "\x00" in data["text"]:
+            raise ValueError(
+                "Todo text cannot contain NUL characters (\\x00)."
+            )
+
+        # Validate text length: reject excessive length (>10000 chars)
+        if len(data["text"]) > 10_000:
+            raise ValueError(
+                f"Todo text too long: {len(data['text'])} characters. "
+                "Maximum allowed is 10000 characters."
             )
 
         # Validate 'done' is a proper boolean value
