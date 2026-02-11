@@ -10,8 +10,6 @@ with moderately large files.
 
 from __future__ import annotations
 
-import json
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
