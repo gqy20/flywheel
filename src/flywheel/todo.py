@@ -93,10 +93,20 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
-        return cls(
-            id=todo_id,
-            text=data["text"],
-            done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
-        )
+        # Handle timestamp fields: convert None and literal "None" string to empty string
+        def _clean_timestamp(value: str | None) -> str:
+            """Convert None or literal 'None' string to empty string."""
+            if value is None or value == "None":
+                return ""
+            return str(value) if value else ""
+
+        # Bypass __post_init__ to preserve loaded state exactly as-is
+        # Use object.__new__ to create instance without triggering __post_init__
+        todo = object.__new__(cls)
+        # Set all attributes directly
+        todo.id = todo_id
+        todo.text = data["text"]
+        todo.done = done
+        todo.created_at = _clean_timestamp(data.get("created_at"))
+        todo.updated_at = _clean_timestamp(data.get("updated_at"))
+        return todo

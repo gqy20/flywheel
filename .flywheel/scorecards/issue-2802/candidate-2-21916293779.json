@@ -1,0 +1,33 @@
+{
+  "issue_number": 2802,
+  "candidate_id": "candidate-2-21916293779",
+  "branch": "claude/issue-2802-candidate-2-21916293779",
+  "stage": "PLAN",
+  "tdd_plan": {
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2802_none_timestamp.py"
+    ],
+    "test_first": {
+      "failing_regression_test": "test_todo_from_dict_handles_string_none_pollution - Verifies that literal string 'None' is converted to empty string",
+      "implementation_sequence": [
+        "1. Create _clean_timestamp() helper function to handle None and 'None' string",
+        "2. Modify from_dict() to bypass __post_init__ using object.__new__",
+        "3. Apply _clean_timestamp() to both created_at and updated_at fields"
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2802_none_timestamp.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2802_none_timestamp.py"
+    ]
+  },
+  "minimal_fix_description": "The bug occurs because str(data.get('created_at') or '') evaluates str(None) before the 'or' check, converting None to the literal string 'None'. The fix wraps str() after the None check and handles the literal 'None' string case explicitly, also bypassing __post_init__ to preserve loaded state without auto-generating timestamps.",
+  "risks": [],
+  "test_results": {
+    "issue_2802_tests": "4 passed",
+    "existing_tests": "12 passed (test_issue_2000_json_validation.py)",
+    "ruff_check": "All checks passed"
+  },
+  "implementation_status": "code_complete"
+}
