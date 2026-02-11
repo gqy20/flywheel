@@ -11,6 +11,10 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes Unicode bidirectional override characters (U+202A-U+202E,
+    U+2066-U+2069) and zero-width characters (U+200B-U+200D, U+2060-U+2063)
+    to prevent text spoofing attacks.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,13 +30,26 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
+    # Define ranges of Unicode characters to escape
+    # Bidi overrides: U+202A-U+202E (LRE, RLE, PDF, LRO, RLO)
+    # Isolate controls: U+2066-U+2069 (LRI, RLI, FSI, PDI)
+    # Zero-width chars: U+200B-U+200D (ZWSP, ZWNJ, ZWJ), U+2060-U+2063
+    bidi_and_zero_width_ranges = [
+        (0x202A, 0x202E),  # Bidi overrides
+        (0x2066, 0x2069),  # Isolate controls
+        (0x200B, 0x200D),  # Zero-width space, non-joiner, joiner
+        (0x2060, 0x2063),  # Zero-width no-break space, function application, etc.
+    ]
+
     result = []
     for char in text:
         code = ord(char)
+        # Check if this is a control character (0x00-0x1f except \n, \r, \t), DEL (0x7f), or C1 (0x80-0x9f)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        # Check if this is a bidi override or zero-width character
+        elif any(start <= code <= end for start, end in bidi_and_zero_width_ranges):
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
