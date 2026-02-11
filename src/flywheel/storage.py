@@ -8,8 +8,14 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from filelock import FileLock
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    pass
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,44 +59,76 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    # Default lock timeout in seconds
+    _DEFAULT_LOCK_TIMEOUT = 10.0
+
+    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_timeout = lock_timeout
+        # Lock is created lazily on first use to avoid path validation issues
+        self._lock: FileLock | None = None
+        self._lock_file = self.path.parent / f"{self.path.name}.lock"
+
+    def _get_lock(self) -> FileLock:
+        """Get or create the file lock.
+
+        Creates lock on first use to ensure parent path validation happens first.
+        """
+        if self._lock is None:
+            # Validate parent path before creating lock file
+            _ensure_parent_directory(self._lock_file)
+            self._lock = FileLock(str(self._lock_file), timeout=self._lock_timeout)
+        return self._lock
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
-            return []
+        # Acquire shared lock for reading (FileLock uses exclusive locks,
+        # but that's fine - readers also wait for writers to complete)
+        with self._get_lock():
+            if not self.path.exists():
+                return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+            # Security: Check file size before loading to prevent DoS
+            file_size = self.path.stat().st_size
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
 
-        try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            try:
+                raw = json.loads(self.path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            if not isinstance(raw, list):
+                raise ValueError("Todo storage must be a JSON list")
+            return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+        """Save todos to file atomically with file locking.
 
-        Uses write-to-temp-file + atomic rename pattern to prevent data loss
-        if the process crashes during write.
+        Uses:
+        1. File locking to prevent concurrent write conflicts
+        2. Write-to-temp-file + atomic rename pattern to prevent data loss
+           if the process crashes during write
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Raises:
+            Timeout: If lock cannot be acquired within timeout period
         """
+        # Acquire exclusive lock for writing
+        with self._get_lock():
+            self._write_locked(todos)
+
+    def _write_locked(self, todos: list[Todo]) -> None:
+        """Internal write method - assumes lock is already held."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
