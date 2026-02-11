@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Module-level frozenset constant for control character exclusion check
+# Performance optimization: avoids creating tuple on every iteration
+_EXCLUDED_CONTROLS = frozenset(("\n", "\r", "\t"))
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -31,7 +35,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1f and char not in _EXCLUDED_CONTROLS) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
