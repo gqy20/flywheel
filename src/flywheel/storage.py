@@ -140,7 +140,11 @@ class TodoStorage:
             # Backup existing file AFTER temp file write succeeds
             # This ensures we don't lose data if temp write fails
             if self.path.exists():
-                os.replace(self.path, self._backup_path)
+                # In concurrent scenarios, another process may have already
+                # moved the file to backup. This is not an error - we can
+                # proceed with the atomic write.
+                with contextlib.suppress(FileNotFoundError):
+                    os.replace(self.path, self._backup_path)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
