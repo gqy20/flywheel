@@ -3,18 +3,21 @@
   "candidate": 2,
   "run_id": "21914246485",
   "branch": "claude/issue-2788-candidate-2-21914246485",
-  "generated_at": "2026-02-11T17:30:00+00:00",
-  "stages_completed": ["plan", "verify"],
+  "pr_number": 2799,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2799",
+  "generated_at": "2026-02-11T17:42:26.649472+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
   "stage_response_sizes": {
-    "plan": 0,
-    "verify": 0
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2788_next_id_edge_cases.py -v",
-    "pytest_result": "4 passed",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2788_next_id_edge_cases.py",
-    "ruff_result": "All checks passed!",
-    "storage_tests_command": "uv run pytest tests/ -k 'storage or next_id' -v",
-    "storage_tests_result": "19 passed, 97 deselected"
+    "triage": 1502,
+    "plan": 2632,
+    "implement": 3535,
+    "verify": 1744,
+    "finalize": 1112
   }
 }
