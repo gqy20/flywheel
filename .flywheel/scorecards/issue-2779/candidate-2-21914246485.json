@@ -1,0 +1,85 @@
+{
+  "issue_number": 2779,
+  "candidate_id": "candidate-2-21914246485",
+  "stage": "verify",
+  "created_at": "2026-02-11T17:07:00Z",
+  "verified_at": "2026-02-11T17:15:00Z",
+  "plan": {
+    "files_to_modify": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ],
+    "test_files_to_add": [
+      "tests/test_issue_2779_load_statistics.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "action": "Add StorageLoadResult dataclass to storage.py",
+        "details": "Create dataclass with todos (list[Todo]), file_size (int), load_time_ms (float) fields"
+      },
+      {
+        "step": 2,
+        "action": "Add load_simple() method to TodoStorage",
+        "details": "Maintains current load() behavior for backward compatibility, returns list[Todo]"
+      },
+      {
+        "step": 3,
+        "action": "Modify load() to return StorageLoadResult",
+        "details": "Capture start time, read file size, calculate duration, return StorageLoadResult with todos and metadata"
+      },
+      {
+        "step": 4,
+        "action": "Update TodoApp._load() to unwrap StorageLoadResult",
+        "details": "Extract todos from StorageLoadResult so existing code continues to work with list[Todo]"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2779_load_statistics.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py"
+    ]
+  },
+  "verification_results": {
+    "test_issue_2779_load_statistics": {
+      "command": "uv run pytest tests/test_issue_2779_load_statistics.py -v",
+      "tests_run": 8,
+      "tests_passed": 8,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    "test_minimal_framework": {
+      "command": "uv run pytest tests/test_minimal_framework.py -v",
+      "tests_run": 10,
+      "tests_passed": 10,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    "test_storage_atomicity": {
+      "command": "uv run pytest tests/test_storage_atomicity.py -v",
+      "tests_run": 6,
+      "tests_passed": 6,
+      "tests_failed": 0,
+      "status": "passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py",
+      "status": "passed",
+      "output": "All checks passed!"
+    }
+  },
+  "summary": {
+    "total_tests_run": 24,
+    "total_tests_passed": 24,
+    "total_tests_failed": 0,
+    "all_checks_passed": true
+  },
+  "results": {
+    "tests_passed": true,
+    "ruff_check_passed": true,
+    "commit_hash": "bc215a0"
+  },
+  "branch": "claude/issue-2779-candidate-2-21914246485",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2798"
+}
