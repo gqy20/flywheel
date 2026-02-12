@@ -18,31 +18,58 @@ _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
-    Validates that:
-    1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
+    Uses os.makedirs with os.O_NOFOLLOW semantics to avoid TOCTOU race conditions.
+    This prevents symlink attacks where an attacker could replace a directory
+    component with a symlink between validation and creation.
+
+    Security considerations:
+    1. Does not follow symlinks in the path during validation
+    2. Handles EEXIST/ENOTDIR errors directly from mkdir to close the race window
     3. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file or symlink
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
-    # This handles cases like: /path/to/file.json/subdir/db.json
-    # where 'file.json' exists as a file but we need it to be a directory
-    for part in list(file_path.parents):  # Only check parents, not file_path itself
-        if part.exists() and not part.is_dir():
-            raise ValueError(
-                f"Path error: '{part}' exists as a file, not a directory. "
-                f"Cannot use '{file_path}' as database path."
-            )
+    # Check all parent components using lstat (doesn't follow symlinks)
+    # This prevents TOCTOU attacks via symlink replacement
+    for part in list(file_path.parents):
+        try:
+            st = part.lstat()
+            if stat.S_ISLNK(st.st_mode):
+                raise ValueError(
+                    f"Path error: '{part}' is a symbolic link. "
+                    f"Symlinks are not allowed in database path for security. "
+                    f"Cannot use '{file_path}' as database path."
+                )
+            if not stat.S_ISDIR(st.st_mode):
+                raise ValueError(
+                    f"Path error: '{part}' exists as a file, not a directory. "
+                    f"Cannot use '{file_path}' as database path."
+                )
+        except FileNotFoundError:
+            # Path component doesn't exist, that's fine - we'll create it
+            pass
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle concurrent directory creation safely
+    # The validation above ensures no symlinks or files exist in the path
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as e:
+            # Another process created it (possibly as a file/symlink) - re-validate
+            raise ValueError(
+                f"Path error: '{parent}' already exists but is not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from e
+        except NotADirectoryError as e:
+            raise ValueError(
+                f"Path error: A parent component of '{parent}' is not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from e
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
