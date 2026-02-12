@@ -3,7 +3,8 @@
   "candidate_number": 2,
   "run_id": "21926954818",
   "branch": "claude/issue-2881-candidate-2-21926954818",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2894",
   "verification_summary": {
     "pytest": {
       "command": "uv run pytest tests/test_issue_2881_text_validation.py -v",
