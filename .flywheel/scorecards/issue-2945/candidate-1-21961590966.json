@@ -1,29 +1,23 @@
 {
-  "issue_number": 2945,
-  "issue_title": "[Bug] Todo id validation accepts negative and zero values, which are invalid identifiers",
-  "candidate_number": 1,
+  "issue": 2945,
+  "candidate": 1,
   "run_id": "21961590966",
   "branch": "claude/issue-2945-candidate-1-21961590966",
-  "implementation": {
-    "approach": "Add validation in Todo.from_dict() to reject non-positive id values",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "tests_added": 3,
-    "tests_passing": true
-  },
-  "test_results": {
-    "tests_run": "uv run pytest tests/",
-    "tests_passed": 115,
-    "tests_failed": 0
-  },
-  "lint_results": {
-    "ruff_check": "passed"
-  },
-  "changes_summary": {
-    "source_changes": "Added validation in Todo.from_dict() to check if todo_id <= 0 and raise ValueError with message \"'id' must be a positive integer\"",
-    "test_changes": "Added 3 tests for id validation: test_todo_from_dict_rejects_zero_id, test_todo_from_dict_rejects_negative_id, test_todo_from_dict_accepts_positive_id. Fixed test_storage_atomicity.py to use positive ids."
+  "pr_number": 2964,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2964",
+  "generated_at": "2026-02-12T21:25:38.749415+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1826,
+    "plan": 3250,
+    "implement": 2367,
+    "verify": 1438,
+    "finalize": 2405
   }
 }
