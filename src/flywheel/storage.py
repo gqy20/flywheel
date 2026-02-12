@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    @property
+    def _lock_path(self) -> Path:
+        """Path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +132,52 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> contextlib.AbstractContextManager[None]:
+        """Acquire exclusive file lock for atomic operations.
+
+        Uses fcntl.flock for cross-process synchronization on POSIX systems.
+        Creates a separate lock file to avoid interfering with the data file.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)  # Blocking exclusive lock
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)  # Release lock
+            os.close(lock_fd)
+
+    def add_todo(self, text: str) -> Todo:
+        """Atomically add a new todo with exclusive locking.
+
+        This method performs load -> next_id -> save as an atomic operation,
+        preventing race conditions in concurrent environments.
+
+        Args:
+            text: The todo text (must be non-empty after stripping).
+
+        Returns:
+            The newly created Todo with assigned ID.
+
+        Raises:
+            ValueError: If text is empty after stripping.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._exclusive_lock():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+        return todo
