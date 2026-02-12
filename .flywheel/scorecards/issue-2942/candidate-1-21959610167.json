@@ -1,0 +1,14 @@
+{
+  "issue": 2942,
+  "candidate": 1,
+  "run_id": 21959610167,
+  "status": "implemented",
+  "timestamp": "2026-02-12T14:30:00Z",
+  "summary": "Fix Todo.from_dict to reject empty string and whitespace-only text values",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2942_from_dict_empty_text_validation.py"]
+  },
+  "tests_passed": 6,
+  "lint_passed": true
+}
