@@ -6,6 +6,7 @@ ensuring save() works without AttributeError.
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,10 +38,8 @@ def test_save_works_without_fchmod_simulating_windows(tmp_path: Path) -> None:
                 # Keep existing attributes (like replace, fdopen, unlink)
                 continue
             elif not attr.startswith("_"):
-                try:
+                with contextlib.suppress(AttributeError, TypeError):
                     setattr(mock_os, attr, getattr(real_os, attr))
-                except (AttributeError, TypeError):
-                    pass
 
         # Explicitly ensure fchmod raises AttributeError (like on Windows)
         del mock_os.fchmod
@@ -49,11 +48,6 @@ def test_save_works_without_fchmod_simulating_windows(tmp_path: Path) -> None:
         mock_os.replace = real_os.replace
         mock_os.fdopen = real_os.fdopen
         mock_os.unlink = real_os.unlink
-
-        # Patch tempfile.mkstemp to use the real one
-        import tempfile
-
-        original_mkstemp = tempfile.mkstemp
 
         # This should NOT raise AttributeError
         storage.save(todos)
@@ -77,7 +71,6 @@ def test_save_with_fchmod_unavailable_via_hasattr_mock(tmp_path: Path) -> None:
 
     # Create a mock os module that doesn't have fchmod
     import os as real_os
-    import tempfile
 
     class MockOS:
         """OS-like object without fchmod (simulating Windows)."""
@@ -88,10 +81,8 @@ def test_save_with_fchmod_unavailable_via_hasattr_mock(tmp_path: Path) -> None:
                 if attr == "fchmod":
                     continue  # Skip fchmod - not on Windows
                 if not attr.startswith("_"):
-                    try:
+                    with contextlib.suppress(AttributeError, TypeError):
                         setattr(self, attr, getattr(real_os, attr))
-                    except (AttributeError, TypeError):
-                        pass
 
     mock_os = MockOS()
 
@@ -137,7 +128,7 @@ def test_save_still_sets_restrictive_permissions_on_unix(tmp_path: Path) -> None
 
     # On Unix, fchmod should have been called
     assert len(fchmod_calls) == 1
-    fd, mode = fchmod_calls[0]
+    _fd, mode = fchmod_calls[0]
     # Mode should be 0o600 (owner read/write only)
     import stat
 
