@@ -91,6 +91,13 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Validate that path is not a directory
+        if self.path.exists() and self.path.is_dir():
+            raise ValueError(
+                f"Path '{self.path}' is a directory, not a file. "
+                f"Please specify a file path for the database (e.g., '{self.path}/db.json')."
+            )
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
