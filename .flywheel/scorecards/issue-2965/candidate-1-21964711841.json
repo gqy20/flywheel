@@ -1,0 +1,21 @@
+{
+  "issue_number": 2965,
+  "candidate_number": 1,
+  "run_id": "21964711841",
+  "branch_name": "claude/issue-2965-candidate-1-21964711841",
+  "created_at": "2026-02-12T22:15:00Z",
+  "fix_summary": "Add Windows compatibility for os.fchmod in save() method",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_2965_windows_compat.py"
+  ],
+  "tests_added": 1,
+  "tests_passed": 113,
+  "approach": "Use hasattr(os, 'fchmod') check before calling os.fchmod to gracefully handle Windows systems where this POSIX-only function does not exist",
+  "risks": "On Windows, temp files will use default permissions (0o600 from mkstemp umask) rather than explicitly restricted. This is acceptable as Windows has different security model.",
+  "verification": {
+    "lint_passed": true,
+    "all_tests_passed": true,
+    "regression_test_passed": true
+  }
+}
