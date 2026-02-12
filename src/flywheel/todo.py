@@ -10,6 +10,10 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+# Maximum text length per todo to prevent DoS attacks (1MB)
+_MAX_TEXT_LENGTH = 1024 * 1024
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -77,6 +81,15 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Security: Validate text length to prevent DoS attacks
+        if len(data["text"]) > _MAX_TEXT_LENGTH:
+            size_kb = len(data["text"]) / 1024
+            limit_kb = _MAX_TEXT_LENGTH / 1024
+            raise ValueError(
+                f"Todo text too long ({size_kb:.1f}KB > {limit_kb:.0f}KB limit). "
+                "This protects against denial-of-service attacks."
             )
 
         # Validate 'done' is a proper boolean value
