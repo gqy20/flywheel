@@ -91,6 +91,13 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Validate that path is not a directory
+        if self.path.is_dir():
+            raise ValueError(
+                f"Cannot save to '{self.path}': path is a directory. "
+                f"A file path is required, not a directory."
+            )
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
