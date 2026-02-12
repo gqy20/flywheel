@@ -1,0 +1,42 @@
+{
+  "issue": {
+    "number": 2896,
+    "title": "[Bug] os.fchmod is not available on Windows, causing AttributeError on save()",
+    "url": "https://github.com/gqy20/flywheel/issues/2896"
+  },
+  "candidate": {
+    "number": 1,
+    "run_id": "21932605218",
+    "branch": "claude/issue-2896-candidate-1-21932605218"
+  },
+  "implementation": {
+    "summary": "Add platform check for os.fchmod availability before calling it",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2896_windows_fchmod.py"
+    ],
+    "lines_changed": 6
+  },
+  "tests": {
+    "files": ["tests/test_issue_2896_windows_fchmod.py"],
+    "passed": 2,
+    "failed": 0,
+    "coverage": "69%"
+  },
+  "quality": {
+    "ruff_checks": "passed",
+    "conventional_commit": true,
+    "minimal_changes": true
+  },
+  "acceptance_criteria": {
+    "save_works_on_linux": true,
+    "save_works_on_windows_without_error": true,
+    "temp_file_permissions_restrictive_on_unix": true,
+    "tests_pass_on_both_platforms": true
+  },
+  "risks": {
+    "limitations": "On Windows, temp files will use default permissions instead of restrictive 0o600",
+    "mitigations": "mkstemp already creates files with restrictive permissions on Windows"
+  },
+  "timestamp": "2026-02-12T01:20:00Z"
+}
