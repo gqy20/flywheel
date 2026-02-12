@@ -1,29 +1,23 @@
 {
-  "issue_number": 2881,
-  "candidate_number": 2,
+  "issue": 2881,
+  "candidate": 2,
   "run_id": "21926954818",
   "branch": "claude/issue-2881-candidate-2-21926954818",
-  "stage": "FINALIZE",
+  "pr_number": 2894,
   "pr_url": "https://github.com/gqy20/flywheel/pull/2894",
-  "verification_summary": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_2881_text_validation.py -v",
-      "outcome": "PASS",
-      "details": "All 7 tests passed in 0.05s"
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2881_text_validation.py",
-      "outcome": "PASS",
-      "details": "All checks passed"
-    }
-  },
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2881_text_validation.py"
-    ]
-  },
-  "verification_complete": true
+  "generated_at": "2026-02-12T00:03:05.117065+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3043,
+    "plan": 2261,
+    "implement": 2231,
+    "verify": 1511,
+    "finalize": 1111
+  }
 }
