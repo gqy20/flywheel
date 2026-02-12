@@ -158,3 +158,52 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_only_negative_ids_returns_positive() -> None:
+    """Bug #2961: next_id should always return positive integer >= 1.
+
+    When all existing IDs are negative, next_id should still return 1
+    instead of 0 or negative values.
+    """
+    storage = TodoStorage(":memory:")
+
+    # Test with single negative ID
+    todos = [Todo(id=-1, text="negative")]
+    assert storage.next_id(todos) == 1
+
+    # Test with multiple negative IDs
+    todos = [Todo(id=-10, text="negative"), Todo(id=-5, text="negative")]
+    assert storage.next_id(todos) == 1
+
+    # Test with very negative ID
+    todos = [Todo(id=-1000, text="very negative")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_empty_list_returns_1() -> None:
+    """Bug #2961: next_id with empty list should return 1."""
+    storage = TodoStorage(":memory:")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_with_positive_ids_returns_max_plus_1() -> None:
+    """Bug #2961: next_id should still work correctly with positive IDs."""
+    storage = TodoStorage(":memory:")
+
+    # Test with single positive ID
+    todos = [Todo(id=5, text="positive")]
+    assert storage.next_id(todos) == 6
+
+    # Test with multiple positive IDs
+    todos = [Todo(id=3, text="a"), Todo(id=10, text="b"), Todo(id=7, text="c")]
+    assert storage.next_id(todos) == 11
+
+
+def test_next_id_with_mixed_ids_returns_positive() -> None:
+    """Bug #2961: next_id with mixed positive/negative IDs should ignore negatives."""
+    storage = TodoStorage(":memory:")
+
+    # Mixed IDs - should use max positive ID
+    todos = [Todo(id=-5, text="neg"), Todo(id=10, text="pos")]
+    assert storage.next_id(todos) == 11
