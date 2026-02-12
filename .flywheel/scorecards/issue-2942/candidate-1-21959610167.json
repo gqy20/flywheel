@@ -1,14 +1,23 @@
 {
   "issue": 2942,
   "candidate": 1,
-  "run_id": 21959610167,
-  "status": "implemented",
-  "timestamp": "2026-02-12T14:30:00Z",
-  "summary": "Fix Todo.from_dict to reject empty string and whitespace-only text values",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2942_from_dict_empty_text_validation.py"]
-  },
-  "tests_passed": 6,
-  "lint_passed": true
+  "run_id": "21959610167",
+  "branch": "claude/issue-2942-candidate-1-21959610167",
+  "pr_number": 2957,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2957",
+  "generated_at": "2026-02-12T20:03:22.621167+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1964,
+    "plan": 2852,
+    "implement": 2569,
+    "verify": 2700,
+    "finalize": 1220
+  }
 }
