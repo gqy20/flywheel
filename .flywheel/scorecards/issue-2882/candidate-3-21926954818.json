@@ -1,25 +1,23 @@
 {
-  "issue_number": 2882,
-  "candidate_id": "3-21926954818",
-  "title": "[Bug] TodoStorage.load() silently ignores unexpected top-level JSON values, treating non-list/dict as empty list",
-  "status": "implemented",
-  "test_created": true,
-  "test_path": "tests/test_issue_2882_top_level_json_validation.py",
-  "fix_description": "Enhanced error message in TodoStorage.load() to include actual type received when JSON is not a list. Previously the error only said 'Todo storage must be a JSON list'. Now it says 'Todo storage must be a JSON list, but got <type>' which makes debugging much clearer.",
-  "files_modified": [
-    "src/flywheel/storage.py"
+  "issue": 2882,
+  "candidate": 3,
+  "run_id": "21926954818",
+  "branch": "claude/issue-2882-candidate-3-21926954818",
+  "pr_number": 2888,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2888",
+  "generated_at": "2026-02-12T00:01:28.467730+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "lines_changed": 3,
-  "backward_compatible": true,
-  "all_tests_pass": true,
-  "test_results": {
-    "total": 115,
-    "passed": 115,
-    "failed": 0
-  },
-  "validation_criteria_met": [
-    "Loading a JSON file with top-level object (dict) produces clear error message instead of iterating over keys",
-    "Loading a JSON file with top-level string, number, boolean, null produces clear error message",
-    "Existing list-based test still passes"
-  ]
+  "stage_response_sizes": {
+    "triage": 2968,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 1766,
+    "finalize": 490
+  }
 }
