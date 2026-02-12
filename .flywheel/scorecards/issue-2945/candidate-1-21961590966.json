@@ -8,14 +8,15 @@
     "approach": "Add validation in Todo.from_dict() to reject non-positive id values",
     "files_changed": [
       "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
+      "tests/test_issue_2000_json_validation.py",
+      "tests/test_storage_atomicity.py"
     ],
     "tests_added": 3,
     "tests_passing": true
   },
   "test_results": {
-    "tests_run": "uv run pytest tests/test_issue_2000_json_validation.py",
-    "tests_passed": 15,
+    "tests_run": "uv run pytest tests/",
+    "tests_passed": 115,
     "tests_failed": 0
   },
   "lint_results": {
@@ -23,6 +24,6 @@
   },
   "changes_summary": {
     "source_changes": "Added validation in Todo.from_dict() to check if todo_id <= 0 and raise ValueError with message \"'id' must be a positive integer\"",
-    "test_changes": "Added 3 tests: test_todo_from_dict_rejects_zero_id, test_todo_from_dict_rejects_negative_id, test_todo_from_dict_accepts_positive_id"
+    "test_changes": "Added 3 tests for id validation: test_todo_from_dict_rejects_zero_id, test_todo_from_dict_rejects_negative_id, test_todo_from_dict_accepts_positive_id. Fixed test_storage_atomicity.py to use positive ids."
   }
 }
