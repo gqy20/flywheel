@@ -1,23 +1,23 @@
 {
+  "issue": 2882,
   "candidate": 2,
-  "issue_number": 2882,
   "run_id": "21926954818",
   "branch": "claude/issue-2882-candidate-2-21926954818",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_2882_json_type_validation.py"
-    ]
-  },
-  "tests": {
-    "new_tests": 6,
-    "all_passed": true,
-    "tests_run": 118
-  },
-  "linting": {
-    "ruff_check": "passed"
-  },
-  "summary": "Improve JSON type validation error messages in TodoStorage.load() to include actual type received"
+  "pr_number": 2892,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2892",
+  "generated_at": "2026-02-12T00:00:58.407992+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2402,
+    "plan": 3258,
+    "implement": 3311,
+    "verify": 1786,
+    "finalize": 2162
+  }
 }
