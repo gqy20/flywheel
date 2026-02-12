@@ -1,0 +1,61 @@
+{
+  "issue_number": 2942,
+  "issue_title": "[Bug] Todo.from_dict accepts empty string and whitespace-only text, violating business",
+  "candidate_number": 2,
+  "run_id": "21959610167",
+  "branch_name": "claude/issue-2942-candidate-2-21959610167",
+  "status": "IMPLEMENTED",
+  "created_at": "2026-02-12T19:33:00Z",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2942_from_dict_empty_text.py"
+    ]
+  },
+  "fix_summary": "Added validation in Todo.from_dict() to reject empty string and whitespace-only text values, raising ValueError with appropriate message.",
+  "tests_passed": true,
+  "ruff_passed": true,
+  "plan": {
+    "summary": "Fix Todo.from_dict to reject empty/whitespace-only text, matching validation in rename() and add()",
+    "files_to_modify": [
+      "src/flywheel/todo.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Add 3 failing tests to test_minimal_framework.py for from_dict validation",
+        "tests": [
+          "test_todo_from_dict_rejects_empty_string - expect ValueError",
+          "test_todo_from_dict_rejects_whitespace_only - expect ValueError",
+          "test_todo_from_dict_accepts_valid_text - expect success"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Add text.strip() validation in from_dict() after isinstance check at line 77-80",
+        "change": "After: if not isinstance(data[\"text\"], str): raise ValueError(...)\nAdd: if not data[\"text\"].strip(): raise ValueError(\"Todo text cannot be empty or whitespace-only\")"
+      }
+    ],
+    "implementation_details": {
+      "file": "src/flywheel/todo.py",
+      "location": "After line 80 (after isinstance check for text)",
+      "code_to_add": "# Validate 'text' is not empty or whitespace-only\n        if not data[\"text\"].strip():\n            raise ValueError(\"Todo text cannot be empty or whitespace-only\")"
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v -k from_dict",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
+    ],
+    "acceptance_criteria": [
+      "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError",
+      "Todo.from_dict({'id': 1, 'text': '   '}) raises ValueError",
+      "Todo.from_dict({'id': 1, 'text': 'valid'}) succeeds"
+    ],
+    "risks": "None - this is a pure validation addition that aligns with existing business rules in rename() and add()"
+  }
+}
