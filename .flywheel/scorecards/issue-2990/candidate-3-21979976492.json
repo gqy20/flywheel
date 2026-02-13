@@ -1,33 +1,23 @@
 {
-  "issue_number": 2990,
-  "candidate_number": 3,
+  "issue": 2990,
+  "candidate": 3,
   "run_id": "21979976492",
   "branch": "claude/issue-2990-candidate-3-21979976492",
-  "status": "ready",
-  "implementation": {
-    "description": "Added validation in Todo.__post_init__ to reject empty or whitespace-only text field during construction",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2990_todo_empty_text_validation.py"
-    ],
-    "lines_changed": 4
-  },
-  "tests": {
-    "test_file": "tests/test_issue_2990_todo_empty_text_validation.py",
-    "total_tests": 8,
-    "passed": 8,
-    "failed": 0
-  },
-  "lint": {
-    "passed": true
-  },
-  "acceptance_criteria": {
-    "empty_string_raises_valueerror": true,
-    "whitespace_only_raises_valueerror": true,
-    "valid_text_still_works": true,
-    "from_dict_validates_empty_text": true
-  },
-  "risks": [],
-  "limitations": [],
-  "commit": "40f6b4f"
+  "pr_number": 3018,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3018",
+  "generated_at": "2026-02-13T10:09:13.296297+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1744,
+    "plan": 3430,
+    "implement": 1898,
+    "verify": 1757,
+    "finalize": 882
+  }
 }
