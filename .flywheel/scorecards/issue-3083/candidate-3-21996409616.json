@@ -1,22 +1,23 @@
 {
-  "issue_number": 3083,
-  "issue_title": "[Bug] Todo.from_dict() accepts negative and zero id values without validation",
-  "candidate_number": 3,
-  "run_id": 21996409616,
-  "branch_name": "claude/issue-3083-candidate-3-21996409616",
-  "status": "ready",
-  "test_results": {
-    "passed": true,
-    "test_file": "tests/test_issue_3083_positive_id_validation.py",
-    "tests_count": 3
-  },
-  "lint_results": {
-    "passed": true,
-    "tool": "ruff"
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_3083_positive_id_validation.py"]
-  },
-  "summary": "Added validation in Todo.from_dict() to reject non-positive id values (zero and negative integers) with a clear error message indicating 'id must be a positive integer'."
+  "issue": 3083,
+  "candidate": 3,
+  "run_id": "21996409616",
+  "branch": "claude/issue-3083-candidate-3-21996409616",
+  "pr_number": 3101,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3101",
+  "generated_at": "2026-02-13T18:59:39.444066+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1885,
+    "plan": 2768,
+    "implement": 2109,
+    "verify": 1965,
+    "finalize": 1322
+  }
 }
