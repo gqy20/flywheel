@@ -1,22 +1,23 @@
 {
-  "issue_number": 3002,
-  "candidate_number": 2,
+  "issue": 3002,
+  "candidate": 2,
   "run_id": "21979976492",
   "branch": "claude/issue-3002-candidate-2-21979976492",
-  "created_at": "2026-02-13T00:00:00Z",
-  "status": "implemented",
-  "test_results": {
-    "total": 115,
-    "passed": 115,
-    "failed": 0
-  },
-  "lint_results": {
-    "status": "passed",
-    "errors": 0
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "summary": "Fixed from_dict to validate text is non-empty after stripping, consistent with rename() and CLI add()"
+  "pr_number": 3019,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3019",
+  "generated_at": "2026-02-13T10:20:14.404512+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2122,
+    "plan": 2898,
+    "implement": 2625,
+    "verify": 3107,
+    "finalize": 762
+  }
 }
