@@ -57,6 +57,15 @@ class TodoApp:
                 return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def rename(self, todo_id: int, text: str) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.rename(text)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
     def remove(self, todo_id: int) -> None:
         todos = self._load()
         for i, todo in enumerate(todos):
