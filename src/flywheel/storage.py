@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +60,65 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    @contextlib.contextmanager
+    def _file_lock(self) -> Iterator[None]:
+        """Acquire exclusive file lock for atomic operations.
+
+        Uses fcntl.flock on Unix systems for inter-process locking.
+        The lock is held on a separate .lock file to avoid conflicts
+        with the data file itself.
+
+        This ensures that concurrent processes don't interfere with
+        load-modify-save sequences, preventing:
+        - Duplicate ID assignment
+        - Lost updates (last-writer-wins data loss)
+
+        Yields:
+            None when lock is acquired
+
+        Raises:
+            OSError: If lock cannot be acquired (should not happen with LOCK_EX)
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)  # Exclusive lock (blocks until available)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)  # Release lock
+            os.close(lock_fd)
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a new todo with guaranteed unique ID.
+
+        This method acquires a file lock, loads the current todos,
+        generates a new unique ID, appends the todo, and saves - all
+        within the locked section to prevent race conditions.
+
+        Args:
+            text: The todo text (must not be empty)
+
+        Returns:
+            The newly created Todo with unique ID
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._file_lock():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
