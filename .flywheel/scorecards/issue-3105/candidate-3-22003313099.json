@@ -1,0 +1,34 @@
+{
+  "issue_number": 3105,
+  "candidate_number": 3,
+  "run_id": "22003313099",
+  "branch": "claude/issue-3105-candidate-3-22003313099",
+  "status": "implemented",
+  "created_at": "2026-02-13T19:30:00Z",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3105_todoapp_rename.py"
+    ],
+    "lines_added": 8,
+    "lines_removed": 0
+  },
+  "test_summary": {
+    "tests_added": 4,
+    "tests_passed": 116,
+    "tests_failed": 0,
+    "coverage_percent": 92
+  },
+  "implementation": {
+    "approach": "Added TodoApp.rename method following the same pattern as mark_done/mark_undone",
+    "minimal": true,
+    "follows_existing_patterns": true
+  },
+  "acceptance_criteria": {
+    "todoapp_rename_implemented": true,
+    "value_error_on_not_found": true,
+    "returns_todo_on_success": true
+  }
+}
