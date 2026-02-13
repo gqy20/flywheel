@@ -79,7 +79,9 @@
   "finalize": {
     "stage": "FINALIZE",
     "branch": "claude/issue-3071-candidate-2-21989299320",
-    "commit_sha": "76ecbab",
-    "pr_status": "pending"
+    "commit_sha": "a8f52a0",
+    "pr_status": "created",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3080",
+    "pr_number": 3080
   }
 }
