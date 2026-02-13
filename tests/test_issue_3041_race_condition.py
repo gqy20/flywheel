@@ -57,15 +57,11 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     errors = [r for r in results if r[0] == "error"]
 
     assert len(errors) == 0, f"Workers encountered errors: {errors}"
-    assert len(successes) == num_workers, (
-        f"Expected {num_workers} successes, got {len(successes)}"
-    )
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
 
     # Verify that all IDs are unique
     ids = [r[2] for r in successes]
-    assert len(ids) == len(set(ids)), (
-        f"ID collision detected! IDs: {ids}, unique IDs: {set(ids)}"
-    )
+    assert len(ids) == len(set(ids)), f"ID collision detected! IDs: {ids}, unique IDs: {set(ids)}"
 
     # Verify final state - all todos should be present (no data loss)
     storage = TodoStorage(str(db))
@@ -73,17 +69,14 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
 
     # All workers' todos should be in the final state
     assert len(final_todos) == num_workers, (
-        f"Expected {num_workers} todos, got {len(final_todos)}. "
-        f"Data loss may have occurred."
+        f"Expected {num_workers} todos, got {len(final_todos)}. Data loss may have occurred."
     )
 
     # Verify each worker's todo text is present
     todo_texts = {t.text for t in final_todos}
     for i in range(num_workers):
         expected_text = f"worker-{i}-todo"
-        assert expected_text in todo_texts, (
-            f"Missing todo from worker {i}: {expected_text}"
-        )
+        assert expected_text in todo_texts, f"Missing todo from worker {i}: {expected_text}"
 
 
 def test_concurrent_add_with_existing_todos(tmp_path) -> None:
@@ -141,8 +134,7 @@ def test_concurrent_add_with_existing_todos(tmp_path) -> None:
     # Verify final state includes both initial and new todos
     final_todos = storage.load()
     assert len(final_todos) == 2 + num_workers, (
-        f"Expected {2 + num_workers} todos (2 initial + {num_workers} new), "
-        f"got {len(final_todos)}"
+        f"Expected {2 + num_workers} todos (2 initial + {num_workers} new), got {len(final_todos)}"
     )
 
     # Verify initial todos are preserved
