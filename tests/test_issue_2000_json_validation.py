@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3004 - reject boolean True/False as id
+def test_todo_from_dict_rejects_true_as_id() -> None:
+    """Todo.from_dict should reject boolean True as id (silently converts to 1)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_rejects_false_as_id() -> None:
+    """Todo.from_dict should reject boolean False as id (silently converts to 0)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": False, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_one_as_id() -> None:
+    """Todo.from_dict should accept integer 1 as id (regression check)."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_integer_zero_as_id() -> None:
+    """Todo.from_dict should accept integer 0 as id (regression check)."""
+    todo = Todo.from_dict({"id": 0, "text": "task"})
+    assert todo.id == 0
