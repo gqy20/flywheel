@@ -1,0 +1,21 @@
+{
+  "issue": 3110,
+  "candidate": 3,
+  "run_id": "22004818076",
+  "status": "ready",
+  "approach": "Extract text validation logic into _validate_text() private method and reuse in both __post_init__ and rename() to ensure consistent empty text validation",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "type": "modified",
+      "description": "Added _validate_text() function and integrated it into __post_init__ and rename()"
+    },
+    {
+      "file": "tests/test_issue_3110_todo_constructor_validation.py",
+      "type": "added",
+      "description": "Added regression tests for Todo constructor empty text validation"
+    }
+  ],
+  "tests_passed": 116,
+  "lint_passed": true
+}
