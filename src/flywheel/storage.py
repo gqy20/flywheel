@@ -15,6 +15,45 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_path_is_safe(file_path: Path) -> None:
+    """Validate that a file path doesn't escape the intended directory.
+
+    This prevents path traversal attacks by rejecting paths with '..' components
+    that could be used to access files outside the expected directory.
+
+    Args:
+        file_path: The path to validate.
+
+    Raises:
+        ValueError: If the path contains '..' components that escape the directory.
+    """
+    # Resolve the path to get the canonical absolute path
+    # This resolves any '..' components
+    resolved = file_path.resolve()
+
+    # Get the current working directory as our base
+    cwd = Path.cwd().resolve()
+
+    # Check if the original path string contains '..' components
+    # We check the original path parts to detect traversal attempts
+    path_str = str(file_path)
+
+    # Simple check: reject paths with '..' that escape outside CWD
+    if ".." in path_str:
+        # If path contains '..', verify it doesn't escape outside CWD
+        # The resolved path should still be within or related to CWD
+        try:
+            # Check if resolved path is outside the current working directory
+            resolved.relative_to(cwd)
+        except ValueError:
+            # Path escapes the current working directory
+            raise ValueError(
+                f"Path traversal detected: '{file_path}' resolves to '{resolved}' "
+                f"which is outside the current working directory '{cwd}'. "
+                f"Paths with '..' components that escape the current directory are not allowed."
+            ) from None
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -55,6 +94,8 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Security: Validate path to prevent directory traversal attacks
+        _validate_path_is_safe(self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
