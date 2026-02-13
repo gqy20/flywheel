@@ -47,5 +47,12 @@
     "related_tests_command": "uv run pytest tests/ -v -k 'storage or permissions or symlink'",
     "related_tests_result": "23 tests passed",
     "formatting_fix": "Applied ruff format to fix formatting issues and committed as separate style commit"
+  },
+  "finalization": {
+    "stage": "FINALIZE",
+    "timestamp": "2026-02-13T08:00:00Z",
+    "pr_created": true,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/2999",
+    "pr_number": 2999
   }
 }
