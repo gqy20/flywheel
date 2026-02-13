@@ -8,9 +8,10 @@ from .todo import Todo
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
-    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
-    C1 control characters (0x80-0x9f) with their escaped representations
-    to prevent injection attacks via todo text.
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f),
+    C1 control characters (0x80-0x9f), and lone surrogate characters
+    (0xD800-0xDFFF) with their escaped representations to prevent
+    injection attacks via todo text and UnicodeEncodeError on UTF-8 encoding.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,12 +27,17 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
+    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f),
+    # C1 (0x80-0x9f), and lone surrogates (0xD800-0xDFFF)
     # Replace with \\xNN escape sequences
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (
+            (0 <= code <= 0x1f and char not in ("\n", "\r", "\t"))
+            or 0x7f <= code <= 0x9f
+            or 0xD800 <= code <= 0xDFFF
+        ):
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
