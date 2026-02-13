@@ -57,6 +57,15 @@ class TodoApp:
                 return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def edit(self, todo_id: int, text: str) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.rename(text)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
     def remove(self, todo_id: int) -> None:
         todos = self._load()
         for i, todo in enumerate(todos):
@@ -88,6 +97,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_edit = sub.add_parser("edit", help="Edit todo text")
+    p_edit.add_argument("id", type=int)
+    p_edit.add_argument("text", help="New todo text")
+
     return parser
 
 
@@ -118,6 +131,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "edit":
+            todo = app.edit(args.id, args.text)
+            print(f"Edited #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
