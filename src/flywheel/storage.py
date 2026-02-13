@@ -125,4 +125,16 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the smallest unused positive integer ID.
+
+        This ensures unique IDs even when the stored JSON contains duplicate IDs.
+        Uses a set to collect existing IDs and finds the smallest unused integer.
+        """
+        if not todos:
+            return 1
+        existing = {todo.id for todo in todos}
+        # Find smallest unused positive integer starting from 1
+        candidate = 1
+        while candidate in existing:
+            candidate += 1
+        return candidate
