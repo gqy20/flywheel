@@ -1,0 +1,21 @@
+{
+  "issue_number": 3059,
+  "candidate_number": 2,
+  "run_id": "21994446132",
+  "status": "ready",
+  "created_at": "2026-02-13T17:16:00Z",
+  "branch": "claude/issue-3059-candidate-2-21994446132",
+  "approach": {
+    "summary": "Add eq=True to @dataclass decorator and use field(compare=False) for timestamp fields to enable value-based equality comparison on id, text, done fields only.",
+    "files_changed": ["src/flywheel/todo.py"],
+    "tests_added": ["tests/test_issue_3059_todo_equality.py"]
+  },
+  "verification": {
+    "all_tests_pass": true,
+    "linter_passes": true,
+    "test_count": 119
+  },
+  "risks": [
+    "Equality excludes timestamps, so two todos with same id/text/done but different timestamps will be equal - this is intentional per the issue requirements"
+  ]
+}
