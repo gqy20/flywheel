@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -50,11 +51,69 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _validate_path_safety(file_path: Path) -> Path:
+    """Validate and resolve a file path for security.
+
+    This prevents path traversal attacks by:
+    1. Checking for '..' components in relative paths
+    2. Validating that relative paths with '..' stay within the current working directory
+    3. Warning and normalizing paths that use '..' but resolve safely
+
+    Absolute paths are allowed since the user explicitly chose that location.
+    Only relative paths with '..' are validated for traversal attacks.
+
+    Args:
+        file_path: The path to validate
+
+    Returns:
+        The resolved, safe path
+
+    Raises:
+        ValueError: If a relative path with '..' escapes the current working directory
+    """
+    # Check if the path contains '..' components (potential traversal)
+    path_str = str(file_path)
+
+    # Allow absolute paths - user explicitly chose the location
+    if file_path.is_absolute():
+        return file_path.resolve()
+
+    # For relative paths, check if they contain '..' that might escape
+    if ".." not in path_str:
+        # No traversal components, resolve relative to cwd
+        return (Path.cwd() / file_path).resolve()
+
+    # Path contains '..' - need to validate it stays within cwd
+    safe_base = Path.cwd().resolve()
+    resolved_path = (safe_base / file_path).resolve()
+
+    # Check if the resolved path escapes the safe base directory
+    try:
+        # relative_to raises ValueError if path is not under base
+        resolved_path.relative_to(safe_base)
+    except ValueError:
+        raise ValueError(
+            f"Path traversal detected: '{file_path}' resolves to '{resolved_path}', "
+            f"which is outside the current working directory '{safe_base}'. "
+            f"Relative paths with '..' must remain within the current working directory."
+        ) from None
+
+    # Path stays within cwd - warn and return resolved path
+    warnings.warn(
+        f"Path '{file_path}' contained '..' components and was normalized to '{resolved_path}'",
+        UserWarning,
+        stacklevel=3,
+    )
+
+    return resolved_path
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
-        self.path = Path(path or ".todo.json")
+        raw_path = Path(path or ".todo.json")
+        self.path = _validate_path_safety(raw_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +133,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
