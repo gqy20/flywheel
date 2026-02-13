@@ -15,18 +15,86 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_path_safety(file_path: Path) -> None:
+    """Validate path doesn't escape intended directory via path traversal.
+
+    Security: Prevents path traversal attacks by detecting when '..' components
+    would resolve outside the intended directory context.
+
+    For example:
+    - '../../../etc/passwd' escapes the current working directory
+    - '/home/user/project/../../../etc/passwd' escapes the project directory
+
+    Raises:
+        ValueError: If path contains '..' that escapes the intended directory
+    """
+    # Get the resolved (absolute, normalized) path
+    resolved_path = file_path.resolve()
+
+    # Check if the original path string contains '..' components
+    path_str = str(file_path)
+    if ".." not in path_str:
+        return  # No path traversal characters, safe to proceed
+
+    # For relative paths, check if resolved path is outside cwd
+    if not file_path.is_absolute():
+        cwd = Path.cwd().resolve()
+        try:
+            resolved_path.relative_to(cwd)
+        except ValueError:
+            # The resolved path is outside cwd - this is path traversal
+            raise ValueError(
+                f"Security: Path '{file_path}' escapes current working directory. "
+                f"Path traversal is not allowed."
+            ) from None
+    else:
+        # For absolute paths with '..', find the "intended" base directory
+        # This is the longest prefix before any '..' appears
+        parts = file_path.parts
+        base_parts = []
+        for part in parts:
+            if part == "..":
+                break  # Stop at first '..' - everything before is the intended base
+            elif part != "/":  # Skip root marker on Unix
+                base_parts.append(part)
+
+        if base_parts:
+            # Construct the intended base path
+            base_path = Path("/") / Path(*base_parts)
+            # Check if the resolved path is within this base
+            try:
+                resolved_path.relative_to(base_path)
+            except ValueError:
+                # The resolved path is outside the intended base - this is traversal
+                raise ValueError(
+                    f"Security: Path '{file_path}' escapes intended directory. "
+                    f"Path traversal is not allowed."
+                ) from None
+        else:
+            # Path starts with '..' from root - always traversal
+            raise ValueError(
+                f"Security: Path '{file_path}' escapes filesystem root. "
+                f"Path traversal is not allowed."
+            ) from None
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
     Validates that:
-    1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    1. Path doesn't escape current working directory (path traversal protection)
+    2. All parent path components either don't exist or are directories (not files)
+    3. Creates parent directories if needed
+    4. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If path escapes current working directory or if any parent
+                    path component exists but is a file
         OSError: If directory creation fails due to permissions
     """
+    # Security: Validate path doesn't escape current working directory
+    _validate_path_safety(file_path)
+
     parent = file_path.parent
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
@@ -57,6 +125,9 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        # Security: Validate path doesn't escape current working directory
+        _validate_path_safety(self.path)
+
         if not self.path.exists():
             return []
 
