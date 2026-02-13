@@ -1,28 +1,23 @@
 {
-  "issue_number": 3045,
-  "candidate_number": 2,
+  "issue": 3045,
+  "candidate": 2,
   "run_id": "21989299320",
   "branch": "claude/issue-3045-candidate-2-21989299320",
-  "status": "pr_created",
+  "pr_number": 3078,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3078",
-  "summary": "Added __eq__ and __hash__ methods to Todo class to enable comparison by id and set/dict operations",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_3045_todo_eq_hash.py"
-    ]
-  },
-  "tests_passed": 122,
-  "tests_added": 10,
-  "lint_status": "passed",
-  "implementation_details": {
-    "approach": "Set eq=False on @dataclass decorator and implemented custom __eq__ comparing by id, plus __hash__ based on id",
-    "minimal_changes": true
-  },
-  "risks": [
-    "Breaking change: existing code that relied on comparing all fields will now only compare by id"
+  "generated_at": "2026-02-13T15:27:45.342108+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2017,
+    "plan": 2753,
+    "implement": 1776,
+    "verify": 1462,
+    "finalize": 1535
+  }
 }
