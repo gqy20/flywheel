@@ -1,0 +1,26 @@
+{
+  "issue_number": 3013,
+  "candidate_number": 3,
+  "run_id": "21983427687",
+  "branch_name": "claude/issue-3013-candidate-3-21983427687",
+  "created_at": "2026-02-13T09:45:00Z",
+  "status": "ready",
+  "test_results": {
+    "tests_added": 5,
+    "tests_passed": 5,
+    "tests_failed": 0
+  },
+  "lint_results": {
+    "ruff": "passed"
+  },
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_3013_next_id_negative.py"]
+  },
+  "verification": {
+    "triage_completed": true,
+    "red_stage_completed": true,
+    "green_stage_completed": true,
+    "checks_passed": true
+  }
+}
