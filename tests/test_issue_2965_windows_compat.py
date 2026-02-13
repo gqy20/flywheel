@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import stat
-from pathlib import Path
 from unittest import mock
 
 from flywheel.storage import TodoStorage
@@ -57,10 +56,6 @@ def test_save_handles_missing_fchmod_gracefully(tmp_path) -> None:
 
     # Store original fchmod if it exists
     original_fchmod = getattr(os, 'fchmod', None)
-
-    # Create a mock that simulates fchmod being unavailable
-    # by using a dict patch that doesn't include fchmod
-    original_dict = dict(os.__dict__)
 
     try:
         # Remove fchmod from the module dict temporarily
