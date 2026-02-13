@@ -151,6 +151,59 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_ensure_parent_directory_no_toctou_race(tmp_path) -> None:
+    """Regression test for issue #3069: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the case where the parent directory
+    is created by another process between the exists() check and mkdir().
+    With exist_ok=True, this should succeed without raising FileExistsError.
+    """
+    import threading
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a non-existent subdirectory path
+    target_file = tmp_path / "new_subdir" / "another_subdir" / "file.json"
+
+    results = {"successes": 0, "errors": []}
+    lock = threading.Lock()
+
+    def ensure_dir_worker(worker_id: int) -> None:
+        """Worker that calls _ensure_parent_directory concurrently."""
+        try:
+            _ensure_parent_directory(target_file)
+            with lock:
+                results["successes"] += 1
+        except Exception as e:
+            with lock:
+                results["errors"].append((worker_id, str(e)))
+
+    # Run multiple threads concurrently to trigger race condition
+    threads = []
+    for i in range(10):
+        t = threading.Thread(target=ensure_dir_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads nearly simultaneously
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join(timeout=5)
+
+    # All workers should succeed without FileExistsError
+    assert len(results["errors"]) == 0, (
+        f"Workers encountered errors (TOCTOU race): {results['errors']}"
+    )
+    assert results["successes"] == 10, (
+        f"Expected 10 successes, got {results['successes']}"
+    )
+
+    # Verify directory was created
+    assert target_file.parent.exists()
+    assert target_file.parent.is_dir()
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
