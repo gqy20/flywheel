@@ -32,6 +32,20 @@
     "test_file_added": true,
     "source_file_changed": true,
     "tests_passed": true,
-    "ruff_check_passed": true
+    "ruff_check_passed": true,
+    "ruff_format_passed": true
+  },
+  "verification": {
+    "stage": "VERIFY",
+    "timestamp": "2026-02-13T07:30:00Z",
+    "pytest_command": "uv run pytest tests/test_issue_2972_fchmod_fallback.py -v",
+    "pytest_result": "5 tests passed",
+    "ruff_check_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_2972_fchmod_fallback.py",
+    "ruff_check_result": "All checks passed!",
+    "ruff_format_command": "uv run ruff format --check src/flywheel/storage.py tests/test_issue_2972_fchmod_fallback.py",
+    "ruff_format_result": "2 files already formatted",
+    "related_tests_command": "uv run pytest tests/ -v -k 'storage or permissions or symlink'",
+    "related_tests_result": "23 tests passed",
+    "formatting_fix": "Applied ruff format to fix formatting issues and committed as separate style commit"
   }
 }
