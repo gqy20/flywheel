@@ -1,0 +1,76 @@
+{
+  "issue_number": 2992,
+  "issue_title": "[Feature] 添加 rename 命令到 CLI 以支持重命名 todo",
+  "candidate_number": 1,
+  "run_id": "21979976492",
+  "branch": "claude/issue-2992-candidate-1-21979976492",
+  "stage": "IMPLEMENTED",
+  "scorecard_version": "1.0",
+  "plan": {
+    "summary": "Add 'rename' subcommand to CLI to expose Todo.rename() functionality",
+    "files_to_touch": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2992_cli_rename_command.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing test for CLI rename command",
+        "tests": [
+          "test_cli_rename_command_updates_todo_text",
+          "test_cli_rename_command_returns_error_for_missing_todo",
+          "test_cli_rename_command_returns_error_for_empty_text"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add rename method to TodoApp class and rename subcommand to CLI",
+        "implementation": [
+          "Add rename(todo_id: int, text: str) -> Todo method to TodoApp class",
+          "Add 'rename' subcommand parser with 'id' and 'text' arguments",
+          "Add command handler in run_command for 'rename' command"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2992_cli_rename_command.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/cli.py"
+    ],
+    "acceptance_criteria": [
+      "User can run 'todo rename <id> <new_text>' to rename a todo",
+      "updated_at is automatically updated after rename",
+      "Empty text triggers error message",
+      "Non-existent todo ID triggers 'not found' error"
+    ]
+  },
+  "implementation": {
+    "status": "completed",
+    "tests_passed": true,
+    "ruff_passed": true,
+    "tests_run": [
+      "test_cli_rename_command_updates_todo_text",
+      "test_cli_rename_command_updates_updated_at",
+      "test_cli_rename_command_empty_text_returns_error",
+      "test_cli_rename_command_nonexistent_todo_returns_error",
+      "test_cli_rename_command_sanitizes_text_in_output"
+    ],
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_2992_cli_rename_command.py"
+    ],
+    "changes_summary": [
+      "Added rename(todo_id: int, new_text: str) -> Todo method to TodoApp class",
+      "Added 'rename' subcommand parser with 'id' (int) and 'text' (str) arguments",
+      "Added command handler in run_command for 'rename' command with sanitized output"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Breaking change if argument parsing differs from expected pattern",
+      "mitigation": "Followed existing patterns from done/undone/rm commands"
+    }
+  ]
+}
