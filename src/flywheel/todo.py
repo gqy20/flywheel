@@ -34,6 +34,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Normalize text by stripping whitespace for consistency with
+        # Todo.rename() and TodoApp.add()
+        self.text = self.text.strip()
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
