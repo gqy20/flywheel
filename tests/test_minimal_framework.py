@@ -158,3 +158,27 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_to_dict_return_type_is_typed_dict() -> None:
+    """Regression test for issue #3043: to_dict should return dict[str, Any]."""
+    from typing import get_type_hints
+
+    hints = get_type_hints(Todo.to_dict)
+    return_type = hints.get("return")
+    # Should be dict[str, Any], not bare dict
+    assert return_type is not dict, "to_dict should have typed return dict[str, Any]"
+    assert hasattr(return_type, "__origin__"), "Return type should be a generic dict"
+    assert return_type.__origin__ is dict, "Return type origin should be dict"
+
+
+def test_todo_from_dict_parameter_type_is_typed_dict() -> None:
+    """Regression test for issue #3043: from_dict data parameter should be dict[str, Any]."""
+    from typing import get_type_hints
+
+    hints = get_type_hints(Todo.from_dict)
+    data_type = hints.get("data")
+    # Should be dict[str, Any], not bare dict
+    assert data_type is not dict, "from_dict data param should be typed dict[str, Any]"
+    assert hasattr(data_type, "__origin__"), "Parameter type should be a generic dict"
+    assert data_type.__origin__ is dict, "Parameter type origin should be dict"
