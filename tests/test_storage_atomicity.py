@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,57 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_ensure_parent_directory_no_toctou_race(tmp_path) -> None:
+    """Regression test for issue #3069: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the case where the parent directory
+    is created by another process between the exists() check and mkdir().
+    With exist_ok=True, this should succeed without raising FileExistsError.
+    """
+    import threading
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a non-existent subdirectory path
+    target_file = tmp_path / "new_subdir" / "another_subdir" / "file.json"
+
+    results = {"successes": 0, "errors": []}
+    lock = threading.Lock()
+
+    def ensure_dir_worker(worker_id: int) -> None:
+        """Worker that calls _ensure_parent_directory concurrently."""
+        try:
+            _ensure_parent_directory(target_file)
+            with lock:
+                results["successes"] += 1
+        except Exception as e:
+            with lock:
+                results["errors"].append((worker_id, str(e)))
+
+    # Run multiple threads concurrently to trigger race condition
+    threads = []
+    for i in range(10):
+        t = threading.Thread(target=ensure_dir_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads nearly simultaneously
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join(timeout=5)
+
+    # All workers should succeed without FileExistsError
+    assert len(results["errors"]) == 0, (
+        f"Workers encountered errors (TOCTOU race): {results['errors']}"
+    )
+    assert results["successes"] == 10, f"Expected 10 successes, got {results['successes']}"
+
+    # Verify directory was created
+    assert target_file.parent.exists()
+    assert target_file.parent.is_dir()
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +271,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
