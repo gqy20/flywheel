@@ -15,6 +15,44 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _validate_path_safety(file_path: Path) -> None:
+    """Validate that path is safe and doesn't contain path traversal attacks.
+
+    This prevents path traversal attacks by:
+    1. Rejecting paths with '..' components that escape the working directory
+       (relative paths starting with '../' or containing '../../' etc.)
+
+    Note: Absolute paths are allowed since users may legitimately want to store
+    their todo database anywhere on the filesystem (e.g., in a synced folder).
+
+    Args:
+        file_path: The path to validate
+
+    Raises:
+        ValueError: If the path contains suspicious traversal patterns
+    """
+    path_str = str(file_path)
+
+    # Check for path traversal using '..' components
+    # Split by both / and \ to handle Windows paths
+    parts = path_str.replace("\\", "/").split("/")
+
+    # Track the depth to detect if '..' would escape the working directory
+    depth = 0
+    for part in parts:
+        if part == "..":
+            depth -= 1
+            # If depth goes negative, we're escaping the working directory
+            if depth < 0:
+                raise ValueError(
+                    f"Path traversal detected: '{file_path}' contains '..' sequences "
+                    f"that would escape the working directory. "
+                    f"Please use a path without directory traversal patterns."
+                )
+        elif part and part != ".":
+            depth += 1
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -55,6 +93,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        _validate_path_safety(self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
