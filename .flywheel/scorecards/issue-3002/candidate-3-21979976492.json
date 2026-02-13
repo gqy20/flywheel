@@ -1,0 +1,13 @@
+{
+  "issue_number": 3002,
+  "candidate": 3,
+  "run_id": "21979976492",
+  "status": "implemented",
+  "summary": "Added text validation in Todo.from_dict to reject empty/whitespace-only text and strip surrounding whitespace, consistent with rename() and CLI add() behavior.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3002_from_dict_text_validation.py"
+  ],
+  "tests_passed": true,
+  "linter_passed": true
+}
