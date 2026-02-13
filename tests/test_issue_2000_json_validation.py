@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3002 - validate text field is non-empty in from_dict
+def test_todo_from_dict_rejects_empty_text() -> None:
+    """Todo.from_dict should reject empty string for 'text' field."""
+    with pytest.raises(ValueError, match=r"empty|blank|whitespace"):
+        Todo.from_dict({"id": 1, "text": ""})
+
+
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only string for 'text' field."""
+    with pytest.raises(ValueError, match=r"empty|blank|whitespace"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_strips_and_accepts_valid_text() -> None:
+    """Todo.from_dict should strip text and accept if non-empty after stripping."""
+    todo = Todo.from_dict({"id": 1, "text": "  valid text  "})
+    assert todo.text == "valid text"
