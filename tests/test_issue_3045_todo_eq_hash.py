@@ -51,7 +51,7 @@ def test_todo_not_equal_to_non_todo() -> None:
     assert todo != 1
     assert todo != "task"
     assert todo != {"id": 1, "text": "task"}
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_hash_based_on_id() -> None:
