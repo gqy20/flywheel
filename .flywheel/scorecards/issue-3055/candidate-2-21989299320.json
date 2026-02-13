@@ -1,0 +1,77 @@
+{
+  "issue_number": 3055,
+  "issue_title": "[Bug] Todo.from_dict accepts negative ID values without validation",
+  "candidate_number": 2,
+  "run_id": "21989299320",
+  "branch_name": "claude/issue-3055-candidate-2-21989299320",
+  "triage": {
+    "root_cause": "Todo.from_dict() at line 69-74 in src/flywheel/todo.py validates that 'id' can be converted to int but does not validate that the resulting integer is positive (> 0). This allows negative IDs and zero which are semantically invalid for todo identifiers.",
+    "risk_points": [
+      "storage.next_id() at line 128 assumes positive IDs (returns max(id)+1 or 1)",
+      "Negative IDs could cause unexpected behavior in ID generation logic",
+      "Zero is semantically invalid as a todo identifier",
+      "Could lead to data integrity issues if negative IDs are persisted to storage"
+    ],
+    "verification_targets": [
+      "Todo.from_dict({'id': -1, 'text': 'test'}) should raise ValueError with message containing 'positive' or 'invalid'",
+      "Todo.from_dict({'id': 0, 'text': 'test'}) should raise ValueError",
+      "Todo.from_dict({'id': 1, 'text': 'test'}) should continue to work normally",
+      "Existing test suite should pass without regressions"
+    ],
+    "affected_files": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "proposed_fix": "Add validation after line 74 in todo.py to ensure todo_id > 0, raising ValueError with clear message for non-positive IDs"
+  },
+  "plan": {
+    "stage": "PLAN",
+    "files_to_modify": [
+      "tests/test_issue_2000_json_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "tests_to_add": [
+      {
+        "name": "test_todo_from_dict_rejects_negative_id",
+        "description": "Todo.from_dict should reject negative integers for 'id' field"
+      },
+      {
+        "name": "test_todo_from_dict_rejects_zero_id",
+        "description": "Todo.from_dict should reject zero for 'id' field (IDs must be positive)"
+      }
+    ],
+    "implementation_sequence": [
+      "1. Add test_todo_from_dict_rejects_negative_id to test file",
+      "2. Add test_todo_from_dict_rejects_zero_id to test file",
+      "3. Run tests to confirm they fail (RED)",
+      "4. Add validation after line 70 in todo.py: if todo_id <= 0: raise ValueError",
+      "5. Run tests to confirm they pass (GREEN)",
+      "6. Run full test suite and lint check"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run pytest tests/ -k 'todo' -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "implementation": {
+    "stage": "IMPLEMENT",
+    "test_file": "tests/test_issue_3055_negative_id_validation.py",
+    "source_file": "src/flywheel/todo.py",
+    "commit_sha": "800958d",
+    "tests_added": [
+      "test_todo_from_dict_rejects_negative_id",
+      "test_todo_from_dict_rejects_zero_id",
+      "test_todo_from_dict_accepts_positive_id"
+    ],
+    "tests_passed": 15,
+    "ruff_check": "passed",
+    "risks": "None - minimal change with clear error messages",
+    "limitations": "None"
+  },
+  "status": "FINALIZE",
+  "pr": {
+    "created": null,
+    "url": null
+  }
+}
