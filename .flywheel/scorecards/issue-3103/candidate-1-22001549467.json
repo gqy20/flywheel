@@ -1,15 +1,23 @@
 {
-  "issue_number": 3103,
-  "candidate_number": 1,
+  "issue": 3103,
+  "candidate": 1,
   "run_id": "22001549467",
-  "status": "implemented",
-  "fix_summary": "Fixed TOCTOU race condition in load() method by using os.path.lexists() instead of Path.exists() and adding symlink rejection",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_symlink_security.py"
+  "branch": "claude/issue-3103-candidate-1-22001549467",
+  "pr_number": 3116,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3116",
+  "generated_at": "2026-02-13T21:39:54.899316+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 5,
-  "tests_passing": true,
-  "linting_passed": true,
-  "timestamp": "2026-02-13T19:30:00Z"
+  "stage_response_sizes": {
+    "triage": 2706,
+    "plan": 3690,
+    "implement": 2102,
+    "verify": 2869,
+    "finalize": 2107
+  }
 }
