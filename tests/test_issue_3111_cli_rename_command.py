@@ -32,9 +32,7 @@ def test_cli_rename_command_updates_todo_text(tmp_path, capsys) -> None:
     assert "new text" in captured.out
 
 
-def test_cli_rename_command_returns_error_for_missing_todo(
-    tmp_path, capsys
-) -> None:
+def test_cli_rename_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
     """CLI rename command should return error for non-existent todo ID."""
     db = str(tmp_path / "cli.json")
     parser = build_parser()
