@@ -1,30 +1,23 @@
 {
-  "issue_number": 3002,
-  "candidate_number": 1,
+  "issue": 3002,
+  "candidate": 1,
   "run_id": "21979976492",
-  "branch_name": "claude/issue-3002-candidate-1-21979976492",
-  "summary": "Add text validation in Todo.from_dict() to reject empty and whitespace-only text, consistent with rename() and CLI add() methods.",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "change_type": "modified",
-      "description": "Add text validation in from_dict: strip text and raise ValueError if empty, use stripped text for Todo construction"
-    },
-    {
-      "file": "tests/test_issue_2000_json_validation.py",
-      "change_type": "modified",
-      "description": "Add regression tests for empty text, whitespace-only text, and text stripping in from_dict"
-    }
+  "branch": "claude/issue-3002-candidate-1-21979976492",
+  "pr_number": 3022,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3022",
+  "generated_at": "2026-02-13T10:18:45.573247+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "test_todo_from_dict_rejects_empty_text",
-    "test_todo_from_dict_rejects_whitespace_only_text",
-    "test_todo_from_dict_strips_and_accepts_valid_text"
-  ],
-  "tests_passed": 115,
-  "tests_total": 115,
-  "risks": [
-    "Existing code that relied on empty/whitespace text being accepted by from_dict will now raise ValueError"
-  ],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2376,
+    "plan": 2139,
+    "implement": 2993,
+    "verify": 2568,
+    "finalize": 2011
+  }
 }
