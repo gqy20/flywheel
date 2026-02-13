@@ -1,0 +1,29 @@
+{
+  "issue_number": 3103,
+  "issue_title": "[Security] load() method uses path.exists() which follows symlinks, allowing TOCTou race co",
+  "candidate_number": 2,
+  "run_id": "22001549467",
+  "branch_name": "claude/issue-3103-candidate-2-22001549467",
+  "stage": "IMPLEMENT",
+  "scorecard": {
+    "test_coverage": {
+      "has_failing_test_first": true,
+      "test_file": "tests/test_storage_symlink_security.py",
+      "test_count": 5,
+      "tests_passing": true
+    },
+    "implementation": {
+      "source_file": "src/flywheel/storage.py",
+      "approach": "Replace path.exists() with os.path.lexists() and add explicit symlink detection",
+      "changes_minimal": true
+    },
+    "quality_checks": {
+      "ruff_check": "passed",
+      "pytest": "all tests passed"
+    }
+  },
+  "changes": {
+    "test_files": ["tests/test_storage_symlink_security.py"],
+    "source_files": ["src/flywheel/storage.py"]
+  }
+}
