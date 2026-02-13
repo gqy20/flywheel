@@ -6,13 +6,46 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
 
+# Platform-specific file locking imports
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@contextlib.contextmanager
+def _file_lock(file_obj):
+    """Cross-platform file locking context manager.
+
+    Uses fcntl.flock on Unix (POSIX) and msvcrt.locking on Windows.
+    Implements exclusive (write) lock for the entire file.
+    """
+    if sys.platform == "win32":
+        # Windows: use msvcrt.locking with LOCK_EX
+        # Seek to beginning and lock entire file
+        file_obj.seek(0)
+        msvcrt.locking(file_obj.fileno(), msvcrt.LK_LOCK, 1)
+        try:
+            yield
+        finally:
+            file_obj.seek(0)
+            msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        # Unix: use fcntl.flock for POSIX-compliant advisory locking
+        fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +88,56 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file is separate from data file for simplicity
+        # Uses same directory with .lock suffix
+        self._lock_path: Path | None = None
+
+    def _get_lock_path(self) -> Path:
+        """Get the lock file path, creating parent directory if needed."""
+        if self._lock_path is None:
+            self._lock_path = self.path.parent / f".{self.path.name}.lock"
+        return self._lock_path
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self):
+        """Acquire exclusive file lock for atomic operations.
+
+        Uses a separate lock file to avoid issues with the data file.
+        This ensures that concurrent processes cannot interleave
+        load-modify-save operations.
+        """
+        lock_path = self._get_lock_path()
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Create or open lock file
+        lock_fd = os.open(
+            str(lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            # Acquire exclusive lock using platform-specific mechanism
+            if sys.platform == "win32":
+                # Windows: msvcrt.locking with LK_LOCK (blocking)
+                import msvcrt
+                msvcrt.locking(lock_fd, msvcrt.LK_LOCK, 1)
+            else:
+                # Unix: fcntl.flock with LOCK_EX (blocking)
+                import fcntl
+                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                if sys.platform == "win32":
+                    import msvcrt
+                    os.lseek(lock_fd, 0, os.SEEK_SET)
+                    msvcrt.locking(lock_fd, msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
