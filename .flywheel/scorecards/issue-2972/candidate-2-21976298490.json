@@ -1,28 +1,23 @@
 {
-  "issue_number": 2972,
-  "candidate_number": 2,
+  "issue": 2972,
+  "candidate": 2,
   "run_id": "21976298490",
   "branch": "claude/issue-2972-candidate-2-21976298490",
-  "created_at": "2026-02-13T00:00:00Z",
-  "summary": "Fix security issue where save() crashes on filesystems that don't support Unix permissions",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_2972_fchmod_fallback.py"]
-  },
-  "tests_run": [
-    "tests/test_issue_2972_fchmod_fallback.py::test_save_handles_fchmod_failure_gracefully",
-    "tests/test_issue_2972_fchmod_fallback.py::test_save_temp_file_cleanup_on_fchmod_failure",
-    "tests/test_issue_2972_fchmod_fallback.py::test_save_logs_warning_on_fchmod_failure",
-    "tests/test_issue_2972_fchmod_fallback.py::test_save_uses_chmod_fallback_when_fchmod_fails"
+  "pr_number": 2996,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/2996",
+  "generated_at": "2026-02-13T07:14:56.903641+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 4,
-  "tests_failed": 0,
-  "risks": [
-    "On unsupported filesystems, files will have default permissions instead of 0o600",
-    "Warning is logged but operation continues, which may surprise some users"
-  ],
-  "limitations": [
-    "chmod fallback may also fail on the same filesystems",
-    "No mechanism to detect filesystem type before attempting permissions"
-  ]
+  "stage_response_sizes": {
+    "triage": 2391,
+    "plan": 3673,
+    "implement": 3274,
+    "verify": 1744,
+    "finalize": 862
+  }
 }
