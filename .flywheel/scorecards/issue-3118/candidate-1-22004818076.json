@@ -1,0 +1,26 @@
+{
+  "issue_number": 3118,
+  "issue_title": "[Bug] Todo.id field accepts negative integers and zero without validation",
+  "candidate_number": 1,
+  "run_id": "22004818076",
+  "branch_name": "claude/issue-3118-candidate-1-22004818076",
+  "status": "ready",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_3118_todo_id_validation.py",
+      "tests/test_issue_1999_symlink_protection.py",
+      "tests/test_storage_atomicity.py"
+    ]
+  },
+  "tests": {
+    "added": 9,
+    "passed": 121,
+    "failed": 0
+  },
+  "lint": "passed",
+  "implementation_summary": "Added validation in Todo.__post_init__ to ensure id is a positive integer (id > 0). This validates both direct Todo construction and Todo.from_dict() since both paths go through __post_init__.",
+  "risks": "Minimal - the validation only rejects invalid data that should never have been accepted. Fixed existing tests that were using id=0 inadvertently."
+}
