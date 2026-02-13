@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _utc_now_iso() -> str:
@@ -54,11 +55,11 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> Todo:
+    def from_dict(cls, data: dict[str, Any]) -> Todo:
         # Validate required fields with clear error messages
         if "id" not in data:
             raise ValueError("Missing required field 'id' in todo data")
