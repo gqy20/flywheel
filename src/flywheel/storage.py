@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -109,12 +112,34 @@ class TodoStorage:
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # Security Issue #2972: Handle fchmod failures gracefully
+            fchmod_succeeded = True
+            try:
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            except OSError as e:
+                fchmod_succeeded = False
+                _logger.warning(
+                    "Could not set file permissions via fchmod: %s. "
+                    "File may have less restrictive permissions. "
+                    "This can happen on filesystems like FAT32 that don't support Unix permissions.",
+                    e,
+                )
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # Security Issue #2972: Try chmod fallback if fchmod failed
+            if not fchmod_succeeded:
+                try:
+                    os.chmod(temp_path, stat.S_IRUSR | stat.S_IWUSR)
+                except OSError as e:
+                    _logger.warning(
+                        "Could not set file permissions via chmod fallback: %s. "
+                        "File will have default permissions for this filesystem.",
+                        e,
+                    )
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
