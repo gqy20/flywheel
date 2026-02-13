@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_duplicate_ids_returns_unique(tmp_path) -> None:
+    """Bug #3071: next_id() should return smallest unused ID even with duplicates."""
+    db = tmp_path / "duplicate_ids.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with duplicate IDs: [1, 1, 3]
+    # The smallest unused positive integer is 2
+    payload = [
+        {"id": 1, "text": "first"},
+        {"id": 1, "text": "duplicate"},
+        {"id": 3, "text": "third"},
+    ]
+    db.write_text(json.dumps(payload), encoding="utf-8")
+
+    loaded = storage.load()
+    assert len(loaded) == 3
+
+    # next_id() should return 2 (smallest unused), not 4 (max+1)
+    next_id = storage.next_id(loaded)
+    assert next_id == 2, f"Expected 2 (smallest unused), got {next_id}"
+
+    # Adding another duplicate scenario: [1, 2, 2]
+    payload2 = [
+        {"id": 1, "text": "first"},
+        {"id": 2, "text": "second"},
+        {"id": 2, "text": "duplicate"},
+    ]
+    db.write_text(json.dumps(payload2), encoding="utf-8")
+    loaded2 = storage.load()
+    next_id2 = storage.next_id(loaded2)
+    assert next_id2 == 3, f"Expected 3, got {next_id2}"
