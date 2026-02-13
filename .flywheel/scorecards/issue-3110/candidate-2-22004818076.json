@@ -1,0 +1,28 @@
+{
+  "issue": 3110,
+  "candidate": 2,
+  "run_id": "22004818076",
+  "branch": "claude/issue-3110-candidate-2-22004818076",
+  "status": "plan",
+  "created_at": "2026-02-13T20:45:00Z",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_3110_empty_text_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "approach": "Add private _validate_text() method and call it in __post_init__ to match rename() validation",
+    "tests_added": 4,
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3110_empty_text_validation.py -v",
+      "uv run pytest -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "scores": {
+    "correctness": null,
+    "minimalism": null,
+    "test_coverage": null,
+    "code_quality": null,
+    "total": null
+  }
+}
