@@ -1,0 +1,20 @@
+{
+  "issue_number": 3069,
+  "candidate": 3,
+  "run_id": "21994446132",
+  "branch": "claude/issue-3069-candidate-3-21994446132",
+  "issue_title": "[Security] _ensure_parent_directory() race condition: file could be created/modified between exists check and mkdir",
+  "issue_url": "https://github.com/gqy20/flywheel/issues/3069",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory() by changing exist_ok=False to exist_ok=True in mkdir() call. This prevents FileExistsError when another process creates the directory between the exists() check and mkdir().",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": [
+    "test_ensure_parent_directory_no_race_when_directory_created_during_check",
+    "test_ensure_parent_directory_handles_simulated_race_condition"
+  ],
+  "tests_passed": true,
+  "lint_passed": true,
+  "timestamp": "2026-02-13T15:00:00Z"
+}
