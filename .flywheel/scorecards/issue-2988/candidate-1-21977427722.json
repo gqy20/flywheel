@@ -1,0 +1,31 @@
+{
+  "issue_number": 2988,
+  "candidate_number": 1,
+  "run_id": "21977427722",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2988_todo_copy.py"
+    ],
+    "approach": "Added Todo.copy() method using dataclasses.replace() for immutable-style operations",
+    "key_changes": [
+      "Imported replace from dataclasses module",
+      "Added copy(**kwargs) method to Todo class that returns a new Todo instance",
+      "Method automatically updates updated_at timestamp unless explicitly overridden"
+    ]
+  },
+  "tests": {
+    "files_added": ["tests/test_issue_2988_todo_copy.py"],
+    "test_count": 9,
+    "all_passed": true
+  },
+  "linting": {
+    "passed": true,
+    "tool": "ruff"
+  },
+  "risks": {
+    "breaking_changes": false,
+    "limitations": []
+  }
+}
