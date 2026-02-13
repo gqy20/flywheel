@@ -1,21 +1,23 @@
 {
-  "issue_number": 3002,
+  "issue": 3002,
   "candidate": 3,
   "run_id": "21979976492",
-  "status": "verified",
-  "summary": "Added text validation in Todo.from_dict to reject empty/whitespace-only text and strip surrounding whitespace, consistent with rename() and CLI add() behavior.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3002_from_dict_text_validation.py"
+  "branch": "claude/issue-3002-candidate-3-21979976492",
+  "pr_number": 3023,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3023",
+  "generated_at": "2026-02-13T10:19:18.534057+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": true,
-  "linter_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_3002_from_dict_text_validation.py -v",
-    "pytest_result": "4 passed",
-    "full_test_command": "uv run pytest tests/ -v",
-    "full_test_result": "116 passed",
-    "ruff_command": "uv run ruff check src/flywheel/",
-    "ruff_result": "All checks passed"
+  "stage_response_sizes": {
+    "triage": 3038,
+    "plan": 2125,
+    "implement": 1664,
+    "verify": 2097,
+    "finalize": 1057
   }
 }
