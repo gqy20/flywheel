@@ -27,9 +27,7 @@ class TestRenameTextLengthValidation:
         """rename() should raise ValueError for text exceeding MAX_TEXT_LENGTH."""
         todo = Todo(id=1, text="original")
         too_long_text = "x" * (MAX_TEXT_LENGTH + 1)
-        with pytest.raises(
-            ValueError, match=r"text.*too long|exceeds.*maximum|maximum.*length"
-        ):
+        with pytest.raises(ValueError, match=r"text.*too long|exceeds.*maximum|maximum.*length"):
             todo.rename(too_long_text)
 
     def test_rename_accepts_shorter_text(self) -> None:
@@ -46,9 +44,7 @@ class TestFromDictTextLengthValidation:
     def test_from_dict_rejects_text_exceeding_max_length(self) -> None:
         """from_dict() should raise ValueError for text exceeding MAX_TEXT_LENGTH."""
         too_long_text = "x" * (MAX_TEXT_LENGTH + 1)
-        with pytest.raises(
-            ValueError, match=r"text.*too long|exceeds.*maximum|maximum.*length"
-        ):
+        with pytest.raises(ValueError, match=r"text.*too long|exceeds.*maximum|maximum.*length"):
             Todo.from_dict({"id": 1, "text": too_long_text})
 
     def test_from_dict_accepts_boundary_length_text(self) -> None:
