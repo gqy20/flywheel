@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 10.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -50,11 +55,64 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+@contextmanager
+def _file_lock(lock_path: Path, timeout: float = _DEFAULT_LOCK_TIMEOUT):
+    """Acquire an exclusive file-based lock.
+
+    Uses fcntl.flock for atomic locking on Unix systems.
+    Creates the lock file if it doesn't exist.
+
+    Args:
+        lock_path: Path to the lock file
+        timeout: Maximum time to wait for lock acquisition
+
+    Yields:
+        None when lock is acquired
+
+    Raises:
+        TimeoutError: If lock cannot be acquired within timeout
+    """
+    # Ensure parent directory exists for lock file
+    _ensure_parent_directory(lock_path)
+
+    # Open or create the lock file
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+
+    try:
+        # Try to acquire exclusive lock with timeout
+        import time
+        start_time = time.monotonic()
+
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break  # Lock acquired
+            except (BlockingIOError, OSError):
+                if time.monotonic() - start_time >= timeout:
+                    raise TimeoutError(
+                        f"Could not acquire lock on '{lock_path}' within {timeout}s. "
+                        "Another process may be holding the lock."
+                    ) from None
+                time.sleep(0.01)  # Brief backoff before retry
+
+        yield  # Lock held, execute protected code
+
+    finally:
+        # Release lock and close file
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        except OSError:
+            pass  # Lock may already be released
+        finally:
+            os.close(fd)
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +184,26 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Atomically add a todo with proper locking.
+
+        This method acquires an exclusive lock before loading the current state,
+        calculating the next ID, appending the todo, and saving.
+
+        Args:
+            todo: The todo to add (its id field will be overwritten)
+
+        Returns:
+            The added todo with the correct ID assigned
+
+        Raises:
+            TimeoutError: If the lock cannot be acquired within the timeout
+        """
+        with _file_lock(self._lock_path):
+            todos = self.load()
+            # Assign the correct ID based on current state
+            todo.id = self.next_id(todos)
+            todos.append(todo)
+            self.save(todos)
+            return todo
