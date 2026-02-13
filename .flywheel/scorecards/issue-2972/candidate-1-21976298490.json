@@ -1,0 +1,37 @@
+{
+  "issue_number": 2972,
+  "issue_title": "[Security] save() file permission check missing after os.fchmod - fd may be invalidated on",
+  "candidate_number": 1,
+  "run_id": "21976298490",
+  "branch": "claude/issue-2972-candidate-1-21976298490",
+  "created_at": "2026-02-13T00:00:00Z",
+  "status": "implemented",
+  "fix_summary": {
+    "problem": "os.fchmod can fail silently on some filesystems (FAT32, network mounts) or when fd is invalidated, causing save() to crash",
+    "solution": "Added try/except wrapper around os.fchmod with fallback to os.chmod(temp_path) after file write. If both fail, logs a warning but continues with the save operation.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2972_fchmod_fallback.py"
+    ]
+  },
+  "test_coverage": {
+    "tests_added": 5,
+    "tests_passed": 5,
+    "test_file": "tests/test_issue_2972_fchmod_fallback.py"
+  },
+  "acceptance_criteria_met": [
+    "On filesystems that don't support permissions (FAT32), save() should not crash",
+    "Warning should be logged if permissions cannot be set to 0o600",
+    "Normal Unix filesystems should still get 0o600 permissions"
+  ],
+  "risks_and_limitations": [
+    "On non-permission-supporting filesystems, the file may have default permissions rather than 0o600",
+    "This is acceptable as the save operation is more critical than permission enforcement"
+  ],
+  "checklist": {
+    "test_file_added": true,
+    "source_file_changed": true,
+    "tests_passed": true,
+    "ruff_check_passed": true
+  }
+}
