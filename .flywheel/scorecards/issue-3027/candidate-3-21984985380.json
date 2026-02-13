@@ -1,0 +1,18 @@
+{
+  "issue_number": 3027,
+  "candidate": 3,
+  "run_id": "21984985380",
+  "branch": "claude/issue-3027-candidate-3-21984985380",
+  "timestamp": "2026-02-13T11:00:00Z",
+  "status": "implemented",
+  "tests_passed": 116,
+  "tests_added": 4,
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "validation": {
+    "ruff": "passed",
+    "pytest": "passed"
+  }
+}
