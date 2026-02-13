@@ -40,9 +40,11 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle TOCTOU race condition - another process could
+    # create the directory between our exists() check and mkdir() call
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
