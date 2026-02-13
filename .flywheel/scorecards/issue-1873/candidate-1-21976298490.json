@@ -1,0 +1,24 @@
+{
+  "issue_number": 1873,
+  "issue_title": "[Security] Path traversal via path parameter - no validation against '../' sequences",
+  "candidate_number": 1,
+  "run_id": "21976298490",
+  "branch": "claude/issue-1873-candidate-1-21976298490",
+  "commit_sha": "c7f3343",
+  "created_at": "2026-02-13T00:00:00Z",
+  "status": "ready",
+  "summary": "Fix path traversal vulnerability by validating paths for '../' sequences at TodoStorage construction time.",
+  "approach": "Add _validate_path_safety() function that checks for '..' path components in both forward-slash and backslash variants. The validation happens at construction time to fail fast on malicious input.",
+  "tests_added": 8,
+  "tests_passed": 120,
+  "files_changed": 2,
+  "risks": [
+    "Users legitimately using '..' in paths (e.g., 'data/backup..json') will be blocked - this is considered acceptable as such patterns are unusual",
+    "Symlink-based traversal is not addressed by this fix - existing symlink protection in the codebase handles that"
+  ],
+  "acceptance_criteria_met": {
+    "paths_with_double_dot_rejected": true,
+    "validation_at_construction": true,
+    "safe_paths_still_work": true
+  }
+}

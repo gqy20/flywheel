@@ -50,11 +50,30 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _validate_path_safety(path: Path) -> None:
+    """Validate that a path is safe and doesn't allow directory traversal.
+
+    Raises:
+        ValueError: If the path contains suspicious patterns like '../' sequences.
+    """
+    path_str = str(path)
+
+    # Check for path traversal patterns in the original path string
+    # This catches attempts to escape the intended directory using '..'
+    path_parts = path_str.replace("\\", "/").split("/")
+    if ".." in path_parts:
+        raise ValueError(
+            f"Invalid path '{path_str}': path traversal patterns ('../') are not allowed. "
+            f"Use a path without parent directory references."
+        )
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        _validate_path_safety(self.path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +93,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
