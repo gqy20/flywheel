@@ -67,9 +67,7 @@ def test_temp_file_cleanup_when_fchmod_fails(tmp_path) -> None:
     # Filter out any that existed before
     new_temp_files = [f for f in final_temp_files if f not in initial_temp_files]
 
-    assert len(new_temp_files) == 0, (
-        f"Temp files not cleaned up: {new_temp_files}"
-    )
+    assert len(new_temp_files) == 0, f"Temp files not cleaned up: {new_temp_files}"
 
 
 def test_fchmod_fallback_to_chmod_on_path(tmp_path) -> None:
@@ -90,7 +88,10 @@ def test_fchmod_fallback_to_chmod_on_path(tmp_path) -> None:
     def tracking_chmod(path, mode, *, dir_fd=None, follow_symlinks=True):
         chmod_calls.append(("chmod", str(path), mode))
 
-    with patch("flywheel.storage.os.fchmod", failing_fchmod), patch("flywheel.storage.os.chmod", tracking_chmod):
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        patch("flywheel.storage.os.chmod", tracking_chmod),
+    ):
         storage.save([Todo(id=1, text="test")])
 
     # Either fchmod succeeded, or we fell back to chmod
@@ -100,14 +101,10 @@ def test_fchmod_fallback_to_chmod_on_path(tmp_path) -> None:
     if fchmod_failed:
         # We should have attempted chmod as a fallback
         chmod_attempts = [call for call in chmod_calls if call[0] == "chmod"]
-        assert len(chmod_attempts) > 0, (
-            "fchmod failed but chmod fallback was not attempted"
-        )
+        assert len(chmod_attempts) > 0, "fchmod failed but chmod fallback was not attempted"
         # The chmod should have been called with 0o600
         for call in chmod_attempts:
-            assert call[2] == 0o600, (
-                f"chmod called with wrong mode: {oct(call[2])}, expected 0o600"
-            )
+            assert call[2] == 0o600, f"chmod called with wrong mode: {oct(call[2])}, expected 0o600"
 
 
 def test_normal_unix_filesystem_uses_fchmod(tmp_path) -> None:
@@ -154,7 +151,10 @@ def test_save_succeeds_with_fallback_when_both_fail(tmp_path, caplog) -> None:
     def failing_chmod(path, mode, *, dir_fd=None, follow_symlinks=True):
         raise OSError(1, "Operation not permitted")
 
-    with patch("flywheel.storage.os.fchmod", failing_fchmod), patch("flywheel.storage.os.chmod", failing_chmod):
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        patch("flywheel.storage.os.chmod", failing_chmod),
+    ):
         # Should not raise - save should still complete
         storage.save([Todo(id=1, text="test")])
 
