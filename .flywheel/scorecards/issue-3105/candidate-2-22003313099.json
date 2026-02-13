@@ -1,26 +1,23 @@
 {
-  "issue_number": 3105,
-  "candidate_number": 2,
+  "issue": 3105,
+  "candidate": 2,
   "run_id": "22003313099",
-  "created_at": "2026-02-13T19:23:00Z",
-  "status": "verified",
-  "test_first": true,
-  "changes": {
-    "source_files": [
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_issue_3105_todoapp_rename.py"
-    ]
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "verification": {
-    "test_command": "uv run pytest tests/test_issue_3105_todoapp_rename.py -v",
-    "test_result": "4 tests passed",
-    "lint_command": "uv run ruff check src/flywheel/cli.py tests/test_issue_3105_todoapp_rename.py",
-    "lint_result": "All checks passed",
-    "full_test_command": "uv run pytest tests/ -v",
-    "full_test_result": "116 tests passed"
+  "branch": "claude/issue-3105-candidate-2-22003313099",
+  "pr_number": 3123,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3123",
+  "generated_at": "2026-02-13T22:42:27.753862+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1988,
+    "plan": 2548,
+    "implement": 2178,
+    "verify": 1864,
+    "finalize": 1362
   }
 }
