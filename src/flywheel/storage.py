@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -109,12 +112,43 @@ class TodoStorage:
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            # Note: fchmod may fail on filesystems that don't support Unix permissions
+            # (e.g., FAT32, network mounts). We handle this gracefully.
+            permissions_set = False
+            try:
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+                permissions_set = True
+            except OSError as e:
+                # fchmod not supported on this filesystem (e.g., FAT32, network mounts)
+                # Will try chmod on path after writing as fallback
+                logger.warning(
+                    "Could not set permissions via fchmod on temp file %s: %s. "
+                    "This may occur on filesystems that don't support Unix permissions "
+                    "(e.g., FAT32, network mounts). Will attempt fallback chmod.",
+                    temp_path,
+                    e,
+                )
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # If fchmod failed, try chmod on the path as a fallback
+            if not permissions_set:
+                try:
+                    os.chmod(temp_path, stat.S_IRUSR | stat.S_IWUSR)
+                    logger.info("Successfully set permissions via fallback chmod on %s", temp_path)
+                except OSError as e:
+                    # chmod also failed - permissions cannot be set on this filesystem
+                    # This is acceptable for filesystems that don't support permissions
+                    logger.warning(
+                        "Could not set permissions via fallback chmod on %s: %s. "
+                        "Proceeding without restrictive permissions. "
+                        "File will be saved with filesystem default permissions.",
+                        temp_path,
+                        e,
+                    )
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
