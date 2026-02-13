@@ -119,3 +119,24 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3004 - reject boolean True/False as id
+def test_todo_from_dict_rejects_boolean_true_as_id() -> None:
+    """Todo.from_dict should reject boolean True as id (issue #3004).
+
+    In Python, bool is a subclass of int, so int(True) == 1 silently.
+    This is confusing behavior and should be rejected explicitly.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*type|boolean"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_rejects_boolean_false_as_id() -> None:
+    """Todo.from_dict should reject boolean False as id (issue #3004).
+
+    In Python, bool is a subclass of int, so int(False) == 0 silently.
+    This is confusing behavior and should be rejected explicitly.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*type|boolean"):
+        Todo.from_dict({"id": False, "text": "task"})
