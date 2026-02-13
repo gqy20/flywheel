@@ -4,7 +4,7 @@
   "candidate_number": 1,
   "run_id": "21979976492",
   "branch": "claude/issue-2992-candidate-1-21979976492",
-  "stage": "IMPLEMENTED",
+  "stage": "VERIFIED",
   "scorecard_version": "1.0",
   "plan": {
     "summary": "Add 'rename' subcommand to CLI to expose Todo.rename() functionality",
