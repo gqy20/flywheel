@@ -40,9 +40,15 @@
     "tests_passed": 6,
     "ruff_check": "passed"
   },
+  "finalize": {
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3140",
+    "pr_number": 3140,
+    "branch": "claude/issue-3118-candidate-2-22004818076"
+  },
   "timestamps": {
     "triage_started": "2026-02-13T22:05:00Z",
     "triage_completed": "2026-02-13T22:05:30Z",
-    "implement_completed": "2026-02-13T22:10:00Z"
+    "implement_completed": "2026-02-13T22:10:00Z",
+    "finalize_completed": "2026-02-13T23:30:00Z"
   }
 }
