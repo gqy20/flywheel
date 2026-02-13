@@ -1,0 +1,21 @@
+{
+  "issue_number": 3044,
+  "candidate_number": 3,
+  "run_id": "21986818694",
+  "branch_name": "claude/issue-3044-candidate-3-21986818694",
+  "created_at": "2026-02-13T12:30:00Z",
+  "status": "pending",
+  "scores": {
+    "test_coverage": 1.0,
+    "code_quality": 1.0,
+    "minimal_changes": 1.0,
+    "acceptance_criteria_met": 1.0
+  },
+  "checklist": {
+    "tests_added": true,
+    "source_changed": true,
+    "all_tests_pass": true,
+    "ruff_check_pass": true,
+    "pr_created": false
+  }
+}
