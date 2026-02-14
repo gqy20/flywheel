@@ -1,0 +1,32 @@
+{
+  "issue_number": 3378,
+  "candidate_number": 3,
+  "run_id": "22024967868",
+  "branch_name": "claude/issue-3378-candidate-3-22024967868",
+  "triage_summary": {
+    "root_cause": "Todo dataclass has text: str field but lacks runtime validation in __post_init__. The rename() method validates but constructor does not.",
+    "risk_points": [
+      "Inconsistent behavior between rename() and constructor",
+      "Data integrity: None/empty values corrupt data model",
+      "Error message must match rename(): 'Todo text cannot be empty'"
+    ],
+    "verification_targets": [
+      "Todo(id=1, text=None) raises ValueError",
+      "Todo(id=1, text='') raises ValueError",
+      "Todo(id=1, text='  ') raises ValueError",
+      "Todo(id=1, text='valid') accepted"
+    ]
+  },
+  "fix_summary": {
+    "files_changed": ["src/flywheel/todo.py"],
+    "tests_added": ["tests/test_issue_3378_todo_constructor_validation.py"],
+    "approach": "Add validation in __post_init__ to check text is not None, strip whitespace, and raise ValueError if empty. Use object.__setattr__ for slots=True dataclass compatibility."
+  },
+  "tests_run": [
+    "tests/test_issue_3378_todo_constructor_validation.py - 5 passed",
+    "tests/test_minimal_framework.py - 10 passed",
+    "tests/test_issue_2000_json_validation.py - 12 passed",
+    "tests/test_issue_2087_todo_repr.py - 8 passed"
+  ],
+  "checks_passed": ["ruff check src/flywheel/todo.py - All checks passed"]
+}
