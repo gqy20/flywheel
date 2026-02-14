@@ -40,10 +40,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to eliminate TOCTOU race condition between exists() check and mkdir()
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
+        except FileExistsError:
+            # Another process created the directory between our exists() check and mkdir()
+            # This is the race condition we're handling - the directory now exists, which is fine
+            pass
         except OSError as e:
+            # Handle genuine permission or other filesystem errors
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
