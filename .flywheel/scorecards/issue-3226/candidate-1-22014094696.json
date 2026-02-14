@@ -1,36 +1,23 @@
 {
-  "issue_number": 3226,
-  "issue_title": "[Security] TOCTOU race condition in _ensure_parent_directory between path existence check and mkdir",
-  "candidate_number": 1,
+  "issue": 3226,
+  "candidate": 1,
   "run_id": "22014094696",
-  "created_at": "2026-02-14T09:00:00Z",
-  "status": "implemented",
-  "summary": {
-    "problem": "TOCTOU race condition in _ensure_parent_directory between path existence check (exists()) and mkdir call. When exists() returns False, another process can create the directory before mkdir() is called, causing mkdir(exist_ok=False) to raise FileExistsError wrapped as OSError.",
-    "solution": "Changed mkdir call from exist_ok=False to exist_ok=True. This allows the directory creation to succeed even if another process created the directory in the race window. File-as-directory errors are still properly detected by the validation loop that runs before the mkdir call.",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_3226_toctou_mkdir_race.py"
-    ]
-  },
-  "tests": {
-    "new_tests": [
-      "test_concurrent_ensure_parent_directory_no_race_error",
-      "test_concurrent_save_creates_parent_directory_safely",
-      "test_simulated_race_condition_with_mock",
-      "test_file_as_parent_path_still_raises_proper_error"
-    ],
-    "tests_passed": 24,
-    "tests_run_command": "uv run pytest tests/ -v -k \"storage or mkdir or concurrent or atomic\""
-  },
-  "risks": {
-    "breaking_changes": false,
-    "performance_impact": "none",
-    "security_impact": "positive - eliminates TOCTOU race condition"
-  },
-  "validation": {
-    "file_as_directory_errors_still_detected": true,
-    "concurrent_saves_work": true,
-    "permission_errors_still_handled": true
+  "branch": "claude/issue-3226-candidate-1-22014094696",
+  "pr_number": 3237,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3237",
+  "generated_at": "2026-02-14T09:09:17.106117+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2954,
+    "plan": 3843,
+    "implement": 3951,
+    "verify": 2684,
+    "finalize": 1378
   }
 }
