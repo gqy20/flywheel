@@ -60,6 +60,13 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Reject symlinks and non-regular files to prevent symlink attacks
+        if not self.path.is_file() or self.path.is_symlink():
+            raise ValueError(
+                f"Database path '{self.path}' is not a regular file. "
+                f"Symlinks and special files are not allowed for security reasons."
+            )
+
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
