@@ -14,8 +14,20 @@ from flywheel.todo import Todo
 def test_todo_equality_same_values() -> None:
     """Todos with same id, text, and done should be equal."""
     # Use fixed timestamps to avoid timing issues in comparison
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
     assert todo1 == todo2
 
 
