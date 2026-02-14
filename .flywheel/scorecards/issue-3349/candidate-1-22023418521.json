@@ -1,0 +1,27 @@
+{
+  "issue_number": 3349,
+  "candidate_number": 1,
+  "run_id": "22023418521",
+  "branch": "claude/issue-3349-candidate-1-22023418521",
+  "created_at": "2026-02-14T19:45:00Z",
+  "status": "implemented",
+  "summary": "Narrowed exception handling in run_command from `except Exception` to `except (ValueError, OSError)` to prevent catching unexpected exceptions that would mask programming errors.",
+  "changes": {
+    "source_files": [
+      "src/flywheel/cli.py"
+    ],
+    "test_files": [
+      "tests/test_issue_3349_keyboard_interrupt.py"
+    ]
+  },
+  "tests_passed": 118,
+  "risks": [
+    "Any new exception types that should be caught in the future will need to be explicitly added"
+  ],
+  "acceptance_criteria_met": [
+    "KeyboardInterrupt propagates correctly",
+    "ValueError returns exit code 1",
+    "OSError returns exit code 1",
+    "TypeError and RuntimeError now propagate (programming errors visible)"
+  ]
+}
