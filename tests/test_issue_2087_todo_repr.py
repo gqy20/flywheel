@@ -105,3 +105,44 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_escapes_newlines() -> None:
+    """repr(Todo) should escape newlines as \\n not literal newlines (Issue #3119)."""
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # The repr output must be a single line - no literal newline characters
+    assert "\n" not in result, f"repr should not contain literal newlines: {result!r}"
+
+    # The escaped \\n should be present in the output
+    assert "\\n" in result, f"repr should contain escaped newline: {result!r}"
+
+
+def test_todo_repr_escapes_carriage_return() -> None:
+    """repr(Todo) should escape carriage returns as \\r (Issue #3119)."""
+    todo = Todo(id=1, text="line1\rline2")
+    result = repr(todo)
+
+    # No literal carriage return in output
+    assert "\r" not in result, f"repr should not contain literal CR: {result!r}"
+    assert "\\r" in result, f"repr should contain escaped CR: {result!r}"
+
+
+def test_todo_repr_escapes_tabs() -> None:
+    """repr(Todo) should escape tabs as \\t (Issue #3119)."""
+    todo = Todo(id=1, text="col1\tcol2")
+    result = repr(todo)
+
+    # No literal tab in output
+    assert "\t" not in result, f"repr should not contain literal tab: {result!r}"
+    assert "\\t" in result, f"repr should contain escaped tab: {result!r}"
+
+
+def test_todo_repr_single_line_output() -> None:
+    """repr(Todo) output should always be single-line regardless of text content."""
+    todo = Todo(id=1, text="a\nb\rc\td")
+    result = repr(todo)
+
+    # Count lines - should be exactly 1
+    assert result.count("\n") == 0, f"repr should be single line: {result!r}"
