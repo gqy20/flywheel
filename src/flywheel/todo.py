@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -52,6 +53,22 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, priority: int | None) -> None:
+        """Set the priority of the todo.
+
+        Args:
+            priority: None or an integer 1-3 (1=highest, 3=lowest).
+
+        Raises:
+            ValueError: If priority is not None or 1-3.
+        """
+        if priority is not None and priority not in (1, 2, 3):
+            raise ValueError(
+                f"Invalid priority: {priority!r}. Priority must be None or 1-3."
+            )
+        self.priority = priority
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -99,4 +116,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=data.get("priority"),
         )
