@@ -1,0 +1,26 @@
+{
+  "issue_number": 3270,
+  "issue_title": "[Test] 缺少 __version__ 的单元测试。当前测试文件未验证 __init__.py 中导出的 __version__ 是否可正常访问。",
+  "candidate_number": 3,
+  "run_id": "22016965575",
+  "triage": {
+    "root_cause": "Missing unit test for __version__ in flywheel/__init__.py",
+    "verification_targets": [
+      "Test that __version__ can be imported from flywheel module",
+      "Test that __version__ is a valid version string format",
+      "Test that __version__ matches pyproject.toml version"
+    ],
+    "risk_assessment": "Low risk - purely a test addition, no source code changes required"
+  },
+  "stages": {
+    "triage": "completed",
+    "red": "completed",
+    "green": "completed",
+    "checks": "completed",
+    "pr": "completed"
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3287",
+  "test_file": "tests/test_issue_3270_version_accessible.py",
+  "tests_passed": 5,
+  "created_at": "2026-02-14T00:00:00Z"
+}
