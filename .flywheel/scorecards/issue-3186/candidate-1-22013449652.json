@@ -1,27 +1,23 @@
 {
-  "issue_number": 3186,
-  "candidate_number": 1,
+  "issue": 3186,
+  "candidate": 1,
   "run_id": "22013449652",
   "branch": "claude/issue-3186-candidate-1-22013449652",
-  "status": "verified",
-  "tests_added": 3,
-  "tests_passed": 115,
-  "files_modified": ["src/flywheel/todo.py", "tests/test_storage_atomicity.py"],
-  "files_added": ["tests/test_issue_3186_negative_id_validation.py"],
-  "summary": "Added validation in Todo.from_dict to reject non-positive id values (id <= 0)",
-  "acceptance_criteria_met": [
-    "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': 0, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': 1, 'text': 'test'}) succeeds"
+  "pr_number": 3222,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3222",
+  "generated_at": "2026-02-14T08:14:21.923015+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_3186_negative_id_validation.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_3186_negative_id_validation.py tests/test_storage_atomicity.py",
-    "uv run pytest tests/ -v"
-  ],
-  "verification_outcomes": [
-    "3 tests passed in test_issue_3186_negative_id_validation.py",
-    "All ruff checks passed",
-    "All 115 tests passed in full test suite"
-  ]
+  "stage_response_sizes": {
+    "triage": 2208,
+    "plan": 3131,
+    "implement": 1050,
+    "verify": 3092,
+    "finalize": 1665
+  }
 }
