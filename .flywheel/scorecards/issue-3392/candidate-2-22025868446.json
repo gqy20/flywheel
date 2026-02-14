@@ -1,34 +1,23 @@
 {
-  "issue_number": 3392,
-  "candidate_number": 2,
+  "issue": 3392,
+  "candidate": 2,
   "run_id": "22025868446",
   "branch": "claude/issue-3392-candidate-2-22025868446",
-  "created_at": "2026-02-14T22:25:00Z",
-  "status": "implemented",
-  "fix_summary": {
-    "problem": "next_id() had a race condition where concurrent processes could read the same todos list, calculate the same ID, and save with duplicate IDs",
-    "solution": "Added atomic_add() method that wraps load-next_id-save in an exclusive file lock (flock) to prevent race conditions",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py"
-    ],
-    "tests_added": [
-      "tests/test_issue_3392_race_condition_next_id.py"
-    ]
-  },
-  "verification": {
-    "tests_passed": 115,
-    "linting_passed": true,
-    "regression_test_passed": true
-  },
-  "risks": [
-    "File locking uses fcntl.flock which is Unix-specific; may not work on Windows",
-    "Lock files (.json.lock) are created alongside data files and may accumulate",
-    "Blocking lock acquisition could lead to deadlock if process crashes while holding lock"
+  "pr_number": 3416,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3416",
+  "generated_at": "2026-02-14T23:45:04.027712+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "mitigations": [
-    "Lock files are automatically cleaned up by OS when file descriptor is closed",
-    "Lock is released even if exception occurs (using try/finally)",
-    "Lock is scoped to the minimal critical section (load-compute_id-save)"
-  ]
+  "stage_response_sizes": {
+    "triage": 2983,
+    "plan": 3289,
+    "implement": 3819,
+    "verify": 2580,
+    "finalize": 1274
+  }
 }
