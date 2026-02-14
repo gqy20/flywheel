@@ -1,0 +1,38 @@
+{
+  "issue": {
+    "number": 3282,
+    "title": "[Bug] Todo.rename() method exists in model but no CLI command exposes it to users",
+    "url": "https://github.com/gqy20/flywheel/issues/3282"
+  },
+  "candidate": {
+    "number": 2,
+    "run_id": "22018353981",
+    "branch": "claude/issue-3282-candidate-2-22018353981",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3303",
+    "pr_number": 3303
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "lines_added": 70,
+    "lines_removed": 0
+  },
+  "tests": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "new_tests": [
+      "test_cli_rename_command_updates_todo_text",
+      "test_cli_rename_command_returns_error_for_missing_todo",
+      "test_cli_rename_command_rejects_empty_text"
+    ]
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed",
+    "test_coverage": "80%"
+  },
+  "implementation_summary": "Added 'rename' subcommand to CLI to expose Todo.rename() functionality to users, including proper argument parsing, command handler, and comprehensive test coverage."
+}
