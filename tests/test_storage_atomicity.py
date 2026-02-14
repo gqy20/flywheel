@@ -229,3 +229,39 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_works_without_fchmod_windows_compatibility(tmp_path) -> None:
+    """Regression test for issue #3310: os.fchmod is Unix-only.
+
+    On Windows, os.fchmod does not exist and will raise AttributeError.
+    This test verifies that save() gracefully handles this case by
+    mocking os.fchmod to not exist (simulating Windows behavior).
+    """
+    import os as real_os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test on windows")]
+
+    # Save original fchmod if it exists (Unix only)
+    original_fchmod = getattr(real_os, "fchmod", None)
+
+    try:
+        # Simulate Windows by removing fchmod from the os module
+        # This mimics the AttributeError that would occur on Windows
+        if hasattr(real_os, "fchmod"):
+            delattr(real_os, "fchmod")
+
+        # This should NOT raise AttributeError on Windows
+        storage.save(todos)
+    finally:
+        # Restore fchmod for other tests (Unix only)
+        if original_fchmod is not None:
+            real_os.fchmod = original_fchmod  # type: ignore[attr-defined]
+
+    # Verify the file was written correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test on windows"
