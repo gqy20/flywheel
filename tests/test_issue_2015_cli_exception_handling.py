@@ -114,3 +114,109 @@ def test_cli_run_command_handles_corrupt_json_not_value_error(tmp_path, capsys) 
     captured = capsys.readouterr()
     # Some error message should be present
     assert captured.err or captured.out
+
+
+def test_cli_run_command_propagates_keyboard_interrupt(tmp_path, monkeypatch) -> None:
+    """run_command should propagate KeyboardInterrupt instead of catching it.
+
+    Regression test for Issue #3320: Broad Exception catch may hide
+    KeyboardInterrupt and SystemExit inappropriately.
+
+    Note: KeyboardInterrupt inherits from BaseException, not Exception,
+    so it already propagates with 'except Exception'. This test ensures
+    that behavior is preserved after narrowing the exception catch.
+    """
+    from flywheel.cli import TodoApp
+
+    def mock_add(self, text: str):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(TodoApp, "add", mock_add)
+
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(tmp_path / "db.json"), "add", "test"])
+
+    # KeyboardInterrupt should propagate, not be caught
+    try:
+        run_command(args)
+        raise AssertionError("KeyboardInterrupt should have propagated")
+    except KeyboardInterrupt:
+        pass  # Expected behavior
+
+
+def test_cli_run_command_propagates_system_exit(tmp_path, monkeypatch) -> None:
+    """run_command should propagate SystemExit instead of catching it.
+
+    Regression test for Issue #3320: Broad Exception catch may hide
+    KeyboardInterrupt and SystemExit inappropriately.
+
+    Note: SystemExit inherits from BaseException, not Exception,
+    so it already propagates with 'except Exception'. This test ensures
+    that behavior is preserved after narrowing the exception catch.
+    """
+    from flywheel.cli import TodoApp
+
+    def mock_add(self, text: str):
+        raise SystemExit(42)
+
+    monkeypatch.setattr(TodoApp, "add", mock_add)
+
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(tmp_path / "db.json"), "add", "test"])
+
+    # SystemExit should propagate, not be caught
+    try:
+        run_command(args)
+        raise AssertionError("SystemExit should have propagated")
+    except SystemExit as e:
+        assert e.code == 42
+
+
+def test_cli_run_command_propagates_unexpected_runtime_error(tmp_path, monkeypatch) -> None:
+    """run_command should propagate unexpected RuntimeError instead of catching it.
+
+    Regression test for Issue #3320: Broad Exception catch hides unexpected errors.
+    The fix narrows the exception catch to only expected types (ValueError, OSError),
+    so unexpected exceptions like RuntimeError should propagate.
+    """
+    from flywheel.cli import TodoApp
+
+    def mock_add(self, text: str):
+        raise RuntimeError("Unexpected runtime error")
+
+    monkeypatch.setattr(TodoApp, "add", mock_add)
+
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(tmp_path / "db.json"), "add", "test"])
+
+    # RuntimeError should propagate, not be caught and formatted
+    try:
+        run_command(args)
+        raise AssertionError("RuntimeError should have propagated")
+    except RuntimeError as e:
+        assert str(e) == "Unexpected runtime error"
+
+
+def test_cli_run_command_propagates_unexpected_type_error(tmp_path, monkeypatch) -> None:
+    """run_command should propagate unexpected TypeError instead of catching it.
+
+    Regression test for Issue #3320: Broad Exception catch hides unexpected errors.
+    The fix narrows the exception catch to only expected types (ValueError, OSError),
+    so unexpected exceptions like TypeError should propagate.
+    """
+    from flywheel.cli import TodoApp
+
+    def mock_add(self, text: str):
+        raise TypeError("Unexpected type error")
+
+    monkeypatch.setattr(TodoApp, "add", mock_add)
+
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(tmp_path / "db.json"), "add", "test"])
+
+    # TypeError should propagate, not be caught and formatted
+    try:
+        run_command(args)
+        raise AssertionError("TypeError should have propagated")
+    except TypeError as e:
+        assert str(e) == "Unexpected type error"
