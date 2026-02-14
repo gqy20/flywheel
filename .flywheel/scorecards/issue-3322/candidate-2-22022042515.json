@@ -1,37 +1,23 @@
 {
-  "issue_number": 3322,
-  "candidate_number": 2,
+  "issue": 3322,
+  "candidate": 2,
   "run_id": "22022042515",
   "branch": "claude/issue-3322-candidate-2-22022042515",
-  "status": "verified",
-  "created_at": "2026-02-14T18:45:00Z",
-  "verified_at": "2026-02-14T18:50:00Z",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py"
-    ]
-  },
-  "tests_passed": 115,
-  "tests_added": 3,
-  "test_names": [
-    "test_todo_from_dict_rejects_empty_text",
-    "test_todo_from_dict_rejects_whitespace_only_text",
-    "test_todo_from_dict_strips_and_accepts_valid_text"
+  "pr_number": 3342,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3342",
+  "generated_at": "2026-02-14T18:53:33.033873+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "linting": "passed",
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "uv run pytest --tb=short",
-    "uv run ruff check ."
-  ],
-  "verification_results": {
-    "targeted_tests": "15/15 passed",
-    "full_test_suite": "115/115 passed",
-    "ruff_linting": "All checks passed"
-  },
-  "approach": "Added text.strip() validation in from_dict() to match rename() method behavior",
-  "summary": "Fixed Todo.from_dict to reject empty/whitespace-only text values and strip leading/trailing whitespace from valid text, consistent with rename() method"
+  "stage_response_sizes": {
+    "triage": 2194,
+    "plan": 2055,
+    "implement": 2203,
+    "verify": 1990,
+    "finalize": 1033
+  }
 }
