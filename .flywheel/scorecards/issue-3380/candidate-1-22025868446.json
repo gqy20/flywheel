@@ -1,0 +1,21 @@
+{
+  "issue_number": 3380,
+  "candidate_number": 1,
+  "run_id": "22025868446",
+  "branch_name": "claude/issue-3380-candidate-1-22025868446",
+  "score": 1.0,
+  "checks": {
+    "tests_pass": true,
+    "lint_pass": true,
+    "minimal_changes": true,
+    "follows_conventions": true
+  },
+  "test_results": {
+    "new_tests": 11,
+    "all_tests_passed": 123
+  },
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3380_todo_eq_hash.py"]
+  }
+}
