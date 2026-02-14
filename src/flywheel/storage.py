@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -126,3 +128,37 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextmanager
+    def lock(self):
+        """Acquire an exclusive file lock for safe concurrent access.
+
+        This provides inter-process locking using flock(2) to prevent
+        race conditions when multiple processes read-modify-write the
+        same database file.
+
+        Usage:
+            with storage.lock():
+                todos = storage.load()
+                new_id = storage.next_id(todos)
+                todos.append(Todo(id=new_id, text="new"))
+                storage.save(todos)
+        """
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file to avoid conflicts with the data file
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open lock file (create if doesn't exist)
+        # Use O_CREAT | O_RDWR to create the file if needed
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(fd, fcntl.LOCK_UN)
+            os.close(fd)

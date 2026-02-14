@@ -1,0 +1,38 @@
+{
+  "issue_number": 3392,
+  "issue_title": "[Bug] next_id() 存在竞态条件导致 ID 冲突",
+  "candidate_number": 1,
+  "run_id": "22025868446",
+  "branch": "claude/issue-3392-candidate-1-22025868446",
+  "status": "implemented",
+  "stage": "IMPLEMENT",
+  "summary": "Fixed race condition in next_id() causing ID collisions in concurrent add operations by adding file-based locking using flock(2).",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ],
+    "test_files": [
+      "tests/test_issue_3392_next_id_race_condition.py"
+    ]
+  },
+  "tests_passed": 116,
+  "tests_added": 4,
+  "implementation_details": {
+    "approach": "Added a lock() context manager to TodoStorage that uses fcntl.flock for inter-process locking. Modified TodoApp.add() to use this lock when performing read-modify-write operations.",
+    "key_changes": [
+      "Added fcntl import and contextmanager decorator to storage.py",
+      "Added lock() method to TodoStorage class using flock(LOCK_EX) for exclusive locking",
+      "Modified TodoApp.add() to wrap load/next_id/save in lock context",
+      "Created comprehensive test suite for concurrent add operations"
+    ]
+  },
+  "risks": [
+    "File locking is Unix-specific (fcntl). This won't work on Windows.",
+    "Lock file (.json.lock) may remain if process crashes during lock, but flock automatically releases when fd closes."
+  ],
+  "limitations": [
+    "Only addresses the add() operation. Other operations (mark_done, mark_undone, remove) may still have race conditions if used concurrently.",
+    "Lock file is stored alongside the database file, which may require cleanup in some scenarios."
+  ]
+}
