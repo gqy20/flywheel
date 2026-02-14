@@ -60,6 +60,16 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Reject symlinks to prevent reading arbitrary files
+        # An attacker could create a symlink at the storage path pointing
+        # to sensitive files (e.g., ~/.ssh/id_rsa), and load() would read them.
+        # Error messages could then leak sensitive content.
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Security: '{self.path}' is a symlink. "
+                f"Symlinks are not allowed for security reasons."
+            )
+
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
