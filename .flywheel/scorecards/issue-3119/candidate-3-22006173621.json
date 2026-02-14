@@ -1,35 +1,23 @@
 {
-  "issue_number": 3119,
-  "candidate_number": 3,
+  "issue": 3119,
+  "candidate": 3,
   "run_id": "22006173621",
-  "status": "verified",
-  "approach": "add_regression_tests",
-  "summary": "Added comprehensive regression tests to verify that Todo.__repr__ correctly escapes newlines, carriage returns, and tabs. The existing implementation using !r format specifier already handles this correctly.",
-  "changes": {
-    "test_files": ["tests/test_issue_2087_todo_repr.py"],
-    "source_files": [],
-    "tests_added": 4
-  },
-  "tests_run": [
-    "tests/test_issue_2087_todo_repr.py::test_todo_repr_escapes_newlines_in_text",
-    "tests/test_issue_2087_todo_repr.py::test_todo_repr_escapes_carriage_return",
-    "tests/test_issue_2087_todo_repr.py::test_todo_repr_escapes_tabs",
-    "tests/test_issue_2087_todo_repr.py::test_todo_repr_is_single_line"
+  "branch": "claude/issue-3119-candidate-3-22006173621",
+  "pr_number": 3153,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3153",
+  "generated_at": "2026-02-14T00:26:06.590689+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_2087_todo_repr.py -v",
-      "result": "12 passed in 0.08s"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check tests/test_issue_2087_todo_repr.py src/flywheel/todo.py",
-      "result": "All checks passed"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check tests/test_issue_2087_todo_repr.py src/flywheel/todo.py",
-      "result": "2 files already formatted"
-    }
-  },
-  "risks": [],
-  "limitations": ["Issue appears to be a false positive - existing !r format specifier already handles escaping correctly"]
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 4000,
+    "implement": 2847,
+    "verify": 2307,
+    "finalize": 1252
+  }
 }
