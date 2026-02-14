@@ -18,8 +18,6 @@ import multiprocessing
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
 
 
