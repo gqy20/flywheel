@@ -1,0 +1,54 @@
+{
+  "issue_number": 3159,
+  "issue_title": "[Feature] Add text length validation with configurable max length",
+  "candidate_number": 3,
+  "run_id": "22011617009",
+  "branch_name": "claude/issue-3159-candidate-3-22011617009",
+  "created_at": "2026-02-14T05:45:00Z",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3159_text_length_validation.py"
+    ],
+    "approach": "Added MAX_TEXT_LENGTH constant (1000 chars) and validation in __post_init__, rename(), and from_dict() methods",
+    "key_changes": [
+      "Added MAX_TEXT_LENGTH = 1000 constant at module level",
+      "Added text length validation in __post_init__() with clear error message",
+      "Added text length validation in rename() method",
+      "Added text length validation in from_dict() class method"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_3159_text_length_validation.py",
+    "test_count": 9,
+    "all_passing": true,
+    "test_names": [
+      "test_todo_rejects_text_exceeding_max_length",
+      "test_todo_accepts_text_at_max_length",
+      "test_todo_accepts_normal_text",
+      "test_todo_rename_rejects_text_exceeding_max_length",
+      "test_todo_rename_accepts_text_at_max_length",
+      "test_todo_rename_trims_whitespace_before_validation",
+      "test_from_dict_rejects_text_exceeding_max_length",
+      "test_from_dict_accepts_text_at_max_length",
+      "test_max_text_length_constant_value"
+    ]
+  },
+  "validation": {
+    "all_tests_passed": true,
+    "total_tests_in_suite": 121,
+    "ruff_check": "passed",
+    "coverage": "98% on todo.py"
+  },
+  "acceptance_criteria_met": [
+    "Todo with text > 1000 chars raises ValueError in __post_init__",
+    "rename() with text > 1000 chars raises ValueError",
+    "from_dict() validates text length and raises clear error",
+    "Error message includes actual length and max allowed"
+  ],
+  "risks_and_limitations": [
+    "Existing todos with long text loaded from storage will fail validation on from_dict()",
+    "No migration path provided for existing data with long text"
+  ]
+}

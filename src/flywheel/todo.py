@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+MAX_TEXT_LENGTH = 1000
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -34,6 +36,10 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if len(self.text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length: {len(self.text)} > {MAX_TEXT_LENGTH}"
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -51,6 +57,10 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length: {len(text)} > {MAX_TEXT_LENGTH}"
+            )
         self.text = text
         self.updated_at = _utc_now_iso()
 
@@ -77,6 +87,12 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Validate 'text' does not exceed maximum length
+        if len(data["text"]) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length: {len(data['text'])} > {MAX_TEXT_LENGTH}"
             )
 
         # Validate 'done' is a proper boolean value
