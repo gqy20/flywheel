@@ -34,10 +34,12 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Strip whitespace from text for consistency with rename()
+        object.__setattr__(self, "text", self.text.strip())
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
@@ -95,7 +97,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=data["text"].strip(),  # Strip whitespace for consistency with rename()
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),

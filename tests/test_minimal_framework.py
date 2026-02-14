@@ -158,3 +158,29 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_strips_whitespace() -> None:
+    """Bug #3335: Todo.from_dict() should strip whitespace for consistency with rename()."""
+    todo = Todo.from_dict({"id": 1, "text": "  hello  "})
+    assert todo.text == "hello", "from_dict should strip whitespace from text"
+
+
+def test_todo_init_strips_whitespace() -> None:
+    """Bug #3335: Todo.__init__ should strip whitespace for consistency with rename()."""
+    todo = Todo(id=1, text="  padded  ")
+    assert todo.text == "padded", "__init__ should strip whitespace from text"
+
+
+def test_todo_storage_roundtrip_preserves_stripped_text(tmp_path) -> None:
+    """Bug #3335: Storage round-trip should preserve stripped text."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todo with padded text via from_dict
+    todo = Todo.from_dict({"id": 1, "text": "  padded  ", "done": False})
+    storage.save([todo])
+
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "padded", "Round-trip should preserve stripped text"
