@@ -1,39 +1,23 @@
 {
-  "issue_number": 3146,
-  "issue_title": "[Feature] Todo 类缺少批量操作和状态切换的 toggle 方法",
-  "candidate_number": 3,
+  "issue": 3146,
+  "candidate": 3,
   "run_id": "22010211342",
-  "branch_name": "claude/issue-3146-candidate-3-22010211342",
+  "branch": "claude/issue-3146-candidate-3-22010211342",
+  "pr_number": 3175,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3175",
-  "created_at": "2026-02-14T00:01:34Z",
-  "triage": {
-    "root_cause": "Missing toggle() method in Todo class - users must check done state and call mark_done() or mark_undone() manually",
-    "risk_level": "low",
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "breaking_changes": false
-  },
-  "implementation": {
-    "approach": "Add toggle() method that flips done boolean and updates updated_at timestamp",
-    "lines_added": 30,
-    "lines_deleted": 0,
-    "test_cases_added": 3
-  },
-  "verification": {
-    "pytest_result": "13 passed",
-    "ruff_result": "All checks passed",
-    "acceptance_criteria_met": [
-      "todo.toggle() switches done state (True<->False)",
-      "toggle() updates updated_at timestamp",
-      "Existing mark_done/mark_undone tests pass"
-    ]
-  },
-  "scorecard": {
-    "test_coverage": 100,
-    "code_quality": "pass",
-    "minimal_scope": true,
-    "follows_conventions": true
+  "generated_at": "2026-02-14T04:07:33.651310+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3097,
+    "plan": 2769,
+    "implement": 2169,
+    "verify": 2176,
+    "finalize": 813
   }
 }
