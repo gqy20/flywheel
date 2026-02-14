@@ -1,0 +1,15 @@
+{
+  "issue_number": 3240,
+  "candidate_number": 3,
+  "run_id": "22015612549",
+  "branch": "claude/issue-3240-candidate-3-22015612549",
+  "created_at": "2026-02-14T10:45:00Z",
+  "status": "implemented",
+  "tests": [
+    "tests/test_issue_3240_todo_id_validation.py"
+  ],
+  "source_files": [
+    "src/flywheel/todo.py"
+  ],
+  "summary": "Added validation to Todo.from_dict to reject id values <= 0, aligning with storage.next_id() which always starts at 1."
+}
