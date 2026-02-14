@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,42 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_gracefully_handles_missing_fchmod(tmp_path) -> None:
+    """Regression test for issue #3310: os.fchmod is Unix-only.
+
+    On Windows, os.fchmod does not exist and will raise AttributeError.
+    The save() method should gracefully handle this by catching the
+    AttributeError and continuing without setting file permissions.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Simulate Windows environment where os.fchmod doesn't exist
+    import os as real_os
+
+    # Save the original fchmod (if it exists)
+    original_fchmod = getattr(real_os, "fchmod", None)
+
+    # Remove fchmod to simulate Windows
+    if hasattr(real_os, "fchmod"):
+        delattr(real_os, "fchmod")
+
+    try:
+        # This should not raise AttributeError
+        storage.save(todos)
+
+        # Verify the file was saved successfully
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test"
+    finally:
+        # Restore original fchmod if it existed
+        if original_fchmod is not None:
+            real_os.fchmod = original_fchmod
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +256,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
