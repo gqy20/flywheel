@@ -1,9 +1,11 @@
 {
   "issue_number": 3144,
+  "issue_title": "[Bug] from_dict accepts negative and zero IDs without validation",
   "candidate_number": 3,
   "run_id": "22010211342",
   "branch_name": "claude/issue-3144-candidate-3-22010211342",
   "created_at": "2026-02-14T00:30:00Z",
+  "status": "FINALIZED",
   "triage": {
     "root_cause": "Todo.from_dict() at src/flywheel/todo.py:70 converts id to int but doesn't validate that it's positive",
     "risk_points": [
@@ -12,15 +14,61 @@
     ],
     "proposed_fix": "Add validation after int conversion: if todo_id <= 0: raise ValueError"
   },
+  "plan": {
+    "description": "Minimal TDD plan for issue #3144 - Add ID validation in Todo.from_dict()",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing regression tests for negative and zero ID validation",
+        "test_functions": [
+          "test_todo_from_dict_rejects_negative_id",
+          "test_todo_from_dict_rejects_zero_id",
+          "test_todo_from_dict_accepts_positive_id"
+        ]
+      },
+      {
+        "step": "GREEN",
+        "description": "Add validation in Todo.from_dict() after line 74",
+        "implementation": "if todo_id <= 0: raise ValueError(\"'id' must be a positive integer\")"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py::test_todo_from_dict_rejects_negative_id tests/test_minimal_framework.py::test_todo_from_dict_rejects_zero_id tests/test_minimal_framework.py::test_todo_from_dict_accepts_positive_id -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "implementation_status": {
+    "fix_committed": true,
+    "tests_committed": true,
+    "commit_sha": "ef3a932"
+  },
   "verification": {
     "tests_added": [
       "test_todo_from_dict_rejects_negative_id",
       "test_todo_from_dict_rejects_zero_id",
       "test_todo_from_dict_accepts_positive_id"
     ],
-    "tests_passed": 13,
+    "tests_passed": 3,
     "linting_passed": true
   },
+  "acceptance_criteria": [
+    {
+      "criterion": "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError with message containing 'positive'",
+      "status": "PASS"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 0, 'text': 'test'}) raises ValueError with message containing 'positive'",
+      "status": "PASS"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 1, 'text': 'test'}) works normally",
+      "status": "PASS"
+    }
+  ],
   "files_changed": [
     "src/flywheel/todo.py",
     "tests/test_minimal_framework.py"
