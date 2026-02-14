@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from flywheel.todo import Todo, MAX_TEXT_LENGTH
+from flywheel.todo import MAX_TEXT_LENGTH, Todo
 
 
 def test_todo_rename_rejects_text_exceeding_max_length() -> None:
