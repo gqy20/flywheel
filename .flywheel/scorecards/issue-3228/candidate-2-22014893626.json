@@ -1,0 +1,23 @@
+{
+  "issue_number": 3228,
+  "candidate": 2,
+  "run_id": "22014893626",
+  "status": "implemented",
+  "approach": "Validate ISO 8601 format for created_at/updated_at in Todo.from_dict using datetime.fromisoformat()",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Added timestamp validation in from_dict method with helper function _validate_iso_timestamp"
+    },
+    {
+      "file": "tests/test_issue_2000_json_validation.py",
+      "change_type": "modified",
+      "description": "Added 4 new tests for timestamp validation: rejects invalid formats, accepts valid ISO timestamps, accepts empty timestamps"
+    }
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "lint_status": "passed",
+  "risks": "None - validation is backward compatible with existing valid ISO timestamps and empty values"
+}
