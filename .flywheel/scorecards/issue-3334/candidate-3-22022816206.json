@@ -1,0 +1,13 @@
+{
+  "issue_number": 3334,
+  "candidate_number": 3,
+  "run_id": "22022816206",
+  "branch": "claude/issue-3334-candidate-3-22022816206",
+  "created_at": "2026-02-14T18:40:00Z",
+  "status": "implemented",
+  "test_file": "tests/test_issue_3334_todo_empty_text_validation.py",
+  "source_files": ["src/flywheel/todo.py"],
+  "tests_passed": true,
+  "all_tests_passed": true,
+  "linter_passed": true
+}
