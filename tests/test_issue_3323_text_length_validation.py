@@ -69,7 +69,9 @@ class TestTodoFromDictTextLengthValidation:
 
         error_message = str(exc_info.value)
         assert "500" in error_message, f"Error message should include limit: {error_message}"
-        assert "text" in error_message.lower(), f"Error message should mention 'text': {error_message}"
+        assert "text" in error_message.lower(), (
+            f"Error message should mention 'text': {error_message}"
+        )
 
     def test_from_dict_at_max_length_succeeds(self) -> None:
         """from_dict() with text of exactly 500 chars should succeed."""

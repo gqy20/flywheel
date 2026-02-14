@@ -55,8 +55,7 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         if len(text) > MAX_TEXT_LENGTH:
             raise ValueError(
-                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters "
-                f"(got {len(text)})"
+                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters (got {len(text)})"
             )
         self.text = text
         self.updated_at = _utc_now_iso()
@@ -89,8 +88,7 @@ class Todo:
         # Validate 'text' length
         if len(data["text"]) > MAX_TEXT_LENGTH:
             raise ValueError(
-                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters "
-                f"(got {len(data['text'])})"
+                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters (got {len(data['text'])})"
             )
 
         # Validate 'done' is a proper boolean value
