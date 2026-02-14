@@ -70,6 +70,7 @@
   "finalize": {
     "stage": "FINALIZE",
     "timestamp": "2026-02-14T20:45:00Z",
-    "pr_status": "creating"
+    "pr_status": "created",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3370"
   }
 }
