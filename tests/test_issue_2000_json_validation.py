@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3241 - validate 'text' field is not whitespace-only
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only 'text' field (Issue #3241)."""
+    with pytest.raises(ValueError, match=r"cannot be empty|whitespace"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_rejects_tabs_newlines_text() -> None:
+    """Todo.from_dict should reject tab/newline-only 'text' field (Issue #3241)."""
+    with pytest.raises(ValueError, match=r"cannot be empty|whitespace"):
+        Todo.from_dict({"id": 1, "text": "\t\n"})
+
+
+def test_todo_from_dict_accepts_valid_text() -> None:
+    """Todo.from_dict should accept valid 'text' field (Issue #3241)."""
+    todo = Todo.from_dict({"id": 1, "text": "valid text"})
+    assert todo.text == "valid text"
+
+
+def test_todo_from_dict_strips_text() -> None:
+    """Todo.from_dict should strip whitespace from 'text' field (Issue #3241)."""
+    todo = Todo.from_dict({"id": 1, "text": "  padded text  "})
+    assert todo.text == "padded text"
