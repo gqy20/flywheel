@@ -1,30 +1,23 @@
 {
-  "issue_number": 3390,
+  "issue": 3390,
   "candidate": 1,
   "run_id": "22025868446",
   "branch": "claude/issue-3390-candidate-1-22025868446",
   "pr_number": 3409,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3409",
-  "status": "finalized",
-  "approach": "Added validation in Todo.from_dict to reject non-positive id values (id <= 0) with clear error message",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "generated_at": "2026-02-14T23:42:02.094941+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "test_names": [
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_rejects_zero_id",
-    "test_todo_from_dict_accepts_positive_id"
-  ],
-  "validation": {
-    "tests_pass": true,
-    "lint_pass": true,
-    "format_pass": true,
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
-    ]
+  "stage_response_sizes": {
+    "triage": 2122,
+    "plan": 2287,
+    "implement": 2074,
+    "verify": 2501,
+    "finalize": 1660
   }
 }
