@@ -93,10 +93,32 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields are valid ISO format if provided
+        created_at = str(data.get("created_at") or "")
+        updated_at = str(data.get("updated_at") or "")
+
+        if created_at:
+            try:
+                datetime.fromisoformat(created_at)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid value for 'created_at': {created_at!r}. "
+                    "'created_at' must be a valid ISO 8601 timestamp."
+                ) from None
+
+        if updated_at:
+            try:
+                datetime.fromisoformat(updated_at)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid value for 'updated_at': {updated_at!r}. "
+                    "'updated_at' must be a valid ISO 8601 timestamp."
+                ) from None
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
