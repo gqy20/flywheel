@@ -1,0 +1,25 @@
+{
+  "issue_number": 3120,
+  "issue_title": "[Bug] os.fchmod is Unix-only and will raise AttributeError on Windows",
+  "candidate_number": 3,
+  "run_id": "22006173621",
+  "branch": "claude/issue-3120-candidate-3-22006173621",
+  "commit_sha": "6e061ca6941d49a29db8f6eec21fa14adeb8daf2",
+  "created_at": "2026-02-14T00:00:00Z",
+  "test_results": {
+    "tests_added": 3,
+    "tests_passed": 9,
+    "tests_failed": 0
+  },
+  "changes": {
+    "source_files_changed": ["src/flywheel/storage.py"],
+    "test_files_added": ["tests/test_issue_3120_windows_fchmod.py"],
+    "lines_added": 104,
+    "lines_removed": 1
+  },
+  "fix_approach": "Use hasattr guard for os.fchmod which is Unix-only. On Windows, fall back to os.chmod for setting restrictive file permissions.",
+  "verification": {
+    "pytest": "passed",
+    "ruff": "passed"
+  }
+}
