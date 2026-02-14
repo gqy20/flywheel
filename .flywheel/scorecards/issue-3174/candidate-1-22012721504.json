@@ -1,0 +1,63 @@
+{
+  "issue_number": 3174,
+  "issue_title": "[Enhancement] 添加 toggle() 方法简化完成状态的切换操作",
+  "candidate_id": 1,
+  "run_id": "22012721504",
+  "branch_name": "claude/issue-3174-candidate-1-22012721504",
+  "commit_sha": "bedbbe1",
+  "stage": "FINALIZE",
+  "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3207",
+  "plan": {
+    "description": "Add toggle() method to Todo class to simplify completion status switching",
+    "files_to_touch": [
+      "tests/test_issue_3174_toggle_method.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Add failing tests for toggle() method",
+        "status": "completed"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Implement toggle() method in src/flywheel/todo.py",
+        "status": "completed"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "action": "Run tests and linting",
+        "status": "completed"
+      }
+    ],
+    "acceptance_criteria": [
+      {"criterion": "todo.toggle() changes done=False to done=True", "status": "passed"},
+      {"criterion": "todo.toggle() changes done=True to done=False", "status": "passed"},
+      {"criterion": "updated_at is updated after each toggle() call", "status": "passed"},
+      {"criterion": "Method returns None (consistent with mark_done/mark_undone)", "status": "passed"}
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_3174_toggle_method.py",
+    "test_count": 5,
+    "source_file": "src/flywheel/todo.py",
+    "summary": "Added toggle() method to Todo class that toggles the done status between True and False, delegating to mark_done() or mark_undone() based on current state."
+  },
+  "verification": {
+    "tests_passed": true,
+    "ruff_check_passed": true,
+    "full_test_suite_passed": true,
+    "total_tests": 117,
+    "commands_executed": [
+      "uv run pytest tests/test_issue_3174_toggle_method.py -v (5 passed)",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_3174_toggle_method.py (All checks passed)",
+      "uv run pytest tests/ -v (117 passed)"
+    ],
+    "verification_stage": "completed"
+  },
+  "risks": []
+}
