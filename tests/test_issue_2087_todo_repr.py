@@ -145,4 +145,6 @@ def test_todo_repr_is_single_line() -> None:
 
     # Count newlines in the result - should be 0 literal newlines
     newline_count = result.count("\n")
-    assert newline_count == 0, f"repr output should be single-line, but has {newline_count} newlines: {result!r}"
+    assert newline_count == 0, (
+        f"repr output should be single-line, but has {newline_count} newlines: {result!r}"
+    )
