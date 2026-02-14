@@ -1,0 +1,50 @@
+{
+  "issue_number": 3338,
+  "issue_title": "[Feature] 添加 Todo 到期时间字段支持",
+  "candidate_number": 1,
+  "run_id": "22023418521",
+  "branch": "claude/issue-3338-candidate-1-22023418521",
+  "status": "implemented",
+  "approach": {
+    "description": "Add due_at field to Todo dataclass with is_overdue() method and CLI set-due command",
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_3338_todo_due_at.py"
+    ],
+    "test_coverage": {
+      "tests_added": 16,
+      "tests_passed": 128
+    }
+  },
+  "implementation_details": {
+    "todo_py": {
+      "changes": [
+        "Added due_at: str | None field to Todo dataclass (defaults to None)",
+        "Added set_due(due_at: str | None) method to update due_at and updated_at",
+        "Added is_overdue() method to check if todo is past due date",
+        "Updated from_dict() to handle due_at field"
+      ]
+    },
+    "cli_py": {
+      "changes": [
+        "Added set_due(todo_id, due_at) method to TodoApp class",
+        "Added 'set-due' subparser with id and due_date arguments",
+        "Added handler for 'set-due' command in run_command()"
+      ]
+    }
+  },
+  "acceptance_criteria": {
+    "due_at_parameter": "PASS - Todo accepts due_at parameter (ISO format string or None)",
+    "is_overdue_method": "PASS - is_overdue() correctly determines if current time exceeds due_at",
+    "cli_set_due_command": "PASS - CLI supports 'todo set-due <id> <due_date>' command"
+  },
+  "risks": [
+    "ISO date format validation is not strict - invalid formats will be silently treated as not overdue",
+    "Timezone handling: naive datetimes are treated as UTC"
+  ],
+  "limitations": [
+    "No CLI support for displaying overdue status yet (formatter not updated)",
+    "No CLI support for listing overdue todos"
+  ]
+}
