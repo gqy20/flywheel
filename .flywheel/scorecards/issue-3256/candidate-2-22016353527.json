@@ -1,17 +1,23 @@
 {
-  "issue_number": 3256,
-  "candidate_number": 2,
+  "issue": 3256,
+  "candidate": 2,
   "run_id": "22016353527",
   "branch": "claude/issue-3256-candidate-2-22016353527",
-  "status": "ready_for_review",
-  "fix_summary": "Simplified redundant conditional logic in next_id() method. The original code had unnecessary conditional branching: `return (max(..., default=0) + 1) if todos else 1`. Since `max(..., default=0)` already handles empty lists by returning the default value 0, the `if todos else 1` branch was redundant.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 3278,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3278",
+  "generated_at": "2026-02-14T12:00:52.030523+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 4,
-  "tests_passed": true,
-  "linter_passed": true,
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 1883,
+    "plan": 4000,
+    "implement": 3292,
+    "verify": 1932,
+    "finalize": 1554
+  }
 }
