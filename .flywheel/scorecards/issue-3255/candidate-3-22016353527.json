@@ -47,5 +47,10 @@
     "pytest_result": "11 passed in 0.05s",
     "ruff_result": "All checks passed",
     "outcome": "GREEN - All checks pass"
+  },
+  "finalize": {
+    "pr_number": 3281,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3281",
+    "status": "FINALIZED"
   }
 }
