@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
@@ -22,15 +25,43 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    @contextmanager
+    def _exclusive_lock(self) -> Iterator[None]:
+        """Acquire an exclusive file lock for atomic operations.
+
+        This prevents data loss when multiple processes try to modify
+        the todo list concurrently (issue #3242).
+        """
+        # Ensure parent directory exists before creating lock file
+        import os
+        from pathlib import Path
+
+        lock_path = Path(str(self.storage.path) + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Open or create the lock file
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with self._exclusive_lock():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,30 +71,33 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with self._exclusive_lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with self._exclusive_lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with self._exclusive_lock():
+            todos = self._load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self._save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 
