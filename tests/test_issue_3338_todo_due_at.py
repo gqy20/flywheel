@@ -150,9 +150,7 @@ class TestSetDueCommand:
         assert exit_code == 0
 
         # Now set due date
-        exit_code = main(
-            ["--db", db_path, "set-due", "1", "2026-03-15T10:00:00+00:00"]
-        )
+        exit_code = main(["--db", db_path, "set-due", "1", "2026-03-15T10:00:00+00:00"])
         assert exit_code == 0
 
         captured = capsys.readouterr()
@@ -163,9 +161,7 @@ class TestSetDueCommand:
         """CLI set-due should fail for non-existent todo."""
         db_path = str(tmp_path / "test.json")
 
-        exit_code = main(
-            ["--db", db_path, "set-due", "999", "2026-03-15T10:00:00+00:00"]
-        )
+        exit_code = main(["--db", db_path, "set-due", "999", "2026-03-15T10:00:00+00:00"])
         assert exit_code == 1
 
         captured = capsys.readouterr()

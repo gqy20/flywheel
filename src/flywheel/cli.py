@@ -97,7 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_set_due = sub.add_parser("set-due", help="Set todo due date")
     p_set_due.add_argument("id", type=int)
-    p_set_due.add_argument("due_date", help="Due date in ISO format (e.g., 2026-03-15T10:00:00+00:00)")
+    p_set_due.add_argument(
+        "due_date", help="Due date in ISO format (e.g., 2026-03-15T10:00:00+00:00)"
+    )
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
