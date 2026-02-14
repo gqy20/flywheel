@@ -3,13 +3,21 @@
   "candidate": 1,
   "run_id": "22024967868",
   "branch": "claude/issue-3378-candidate-1-22024967868",
-  "approach": "Add validation in __post_init__ to ensure text is a non-empty string after stripping whitespace",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3378_todo_text_validation.py"
+  "pr_number": 3397,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3397",
+  "generated_at": "2026-02-14T22:31:56.436415+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 117,
-  "tests_failed": 0,
-  "ruff_check": "passed",
-  "summary": "Added validation in Todo.__post_init__() to reject None, empty strings, and whitespace-only strings for the text field. The error message matches the validation message used in the rename() method for consistency."
+  "stage_response_sizes": {
+    "triage": 3170,
+    "plan": 2835,
+    "implement": 2101,
+    "verify": 1632,
+    "finalize": 1334
+  }
 }
