@@ -1,0 +1,17 @@
+{
+  "issue_number": 3157,
+  "candidate_number": 1,
+  "run_id": "22008035614",
+  "branch_name": "claude/issue-3157-candidate-1-22008035614",
+  "created_at": "2026-02-14T01:20:00Z",
+  "fix_summary": "Escape Unicode LINE SEPARATOR (U+2028) and PARAGRAPH SEPARATOR (U+2029) in formatter sanitization to prevent fake todo injection via visual line breaks.",
+  "files_changed": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_1924_format_todo_sanitization.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "approach": "minimal",
+  "risks": "low",
+  "limitations": "None identified"
+}

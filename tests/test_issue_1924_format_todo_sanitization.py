@@ -110,3 +110,50 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+# Regression tests for Issue #3157: Unicode line/paragraph separators sanitization
+
+
+def test_sanitize_text_escapes_unicode_line_separator() -> None:
+    """Unicode LINE SEPARATOR (U+2028) should be escaped to prevent fake line breaks."""
+    from flywheel.formatter import _sanitize_text
+
+    result = _sanitize_text("A\u2028B")
+    # Should contain escaped representation, not actual U+2028
+    assert "\\u2028" in result
+    assert "\u2028" not in result
+
+
+def test_sanitize_text_escapes_unicode_paragraph_separator() -> None:
+    """Unicode PARAGRAPH SEPARATOR (U+2029) should be escaped to prevent fake line breaks."""
+    from flywheel.formatter import _sanitize_text
+
+    result = _sanitize_text("A\u2029B")
+    # Should contain escaped representation, not actual U+2029
+    assert "\\u2029" in result
+    assert "\u2029" not in result
+
+
+def test_format_todo_no_fake_injection_via_unicode_line_sep() -> None:
+    """Todo with U+2028 should not create fake line break in output."""
+    todo = Todo(id=1, text="Buy milk\u2028[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation, not actual unicode line separator
+    assert "\\u2028" in result
+    assert "\u2028" not in result
+    # Should be single line (no actual line separator character)
+    lines = result.split("\n")
+    assert len(lines) == 1
+
+
+def test_format_todo_no_fake_injection_via_unicode_para_sep() -> None:
+    """Todo with U+2029 should not create fake line break in output."""
+    todo = Todo(id=1, text="Buy milk\u2029[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation, not actual unicode paragraph separator
+    assert "\\u2029" in result
+    assert "\u2029" not in result
+    # Should be single line (no actual line separator character)
+    lines = result.split("\n")
+    assert len(lines) == 1
