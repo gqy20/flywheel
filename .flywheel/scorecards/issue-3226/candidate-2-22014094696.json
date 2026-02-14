@@ -1,24 +1,23 @@
 {
-  "issue_number": 3226,
-  "candidate_number": 2,
+  "issue": 3226,
+  "candidate": 2,
   "run_id": "22014094696",
   "branch": "claude/issue-3226-candidate-2-22014094696",
-  "created_at": "2026-02-14T08:50:00Z",
-  "status": "implemented",
-  "summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True and catching FileExistsError separately",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_3226_toctou_race_fix.py"],
-    "lines_changed": 15
-  },
-  "test_results": {
-    "total_tests": 16,
-    "passed": 16,
-    "failed": 0
-  },
-  "risks": [
-    "Minimal change - only affects the mkdir race condition handling",
-    "File-as-directory validation still performed before mkdir",
-    "Concurrent directory creation now handled gracefully"
-  ]
+  "pr_number": 3236,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3236",
+  "generated_at": "2026-02-14T09:05:08.592623+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2922,
+    "plan": 721,
+    "implement": 3460,
+    "verify": 1968,
+    "finalize": 1409
+  }
 }
