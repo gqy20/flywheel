@@ -7,8 +7,6 @@ Acceptance criteria:
 - Does not affect existing dataclass behavior
 """
 
-import pytest
-
 from flywheel.todo import Todo
 
 
@@ -47,8 +45,12 @@ class TestTodoEquality:
 
     def test_equality_ignores_timestamps(self):
         """Equality should ignore created_at and updated_at fields."""
-        todo1 = Todo(id=1, text="Test", created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
-        todo2 = Todo(id=1, text="Test", created_at="2024-12-31T23:59:59Z", updated_at="2024-12-31T23:59:59Z")
+        todo1 = Todo(
+            id=1, text="Test", created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z"
+        )
+        todo2 = Todo(
+            id=1, text="Test", created_at="2024-12-31T23:59:59Z", updated_at="2024-12-31T23:59:59Z"
+        )
         assert todo1 == todo2
 
 
