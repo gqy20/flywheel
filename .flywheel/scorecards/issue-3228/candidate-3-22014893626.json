@@ -3,14 +3,21 @@
   "candidate": 3,
   "run_id": "22014893626",
   "branch": "claude/issue-3228-candidate-3-22014893626",
-  "timestamp": "2026-02-14T08:44:52Z",
-  "tests_passed": true,
-  "ruff_passed": true,
-  "all_tests_count": 116,
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "fix_description": "Added validation for created_at and updated_at fields in Todo.from_dict() to ensure they are valid ISO 8601 timestamps if provided. Empty strings are still allowed (will be auto-filled by __post_init__).",
-  "risks": "Breaking change: Existing data with invalid timestamp formats will now raise ValueError. However, this is intentional to ensure data integrity."
+  "pr_number": 3250,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3250",
+  "generated_at": "2026-02-14T09:59:16.713415+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2017,
+    "plan": 2929,
+    "implement": 3086,
+    "verify": 2827,
+    "finalize": 1316
+  }
 }
