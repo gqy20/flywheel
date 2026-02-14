@@ -2,8 +2,8 @@
   "issue": 3349,
   "candidate": 3,
   "run_id": "22023418521",
-  "stage": "IMPLEMENT",
-  "timestamp": "2026-02-14T20:25:00Z",
+  "stage": "VERIFY",
+  "timestamp": "2026-02-14T20:30:00Z",
   "triage": {
     "root_cause": "src/flywheel/cli.py:124 uses 'except Exception' which is overly broad. While KeyboardInterrupt (BaseException) is NOT caught by Exception, the code lacks clarity and test coverage for this behavior.",
     "risk_points": [
@@ -36,12 +36,24 @@
         }
       ]
     },
-    "tests_run": {
+    "risks": [],
+    "limitations": []
+  },
+  "verification": {
+    "targeted_tests": {
       "command": "uv run pytest tests/test_issue_3349_keyboard_interrupt.py tests/test_issue_2015_cli_exception_handling.py -v",
       "result": "passed",
       "total_tests": 9,
       "passed": 9,
       "failed": 0
+    },
+    "full_test_suite": {
+      "command": "uv run pytest tests/ -v",
+      "result": "passed",
+      "total_tests": 116,
+      "passed": 116,
+      "failed": 0,
+      "coverage": "92%"
     },
     "linting": {
       "command": "uv run ruff check src/flywheel/cli.py tests/test_issue_3349_keyboard_interrupt.py",
@@ -49,10 +61,15 @@
     },
     "acceptance_criteria": {
       "keyboard_interrupt_propagates": true,
+      "system_exit_propagates": true,
       "business_exceptions_return_exit_code_1": true,
-      "test_coverage_for_ctrl_c_scenario": true
-    },
-    "risks": [],
-    "limitations": []
+      "test_coverage_for_ctrl_c_scenario": true,
+      "no_regressions": true
+    }
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "timestamp": "2026-02-14T20:45:00Z",
+    "pr_status": "creating"
   }
 }
