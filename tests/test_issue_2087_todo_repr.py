@@ -81,6 +81,27 @@ def test_todo_repr_handles_special_characters() -> None:
     assert "\n" not in result2 or repr(result2).count("\\n") > 0
 
 
+def test_todo_repr_newline_in_truncated_text() -> None:
+    """repr(Todo) should escape newlines even when text is truncated (Issue #3296).
+
+    When text exceeds 50 chars and contains a newline within the truncated portion,
+    the repr output must still be a single-line string with escaped newlines.
+    """
+    # Text > 50 chars with newline within first 47 chars (the truncation zone)
+    text = "a" * 40 + "\n" + "b" * 20  # 61 chars, newline at position 40
+    todo = Todo(id=1, text=text)
+    result = repr(todo)
+
+    # The repr output must be a single line (no actual newline characters)
+    assert "\n" not in result, f"repr should not contain actual newlines: {result!r}"
+
+    # Should contain escaped newline sequence
+    assert "\\n" in result, f"repr should contain escaped newline: {result!r}"
+
+    # Should be truncated with ellipsis
+    assert "..." in result, f"repr should be truncated: {result!r}"
+
+
 def test_todo_repr_eval_able_optional() -> None:
     """repr(Todo) output should ideally be eval-able or at least informative."""
     todo = Todo(id=1, text="simple task", done=True)
