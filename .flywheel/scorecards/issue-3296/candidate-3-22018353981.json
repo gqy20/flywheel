@@ -1,15 +1,23 @@
 {
-  "issue_number": 3296,
-  "candidate_number": 3,
+  "issue": 3296,
+  "candidate": 3,
   "run_id": "22018353981",
   "branch": "claude/issue-3296-candidate-3-22018353981",
-  "status": "completed",
-  "summary": "Added regression test for Issue #3296 - verified that __repr__ correctly escapes newlines in truncated text",
-  "changes": {
-    "test_files": ["tests/test_issue_2087_todo_repr.py"],
-    "source_files": []
-  },
-  "tests_passed": true,
-  "linting_passed": true,
-  "notes": "The existing implementation was already correct - the !r format specifier properly escapes newlines. Added comprehensive regression test to prevent future regressions."
+  "pr_number": 3305,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3305",
+  "generated_at": "2026-02-14T14:21:33.443341+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 1103,
+    "implement": 4000,
+    "verify": 2704,
+    "finalize": 617
+  }
 }
