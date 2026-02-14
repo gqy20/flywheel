@@ -1,33 +1,23 @@
 {
-  "issue_number": 3378,
-  "candidate_number": 3,
+  "issue": 3378,
+  "candidate": 3,
   "run_id": "22024967868",
-  "branch_name": "claude/issue-3378-candidate-3-22024967868",
-  "triage_summary": {
-    "root_cause": "Todo dataclass has text: str field but lacks runtime validation in __post_init__. The rename() method validates but constructor does not.",
-    "risk_points": [
-      "Inconsistent behavior between rename() and constructor",
-      "Data integrity: None/empty values corrupt data model",
-      "Error message must match rename(): 'Todo text cannot be empty'"
-    ],
-    "verification_targets": [
-      "Todo(id=1, text=None) raises ValueError",
-      "Todo(id=1, text='') raises ValueError",
-      "Todo(id=1, text='  ') raises ValueError",
-      "Todo(id=1, text='valid') accepted"
-    ]
-  },
-  "fix_summary": {
-    "files_changed": ["src/flywheel/todo.py"],
-    "tests_added": ["tests/test_issue_3378_todo_constructor_validation.py"],
-    "approach": "Add validation in __post_init__ to check text is not None, strip whitespace, and raise ValueError if empty. Use object.__setattr__ for slots=True dataclass compatibility."
-  },
-  "tests_run": [
-    "tests/test_issue_3378_todo_constructor_validation.py - 5 passed",
-    "All todo-related tests (pytest -k todo) - 39 passed"
+  "branch": "claude/issue-3378-candidate-3-22024967868",
+  "pr_number": 3395,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3395",
+  "generated_at": "2026-02-14T22:33:16.901368+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "checks_passed": [
-    "ruff check src/flywheel/todo.py tests/test_issue_3378_todo_constructor_validation.py - All checks passed",
-    "ruff format --check src/flywheel/todo.py tests/test_issue_3378_todo_constructor_validation.py - 2 files already formatted"
-  ]
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2786,
+    "implement": 2670,
+    "verify": 1506,
+    "finalize": 951
+  }
 }
