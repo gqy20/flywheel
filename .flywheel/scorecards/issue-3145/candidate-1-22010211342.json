@@ -1,18 +1,23 @@
 {
-  "issue_number": 3145,
-  "candidate_number": 1,
+  "issue": 3145,
+  "candidate": 1,
   "run_id": "22010211342",
   "branch": "claude/issue-3145-candidate-1-22010211342",
-  "created_at": "2026-02-14T00:00:00Z",
-  "status": "implemented",
-  "tests_added": 3,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 3180,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3180",
+  "generated_at": "2026-02-14T04:13:46.272553+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": [
-    "Todo instances can be sorted by id using sorted()",
-    "Two Todo instances with same id and text are equal",
-    "All existing tests pass"
-  ]
+  "stage_response_sizes": {
+    "triage": 2723,
+    "plan": 3106,
+    "implement": 2610,
+    "verify": 2116,
+    "finalize": 1646
+  }
 }
