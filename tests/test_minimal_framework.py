@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_id_and_text() -> None:
+    """Issue #3145: Two Todo instances with same id and text should be equal."""
+    # Even with different timestamps, they should be equal
+    t1 = Todo(id=1, text="task a", created_at="2024-01-01", updated_at="2024-01-01")
+    t2 = Todo(id=1, text="task a", created_at="2024-12-31", updated_at="2024-12-31")
+
+    assert t1 == t2, "Todos with same id and text should be equal"
+
+
+def test_todo_less_than_based_on_id() -> None:
+    """Issue #3145: Todo instances should be comparable by id for sorting."""
+    t1 = Todo(id=1, text="first")
+    t2 = Todo(id=2, text="second")
+    t3 = Todo(id=3, text="third")
+
+    assert t1 < t2, "Todo with lower id should be less than one with higher id"
+    assert t2 < t3, "Todo with lower id should be less than one with higher id"
+    assert not (t2 < t1), "Todo with higher id should not be less than one with lower id"
+
+
+def test_todo_sorting_by_id() -> None:
+    """Issue #3145: Todo instances should be sortable by id using sorted()."""
+    t3 = Todo(id=3, text="c")
+    t1 = Todo(id=1, text="a")
+    t2 = Todo(id=2, text="b")
+
+    unsorted = [t3, t1, t2]
+    sorted_todos = sorted(unsorted)
+
+    assert [t.id for t in sorted_todos] == [1, 2, 3], "Todos should be sorted by id"
