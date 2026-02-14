@@ -175,7 +175,7 @@ def test_todo_equality_based_on_id() -> None:
     # Todo should not equal non-Todo objects
     assert todo1 != "not a todo"
     assert todo1 != 1
-    assert todo1 != None
+    assert todo1 is not None
 
 
 def test_todo_hashable_for_set_and_dict() -> None:
