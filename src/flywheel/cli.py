@@ -121,7 +121,14 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except Exception as exc:
+    except (ValueError, OSError) as exc:
+        # Only catch expected application exceptions:
+        # - ValueError: business logic errors (todo not found, invalid data, etc.)
+        # - OSError: file I/O errors (permission denied, disk full, etc.)
+        # KeyboardInterrupt and SystemExit inherit from BaseException, not Exception,
+        # so they will propagate naturally. However, being explicit about what we
+        # catch makes the code's intent clearer and prevents accidentally catching
+        # other Exception subclasses that should propagate.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
