@@ -1,0 +1,34 @@
+{
+  "issue_number": 3321,
+  "issue_title": "[Security] load() follows symlinks without validation, could leak file content via diagnostics",
+  "candidate_number": 3,
+  "run_id": "22021233055",
+  "branch_name": "claude/issue-3321-candidate-3-22021233055",
+  "stage": "FINALIZE",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_issue_3321_symlink_read_protection.py -v",
+      "result": "PASSED",
+      "tests_run": 6,
+      "tests_passed": 6,
+      "tests_failed": 0
+    },
+    "full_test_suite": {
+      "command": "uv run pytest tests/ -v",
+      "result": "PASSED",
+      "tests_run": 118,
+      "tests_passed": 118,
+      "tests_failed": 0
+    },
+    "ruff": {
+      "command": "uv run ruff check src/ tests/",
+      "result": "PASSED"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_3321_symlink_read_protection.py"
+  ],
+  "summary": "Fix implemented and verified. The load() method now rejects symlinks with a clear error message that does not leak the target path.",
+  "timestamp": "2026-02-14T00:00:00Z"
+}
