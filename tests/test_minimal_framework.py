@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
+from flywheel import __version__
 from flywheel.cli import TodoApp, build_parser, run_command
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
+
+
+def test_version_is_accessible() -> None:
+    """Test that __version__ can be imported and follows semantic versioning."""
+    assert __version__
+    assert isinstance(__version__, str)
+    # Verify semantic versioning format (e.g., "0.1.0", "1.2.3", "1.0.0a1")
+    assert re.match(r"^\d+\.\d+\.\d+", __version__)
 
 
 def test_todo_lifecycle_updates_state() -> None:

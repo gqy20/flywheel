@@ -1,0 +1,14 @@
+{
+  "issue_number": 3270,
+  "candidate": 2,
+  "run_id": "22016965575",
+  "branch": "claude/issue-3270-candidate-2-22016965575",
+  "status": "implemented",
+  "test_added": true,
+  "tests_passing": true,
+  "ruff_clean": true,
+  "changes": {
+    "files_modified": ["tests/test_minimal_framework.py"],
+    "test_function_added": "test_version_is_accessible"
+  }
+}
