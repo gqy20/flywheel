@@ -1,39 +1,23 @@
 {
-  "issue_number": 3366,
-  "candidate_number": 3,
+  "issue": 3366,
+  "candidate": 3,
   "run_id": "22024967868",
   "branch": "claude/issue-3366-candidate-3-22024967868",
-  "status": "verified",
-  "implementation": {
-    "approach": "custom_methods",
-    "description": "Added custom __eq__ and __hash__ methods to Todo class. __eq__ compares id, text, and done fields (excluding timestamps). __hash__ uses id field for hashability.",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3366_todo_equality.py"
-    ]
-  },
-  "tests": {
-    "added": 6,
-    "passed": 6,
-    "failed": 0
-  },
-  "acceptance_criteria": {
-    "equality_same_values": true,
-    "equality_different_fields": true,
-    "hashable_for_set": true
-  },
-  "quality_checks": {
-    "ruff_check": "passed",
-    "existing_tests": "passed"
-  },
-  "verification": {
-    "pytest_new_tests": "6 passed",
-    "pytest_regression_tests": "8 passed",
-    "ruff_check": "All checks passed",
-    "commands_executed": [
-      "uv run pytest tests/test_issue_3366_todo_equality.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_3366_todo_equality.py",
-      "uv run pytest tests/test_issue_2087_todo_repr.py -v"
-    ]
+  "pr_number": 3403,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3403",
+  "generated_at": "2026-02-14T22:35:29.936207+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2190,
+    "plan": 3897,
+    "implement": 4000,
+    "verify": 1838,
+    "finalize": 1302
   }
 }
