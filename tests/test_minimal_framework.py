@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_accepts_large_text() -> None:
+    """Issue #3130: Todo.from_dict() should handle large text fields (1MB+)."""
+    # Create a 1MB text string
+    large_text = "x" * (1024 * 1024)  # 1MB
+
+    todo_data = {"id": 1, "text": large_text, "done": False}
+
+    # Should accept large text without error
+    todo = Todo.from_dict(todo_data)
+    assert todo.id == 1
+    assert len(todo.text) == 1024 * 1024
+    assert todo.text == large_text
+
+
+def test_storage_save_large_text(tmp_path) -> None:
+    """Issue #3130: Storage roundtrip should work correctly with large text."""
+    db = tmp_path / "large_text.json"
+    storage = TodoStorage(str(db))
+
+    # Create a todo with 1MB text
+    large_text = "a" * (1024 * 1024)  # 1MB
+    todos = [Todo(id=1, text=large_text, done=False)]
+
+    # Should save and load correctly
+    storage.save(todos)
+    loaded = storage.load()
+
+    assert len(loaded) == 1
+    assert loaded[0].id == 1
+    assert len(loaded[0].text) == 1024 * 1024
+    assert loaded[0].text == large_text
