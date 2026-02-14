@@ -33,6 +33,26 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todos by id, text, and done status.
+
+        Timestamps (created_at, updated_at) are intentionally excluded from
+        equality comparison since they represent metadata about when the todo
+        was modified, not its logical identity.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on id only.
+
+        This allows Todos to be used as dict keys and in sets. The hash is
+        based on id (the primary key), which means two Todos with the same
+        id will have the same hash regardless of other fields.
+        """
+        return hash(self.id)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
