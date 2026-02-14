@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3214 - validate 'id' field is not a float
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float values like 1.5 for 'id' field."""
+    with pytest.raises(ValueError, match=r"float.*not.*valid.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_with_integer_value() -> None:
+    """Todo.from_dict should reject float 1.0 for 'id' field (must be exact int)."""
+    with pytest.raises(ValueError, match=r"float.*not.*valid.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.0, "text": "task"})
+
+
+def test_todo_from_dict_accepts_string_int_id() -> None:
+    """Todo.from_dict should accept string '1' for 'id' field (conversion ok)."""
+    todo = Todo.from_dict({"id": "1", "text": "task"})
+    assert todo.id == 1
