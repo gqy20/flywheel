@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    due_at: str | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -53,6 +54,34 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due(self, due_at: str | None) -> None:
+        """Set or clear the due date.
+
+        Args:
+            due_at: ISO format string or None to clear the due date.
+        """
+        self.due_at = due_at
+        self.updated_at = _utc_now_iso()
+
+    def is_overdue(self) -> bool:
+        """Check if the todo is past its due date.
+
+        Returns:
+            True if due_at is set and current time is past the due date.
+            False if due_at is None or not yet past due.
+        """
+        if self.due_at is None:
+            return False
+        try:
+            due_time = datetime.fromisoformat(self.due_at)
+            # Handle timezone-naive strings by treating them as UTC
+            if due_time.tzinfo is None:
+                due_time = due_time.replace(tzinfo=UTC)
+            return datetime.now(UTC) > due_time
+        except (ValueError, TypeError):
+            # Invalid ISO string, treat as not overdue
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -97,6 +126,7 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
+            due_at=data.get("due_at"),
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
