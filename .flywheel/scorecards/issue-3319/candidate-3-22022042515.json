@@ -1,30 +1,23 @@
 {
-  "issue_number": 3319,
+  "issue": 3319,
   "candidate": 3,
   "run_id": "22022042515",
   "branch": "claude/issue-3319-candidate-3-22022042515",
-  "stage": "VERIFY",
-  "status": "completed",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_3319_get_version.py -v",
-      "outcome": "5 passed",
-      "status": "PASSED"
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/__init__.py tests/test_issue_3319_get_version.py",
-      "outcome": "All checks passed!",
-      "status": "PASSED"
-    }
-  },
-  "changes": {
-    "source_files": ["src/flywheel/__init__.py"],
-    "test_files": ["tests/test_issue_3319_get_version.py"]
-  },
-  "acceptance_criteria": [
-    {"criterion": "get_version() function exists and returns string", "status": "PASSED"},
-    {"criterion": "get_version() return value equals __version__", "status": "PASSED"},
-    {"criterion": "Function has type annotation -> str", "status": "PASSED"}
+  "pr_number": 3343,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3343",
+  "generated_at": "2026-02-14T18:53:41.494115+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "timestamp": "2026-02-14T17:00:00Z"
+  "stage_response_sizes": {
+    "triage": 1666,
+    "plan": 3679,
+    "implement": 1832,
+    "verify": 1841,
+    "finalize": 814
+  }
 }
