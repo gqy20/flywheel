@@ -1,22 +1,23 @@
 {
-  "issue_number": 3200,
-  "candidate_number": 2,
+  "issue": 3200,
+  "candidate": 2,
   "run_id": "22014094696",
-  "branch_name": "claude/issue-3200-candidate-2-22014094696",
-  "status": "implemented",
-  "summary": "Fix Todo.from_dict to validate positive id values",
-  "changes": {
-    "test_files": [
-      "tests/test_issue_3200_positive_id_validation.py"
-    ],
-    "source_files": [
-      "src/flywheel/todo.py"
-    ]
-  },
-  "tests_run": [
-    "tests/test_issue_3200_positive_id_validation.py - 4 tests passed",
-    "tests/test_issue_2000_json_validation.py - 12 tests passed"
+  "branch": "claude/issue-3200-candidate-2-22014094696",
+  "pr_number": 3235,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3235",
+  "generated_at": "2026-02-14T09:03:17.137014+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 1836,
+    "plan": 2204,
+    "implement": 2264,
+    "verify": 3021,
+    "finalize": 1713
+  }
 }
