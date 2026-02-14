@@ -41,7 +41,7 @@ def test_format_todo_escapes_del_char_in_text() -> None:
     # Should not contain actual DEL character
     assert "\x7f" not in result
     # Expected format
-    assert result == "[ ]   1 Buy milk\\x7f[ ] FAKE_TODO"
+    assert result == "[ ]    1 Buy milk\\x7f[ ] FAKE_TODO"
 
 
 def test_sanitize_text_mixed_control_and_del() -> None:
