@@ -11,9 +11,6 @@ These tests should FAIL before the fix and PASS after the fix.
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import pytest
 
 from flywheel.storage import TodoStorage
@@ -37,7 +34,7 @@ def test_load_rejects_symlink_to_regular_file(tmp_path) -> None:
 
     # Attempt to load from symlink should fail
     symlink_storage = TodoStorage(str(symlink_db))
-    with pytest.raises(ValueError, match="symlink|regular file"):
+    with pytest.raises(ValueError, match=r"symlink|regular file"):
         symlink_storage.load()
 
 
@@ -57,7 +54,7 @@ def test_load_rejects_symlink_to_sensitive_file(tmp_path) -> None:
 
     # Attempt to load should fail due to symlink rejection
     storage = TodoStorage(str(symlink_db))
-    with pytest.raises(ValueError, match="symlink|regular file"):
+    with pytest.raises(ValueError, match=r"symlink|regular file"):
         storage.load()
 
 
@@ -102,7 +99,7 @@ def test_load_rejects_directory(tmp_path) -> None:
     dir_path.mkdir()
 
     storage = TodoStorage(str(dir_path))
-    with pytest.raises((ValueError, IsADirectoryError), match="regular file|directory|Is a directory"):
+    with pytest.raises((ValueError, IsADirectoryError), match=r"regular file|directory|Is a directory"):
         storage.load()
 
 
@@ -120,5 +117,5 @@ def test_load_rejects_symlink_to_directory(tmp_path) -> None:
     symlink_db.symlink_to(dir_path)
 
     storage = TodoStorage(str(symlink_db))
-    with pytest.raises(ValueError, match="symlink|regular file|directory"):
+    with pytest.raises(ValueError, match=r"symlink|regular file|directory"):
         storage.load()
