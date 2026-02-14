@@ -110,3 +110,46 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+# Regression tests for Issue #3157: Unicode line/paragraph separators (U+2028, U+2029)
+
+
+def test_sanitize_text_escapes_unicode_line_separator() -> None:
+    """Unicode line separator (U+2028) should be escaped to prevent fake todo injection."""
+    from flywheel.formatter import _sanitize_text
+
+    result = _sanitize_text("A\u2028B")
+    assert "\u2028" not in result
+    assert "\\u2028" in result
+
+
+def test_sanitize_text_escapes_unicode_paragraph_separator() -> None:
+    """Unicode paragraph separator (U+2029) should be escaped to prevent fake todo injection."""
+    from flywheel.formatter import _sanitize_text
+
+    result = _sanitize_text("A\u2029B")
+    assert "\u2029" not in result
+    assert "\\u2029" in result
+
+
+def test_format_todo_no_fake_injection_via_unicode_line_sep() -> None:
+    """Todo with U+2028 should not allow fake todo injection via visual line break."""
+    todo = Todo(id=1, text="Buy milk\u2028[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation, not actual Unicode line separator
+    assert "\\u2028" in result
+    # Should not contain actual U+2028 character
+    assert "\u2028" not in result
+    # Should be single line in output (no visual line break)
+    assert "\n" not in result
+
+
+def test_format_todo_no_fake_injection_via_unicode_para_sep() -> None:
+    """Todo with U+2029 should not allow fake todo injection via visual paragraph break."""
+    todo = Todo(id=1, text="Buy milk\u2029[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation, not actual Unicode paragraph separator
+    assert "\\u2029" in result
+    # Should not contain actual U+2029 character
+    assert "\u2029" not in result

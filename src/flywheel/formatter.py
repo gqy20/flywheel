@@ -11,6 +11,9 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes Unicode line separator (U+2028) and paragraph separator (U+2029)
+    which can cause visual line breaks similar to \\n.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -22,6 +25,8 @@ def _sanitize_text(text: str) -> str:
         ("\n", "\\n"),
         ("\r", "\\r"),
         ("\t", "\\t"),
+        ("\u2028", "\\u2028"),  # Unicode line separator
+        ("\u2029", "\\u2029"),  # Unicode paragraph separator
     ]
     for char, escaped in replacements:
         text = text.replace(char, escaped)
@@ -31,7 +36,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
