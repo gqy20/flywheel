@@ -17,7 +17,14 @@
     "red": "completed",
     "green": "completed",
     "checks": "completed",
+    "verify": "completed",
     "pr": "completed"
+  },
+  "verify": {
+    "pytest_command": "uv run pytest tests/test_issue_3270_version_accessible.py -v",
+    "pytest_outcome": "5 passed",
+    "ruff_command": "uv run ruff check tests/test_issue_3270_version_accessible.py",
+    "ruff_outcome": "All checks passed"
   },
   "pr_url": "https://github.com/gqy20/flywheel/pull/3287",
   "test_file": "tests/test_issue_3270_version_accessible.py",
