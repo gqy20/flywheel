@@ -27,11 +27,17 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        result_todo = None
+
+        def add_and_capture(todos: list[Todo]) -> list[Todo]:
+            nonlocal result_todo
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            result_todo = todo
+            todos.append(todo)
+            return todos
+
+        self.storage.atomic_update(add_and_capture)
+        return result_todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +46,61 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        result_todo = None
+        found = False
+
+        def mark_done_fn(todos: list[Todo]) -> list[Todo]:
+            nonlocal result_todo, found
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    result_todo = todo
+                    found = True
+                    break
+            return todos
+
+        self.storage.atomic_update(mark_done_fn)
+
+        if not found:
+            raise ValueError(f"Todo #{todo_id} not found")
+        return result_todo
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        result_todo = None
+        found = False
+
+        def mark_undone_fn(todos: list[Todo]) -> list[Todo]:
+            nonlocal result_todo, found
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    result_todo = todo
+                    found = True
+                    break
+            return todos
+
+        self.storage.atomic_update(mark_undone_fn)
+
+        if not found:
+            raise ValueError(f"Todo #{todo_id} not found")
+        return result_todo
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        found = False
+
+        def remove_fn(todos: list[Todo]) -> list[Todo]:
+            nonlocal found
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    found = True
+                    break
+            return todos
+
+        self.storage.atomic_update(remove_fn)
+
+        if not found:
+            raise ValueError(f"Todo #{todo_id} not found")
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +60,71 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(path or ".todo.json").with_suffix(".json.lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive file lock for atomic operations.
+
+        Uses fcntl.flock for cross-process synchronization.
+        The lock file is separate from the data file to avoid conflicts.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Create lock file if it doesn't exist
+        if not self._lock_path.exists():
+            self._lock_path.touch()
+
+        # Open lock file and acquire exclusive lock
+        self._lock_fd = os.open(self._lock_path, os.O_RDWR)
+        try:
+            fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(self._lock_fd)
+            raise
+
+    def _release_lock(self) -> None:
+        """Release the file lock."""
+        if hasattr(self, "_lock_fd"):
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+                os.close(self._lock_fd)
+            finally:
+                delattr(self, "_lock_fd")
+
+    @contextlib.contextmanager
+    def _locked(self):
+        """Context manager for file locking."""
+        self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock()
+
+    def atomic_update(
+        self, update_fn: Callable[[list[Todo]], list[Todo]]
+    ) -> None:
+        """Atomically load, modify, and save todos.
+
+        This method acquires an exclusive lock before loading, calls the
+        update function with the current todos for modification, and saves
+        atomically before releasing the lock.
+
+        Usage:
+            def my_modifier(todos):
+                todos.append(Todo(id=1, text="new"))
+                return todos
+
+            storage.atomic_update(my_modifier)
+
+        Args:
+            update_fn: A function that takes a list of todos and returns
+                       the modified list to save.
+        """
+        with self._locked():
+            todos = self.load()
+            updated = update_fn(todos)
+            self.save(updated)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
