@@ -10,12 +10,9 @@ The fix should ensure that concurrent add operations result in unique IDs.
 
 from __future__ import annotations
 
-import json
 import multiprocessing
 import time
 from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
