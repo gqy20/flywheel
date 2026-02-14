@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,8 +56,38 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
 
-    def load(self) -> list[Todo]:
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive file lock for thread/process safety.
+
+        Uses fcntl.flock for cross-process synchronization.
+        The lock file is separate from the data file to avoid
+        conflicts with atomic rename operations.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Create lock file if it doesn't exist
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_WRONLY,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        # Acquire exclusive lock (blocks until available)
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
+    def _release_lock(self) -> None:
+        """Release the file lock."""
+        if hasattr(self, "_lock_fd"):
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+                os.close(self._lock_fd)
+            finally:
+                delattr(self, "_lock_fd")
+
+    def _locked_load(self) -> list[Todo]:
+        """Load todos with lock already held."""
         if not self.path.exists():
             return []
 
@@ -82,8 +113,12 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+    def load(self) -> list[Todo]:
+        """Load todos (for backward compatibility, but prefer with_lock())."""
+        return self._locked_load()
+
+    def _locked_save(self, todos: list[Todo]) -> None:
+        """Save todos with lock already held.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
@@ -123,6 +158,39 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def save(self, todos: list[Todo]) -> None:
+        """Save todos (for backward compatibility, but prefer with_lock())."""
+        self._locked_save(todos)
+
+    def with_lock(self, operation):
+        """Execute an operation with exclusive lock held.
+
+        Args:
+            operation: Callable that takes no arguments and returns (todos, result).
+                       It receives the current todos list and should return
+                       (updated_todos, result_to_return).
+
+        Returns:
+            The result from the operation.
+
+        Example:
+            def add_todo(todos):
+                new_todo = Todo(id=1, text="test")
+                todos.append(new_todo)
+                return todos, new_todo
+
+            todo = storage.with_lock(add_todo)
+        """
+        self._acquire_lock()
+        try:
+            todos = self._locked_load()
+            updated_todos, result = operation(todos)
+            if updated_todos is not None:
+                self._locked_save(updated_todos)
+            return result
+        finally:
+            self._release_lock()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
