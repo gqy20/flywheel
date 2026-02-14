@@ -24,9 +24,10 @@
   },
   "tests_run": [
     "tests/test_issue_3378_todo_constructor_validation.py - 5 passed",
-    "tests/test_minimal_framework.py - 10 passed",
-    "tests/test_issue_2000_json_validation.py - 12 passed",
-    "tests/test_issue_2087_todo_repr.py - 8 passed"
+    "All todo-related tests (pytest -k todo) - 39 passed"
   ],
-  "checks_passed": ["ruff check src/flywheel/todo.py - All checks passed"]
+  "checks_passed": [
+    "ruff check src/flywheel/todo.py tests/test_issue_3378_todo_constructor_validation.py - All checks passed",
+    "ruff format --check src/flywheel/todo.py tests/test_issue_3378_todo_constructor_validation.py - 2 files already formatted"
+  ]
 }
