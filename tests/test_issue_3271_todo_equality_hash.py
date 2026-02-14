@@ -83,7 +83,7 @@ def test_todo_equality_with_non_todo() -> None:
     assert todo != 1
     assert todo != "a"
     assert todo != {"id": 1, "text": "a"}
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_hash_is_stable() -> None:
