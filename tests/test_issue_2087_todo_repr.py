@@ -105,3 +105,24 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_none_text() -> None:
+    """repr(Todo) should not crash when text is None (Issue #3376)."""
+    # Create Todo with text=None (bypassing dataclass validation)
+    todo = object.__new__(Todo)
+    todo.id = 1
+    todo.text = None  # type: ignore[assignment]
+    todo.done = False
+    todo.created_at = "2024-01-01T00:00:00Z"
+    todo.updated_at = "2024-01-01T00:00:00Z"
+
+    # Should not raise TypeError
+    result = repr(todo)
+
+    # Should still return a valid string representation
+    assert "Todo" in result
+    assert "id=1" in result
+    assert "done=False" in result
+    # None should be represented somehow
+    assert "None" in result or "text=" in result
