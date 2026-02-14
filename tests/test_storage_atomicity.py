@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,52 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_works_on_windows_without_fchmod(tmp_path) -> None:
+    """Regression test for issue #3120: os.fchmod is Unix-only.
+
+    Test that TodoStorage.save() works on Windows where os.fchmod is not available.
+    The code should gracefully fall back to os.chmod when fchmod is not available.
+    """
+    import os as real_os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a mock os module that lacks fchmod (simulating Windows)
+    class MockOS:
+        """Mock os module without fchmod (Windows-like)."""
+
+        fchmod = None  # type: ignore
+        fdopen = staticmethod(real_os.fdopen)
+        replace = staticmethod(real_os.replace)
+        unlink = staticmethod(real_os.unlink)
+
+        @staticmethod
+        def chmod(path, mode):
+            # Track that chmod was called with the correct mode
+            MockOS.chmod_called = (path, mode)
+            return real_os.chmod(path, mode)
+
+        chmod_called = None
+
+    todos = [Todo(id=1, text="test on windows")]
+
+    # Patch the os module in flywheel.storage to simulate Windows
+    with patch("flywheel.storage.os", MockOS):
+        # This should NOT raise AttributeError
+        storage.save(todos)
+
+    # Verify chmod was called (fallback on Windows)
+    assert MockOS.chmod_called is not None, "os.chmod should be called as fallback"
+    # Verify the mode was set to 0o600 (owner read/write only)
+    assert MockOS.chmod_called[1] == 0o600
+
+    # Verify the file was actually saved
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test on windows"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +266,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
