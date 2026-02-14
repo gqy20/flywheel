@@ -1,13 +1,23 @@
 {
-  "issue_number": 3334,
-  "candidate_number": 3,
+  "issue": 3334,
+  "candidate": 3,
   "run_id": "22022816206",
   "branch": "claude/issue-3334-candidate-3-22022816206",
-  "created_at": "2026-02-14T18:40:00Z",
-  "status": "implemented",
-  "test_file": "tests/test_issue_3334_todo_empty_text_validation.py",
-  "source_files": ["src/flywheel/todo.py"],
-  "tests_passed": true,
-  "all_tests_passed": true,
-  "linter_passed": true
+  "pr_number": 3361,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3361",
+  "generated_at": "2026-02-14T19:50:53.622795+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2432,
+    "plan": 3112,
+    "implement": 2508,
+    "verify": 3675,
+    "finalize": 1601
+  }
 }
