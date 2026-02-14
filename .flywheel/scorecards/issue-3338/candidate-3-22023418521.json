@@ -1,32 +1,23 @@
 {
-  "issue_number": 3338,
+  "issue": 3338,
   "candidate": 3,
   "run_id": "22023418521",
-  "created_at": "2026-02-14T19:00:00Z",
-  "implementation": {
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "src/flywheel/cli.py"
-    ],
-    "files_added": [
-      "tests/test_issue_3338_todo_due_at.py"
-    ],
-    "summary": "Add due_at field support to Todo model with is_overdue() method and set-due CLI command"
-  },
-  "tests": {
-    "test_file": "tests/test_issue_3338_todo_due_at.py",
-    "test_count": 12,
-    "all_passed": true
-  },
-  "verification": {
-    "pytest_result": "124 passed",
-    "ruff_check": "All checks passed"
-  },
-  "acceptance_criteria": {
-    "due_at_optional": true,
-    "is_overdue_method": true,
-    "set_due_method": true,
-    "cli_set_due_command": true,
-    "serialization_support": true
+  "branch": "claude/issue-3338-candidate-3-22023418521",
+  "pr_number": 3367,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3367",
+  "generated_at": "2026-02-14T20:32:59.882331+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2658,
+    "plan": 4000,
+    "implement": 1377,
+    "verify": 2352,
+    "finalize": 721
   }
 }
