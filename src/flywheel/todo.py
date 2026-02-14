@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -32,6 +32,31 @@ class Todo:
             display_text = display_text[:47] + "..."
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by all fields.
+
+        Two Todo objects are equal if all their fields match:
+        id, text, done, created_at, and updated_at.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (
+            self.id == other.id
+            and self.text == other.text
+            and self.done == other.done
+            and self.created_at == other.created_at
+            and self.updated_at == other.updated_at
+        )
+
+    def __hash__(self) -> int:
+        """Hash Todo objects based on id.
+
+        The hash is based solely on id, allowing Todo objects
+        with the same id to be deduplicated in sets and used
+        as dictionary keys.
+        """
+        return hash(self.id)
 
     def __post_init__(self) -> None:
         if not self.created_at:
