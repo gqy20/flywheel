@@ -47,6 +47,12 @@ class Todo:
         self.done = False
         self.updated_at = _utc_now_iso()
 
+    def toggle(self) -> None:
+        if self.done:
+            self.mark_undone()
+        else:
+            self.mark_done()
+
     def rename(self, text: str) -> None:
         text = text.strip()
         if not text:
