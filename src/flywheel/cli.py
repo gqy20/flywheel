@@ -23,15 +23,21 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
+        """Add a new todo with a unique ID.
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        Uses file locking to prevent race conditions when multiple
+        processes add todos concurrently.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo.
+
+        Raises:
+            ValueError: If text is empty.
+        """
+        return self.storage.add_with_unique_id(text)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
