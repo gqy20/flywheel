@@ -57,6 +57,15 @@ class TodoApp:
                 return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def set_due(self, todo_id: int, due_at: str | None) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.set_due(due_at)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
     def remove(self, todo_id: int) -> None:
         todos = self._load()
         for i, todo in enumerate(todos):
@@ -88,6 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_set_due = sub.add_parser("set-due", help="Set due date for todo")
+    p_set_due.add_argument("id", type=int)
+    p_set_due.add_argument(
+        "due_date", nargs="?", default=None, help="ISO datetime or 'none' to clear"
+    )
+
     return parser
 
 
@@ -118,6 +133,17 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "set-due":
+            due_date = args.due_date
+            if due_date and due_date.lower() == "none":
+                due_date = None
+            todo = app.set_due(args.id, due_date)
+            if due_date:
+                print(f"Set due date for #{todo.id}: {due_date}")
+            else:
+                print(f"Cleared due date for #{todo.id}")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
