@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,48 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _get_lock_path(self) -> Path:
+        """Get the path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    def add_with_unique_id(self, text: str) -> Todo:
+        """Add a todo with a unique ID using file locking to prevent race conditions.
+
+        This method acquires an exclusive file lock before loading todos,
+        computing the next ID, and saving. This prevents race conditions
+        when multiple processes add todos concurrently.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo with a unique ID.
+
+        Raises:
+            ValueError: If text is empty.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        lock_path = self._get_lock_path()
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+            # Critical section: load, compute ID, save
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
