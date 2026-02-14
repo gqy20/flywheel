@@ -33,6 +33,14 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __hash__(self) -> int:
+        """Return hash based on all fields for consistency with __eq__.
+
+        Allows Todo instances to be used in sets and as dictionary keys.
+        The hash is computed from all fields that participate in equality comparison.
+        """
+        return hash((self.id, self.text, self.done, self.created_at, self.updated_at))
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
