@@ -19,10 +19,7 @@ import multiprocessing
 import tempfile
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
-from flywheel.todo import Todo
 
 
 def _add_todo_worker(worker_id: int, db_path: str, result_queue: multiprocessing.Queue) -> None:
