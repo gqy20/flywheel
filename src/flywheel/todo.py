@@ -26,9 +26,9 @@ class Todo:
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
         """
-        # Truncate text if longer than 50 characters
+        # Handle None text gracefully
         display_text = self.text
-        if len(display_text) > 50:
+        if display_text is not None and len(display_text) > 50:
             display_text = display_text[:47] + "..."
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"

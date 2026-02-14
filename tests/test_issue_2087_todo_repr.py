@@ -105,3 +105,26 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_none_text() -> None:
+    """repr(Todo) should not crash when text is None (Issue #3376).
+
+    This is a regression test for a bug where calling len() on None
+    in __repr__ would raise TypeError.
+    """
+    # Bypass type checking to create a Todo with text=None
+    todo = Todo.__new__(Todo)
+    object.__setattr__(todo, "id", 1)
+    object.__setattr__(todo, "text", None)
+    object.__setattr__(todo, "done", False)
+    object.__setattr__(todo, "created_at", "")
+    object.__setattr__(todo, "updated_at", "")
+
+    # This should not raise TypeError
+    result = repr(todo)
+
+    # Should return a valid string representation
+    assert isinstance(result, str)
+    assert "Todo" in result
+    assert "id=1" in result
