@@ -1,0 +1,22 @@
+{
+  "issue_number": 3321,
+  "candidate_number": 1,
+  "run_id": "22021233055",
+  "branch": "claude/issue-3321-candidate-1-22021233055",
+  "approach": "symlink-rejection",
+  "summary": "Added symlink validation in load() method to reject symlinks before reading files, preventing potential file content leak via diagnostic messages.",
+  "tests_added": 4,
+  "tests_passing": true,
+  "ruff_clean": true,
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_3321_symlink_read_protection.py"]
+  },
+  "risks": [
+    "May break existing setups that intentionally use symlinks to shared todo files"
+  ],
+  "mitigations": [
+    "Clear error message explains the security reason for rejection"
+  ],
+  "commit_sha": "3b5fa6e"
+}

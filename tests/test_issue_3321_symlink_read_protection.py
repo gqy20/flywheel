@@ -13,8 +13,6 @@ These tests should FAIL before the fix and PASS after the fix.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from flywheel.storage import TodoStorage
 
 
