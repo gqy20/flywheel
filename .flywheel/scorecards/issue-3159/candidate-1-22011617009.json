@@ -1,0 +1,41 @@
+{
+  "issue_number": 3159,
+  "issue_title": "[Feature] Add text length validation with configurable max length",
+  "candidate_number": 1,
+  "run_id": "22011617009",
+  "branch_name": "claude/issue-3159-candidate-1-22011617009",
+  "created_at": "2026-02-14T01:17:41Z",
+  "status": "implemented",
+  "implementation_summary": {
+    "changes": [
+      {
+        "file": "src/flywheel/todo.py",
+        "description": "Added MAX_TEXT_LENGTH constant (1000 chars) and validation in __post_init__, rename(), and from_dict() methods"
+      },
+      {
+        "file": "tests/test_issue_3159_text_length_validation.py",
+        "description": "Added 5 regression tests for text length validation"
+      }
+    ],
+    "acceptance_criteria_met": [
+      "Todo with text > 1000 chars raises ValueError in __post_init__",
+      "rename() with text > 1000 chars raises ValueError",
+      "from_dict() validates text length and raises clear error",
+      "Error message includes actual length and max allowed"
+    ]
+  },
+  "test_results": {
+    "tests_added": 5,
+    "tests_passed": 117,
+    "tests_failed": 0,
+    "coverage_percentage": 92
+  },
+  "code_quality": {
+    "ruff_check": "passed",
+    "lint_fixes": 1
+  },
+  "risks_and_limitations": [
+    "Existing todos with text > 1000 chars in storage files will fail to load via from_dict()",
+    "This is intentional behavior to enforce data integrity"
+  ]
+}
