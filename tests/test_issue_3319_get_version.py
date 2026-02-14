@@ -7,6 +7,8 @@ def test_get_version_importable() -> None:
     """Test that get_version can be imported from flywheel."""
     from flywheel import get_version
 
+    assert callable(get_version)
+
 
 def test_get_version_returns_string() -> None:
     """Test that get_version returns a string."""
