@@ -2,75 +2,22 @@
   "issue": 3349,
   "candidate": 3,
   "run_id": "22023418521",
-  "stage": "VERIFY",
-  "timestamp": "2026-02-14T20:30:00Z",
-  "triage": {
-    "root_cause": "src/flywheel/cli.py:124 uses 'except Exception' which is overly broad. While KeyboardInterrupt (BaseException) is NOT caught by Exception, the code lacks clarity and test coverage for this behavior.",
-    "risk_points": [
-      "Code smell: bare except Exception without explicit BaseException handling",
-      "No test coverage for KeyboardInterrupt propagation",
-      "Future regression risk if code changes to except BaseException"
-    ],
-    "verification_targets": [
-      "Add test: KeyboardInterrupt raised in run_command should propagate (not be caught)",
-      "Verify: ValueError returns exit code 1 with stderr message",
-      "Verify: OSError returns exit code 1 with stderr message"
-    ],
-    "proposed_fix": "Add explicit test for KeyboardInterrupt propagation, and optionally narrow exception handling to specific types (ValueError, OSError) for clarity"
-  },
-  "implementation": {
-    "summary": "Fixed overly broad exception handling in run_command by replacing `except Exception` with `except (ValueError, OSError)` to ensure KeyboardInterrupt and other BaseException subclasses can propagate normally.",
-    "changes": {
-      "source_files": [
-        {
-          "path": "src/flywheel/cli.py",
-          "change_type": "modified",
-          "description": "Changed exception handling from broad `except Exception` to specific `except (ValueError, OSError)` with explanatory comment"
-        }
-      ],
-      "test_files": [
-        {
-          "path": "tests/test_issue_3349_keyboard_interrupt.py",
-          "change_type": "added",
-          "description": "Added regression tests for KeyboardInterrupt propagation and maintained business exception handling"
-        }
-      ]
-    },
-    "risks": [],
-    "limitations": []
-  },
-  "verification": {
-    "targeted_tests": {
-      "command": "uv run pytest tests/test_issue_3349_keyboard_interrupt.py tests/test_issue_2015_cli_exception_handling.py -v",
-      "result": "passed",
-      "total_tests": 9,
-      "passed": 9,
-      "failed": 0
-    },
-    "full_test_suite": {
-      "command": "uv run pytest tests/ -v",
-      "result": "passed",
-      "total_tests": 116,
-      "passed": 116,
-      "failed": 0,
-      "coverage": "92%"
-    },
-    "linting": {
-      "command": "uv run ruff check src/flywheel/cli.py tests/test_issue_3349_keyboard_interrupt.py",
-      "result": "passed"
-    },
-    "acceptance_criteria": {
-      "keyboard_interrupt_propagates": true,
-      "system_exit_propagates": true,
-      "business_exceptions_return_exit_code_1": true,
-      "test_coverage_for_ctrl_c_scenario": true,
-      "no_regressions": true
-    }
-  },
-  "finalize": {
-    "stage": "FINALIZE",
-    "timestamp": "2026-02-14T20:45:00Z",
-    "pr_status": "created",
-    "pr_url": "https://github.com/gqy20/flywheel/pull/3370"
+  "branch": "claude/issue-3349-candidate-3-22023418521",
+  "pr_number": 3370,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3370",
+  "generated_at": "2026-02-14T20:32:29.225858+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3290,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2015,
+    "finalize": 926
   }
 }
