@@ -1,20 +1,23 @@
 {
-  "issue_number": 3119,
-  "issue_title": "[Bug] __repr__ does not escape or truncate newlines/special characters in text, causin",
-  "candidate_number": 1,
+  "issue": 3119,
+  "candidate": 1,
   "run_id": "22006173621",
-  "branch_name": "claude/issue-3119-candidate-1-22006173621",
-  "created_at": "2026-02-14T00:00:00Z",
-  "status": "ready_for_pr",
-  "changes": {
-    "test_files": [
-      "tests/test_issue_2087_todo_repr.py"
-    ],
-    "source_files": [],
-    "description": "Added regression tests to verify __repr__ correctly escapes control characters"
-  },
-  "tests_added": 4,
-  "tests_passed": 116,
-  "lint_status": "passed",
-  "summary": "Added comprehensive regression tests verifying that Todo.__repr__ correctly escapes newlines, carriage returns, and tabs. The existing implementation using Python's !r format specifier already handles this correctly - the tests ensure this behavior is maintained."
+  "branch": "claude/issue-3119-candidate-1-22006173621",
+  "pr_number": 3155,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3155",
+  "generated_at": "2026-02-14T00:29:54.308298+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 1876,
+    "finalize": 2159
+  }
 }
