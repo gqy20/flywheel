@@ -1,18 +1,23 @@
 {
-  "issue_number": 3145,
-  "issue_title": "[Enhancement] Todo 类缺少 __eq__ 和 __lt__ 方法导致排序和比较困难",
-  "candidate_number": 3,
+  "issue": 3145,
+  "candidate": 3,
   "run_id": "22010211342",
   "branch": "claude/issue-3145-candidate-3-22010211342",
-  "created_at": "2026-02-14T04:02:00Z",
-  "status": "implemented",
-  "tests_passed": true,
-  "tests_total": 118,
-  "linting_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3145_todo_comparison.py"
+  "pr_number": 3177,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3177",
+  "generated_at": "2026-02-14T04:08:25.683559+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added __eq__ and __lt__ methods to Todo class to support comparison and sorting by id",
-  "implementation_notes": "Used eq=False in @dataclass decorator and implemented custom __eq__ and __lt__ methods that compare by id only, ignoring timestamps and other fields"
+  "stage_response_sizes": {
+    "triage": 3330,
+    "plan": 3322,
+    "implement": 1853,
+    "verify": 3106,
+    "finalize": 980
+  }
 }
