@@ -27,9 +27,7 @@ def test_repr_truncated_text_with_newline_no_literal_newline() -> None:
     result = repr(todo)
 
     # Core assertion: no literal newline in the repr output
-    assert "\n" not in result, (
-        f"repr should not contain literal newline: {result!r}"
-    )
+    assert "\n" not in result, f"repr should not contain literal newline: {result!r}"
 
     # The output should be a single line
     assert len(result.splitlines()) == 1, (
