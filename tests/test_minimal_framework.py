@@ -158,3 +158,37 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_id() -> None:
+    """Issue #3380: Two Todos with same id should be equal."""
+    todo1 = Todo(id=1, text="task one")
+    todo2 = Todo(id=1, text="task two", done=True)
+
+    # Same id should be equal regardless of other fields
+    assert todo1 == todo2
+
+    # Different id should not be equal
+    todo3 = Todo(id=2, text="task one")
+    assert todo1 != todo3
+
+    # Todo should not equal non-Todo objects
+    assert todo1 != "not a todo"
+    assert todo1 != 1
+    assert todo1 != None
+
+
+def test_todo_hashable_for_set_and_dict() -> None:
+    """Issue #3380: Todo should be hashable to support set operations and dict keys."""
+    todo1 = Todo(id=1, text="task one")
+    todo2 = Todo(id=1, text="task two")
+    todo3 = Todo(id=2, text="task three")
+
+    # Should be able to add to a set
+    todo_set = {todo1, todo2, todo3}
+    # Same id should deduplicate
+    assert len(todo_set) == 2
+
+    # Should be able to use as dict key
+    todo_dict = {todo1: "first", todo3: "second"}
+    assert todo_dict[todo2] == "first"  # todo2 has same id as todo1
