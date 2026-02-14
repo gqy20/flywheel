@@ -119,3 +119,25 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3240 - validate 'id' must be positive integer
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Todo.from_dict should reject id=0 as invalid."""
+    with pytest.raises(ValueError, match=r"'id'.*positive|'id'.*invalid|'id'.*must"):
+        Todo.from_dict({"id": 0, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Todo.from_dict should reject negative id values."""
+    with pytest.raises(ValueError, match=r"'id'.*positive|'id'.*invalid|'id'.*must"):
+        Todo.from_dict({"id": -1, "text": "task"})
+
+
+def test_todo_from_dict_accepts_positive_id() -> None:
+    """Todo.from_dict should accept valid positive id values."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+    todo2 = Todo.from_dict({"id": 100, "text": "task2"})
+    assert todo2.id == 100
