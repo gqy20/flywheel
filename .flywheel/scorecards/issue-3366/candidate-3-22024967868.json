@@ -1,0 +1,29 @@
+{
+  "issue_number": 3366,
+  "candidate_number": 3,
+  "run_id": "22024967868",
+  "branch": "claude/issue-3366-candidate-3-22024967868",
+  "status": "implemented",
+  "implementation": {
+    "approach": "custom_methods",
+    "description": "Added custom __eq__ and __hash__ methods to Todo class. __eq__ compares id, text, and done fields (excluding timestamps). __hash__ uses id field for hashability.",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3366_todo_equality.py"
+    ]
+  },
+  "tests": {
+    "added": 6,
+    "passed": 6,
+    "failed": 0
+  },
+  "acceptance_criteria": {
+    "equality_same_values": true,
+    "equality_different_fields": true,
+    "hashable_for_set": true
+  },
+  "quality_checks": {
+    "ruff_check": "passed",
+    "existing_tests": "passed"
+  }
+}
