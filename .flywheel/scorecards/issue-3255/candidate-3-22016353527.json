@@ -1,0 +1,42 @@
+{
+  "issue_number": 3255,
+  "candidate": 3,
+  "run_id": "22016353527",
+  "plan": {
+    "summary": "Add explicit regression tests for control character escaping in __repr__",
+    "files_to_modify": [
+      "tests/test_issue_2087_todo_repr.py"
+    ],
+    "files_to_create": [],
+    "implementation_steps": [
+      "RED: Add failing tests for ANSI escape sequences, newlines, and control characters",
+      "Verify existing implementation already passes tests (Python's !r handles escaping correctly)",
+      "Fix lenient assertion in existing test to be stricter"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
+      "uv run ruff check tests/test_issue_2087_todo_repr.py"
+    ]
+  },
+  "implementation": {
+    "actual_files_modified": [
+      "tests/test_issue_2087_todo_repr.py"
+    ],
+    "actual_files_created": [],
+    "tests_added": [
+      "test_todo_repr_escapes_ansi_sequences",
+      "test_todo_repr_escapes_newlines",
+      "test_todo_repr_escapes_other_control_chars"
+    ],
+    "tests_fixed": [
+      "test_todo_repr_handles_special_characters (made assertion stricter)"
+    ],
+    "verification_results": {
+      "pytest": "115 passed",
+      "ruff": "All checks passed"
+    }
+  },
+  "status": "IMPLEMENT",
+  "branch": "claude/issue-3255-candidate-3-22016353527",
+  "commit": "599dd66"
+}
