@@ -65,9 +65,7 @@ class Todo:
             ValueError: If priority is not None, 1, 2, or 3.
         """
         if priority is not None and priority not in (1, 2, 3):
-            raise ValueError(
-                f"Invalid priority: {priority!r}. Priority must be None, 1, 2, or 3."
-            )
+            raise ValueError(f"Invalid priority: {priority!r}. Priority must be None, 1, 2, or 3.")
         self.priority = priority
         self.updated_at = _utc_now_iso()
 
