@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -19,6 +19,40 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id and text for equality.
+
+        Timestamps and done status are excluded to allow finding todos
+        in collections by their identity regardless of state changes.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id and self.text == other.text
+
+    def __lt__(self, other: object) -> bool:
+        """Compare todos by id for sorting."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id < other.id
+
+    def __le__(self, other: object) -> bool:
+        """Compare todos by id for sorting."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id <= other.id
+
+    def __gt__(self, other: object) -> bool:
+        """Compare todos by id for sorting."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id > other.id
+
+    def __ge__(self, other: object) -> bool:
+        """Compare todos by id for sorting."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id >= other.id
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
