@@ -54,6 +54,26 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, **overrides) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        Args:
+            **overrides: Fields to override in the copy.
+
+        Returns:
+            A new Todo instance with the same values, except for any fields
+            specified in overrides.
+
+        Example:
+            >>> todo = Todo(id=1, text="buy milk")
+            >>> copy = todo.copy(text="buy coffee")
+            >>> copy.text
+            'buy coffee'
+        """
+        data = asdict(self)
+        data.update(overrides)
+        return Todo.from_dict(data)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
