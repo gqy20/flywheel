@@ -13,32 +13,80 @@ from flywheel.todo import Todo
 
 def test_todo_eq_same_values_returns_true() -> None:
     """Two Todos with identical field values should be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     assert todo1 == todo2
 
 
 def test_todo_eq_different_id_returns_false() -> None:
     """Todos with different id values should not be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=2, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=2,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     assert todo1 != todo2
 
 
 def test_todo_eq_different_text_returns_false() -> None:
     """Todos with different text values should not be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy bread", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy bread",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     assert todo1 != todo2
 
 
 def test_todo_eq_different_done_returns_false() -> None:
     """Todos with different done values should not be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=True, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=True,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     assert todo1 != todo2
 
@@ -55,8 +103,20 @@ def test_todo_eq_different_type_returns_false() -> None:
 
 def test_todo_hash_same_id_in_set_deduplicates() -> None:
     """Todos with same id should be deduplicated in a set."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     todo_set = {todo1, todo2}
 
@@ -65,8 +125,20 @@ def test_todo_hash_same_id_in_set_deduplicates() -> None:
 
 def test_todo_hash_different_id_in_set_keeps_both() -> None:
     """Todos with different ids should both be kept in a set."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=2, text="buy bread", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=2,
+        text="buy bread",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     todo_set = {todo1, todo2}
 
@@ -87,7 +159,19 @@ def test_todo_hash_usable_as_dict_key() -> None:
 
 def test_todo_eq_different_timestamps_returns_false() -> None:
     """Todos with different timestamps should not be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-02T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-02T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     assert todo1 != todo2
