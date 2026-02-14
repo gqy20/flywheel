@@ -5,7 +5,7 @@
   "run_id": "22011617009",
   "branch_name": "claude/issue-3159-candidate-3-22011617009",
   "created_at": "2026-02-14T05:45:00Z",
-  "status": "implemented",
+  "status": "finalized",
   "implementation": {
     "files_changed": [
       "src/flywheel/todo.py",
@@ -36,10 +36,24 @@
     ]
   },
   "validation": {
-    "all_tests_passed": true,
-    "total_tests_in_suite": 121,
-    "ruff_check": "passed",
-    "coverage": "98% on todo.py"
+    "stage": "VERIFY",
+    "targeted_pytest": {
+      "command": "uv run pytest tests/test_issue_3159_text_length_validation.py -v",
+      "result": "9 passed in 0.07s",
+      "status": "passed"
+    },
+    "regression_tests": {
+      "command": "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2000_json_validation.py tests/test_issue_2087_todo_repr.py tests/test_minimal_framework.py -v",
+      "result": "40 passed in 0.24s",
+      "status": "passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3159_text_length_validation.py",
+      "result": "All checks passed",
+      "status": "passed",
+      "fix_applied": "Import order fixed (Todo, MAX_TEXT_LENGTH -> MAX_TEXT_LENGTH, Todo)"
+    },
+    "coverage": "94% on todo.py"
   },
   "acceptance_criteria_met": [
     "Todo with text > 1000 chars raises ValueError in __post_init__",
