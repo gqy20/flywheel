@@ -12,8 +12,6 @@ using explicit exception types (ValueError, OSError) is a security best practice
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from flywheel.cli import build_parser, run_command
