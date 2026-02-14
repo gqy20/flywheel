@@ -40,9 +40,23 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle TOCTOU race condition: another process might
+    # create the directory between our exists() check and mkdir() call
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
+        except FileExistsError:
+            # FileExistsError with exist_ok=True means a path component is a file,
+            # not a directory. This is a configuration error, not a race condition.
+            # Re-check to find which component is problematic
+            for part in list(file_path.parents):
+                if part.exists() and not part.is_dir():
+                    raise ValueError(
+                        f"Path error: '{part}' exists as a file, not a directory. "
+                        f"Cannot use '{file_path}' as database path."
+                    ) from None
+            # If we get here, the directory was created by another process (race condition)
+            # This is fine - the directory now exists as expected
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
