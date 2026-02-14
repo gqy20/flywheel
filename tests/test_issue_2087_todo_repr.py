@@ -105,3 +105,16 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_none_text() -> None:
+    """repr(Todo) should not crash when text is None (Issue #3376)."""
+    # This test verifies that __repr__ handles None text gracefully
+    # without raising TypeError when calling len() on None
+    todo = Todo(id=1, text=None)  # type: ignore[arg-type]
+    # Should not raise TypeError
+    result = repr(todo)
+    # Should return a valid string representation
+    assert isinstance(result, str)
+    assert "Todo" in result
+    assert "id=1" in result
