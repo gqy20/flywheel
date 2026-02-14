@@ -57,6 +57,25 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **overrides) -> Todo:
+        """Return a copy of this Todo with optional field overrides.
+
+        Args:
+            **overrides: Field values to override in the copy.
+
+        Returns:
+            A new Todo instance with the same values, except for any
+            fields specified in overrides.
+
+        Example:
+            >>> todo = Todo(id=1, text="buy milk")
+            >>> copy = todo.copy()  # Exact copy
+            >>> copy = todo.copy(text="buy bread")  # Copy with new text
+        """
+        data = self.to_dict()
+        data.update(overrides)
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages

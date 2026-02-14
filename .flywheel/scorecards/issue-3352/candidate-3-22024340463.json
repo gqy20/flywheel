@@ -1,0 +1,16 @@
+{
+  "issue_number": 3352,
+  "candidate": 3,
+  "run_id": "22024340463",
+  "created_at": "2026-02-14T19:45:00Z",
+  "test_file": "tests/test_issue_3352_todo_copy.py",
+  "source_files": ["src/flywheel/todo.py"],
+  "tests_passed": 120,
+  "linting_status": "passed",
+  "implementation_summary": "Added Todo.copy(**overrides) method to create copies of Todo objects with optional field overrides",
+  "acceptance_criteria_met": [
+    "todo.copy() returns new object with same values",
+    "todo.copy(text='new') returns copy with modified text",
+    "copy returns different object reference"
+  ]
+}
