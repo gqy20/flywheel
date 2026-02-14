@@ -51,4 +51,14 @@ class TodoFormatter:
     def format_list(cls, todos: list[Todo]) -> str:
         if not todos:
             return "No todos yet."
-        return "\n".join(cls.format_todo(todo) for todo in todos)
+        # Calculate dynamic width based on the largest ID
+        max_id = max(todo.id for todo in todos)
+        id_width = max(3, len(str(max_id)))
+        return "\n".join(cls._format_todo_with_width(todo, id_width) for todo in todos)
+
+    @staticmethod
+    def _format_todo_with_width(todo: Todo, id_width: int) -> str:
+        """Format a single todo with specified ID field width."""
+        status = "x" if todo.done else " "
+        safe_text = _sanitize_text(todo.text)
+        return f"[{status}] {todo.id:>{id_width}} {safe_text}"
