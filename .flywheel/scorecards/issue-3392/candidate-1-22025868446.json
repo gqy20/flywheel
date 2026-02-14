@@ -4,8 +4,8 @@
   "candidate_number": 1,
   "run_id": "22025868446",
   "branch": "claude/issue-3392-candidate-1-22025868446",
-  "status": "implemented",
-  "stage": "IMPLEMENT",
+  "status": "finalized",
+  "stage": "FINALIZE",
   "summary": "Fixed race condition in next_id() causing ID collisions in concurrent add operations by adding file-based locking using flock(2).",
   "changes": {
     "source_files": [
@@ -26,6 +26,31 @@
       "Modified TodoApp.add() to wrap load/next_id/save in lock context",
       "Created comprehensive test suite for concurrent add operations"
     ]
+  },
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_3392_next_id_race_condition.py -v",
+      "result": "4 tests passed",
+      "tests": [
+        "test_concurrent_add_produces_unique_ids",
+        "test_concurrent_add_single_operation_each",
+        "test_sequential_add_produces_incrementing_ids",
+        "test_add_with_lock_context_manager"
+      ]
+    },
+    "pytest_related": {
+      "command": "uv run pytest tests/ -v -k \"storage or cli or add\" --ignore=tests/test_issue_3392_next_id_race_condition.py",
+      "result": "42 tests passed"
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ -v",
+      "result": "116 tests passed"
+    },
+    "ruff_linting": {
+      "command": "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_3392_next_id_race_condition.py",
+      "result": "All checks passed",
+      "fixes_applied": ["Removed unused imports (json, pytest) from test file"]
+    }
   },
   "risks": [
     "File locking is Unix-specific (fcntl). This won't work on Windows.",
