@@ -158,3 +158,28 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_post_init_rejects_empty_text() -> None:
+    """Bug #3129: Todo __post_init__ should reject empty text."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="")
+
+
+def test_post_init_rejects_negative_id() -> None:
+    """Bug #3129: Todo __post_init__ should reject negative id."""
+    with pytest.raises(ValueError, match="Todo id must be a non-negative integer"):
+        Todo(id=-1, text="valid")
+
+
+def test_post_init_rejects_whitespace_text() -> None:
+    """Bug #3129: Todo __post_init__ should reject whitespace-only text."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="   ")
+
+
+def test_post_init_accepts_zero_id() -> None:
+    """Bug #3129: Todo __post_init__ should accept zero as valid id."""
+    todo = Todo(id=0, text="valid")
+    assert todo.id == 0
+    assert todo.text == "valid"
