@@ -1,27 +1,23 @@
 {
-  "issue_number": 3408,
+  "issue": 3408,
   "candidate": 3,
   "run_id": "22029097281",
   "branch": "claude/issue-3408-candidate-3-22029097281",
-  "status": "finalized",
+  "pr_number": 3442,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3442",
-  "summary": "Add toggle() method to Todo class that flips done state and returns new boolean value",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "description": "Add toggle() method that flips done boolean and updates updated_at timestamp"
-    },
-    {
-      "file": "tests/test_issue_3408_toggle_method.py",
-      "description": "Add regression tests for toggle() method"
-    }
+  "generated_at": "2026-02-15T04:21:51.342754+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 4,
-  "lint_passed": true,
-  "acceptance_criteria": {
-    "toggle_sets_done_true_on_undone": true,
-    "toggle_sets_done_false_on_done": true,
-    "toggle_returns_new_boolean_state": true,
-    "toggle_updates_timestamp": true
+  "stage_response_sizes": {
+    "triage": 1768,
+    "plan": 2883,
+    "implement": 1459,
+    "verify": 2181,
+    "finalize": 1465
   }
 }
