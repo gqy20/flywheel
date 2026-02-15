@@ -2,27 +2,22 @@
   "issue": 3492,
   "candidate": 1,
   "run_id": "22033169306",
-  "score": 100,
-  "breakdown": {
-    "tests_added": 8,
-    "tests_passed": 8,
-    "tests_failed": 0,
-    "ruff_passed": true,
-    "coverage": 100
-  },
-  "criteria": {
-    "test_coverage": "PASS",
-    "linting": "PASS",
-    "acceptance_criteria": [
-      "Todo dataclass contains tags field",
-      "from_dict() can parse tags list (default empty list)",
-      "to_dict() output includes tags",
-      "Non-string tag values raise clear error"
-    ]
-  },
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3492_todo_tags.py"
+  "branch": "claude/issue-3492-candidate-1-22033169306",
+  "pr_number": 3512,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3512",
+  "generated_at": "2026-02-15T09:59:09.661526+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "timestamp": "2026-02-15T08:50:00Z"
+  "stage_response_sizes": {
+    "triage": 2509,
+    "plan": 2905,
+    "implement": 2847,
+    "verify": 3001,
+    "finalize": 1445
+  }
 }
