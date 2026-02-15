@@ -158,3 +158,73 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Issue #3531: CLI edit command tests
+def test_app_edit_method(tmp_path) -> None:
+    """TodoApp.edit() should rename a todo by id."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    added = app.add("original text")
+    assert added.id == 1
+    assert app.list()[0].text == "original text"
+
+    # Edit the todo
+    edited = app.edit(1, "renamed text")
+    assert edited.id == 1
+    assert edited.text == "renamed text"
+
+    # Verify persistence
+    todos = app.list()
+    assert len(todos) == 1
+    assert todos[0].text == "renamed text"
+
+
+def test_app_edit_nonexistent_id_raises(tmp_path) -> None:
+    """TodoApp.edit() should raise ValueError for non-existent id."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("dummy")
+
+    with pytest.raises(ValueError, match=r"Todo #99 not found"):
+        app.edit(99, "new text")
+
+
+def test_cli_edit_command_success(tmp_path, capsys) -> None:
+    """CLI edit command should rename a todo and print success message."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Edit the todo
+    args = parser.parse_args(["--db", db, "edit", "1", "renamed task"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+    assert "renamed task" in captured.out
+
+    # Verify via list
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "renamed task" in out
+    assert "original task" not in out
+
+
+def test_cli_edit_command_nonexistent_id(tmp_path, capsys) -> None:
+    """CLI edit command on non-existent id should return error code 1."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo to have some data
+    args = parser.parse_args(["--db", db, "add", "dummy"])
+    assert run_command(args) == 0
+    capsys.readouterr()  # Clear output
+
+    # Try to edit non-existent id
+    args = parser.parse_args(["--db", db, "edit", "999", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "Todo #999 not found" in captured.err or "Todo #999 not found" in captured.out
