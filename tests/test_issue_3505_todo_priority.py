@@ -9,6 +9,8 @@ These tests verify that:
 
 from __future__ import annotations
 
+import pytest
+
 from flywheel.todo import Todo
 
 
@@ -62,27 +64,18 @@ class TestTodoPriorityField:
 
     def test_from_dict_invalid_priority_high_raises(self) -> None:
         """from_dict should raise ValueError for priority > 2."""
-        try:
+        with pytest.raises(ValueError, match=r"(?i)priority"):
             Todo.from_dict({"id": 1, "text": "x", "priority": 5})
-            assert False, "Expected ValueError for invalid priority"
-        except ValueError as e:
-            assert "priority" in str(e).lower()
 
     def test_from_dict_invalid_priority_negative_raises(self) -> None:
         """from_dict should raise ValueError for negative priority."""
-        try:
+        with pytest.raises(ValueError, match=r"(?i)priority"):
             Todo.from_dict({"id": 1, "text": "x", "priority": -1})
-            assert False, "Expected ValueError for negative priority"
-        except ValueError as e:
-            assert "priority" in str(e).lower()
 
     def test_from_dict_invalid_priority_string_raises(self) -> None:
         """from_dict should raise ValueError for non-integer priority."""
-        try:
+        with pytest.raises(ValueError, match=r"(?i)priority"):
             Todo.from_dict({"id": 1, "text": "x", "priority": "high"})
-            assert False, "Expected ValueError for non-integer priority"
-        except ValueError as e:
-            assert "priority" in str(e).lower()
 
     def test_to_dict_includes_priority(self) -> None:
         """to_dict should include priority field."""
