@@ -1,41 +1,23 @@
 {
-  "issue_number": 3505,
+  "issue": 3505,
   "candidate": 2,
   "run_id": "22033891334",
   "branch": "claude/issue-3505-candidate-2-22033891334",
-  "status": "implemented",
-  "summary": "Added priority field support to Todo dataclass",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py"
-    ],
-    "files_added": [
-      "tests/test_issue_3505_todo_priority.py"
-    ]
-  },
-  "tests_passed": 12,
-  "total_tests": 124,
-  "verification": {
-    "pytest": "passed",
-    "ruff": "passed"
-  },
-  "implementation_details": {
-    "priority_field": {
-      "type": "int",
-      "default": 1,
-      "valid_values": [0, 1, 2],
-      "meaning": {
-        "0": "high",
-        "1": "medium",
-        "2": "low"
-      }
-    },
-    "validation": "from_dict validates priority is integer 0-2, raises ValueError otherwise",
-    "serialization": "to_dict includes priority field via dataclass asdict"
-  },
-  "acceptance_criteria_met": [
-    "Todo supports optional priority field with default value 1 (medium)",
-    "from_dict parses priority field, validates value is 0/1/2",
-    "to_dict includes priority field"
-  ]
+  "pr_number": 3528,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3528",
+  "generated_at": "2026-02-15T11:02:03.227148+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2807,
+    "plan": 4000,
+    "implement": 2682,
+    "verify": 2386,
+    "finalize": 1215
+  }
 }
