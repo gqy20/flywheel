@@ -106,8 +106,7 @@ class Todo:
             for i, tag in enumerate(raw_tags):
                 if not isinstance(tag, str):
                     raise ValueError(
-                        f"Invalid tag at index {i}: {tag!r}. "
-                        "All tags must be strings."
+                        f"Invalid tag at index {i}: {tag!r}. All tags must be strings."
                     )
             tags = list(raw_tags)  # Create a copy
         else:
