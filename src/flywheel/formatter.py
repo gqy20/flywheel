@@ -38,7 +38,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         # BIDI control characters: U+200E-U+200F, U+202A-U+202E, U+2066-U+2069
         elif code in (0x200E, 0x200F) or 0x202A <= code <= 0x202E or 0x2066 <= code <= 0x2069:
