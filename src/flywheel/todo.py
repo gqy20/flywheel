@@ -54,6 +54,35 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy_with(self, **kwargs) -> Todo:
+        """Return a new Todo instance with specified fields overridden.
+
+        This method supports an immutable-style update pattern where the original
+        Todo is not modified. Useful for undo history, snapshots, and functional
+        programming patterns.
+
+        Args:
+            **kwargs: Fields to override in the new instance. Valid fields are:
+                id, text, done, created_at, updated_at
+
+        Returns:
+            A new Todo instance with the specified fields overridden.
+            The updated_at field is always set to the current time unless
+            explicitly provided.
+
+        Example:
+            >>> todo = Todo(id=1, text="buy milk")
+            >>> new_todo = todo.copy_with(done=True)
+            >>> # todo.done is still False, new_todo.done is True
+        """
+        return Todo(
+            id=kwargs.get("id", self.id),
+            text=kwargs.get("text", self.text),
+            done=kwargs.get("done", self.done),
+            created_at=kwargs.get("created_at", self.created_at),
+            updated_at=_utc_now_iso() if "updated_at" not in kwargs else kwargs["updated_at"],
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
