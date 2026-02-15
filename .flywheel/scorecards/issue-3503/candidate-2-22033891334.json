@@ -1,0 +1,19 @@
+{
+  "issue_number": 3503,
+  "candidate_number": 2,
+  "run_id": "22033891334",
+  "branch": "claude/issue-3503-candidate-2-22033891334",
+  "status": "implemented",
+  "tests_passed": 122,
+  "ruff_checks": "passed",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_3503_empty_text_validation.py"
+    ]
+  },
+  "summary": "Fixed Todo constructor and from_dict to validate empty/whitespace-only text in __post_init__, making behavior consistent with add()/rename() methods.",
+  "implementation_notes": "Added text validation and normalization in __post_init__: strips leading/trailing whitespace and raises ValueError if text is empty."
+}
