@@ -158,3 +158,22 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Bug #3518: Todo.from_dict() should reject id=0."""
+    with pytest.raises(ValueError, match="positive integer"):
+        Todo.from_dict({"id": 0, "text": "test"})
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #3518: Todo.from_dict() should reject negative id values."""
+    with pytest.raises(ValueError, match="positive integer"):
+        Todo.from_dict({"id": -5, "text": "test"})
+
+
+def test_todo_from_dict_accepts_positive_id() -> None:
+    """Bug #3518: Todo.from_dict() should accept positive id values."""
+    todo = Todo.from_dict({"id": 1, "text": "test"})
+    assert todo.id == 1
+    assert todo.text == "test"
