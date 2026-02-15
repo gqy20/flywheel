@@ -1,0 +1,20 @@
+{
+  "issue_number": 3519,
+  "candidate_number": 2,
+  "run_id": "22035294031",
+  "status": "implemented",
+  "created_at": "2026-02-15T12:32:00Z",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3519_eq_hash.py"],
+    "description": "Added __eq__ and __hash__ methods to Todo class to support object comparison and hashing based on id"
+  },
+  "tests_passed": 10,
+  "tests_total": 10,
+  "ruff_check": "passed",
+  "verification": {
+    "eq_same_id": "PASS: Todo(id=1, text='a') == Todo(id=1, text='b')",
+    "hash_consistent": "PASS: hash(Todo(id=1)) == hash(Todo(id=1))",
+    "set_dedup": "PASS: set of 5 todos with 3 unique ids has 3 items"
+  }
+}
