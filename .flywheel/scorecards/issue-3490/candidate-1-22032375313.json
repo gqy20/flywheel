@@ -1,0 +1,27 @@
+{
+  "issue_number": 3490,
+  "issue_title": "[Perf] save() 方法缺少 fsync 调用，在系统崩溃时可能导致数据丢失",
+  "candidate_number": 1,
+  "run_id": "22032375313",
+  "branch": "claude/issue-3490-candidate-1-22032375313",
+  "created_at": "2026-02-15T08:40:00Z",
+  "status": "implemented",
+  "approach": "Add f.flush() and os.fsync() calls after writing content but before atomic rename to ensure data is persisted to disk",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": 2,
+  "tests_description": [
+    "test_save_calls_fsync_before_rename: Verifies fsync is called at least once",
+    "test_save_calls_fsync_before_rename_not_after: Verifies fsync is called BEFORE os.replace"
+  ],
+  "risks": [
+    "Slight performance impact due to fsync latency on each save operation",
+    "fsync may fail on some filesystems (network filesystems, WSL), but error handling is preserved from existing code"
+  ],
+  "limitations": [
+    "Does not sync the directory containing the file (additional safety could be added with fsync on directory fd after rename)",
+    "Test uses mocking to verify fsync is called; cannot truly test crash recovery"
+  ]
+}
