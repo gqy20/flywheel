@@ -1,10 +1,23 @@
 {
-  "issue_number": 3418,
-  "candidate_number": 1,
+  "issue": 3418,
+  "candidate": 1,
   "run_id": "22029097281",
-  "created_at": "2026-02-15T01:17:00Z",
-  "status": "implemented",
-  "tests_added": 4,
-  "tests_passed": true,
-  "lint_passed": true
+  "branch": "claude/issue-3418-candidate-1-22029097281",
+  "pr_number": 3437,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3437",
+  "generated_at": "2026-02-15T04:17:36.792851+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2212,
+    "plan": 2870,
+    "implement": 870,
+    "verify": 2017,
+    "finalize": 665
+  }
 }
