@@ -1,33 +1,23 @@
 {
-  "issue_number": 3464,
-  "issue_title": "[Feature] 添加 Todo 优先级字段支持（priority）",
-  "candidate_number": 1,
+  "issue": 3464,
+  "candidate": 1,
   "run_id": "22032375313",
-  "branch_name": "claude/issue-3464-candidate-1-22032375313",
-  "created_at": "2026-02-15T07:00:00Z",
-  "status": "pr_created",
+  "branch": "claude/issue-3464-candidate-1-22032375313",
+  "pr_number": 3499,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3499",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3464_todo_priority.py"
-    ],
-    "summary": "Added priority field to Todo dataclass with default value of 2 (medium)"
-  },
-  "acceptance_criteria": {
-    "todo_can_specify_priority": true,
-    "from_dict_parses_priority_with_default": true,
-    "to_dict_includes_priority": true
-  },
-  "tests": {
-    "total": 7,
-    "passed": 7,
-    "failed": 0
-  },
-  "score": {
-    "correctness": 1.0,
-    "test_coverage": 1.0,
-    "code_quality": 1.0,
-    "total": 1.0
+  "generated_at": "2026-02-15T08:52:35.725093+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2665,
+    "plan": 2800,
+    "implement": 2348,
+    "verify": 1606,
+    "finalize": 1723
   }
 }
