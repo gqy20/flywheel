@@ -3,11 +3,13 @@
   "candidate": 2,
   "run_id": "22027188585",
   "branch": "claude/issue-3394-candidate-2-22027188585",
-  "status": "implemented",
+  "status": "verified",
   "tests_passed": true,
   "lint_passed": true,
+  "format_passed": true,
   "all_tests_passed": true,
   "tests_count": 16,
+  "all_tests_count": 128,
   "changes": {
     "files_modified": [
       "src/flywheel/todo.py",
@@ -21,5 +23,11 @@
     "to_dict_serialization": true,
     "none_vs_empty_list_distinction": true,
     "invalid_type_rejection": true
+  },
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_3394_todo_tags.py -v",
+    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3394_todo_tags.py",
+    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_3394_todo_tags.py",
+    "full_test_command": "uv run pytest tests/ -v"
   }
 }
