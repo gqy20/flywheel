@@ -101,17 +101,13 @@ class Todo:
         raw_tags = data.get("tags", ())
         if not isinstance(raw_tags, (list, tuple)):
             raise ValueError(
-                f"Invalid value for 'tags': {raw_tags!r}. "
-                "'tags' must be a list or tuple."
+                f"Invalid value for 'tags': {raw_tags!r}. 'tags' must be a list or tuple."
             )
         # Validate each tag is a string
         tags = []
         for tag in raw_tags:
             if not isinstance(tag, str):
-                raise ValueError(
-                    f"Invalid value in 'tags': {tag!r}. "
-                    "All tags must be strings."
-                )
+                raise ValueError(f"Invalid value in 'tags': {tag!r}. All tags must be strings.")
             tags.append(tag)
 
         return cls(
