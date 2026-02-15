@@ -51,12 +51,12 @@ class TestTodoTagsField:
 
     def test_from_dict_rejects_non_string_tags(self) -> None:
         """from_dict() should raise clear error for non-string tag values."""
-        with pytest.raises(ValueError, match="tags.*string"):
+        with pytest.raises(ValueError, match=r"tags.*string"):
             Todo.from_dict({"id": 1, "text": "x", "tags": [1, 2, 3]})
 
     def test_from_dict_rejects_non_list_tags(self) -> None:
         """from_dict() should raise clear error for non-list/tuple tags."""
-        with pytest.raises(ValueError, match="tags.*list"):
+        with pytest.raises(ValueError, match=r"tags.*list"):
             Todo.from_dict({"id": 1, "text": "x", "tags": "work"})
 
     def test_from_dict_accepts_tuple_tags(self) -> None:

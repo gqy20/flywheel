@@ -103,9 +103,7 @@ class Todo:
             )
         for tag in raw_tags:
             if not isinstance(tag, str):
-                raise ValueError(
-                    f"Invalid tag value: {tag!r}. All tags must be strings."
-                )
+                raise ValueError(f"Invalid tag value: {tag!r}. All tags must be strings.")
         tags = tuple(raw_tags)
 
         return cls(
