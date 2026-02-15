@@ -79,13 +79,9 @@ def test_cli_unexpected_exception_shows_warning(tmp_path, capsys) -> None:
 
         # Should contain indication this is unexpected/internal error
         # Either via prefix like "Internal error:" or by including the exception type name
-        has_warning = (
-            "internal" in full_output.lower()
-            or "typeerror" in full_output.lower()
-        )
+        has_warning = "internal" in full_output.lower() or "typeerror" in full_output.lower()
         assert has_warning, (
-            f"Unexpected exception should indicate it's unexpected. "
-            f"Got: {full_output!r}"
+            f"Unexpected exception should indicate it's unexpected. Got: {full_output!r}"
         )
 
 
@@ -110,13 +106,8 @@ def test_cli_attribute_error_shows_warning(tmp_path, capsys) -> None:
         full_output = captured.err + captured.out
 
         # Should contain indication this is unexpected
-        has_warning = (
-            "internal" in full_output.lower()
-            or "attributeerror" in full_output.lower()
-        )
-        assert has_warning, (
-            f"AttributeError should indicate it's unexpected. Got: {full_output!r}"
-        )
+        has_warning = "internal" in full_output.lower() or "attributeerror" in full_output.lower()
+        assert has_warning, f"AttributeError should indicate it's unexpected. Got: {full_output!r}"
 
 
 def test_cli_all_exceptions_return_exit_code_1(tmp_path, capsys) -> None:
