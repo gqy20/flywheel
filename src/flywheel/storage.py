@@ -14,6 +14,10 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Maximum JSON nesting depth to prevent stack overflow attacks
+# 512 levels is generous for normal data but prevents deep nesting attacks
+_MAX_JSON_DEPTH = 512
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -50,6 +54,33 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _check_json_depth(obj: object, max_depth: int = _MAX_JSON_DEPTH, current_depth: int = 0) -> None:
+    """Check that JSON object nesting depth doesn't exceed the limit.
+
+    This prevents stack overflow attacks from deeply nested JSON structures.
+
+    Args:
+        obj: The parsed JSON object to check
+        max_depth: Maximum allowed nesting depth
+        current_depth: Current recursion depth (used internally)
+
+    Raises:
+        ValueError: If nesting depth exceeds the limit
+    """
+    if current_depth > max_depth:
+        raise ValueError(
+            f"JSON nesting depth exceeds limit ({max_depth}). "
+            f"This protects against stack overflow attacks."
+        )
+
+    if isinstance(obj, dict):
+        for value in obj.values():
+            _check_json_depth(value, max_depth, current_depth + 1)
+    elif isinstance(obj, list):
+        for item in obj:
+            _check_json_depth(item, max_depth, current_depth + 1)
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
@@ -77,6 +108,9 @@ class TodoStorage:
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
+
+        # Security: Check nesting depth to prevent stack overflow attacks
+        _check_json_depth(raw)
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
