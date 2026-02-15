@@ -1,19 +1,23 @@
 {
-  "issue_number": 3531,
-  "candidate_number": 2,
+  "issue": 3531,
+  "candidate": 2,
   "run_id": "22036606230",
   "branch": "claude/issue-3531-candidate-2-22036606230",
-  "status": "implemented",
-  "summary": "Added 'edit' CLI command to expose Todo.rename() functionality",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/cli.py"
-    ],
-    "files_added": [
-      "tests/test_issue_3531_cli_edit_command.py"
-    ]
-  },
-  "tests_added": 4,
-  "tests_passed": true,
-  "linter_clean": true
+  "pr_number": 3565,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3565",
+  "generated_at": "2026-02-15T14:14:35.131359+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1943,
+    "plan": 3360,
+    "implement": 3536,
+    "verify": 1994,
+    "finalize": 1183
+  }
 }
