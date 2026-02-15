@@ -1,0 +1,19 @@
+{
+  "issue_number": 3531,
+  "candidate_number": 2,
+  "run_id": "22036606230",
+  "branch": "claude/issue-3531-candidate-2-22036606230",
+  "status": "implemented",
+  "summary": "Added 'edit' CLI command to expose Todo.rename() functionality",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3531_cli_edit_command.py"
+    ]
+  },
+  "tests_added": 4,
+  "tests_passed": true,
+  "linter_clean": true
+}
