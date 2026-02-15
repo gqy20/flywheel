@@ -73,6 +73,12 @@ class Todo:
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
             ) from e
 
+        # Validate 'id' is positive (Issue #3558)
+        if todo_id < 1:
+            raise ValueError(
+                f"Invalid value for 'id': {todo_id}. 'id' must be a positive integer (>= 1)."
+            )
+
         # Validate 'text' is a string
         if not isinstance(data["text"], str):
             raise ValueError(
