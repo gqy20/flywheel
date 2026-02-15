@@ -1,0 +1,13 @@
+{
+  "issue_number": 3504,
+  "candidate_number": 2,
+  "run_id": "22033891334",
+  "status": "implemented",
+  "summary": "Fix next_id() to return positive integer when all IDs are negative",
+  "changes": {
+    "test_files": ["tests/test_minimal_framework.py"],
+    "source_files": ["src/flywheel/storage.py"]
+  },
+  "tests_passed": true,
+  "linting_passed": true
+}
