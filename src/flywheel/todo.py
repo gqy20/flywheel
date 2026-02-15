@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,39 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str) -> None:
+        """Set due_date with ISO 8601 format validation.
+
+        Args:
+            date_str: ISO 8601 date string (e.g., '2026-03-15T10:00:00+00:00')
+
+        Raises:
+            ValueError: If date_str is not a valid ISO 8601 format
+        """
+        try:
+            datetime.fromisoformat(date_str)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid date format: {date_str!r}. Use ISO 8601 format."
+            ) from e
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool | None:
+        """Check if the todo is overdue.
+
+        Returns:
+            True if due_date is in the past, False if in the future, None if no due_date.
+        """
+        if not self.due_date:
+            return None
+        try:
+            due = datetime.fromisoformat(self.due_date)
+            return due < datetime.now(UTC)
+        except (ValueError, TypeError):
+            return None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +133,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date") or ""),
         )
