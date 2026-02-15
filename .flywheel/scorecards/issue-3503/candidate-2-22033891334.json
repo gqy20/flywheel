@@ -1,26 +1,23 @@
 {
-  "issue_number": 3503,
-  "candidate_number": 2,
+  "issue": 3503,
+  "candidate": 2,
   "run_id": "22033891334",
   "branch": "claude/issue-3503-candidate-2-22033891334",
-  "status": "verified",
-  "tests_passed": 122,
-  "ruff_checks": "passed",
-  "ruff_format": "passed",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_3503_empty_text_validation.py"
-    ]
-  },
-  "summary": "Fixed Todo constructor and from_dict to validate empty/whitespace-only text in __post_init__, making behavior consistent with add()/rename() methods.",
-  "implementation_notes": "Added text validation and normalization in __post_init__: strips leading/trailing whitespace and raises ValueError if text is empty.",
-  "verification": {
-    "pytest_targeted": "uv run pytest tests/test_issue_3503_empty_text_validation.py -v (10 tests passed)",
-    "pytest_full": "uv run pytest tests/ -v (122 tests passed)",
-    "ruff_check": "uv run ruff check src/flywheel/todo.py tests/test_issue_3503_empty_text_validation.py (All checks passed)",
-    "ruff_format": "uv run ruff format --check ... (2 files already formatted)"
+  "pr_number": 3523,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3523",
+  "generated_at": "2026-02-15T10:58:36.805233+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2282,
+    "plan": 3262,
+    "implement": 2963,
+    "verify": 1825,
+    "finalize": 1370
   }
 }
