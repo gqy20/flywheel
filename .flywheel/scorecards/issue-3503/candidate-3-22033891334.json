@@ -1,0 +1,16 @@
+{
+  "issue": 3503,
+  "candidate": 3,
+  "run_id": "22033891334",
+  "branch": "claude/issue-3503-candidate-3-22033891334",
+  "status": "implemented",
+  "tests_added": 8,
+  "tests_passed": 120,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3503_empty_text_validation.py"
+  ],
+  "summary": "Added text validation in Todo.__post_init__ to reject empty or whitespace-only text, ensuring consistency with Todo.rename() and TodoApp.add() methods.",
+  "approach": "Minimal fix by adding validation check at the start of __post_init__ method",
+  "risks": "None - this is a validation improvement that rejects invalid input"
+}
