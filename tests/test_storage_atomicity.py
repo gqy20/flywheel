@@ -151,6 +151,28 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_works_when_fchmod_unavailable(tmp_path) -> None:
+    """Regression test for issue #3462: os.fchmod not available on Windows.
+
+    Tests that save() gracefully handles platforms where os.fchmod is not
+    available (like Windows) and still completes successfully without
+    raising AttributeError.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Mock os.fchmod to raise AttributeError (Windows behavior)
+    with patch("flywheel.storage.os.fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")):
+        todos = [Todo(id=1, text="test on windows")]
+        # This should NOT raise AttributeError
+        storage.save(todos)
+
+    # Verify file was written correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test on windows"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
