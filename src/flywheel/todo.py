@@ -20,6 +20,24 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects based on id only.
+
+        This allows todos with the same id to be considered equal regardless
+        of other field differences, enabling set operations and deduplication.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash Todo objects based on id only.
+
+        This allows Todo objects to be used in sets and as dict keys,
+        with deduplication based on id.
+        """
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
