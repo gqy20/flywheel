@@ -14,6 +14,48 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Maximum JSON nesting depth to prevent stack overflow attacks
+_MAX_JSON_NESTING_DEPTH = 100
+
+
+def _check_json_nesting_depth(json_str: str) -> None:
+    """Pre-scan JSON string to check nesting depth before parsing.
+
+    This prevents stack overflow from deeply nested JSON structures.
+    We track the maximum nesting level of objects and arrays.
+    """
+    max_depth = 0
+    current_depth = 0
+    in_string = False
+    escape_next = False
+
+    for char in json_str:
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == "\\" and in_string:
+            escape_next = True
+            continue
+
+        if char == '"':
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if char in "{[":
+            current_depth += 1
+            max_depth = max(max_depth, current_depth)
+            if current_depth > _MAX_JSON_NESTING_DEPTH:
+                raise ValueError(
+                    f"JSON nesting depth ({current_depth}) exceeds maximum allowed "
+                    f"({_MAX_JSON_NESTING_DEPTH}). This protects against stack overflow attacks."
+                )
+        elif char in "}]":
+            current_depth = max(0, current_depth - 1)
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -70,8 +112,14 @@ class TodoStorage:
                 f"This protects against denial-of-service attacks."
             )
 
+        # Read content first for pre-scanning
+        content = self.path.read_text(encoding="utf-8")
+
+        # Security: Check nesting depth before parsing to prevent stack overflow
+        _check_json_nesting_depth(content)
+
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
