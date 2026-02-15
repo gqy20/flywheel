@@ -1,27 +1,23 @@
 {
-  "issue_number": 3518,
+  "issue": 3518,
   "candidate": 2,
   "run_id": "22034649807",
-  "stage": "VERIFY",
-  "status": "COMPLETE",
-  "timestamp": "2026-02-15T10:50:00Z",
-  "changes": {
-    "test_file": "tests/test_minimal_framework.py",
-    "source_file": "src/flywheel/todo.py",
-    "secondary_test_file": "tests/test_storage_atomicity.py",
-    "tests_added": 3,
-    "tests_passed": 115
-  },
-  "validation": {
-    "pytest": "PASSED (115 tests)",
-    "ruff_check": "PASSED",
-    "ruff_format": "PASSED"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_minimal_framework.py -v",
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run pytest tests/ -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py tests/test_storage_atomicity.py",
-    "uv run ruff format --check src/flywheel/todo.py tests/test_minimal_framework.py tests/test_storage_atomicity.py"
-  ]
+  "branch": "claude/issue-3518-candidate-2-22034649807",
+  "pr_number": 3542,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3542",
+  "generated_at": "2026-02-15T11:56:54.274393+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2521,
+    "plan": 1207,
+    "implement": 1745,
+    "verify": 3088,
+    "finalize": 1851
+  }
 }
