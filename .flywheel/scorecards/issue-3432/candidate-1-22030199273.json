@@ -1,0 +1,14 @@
+{
+  "issue_number": 3432,
+  "candidate": 1,
+  "run_id": "22030199273",
+  "status": "implemented",
+  "branch": "claude/issue-3432-candidate-1-22030199273",
+  "commit": "abf0d53",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3432_todo_constructor_text_validation.py"]
+  },
+  "tests_passed": true,
+  "lint_passed": true
+}
