@@ -158,3 +158,55 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Tests for issue #3419: CLI rename command
+def test_cli_rename_command(tmp_path, capsys) -> None:
+    """Issue #3419: 'todo rename <id> <text>' should work via CLI."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename it
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_rejects_empty(tmp_path, capsys) -> None:
+    """Issue #3419: rename should reject empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Attempt to rename with empty text
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "empty" in captured.out.lower() or "empty" in captured.err.lower()
+
+
+def test_cli_rename_nonexistent_id(tmp_path, capsys) -> None:
+    """Issue #3419: rename should return error for non-existent ID."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Attempt to rename non-existent todo
+    args = parser.parse_args(["--db", db, "rename", "999", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out.lower() or "not found" in captured.err.lower()
