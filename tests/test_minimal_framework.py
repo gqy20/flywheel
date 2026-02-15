@@ -173,7 +173,7 @@ def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
     # Write the JSON string directly: [{"a":{"a":{"a":...}}}]
     depth = 1500
     # Build valid nested JSON string
-    deep_json = "[" + ("{\"a\":" * depth) + "1" + ("}" * depth) + "]"
+    deep_json = "[" + ('{"a":' * depth) + "1" + ("}" * depth) + "]"
     db.write_text(deep_json, encoding="utf-8")
 
     # Verify the file is actually small (< 10MB)
