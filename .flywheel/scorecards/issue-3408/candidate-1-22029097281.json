@@ -1,40 +1,23 @@
 {
-  "issue_number": 3408,
-  "issue_title": "[Enhancement] Add toggle method to flip done state",
+  "issue": 3408,
   "candidate": 1,
   "run_id": "22029097281",
   "branch": "claude/issue-3408-candidate-1-22029097281",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "approach": "Added toggle() method to Todo class that flips the done boolean and updates the updated_at timestamp. The method returns the new boolean state for convenience as specified in the acceptance criteria.",
-    "test_strategy": "TDD - Added failing test first, then implemented the feature. Test verifies: 1) toggle() on undone todo returns True and sets done=True, 2) toggle() on done todo returns False and sets done=False, 3) updated_at is always updated."
-  },
-  "tests": {
-    "added": ["test_todo_toggle_flips_done_state"],
-    "passed": 11,
-    "failed": 0
-  },
-  "lint": {
-    "ruff": "passed"
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "todo.toggle() on undone todo sets done=True and updates timestamp",
-      "status": "met"
-    },
-    {
-      "criterion": "todo.toggle() on done todo sets done=False and updates timestamp",
-      "status": "met"
-    },
-    {
-      "criterion": "toggle() returns the new boolean state for convenience",
-      "status": "met"
-    }
+  "pr_number": 3441,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3441",
+  "generated_at": "2026-02-15T04:19:55.062114+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": "Minimal - simple one-line implementation following existing patterns in mark_done() and mark_undone().",
-  "created_at": "2026-02-15T00:00:00Z"
+  "stage_response_sizes": {
+    "triage": 2732,
+    "plan": 2062,
+    "implement": 1808,
+    "verify": 2061,
+    "finalize": 1613
+  }
 }
