@@ -1,0 +1,40 @@
+{
+  "issue_number": 3475,
+  "candidate_number": 3,
+  "run_id": "22031789793",
+  "branch_name": "claude/issue-3475-candidate-3-22031789793",
+  "pr_number": 3479,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3479",
+  "created_at": "2026-02-15T08:15:00Z",
+  "status": "ready_for_review",
+  "triage": {
+    "root_cause": "The _sanitize_text function in formatter.py only checked ASCII control character ranges (0x00-0x1f, 0x7f, 0x80-0x9f). Unicode bidirectional control characters at U+200E-U+200F, U+202A-U+202E, and U+2066-U+2069 were not covered.",
+    "risk_level": "P0 - Security vulnerability (text direction spoofing attacks / Trojan Source CVE-2021-42573)",
+    "affected_files": ["src/flywheel/formatter.py:34"]
+  },
+  "fix": {
+    "approach": "Extended the sanitization condition to include Unicode BIDI control character ranges",
+    "files_changed": [
+      "src/flywheel/formatter.py",
+      "tests/test_issue_3475_bidi_sanitization.py"
+    ],
+    "lines_added": 111,
+    "lines_removed": 5
+  },
+  "tests": {
+    "new_tests": 15,
+    "test_file": "tests/test_issue_3475_bidi_sanitization.py",
+    "all_passing": true,
+    "existing_tests_pass": true
+  },
+  "quality_checks": {
+    "ruff_check": "passed",
+    "pytest": "31 tests passed (15 new + 16 existing)"
+  },
+  "acceptance_criteria": {
+    "u202a_to_u202e_escaped": true,
+    "u2066_to_u2069_escaped": true,
+    "u200e_to_u200f_escaped": true,
+    "existing_tests_pass": true
+  }
+}
