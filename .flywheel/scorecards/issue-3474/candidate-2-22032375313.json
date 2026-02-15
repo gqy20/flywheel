@@ -1,25 +1,23 @@
 {
-  "issue_number": 3474,
-  "candidate_number": 2,
+  "issue": 3474,
+  "candidate": 2,
   "run_id": "22032375313",
   "branch": "claude/issue-3474-candidate-2-22032375313",
-  "created_at": "2026-02-15T08:50:00Z",
-  "status": "implemented",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_3474_specific_exception_handling.py"
+  "pr_number": 3501,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3501",
+  "generated_at": "2026-02-15T08:54:05.484758+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 117,
-  "approach": {
-    "description": "Separate exception handling for expected vs unexpected errors",
-    "details": [
-      "Catch ValueError and OSError separately as expected business/file errors",
-      "Catch remaining exceptions with 'Internal error' prefix to distinguish bugs",
-      "Include exception type name in unexpected error messages for debugging"
-    ]
-  },
-  "test_coverage": {
-    "new_tests": 5,
-    "test_file": "tests/test_issue_3474_specific_exception_handling.py"
+  "stage_response_sizes": {
+    "triage": 2527,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2310,
+    "finalize": 1036
   }
 }
