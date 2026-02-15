@@ -3,6 +3,8 @@
   "candidate": 3,
   "run_id": "22029097281",
   "branch": "claude/issue-3408-candidate-3-22029097281",
+  "status": "finalized",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3442",
   "summary": "Add toggle() method to Todo class that flips done state and returns new boolean value",
   "changes": [
     {
