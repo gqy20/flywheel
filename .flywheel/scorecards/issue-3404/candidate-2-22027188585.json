@@ -1,18 +1,23 @@
 {
-  "issue_number": 3404,
-  "candidate_number": 2,
+  "issue": 3404,
+  "candidate": 2,
   "run_id": "22027188585",
-  "summary": "Fix from_dict() to reject float ids that would be silently truncated",
-  "tests_added": [
-    "test_todo_from_dict_rejects_float_id",
-    "test_todo_from_dict_rejects_string_float_id",
-    "test_todo_from_dict_accepts_string_int_id",
-    "test_todo_from_dict_accepts_int_id"
+  "branch": "claude/issue-3404-candidate-2-22027188585",
+  "pr_number": 3431,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3431",
+  "generated_at": "2026-02-15T01:33:02.216922+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "risks": "Low risk - adds validation that rejects invalid input. Backwards compatible for valid integer and string integer ids.",
-  "limitations": "Does not handle edge cases like negative floats or scientific notation beyond 'e' check"
+  "stage_response_sizes": {
+    "triage": 2782,
+    "plan": 3561,
+    "implement": 4000,
+    "verify": 1630,
+    "finalize": 1404
+  }
 }
