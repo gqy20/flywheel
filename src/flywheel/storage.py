@@ -14,6 +14,62 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Maximum JSON nesting depth to prevent stack overflow attacks
+_MAX_JSON_DEPTH = 100
+
+
+def _check_json_depth(json_text: str, max_depth: int) -> None:
+    """Check JSON nesting depth without parsing the entire content.
+
+    This scans through the JSON text to find the maximum nesting depth,
+    avoiding the overhead of full JSON parsing while still detecting
+    deeply nested structures that could cause stack overflow.
+
+    Args:
+        json_text: The JSON text to check
+        max_depth: Maximum allowed nesting depth
+
+    Raises:
+        ValueError: If nesting depth exceeds max_depth
+    """
+    current_depth = 0
+    max_found_depth = 0
+    in_string = False
+    escape_next = False
+
+    for char in json_text:
+        if escape_next:
+            escape_next = False
+            continue
+
+        if char == "\\" and in_string:
+            escape_next = True
+            continue
+
+        if char == '"' and not escape_next:
+            in_string = not in_string
+            continue
+
+        if in_string:
+            continue
+
+        if char in "{[":
+            current_depth += 1
+            max_found_depth = max(max_found_depth, current_depth)
+            if current_depth > max_depth:
+                raise ValueError(
+                    f"JSON nesting depth ({current_depth}) exceeds maximum allowed "
+                    f"({max_depth}). This protects against stack overflow attacks."
+                )
+        elif char in "}]":
+            current_depth -= 1
+
+    if max_found_depth > max_depth:
+        raise ValueError(
+            f"JSON nesting depth ({max_found_depth}) exceeds maximum allowed "
+            f"({max_depth}). This protects against stack overflow attacks."
+        )
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -70,8 +126,13 @@ class TodoStorage:
                 f"This protects against denial-of-service attacks."
             )
 
+        content = self.path.read_text(encoding="utf-8")
+
+        # Security: Check JSON nesting depth to prevent stack overflow
+        _check_json_depth(content, _MAX_JSON_DEPTH)
+
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
