@@ -6,8 +6,6 @@ and updates the updated_at timestamp.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
