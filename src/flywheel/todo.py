@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 2  # 1=high, 2=medium, 3=low
     created_at: str = ""
     updated_at: str = ""
 
@@ -93,10 +94,14 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse priority (default to 2 if not present)
+        priority = int(data.get("priority", 2))
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
