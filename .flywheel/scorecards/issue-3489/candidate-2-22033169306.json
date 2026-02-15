@@ -1,32 +1,23 @@
 {
-  "issue_number": 3489,
-  "candidate_number": 2,
+  "issue": 3489,
+  "candidate": 2,
   "run_id": "22033169306",
-  "branch_name": "claude/issue-3489-candidate-2-22033169306",
-  "created_at": "2026-02-15T09:00:00Z",
-  "status": "ready_for_review",
-  "triage_summary": {
-    "root_cause": "Issue appears to be a false positive. Python's !r format specifier already correctly escapes control characters including newlines in __repr__ output.",
-    "risk_points": [],
-    "verification_targets": [
-      "repr(Todo(id=1, text='a\\nb')) should not contain literal newline character",
-      "repr output should be single line for any todo text input"
-    ]
-  },
-  "changes": {
-    "files_modified": ["tests/test_issue_2087_todo_repr.py"],
-    "files_created": [],
-    "test_count_added": 2,
-    "source_changes": false
-  },
-  "test_results": {
-    "pytest_passed": true,
-    "ruff_passed": true,
-    "test_count": 10
-  },
-  "notes": [
-    "Investigation revealed the current implementation using !r format specifier already properly escapes control characters",
-    "Added explicit regression tests to ensure this behavior is maintained",
-    "Removed weak assertion that had a logical flaw (OR condition that always passed)"
-  ]
+  "branch": "claude/issue-3489-candidate-2-22033169306",
+  "pr_number": 3509,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3509",
+  "generated_at": "2026-02-15T10:02:10.185933+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3825,
+    "implement": 4000,
+    "verify": 2840,
+    "finalize": 1028
+  }
 }
