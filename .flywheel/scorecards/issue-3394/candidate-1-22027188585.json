@@ -1,0 +1,86 @@
+{
+  "issue_number": 3394,
+  "issue_title": "[Feature] 添加 Todo 标签/分类字段支持任务分组",
+  "candidate": 1,
+  "run_id": "22027188585",
+  "branch": "claude/issue-3394-candidate-1-22027188585",
+  "stage": "IMPLEMENT",
+  "triage_summary": {
+    "root_cause": "Todo dataclass lacks optional tags field for task categorization",
+    "affected_files": [
+      "src/flywheel/todo.py"
+    ],
+    "proposed_fix": [
+      "Add tags: list[str] | None = None field to Todo dataclass",
+      "Update from_dict to validate and deserialize tags field",
+      "Ensure to_dict correctly serializes tags (automatic via asdict)"
+    ],
+    "risk_points": [
+      "Backward compatibility with existing JSON files without tags field",
+      "Type validation for tags as list[str] if present",
+      "Semantic distinction between None (not set) and [] (explicitly empty)"
+    ],
+    "verification_targets": [
+      "Todo(id=1, text='a', tags=['work']) creates successfully",
+      "tags defaults to None when not provided",
+      "Empty list [] serializes/deserializes correctly",
+      "Round-trip: Todo.from_dict(todo.to_dict()) preserves tags",
+      "Invalid tags types are rejected with clear error messages"
+    ]
+  },
+  "test_plan": {
+    "tests_added": [
+      "tests/test_issue_3394_todo_tags.py"
+    ],
+    "tests_modified": [],
+    "commands_to_run": [
+      "uv run pytest tests/test_issue_3394_todo_tags.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "implementation_summary": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3394_todo_tags.py"
+    ],
+    "tests_passed": 124,
+    "tests_added": 12,
+    "acceptance_criteria_met": [
+      "Todo supports optional tags list field",
+      "from_dict/to_dict correctly serialize tags",
+      "Empty list [] vs None semantics correctly distinguished"
+    ]
+  },
+  "status": "VERIFIED",
+  "verify_summary": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_3394_todo_tags.py -v",
+      "result": "passed",
+      "tests_run": 12,
+      "tests_passed": 12,
+      "tests_failed": 0
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3394_todo_tags.py",
+      "result": "passed"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_3394_todo_tags.py",
+      "result": "passed"
+    },
+    "full_test_suite": {
+      "command": "uv run pytest -v",
+      "result": "passed",
+      "tests_run": 124,
+      "tests_passed": 124,
+      "tests_failed": 0
+    }
+  },
+  "additional_commits": [
+    {
+      "sha": "6a04f45",
+      "message": "style(todo): fix ruff formatting for tags validation message"
+    }
+  ],
+  "timestamp": "2026-02-15T01:28:00Z"
+}
