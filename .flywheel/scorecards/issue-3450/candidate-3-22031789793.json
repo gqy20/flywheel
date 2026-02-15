@@ -1,24 +1,23 @@
 {
-  "issue_number": 3450,
+  "issue": 3450,
   "candidate": 3,
   "run_id": "22031789793",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3450_copy_with.py"
-    ],
-    "approach": "Added copy_with method to Todo class that returns a new Todo instance with specified fields overridden while preserving unspecified fields. The updated_at timestamp is automatically set to current time.",
-    "tests_added": 10,
-    "tests_passed": true,
-    "ruff_passed": true
-  },
-  "acceptance_criteria": {
-    "copy_with_returns_new_todo": true,
-    "original_unchanged": true,
-    "updated_at_auto_updated": true,
-    "unspecified_fields_preserved": true
-  },
-  "commit_message": "feat(todo): add copy_with method for immutable updates (#3450)",
-  "timestamp": "2026-02-15T05:45:00Z"
+  "branch": "claude/issue-3450-candidate-3-22031789793",
+  "pr_number": 3485,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3485",
+  "generated_at": "2026-02-15T08:03:09.100421+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2361,
+    "plan": 2177,
+    "implement": 2674,
+    "verify": 1593,
+    "finalize": 1938
+  }
 }
