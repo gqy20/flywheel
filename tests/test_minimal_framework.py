@@ -158,3 +158,62 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_app_edit_renames_todo(tmp_path) -> None:
+    """Bug #3531: TodoApp.edit() should rename a todo by id."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    added = app.add("original text")
+    assert added.id == 1
+
+    edited = app.edit(1, "renamed text")
+    assert edited.text == "renamed text"
+
+    # Verify persistence
+    todos = app.list()
+    assert len(todos) == 1
+    assert todos[0].text == "renamed text"
+
+
+def test_app_edit_raises_for_nonexistent_id(tmp_path) -> None:
+    """Bug #3531: TodoApp.edit() should raise ValueError for non-existent id."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    with pytest.raises(ValueError, match="Todo #999 not found"):
+        app.edit(999, "new text")
+
+
+def test_cli_edit_command_flow(tmp_path, capsys) -> None:
+    """Bug #3531: CLI 'edit' command should rename a todo."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Edit the todo
+    args = parser.parse_args(["--db", db, "edit", "1", "renamed task"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "Edited #1" in out
+    assert "renamed task" in out
+
+    # Verify via list
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "renamed task" in out
+    assert "original task" not in out
+
+
+def test_cli_edit_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Bug #3531: CLI 'edit' command should return error for non-existent id."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "edit", "999", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "Todo #999 not found" in captured.out or "Todo #999 not found" in captured.err
