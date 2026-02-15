@@ -119,3 +119,24 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3433 - validate 'text' is non-blank string
+def test_from_dict_rejects_empty_text() -> None:
+    """Todo.from_dict should reject empty string for 'text' field."""
+    with pytest.raises(ValueError, match=r"text.*empty|empty.*text"):
+        Todo.from_dict({"id": 1, "text": ""})
+
+
+def test_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only string for 'text' field."""
+    with pytest.raises(ValueError, match=r"text.*empty|empty.*text"):
+        Todo.from_dict({"id": 1, "text": " \t\n"})
+
+
+def test_from_dict_accepts_valid_text() -> None:
+    """Todo.from_dict should accept valid non-blank text."""
+    todo = Todo.from_dict({"id": 1, "text": "  valid task  "})
+    # Note: text should be stripped like rename() does, but from_dict keeps original
+    # The key is that it's not rejected
+    assert todo.text == "  valid task  "
