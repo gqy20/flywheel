@@ -158,3 +158,39 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_next_id_with_all_negative_ids_returns_positive(tmp_path) -> None:
+    """Bug #3504: next_id() should return positive integer even with all-negative IDs.
+
+    When all todos have negative IDs, max() returns a negative number,
+    causing next_id() to return 0 or a negative integer, which is invalid.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with all negative IDs (edge case)
+    todos = [Todo(id=-5, text="a"), Todo(id=-10, text="b")]
+
+    # next_id should return 1 (the minimum valid positive ID)
+    assert storage.next_id(todos) == 1
+    assert storage.next_id(todos) >= 1  # Must be positive
+
+
+def test_storage_next_id_with_empty_list_returns_one(tmp_path) -> None:
+    """Bug #3504: next_id() should return 1 for empty todo list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+
+def test_storage_next_id_with_positive_ids_returns_next(tmp_path) -> None:
+    """Verify next_id() works correctly with positive IDs (existing behavior)."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Normal case with positive IDs
+    todos = [Todo(id=5, text="a")]
+    assert storage.next_id(todos) == 6
