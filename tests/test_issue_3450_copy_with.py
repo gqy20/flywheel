@@ -5,8 +5,6 @@ Issue #3450: Add copy/clone method to support immutable mode updates.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
@@ -29,7 +27,7 @@ class TestTodoCopyWith:
         original_created_at = t1.created_at
         original_updated_at = t1.updated_at
 
-        t2 = t1.copy_with(done=True)
+        _ = t1.copy_with(done=True)
 
         # Original should be unchanged
         assert t1.done is False
