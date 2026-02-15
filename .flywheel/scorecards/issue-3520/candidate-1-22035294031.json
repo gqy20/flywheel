@@ -1,22 +1,23 @@
 {
-  "issue_number": 3520,
-  "candidate_number": 1,
+  "issue": 3520,
+  "candidate": 1,
   "run_id": "22035294031",
   "branch": "claude/issue-3520-candidate-1-22035294031",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3520_todo_copy.py"
-    ],
-    "tests_added": 6,
-    "tests_passed": 118,
-    "ruff_check": "passed"
-  },
-  "summary": "Add copy() method to Todo dataclass using dataclasses.replace() to support immutable programming patterns",
-  "acceptance_criteria": [
-    "todo.copy() returns new Todo object with same fields",
-    "todo.copy(**kwargs) allows overriding fields",
-    "Original object is not affected by copy operations"
-  ]
+  "pr_number": 3550,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3550",
+  "generated_at": "2026-02-15T12:35:13.609515+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2168,
+    "plan": 2860,
+    "implement": 2470,
+    "verify": 2018,
+    "finalize": 906
+  }
 }
