@@ -8,8 +8,6 @@ This module provides regression tests for the fix.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
