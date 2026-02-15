@@ -1,15 +1,23 @@
 {
-  "issue_number": 3492,
+  "issue": 3492,
   "candidate": 3,
   "run_id": "22033169306",
   "branch": "claude/issue-3492-candidate-3-22033169306",
-  "status": "implemented",
-  "approach": "Add tags field as tuple[str, ...] to Todo dataclass with validation in from_dict()",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3492_todo_tags.py"
+  "pr_number": 3513,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3513",
+  "generated_at": "2026-02-15T09:59:12.933552+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 11,
-  "tests_passed": 11,
-  "created_at": "2026-02-15T09:00:00Z"
+  "stage_response_sizes": {
+    "triage": 2235,
+    "plan": 2149,
+    "implement": 2871,
+    "verify": 3495,
+    "finalize": 746
+  }
 }
