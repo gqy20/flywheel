@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 2  # 1=high, 2=medium (default), 3=low
     created_at: str = ""
     updated_at: str = ""
 
@@ -52,6 +53,22 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, priority: int) -> None:
+        """Set the priority of this todo.
+
+        Args:
+            priority: Priority level (1=high, 2=medium, 3=low).
+
+        Raises:
+            ValueError: If priority is not 1, 2, or 3.
+        """
+        if priority not in (1, 2, 3):
+            raise ValueError(
+                f"Invalid priority: {priority!r}. Priority must be 1, 2, or 3."
+            )
+        self.priority = priority
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +110,20 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is 1, 2, or 3 (default to 2 if not specified)
+        raw_priority = data.get("priority", 2)
+        if not isinstance(raw_priority, int) or raw_priority not in (1, 2, 3):
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be 1 (high), 2 (medium), or 3 (low)."
+            )
+        priority = raw_priority
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
