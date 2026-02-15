@@ -125,4 +125,14 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID that doesn't collide with existing IDs.
+
+        Uses a set to track used IDs and finds the smallest ID >= max+1
+        that is not in the used set. This handles cases where the JSON
+        file may have non-contiguous IDs due to deletions.
+        """
+        used_ids = {todo.id for todo in todos}
+        next_id = max(used_ids, default=0) + 1
+        while next_id in used_ids:
+            next_id += 1
+        return next_id
