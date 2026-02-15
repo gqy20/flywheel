@@ -1,0 +1,15 @@
+{
+  "issue_number": 3475,
+  "candidate_number": 1,
+  "run_id": "22031789793",
+  "branch": "claude/issue-3475-candidate-1-22031789793",
+  "created_at": "2026-02-15T08:00:00Z",
+  "status": "implemented",
+  "tests_passed": 34,
+  "tests_added": 18,
+  "files_changed": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_3475_bidi_sanitization.py"
+  ],
+  "summary": "Fix security vulnerability by sanitizing BIDI control characters (U+202A-U+202E, U+2066-U+2069, U+200E-U+200F) to prevent text direction spoofing attacks"
+}
