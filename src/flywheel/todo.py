@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,54 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str) -> None:
+        """Set the due date for this todo item.
+
+        Args:
+            date_str: ISO 8601 formatted date string (e.g., "2026-03-15T12:00:00+00:00").
+                      Pass empty string to clear the due date.
+
+        Raises:
+            ValueError: If date_str is not a valid ISO 8601 format.
+            TypeError: If date_str is not a string.
+        """
+        if not isinstance(date_str, str):
+            raise TypeError("due_date must be a string")
+
+        if date_str == "":
+            self.due_date = ""
+            self.updated_at = _utc_now_iso()
+            return
+
+        # Validate ISO 8601 format by attempting to parse it
+        try:
+            datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        except ValueError as e:
+            raise ValueError(
+                f"Invalid date format: {date_str!r}. Expected ISO 8601 format."
+            ) from e
+
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool | None:
+        """Check if this todo item is overdue.
+
+        Returns:
+            True if the due date has passed, False if not yet due,
+            None if no due date is set.
+        """
+        if not self.due_date:
+            return None
+
+        try:
+            due = datetime.fromisoformat(self.due_date.replace("Z", "+00:00"))
+            now = datetime.now(due.tzinfo) if due.tzinfo else datetime.now(UTC)
+            return now > due
+        except ValueError:
+            return None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +148,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date") or ""),
         )
