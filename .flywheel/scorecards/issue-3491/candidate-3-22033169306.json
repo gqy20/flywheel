@@ -1,27 +1,23 @@
 {
-  "issue_number": 3491,
-  "issue_title": "[Feature] 添加 Todo 优先级字段支持",
-  "candidate_number": 3,
+  "issue": 3491,
+  "candidate": 3,
   "run_id": "22033169306",
-  "branch_name": "claude/issue-3491-candidate-3-22033169306",
-  "created_at": "2026-02-15T09:52:00Z",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3491_priority_field.py"
-    ],
-    "changes_summary": "Added priority: int = 0 field to Todo dataclass and updated from_dict() to parse priority field with default value 0",
-    "tests_added": 8,
-    "tests_passed": 8
-  },
-  "acceptance_criteria": {
-    "priority_field_exists": true,
-    "from_dict_parses_priority": true,
-    "to_dict_includes_priority": true,
-    "tests_cover_serialization": true
-  },
-  "verification": {
-    "ruff_check": "passed",
-    "pytest_run": "8 passed"
+  "branch": "claude/issue-3491-candidate-3-22033169306",
+  "pr_number": 3507,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3507",
+  "generated_at": "2026-02-15T09:57:17.785617+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2765,
+    "plan": 2706,
+    "implement": 2629,
+    "verify": 1776,
+    "finalize": 1459
   }
 }
