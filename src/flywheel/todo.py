@@ -34,6 +34,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text is non-empty (consistent with rename() behavior)
+        if not self.text.strip():
+            raise ValueError("Todo text cannot be empty")
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -78,6 +81,10 @@ class Todo:
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
+
+        # Validate 'text' is non-empty (consistent with __init__ and rename())
+        if not data["text"].strip():
+            raise ValueError("Todo text cannot be empty")
 
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
