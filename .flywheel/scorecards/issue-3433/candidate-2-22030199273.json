@@ -1,29 +1,23 @@
 {
-  "issue_number": 3433,
-  "candidate_number": 2,
+  "issue": 3433,
+  "candidate": 2,
   "run_id": "22030199273",
   "branch": "claude/issue-3433-candidate-2-22030199273",
-  "created_at": "2026-02-15T04:05:00Z",
-  "status": "finalized",
+  "pr_number": 3456,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3456",
-  "changes": {
-    "test_files": [
-      "tests/test_issue_3433_from_dict_text_validation.py"
-    ],
-    "source_files": [
-      "src/flywheel/todo.py"
-    ]
-  },
-  "tests_passed": true,
-  "ruff_check_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_3433_from_dict_text_validation.py -v",
-    "pytest_result": "4 passed",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3433_from_dict_text_validation.py",
-    "ruff_check_result": "All checks passed",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_3433_from_dict_text_validation.py",
-    "ruff_format_result": "2 files already formatted",
-    "regression_test_command": "uv run pytest tests/ -k todo -v",
-    "regression_test_result": "34 passed"
+  "generated_at": "2026-02-15T05:45:22.028380+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2283,
+    "plan": 2922,
+    "implement": 3027,
+    "verify": 2250,
+    "finalize": 1018
   }
 }
