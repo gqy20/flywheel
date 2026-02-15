@@ -1,0 +1,17 @@
+{
+  "issue_number": 3405,
+  "issue_title": "[Bug] Negative id values are accepted without validation",
+  "candidate_number": 1,
+  "run_id": "22027188585",
+  "branch": "claude/issue-3405-candidate-1-22027188585",
+  "status": "implemented",
+  "fix_summary": "Added validation in Todo.from_dict to reject negative id values with a clear error message",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3405_negative_id_validation.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "ruff_check": "passed",
+  "implementation_notes": "Minimal fix: Added if todo_id < 0: raise ValueError('id must be non-negative') after id conversion in from_dict method"
+}
