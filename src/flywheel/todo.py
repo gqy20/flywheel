@@ -10,6 +10,37 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _sanitize_for_repr(text: str) -> str:
+    """Escape control characters for safe display in repr output.
+
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
+    C1 control characters (0x80-0x9f) with their escaped representations.
+    Also escapes backslashes to prevent collision with escape sequences.
+    """
+    # First: Escape backslash to prevent collision with escape sequences
+    text = text.replace("\\", "\\\\")
+
+    # Common control characters - replace with readable escapes
+    replacements = [
+        ("\n", "\\n"),
+        ("\r", "\\r"),
+        ("\t", "\\t"),
+    ]
+    for char, escaped in replacements:
+        text = text.replace(char, escaped)
+
+    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
+    # Replace with \\xNN escape sequences
+    result = []
+    for char in text:
+        code = ord(char)
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
+            result.append(f"\\x{code:02x}")
+        else:
+            result.append(char)
+    return "".join(result)
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -25,13 +56,15 @@ class Todo:
 
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
+        Control characters in text are escaped for safe debugger display.
         """
-        # Truncate text if longer than 50 characters
-        display_text = self.text
+        # Sanitize text to escape control characters (newlines, tabs, etc.)
+        # before truncation to ensure consistent single-line output
+        display_text = _sanitize_for_repr(self.text)
         if len(display_text) > 50:
             display_text = display_text[:47] + "..."
 
-        return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+        return f"Todo(id={self.id}, text='{display_text}', done={self.done})"
 
     def __post_init__(self) -> None:
         if not self.created_at:
