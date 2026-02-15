@@ -90,14 +90,10 @@ def test_todo_repr_escapes_newlines_single_line_output() -> None:
     result = repr(todo)
 
     # CRITICAL: repr output must be a single line (no literal newline chars)
-    assert "\n" not in result, (
-        f"repr output must not contain literal newlines. Got: {result!r}"
-    )
+    assert "\n" not in result, f"repr output must not contain literal newlines. Got: {result!r}"
 
     # The escaped newline should appear as the literal string "\\n"
-    assert "\\n" in result, (
-        f"repr output should contain escaped newline '\\\\n'. Got: {result!r}"
-    )
+    assert "\\n" in result, f"repr output should contain escaped newline '\\\\n'. Got: {result!r}"
 
 
 def test_todo_repr_escapes_various_control_characters() -> None:
