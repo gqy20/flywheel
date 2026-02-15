@@ -158,3 +158,62 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
+    """Security: Deeply nested JSON should be rejected to prevent stack overflow.
+
+    Issue #3446: load() only checked file size but not JSON nesting depth.
+    A small file (< 10MB) with deep nesting can still cause stack overflow.
+    """
+    db = tmp_path / "nested.json"
+    storage = TodoStorage(str(db))
+
+    # Create a deeply nested JSON structure (> 500 levels)
+    # This creates JSON like: [{"a": {"a": {"a": ...}}}] with depth > 500
+    # The file is small (< 1KB) but deeply nested
+    nesting_depth = 600  # Exceed safe depth limit
+
+    # Build nested structure: deepest is {"a": 1}
+    nested = {"a": 1}
+    for _ in range(nesting_depth):
+        nested = {"a": nested}
+
+    # Wrap in a list to pass the "must be a JSON list" check
+    # Deep nesting should be caught during parsing
+    db.write_text(json.dumps([nested]), encoding="utf-8")
+
+    # Verify the file is small (< 10MB) but deeply nested
+    assert db.stat().st_size < 10 * 1024 * 1024
+
+    # Should raise ValueError for deeply nested JSON
+    with pytest.raises(ValueError, match="nested|depth|recursion"):
+        storage.load()
+
+
+def test_storage_load_accepts_normal_nesting_depth(tmp_path) -> None:
+    """Verify JSON with reasonable nesting depth is still accepted.
+
+    Issue #3446: Ensure normal nested structures work after depth limit.
+    """
+    db = tmp_path / "normal_nested.json"
+    storage = TodoStorage(str(db))
+
+    # Create a todo list with some reasonable nesting (metadata etc.)
+    # This is what real-world data might look like
+    todos = [
+        {
+            "id": 1,
+            "text": "task with metadata",
+            "done": False,
+            "created_at": "2024-01-01T00:00:00",
+            "updated_at": "2024-01-01T00:00:00",
+            "metadata": {"priority": "high", "tags": ["work", "urgent"]},
+        }
+    ]
+    db.write_text(json.dumps(todos), encoding="utf-8")
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "task with metadata"
