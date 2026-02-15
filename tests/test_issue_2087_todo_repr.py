@@ -77,8 +77,51 @@ def test_todo_repr_handles_special_characters() -> None:
     todo2 = Todo(id=2, text="line1\nline2")
     result2 = repr(todo2)
     assert "Todo" in result2
-    # Should not have literal newlines in the repr output
-    assert "\n" not in result2 or repr(result2).count("\\n") > 0
+
+
+def test_todo_repr_escapes_newlines_single_line_output() -> None:
+    """repr(Todo) must escape newlines to produce single-line output (Issue #3489).
+
+    The repr output should NEVER contain literal newline characters,
+    ensuring debugger displays and log parsing work correctly.
+    """
+    # Test with embedded newline
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # CRITICAL: repr output must be a single line (no literal newline chars)
+    assert "\n" not in result, (
+        f"repr output must not contain literal newlines. Got: {result!r}"
+    )
+
+    # The escaped newline should appear as the literal string "\\n"
+    assert "\\n" in result, (
+        f"repr output should contain escaped newline '\\\\n'. Got: {result!r}"
+    )
+
+
+def test_todo_repr_escapes_various_control_characters() -> None:
+    """repr(Todo) must escape all control characters to single-line output."""
+    # Test with various control characters
+    test_cases = [
+        ("tab\there", "\t", "\\t"),
+        ("carriage\rreturn", "\r", "\\r"),
+        ("null\x00byte", "\x00", "\\x00"),
+        ("bell\aring", "\a", "\\x07"),
+    ]
+
+    for text, control_char, expected_escape in test_cases:
+        todo = Todo(id=1, text=text)
+        result = repr(todo)
+
+        # No literal control characters in output
+        assert control_char not in result, (
+            f"repr must not contain literal {control_char!r}. Got: {result!r}"
+        )
+        # Should contain escaped representation
+        assert expected_escape in result, (
+            f"repr should contain {expected_escape!r}. Got: {result!r}"
+        )
 
 
 def test_todo_repr_eval_able_optional() -> None:
