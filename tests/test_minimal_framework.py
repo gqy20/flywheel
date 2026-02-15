@@ -158,3 +158,42 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
+    """Security: Issue #3446 - Deeply nested JSON should be rejected to prevent stack overflow.
+
+    Even if file is < 10MB, deeply nested JSON can cause excessive memory usage or stack overflow.
+    """
+    db = tmp_path / "nested.json"
+    storage = TodoStorage(str(db))
+
+    # Create a small file (< 10MB) with deeply nested JSON
+    # Build a nested structure with depth > 1000
+    # Write the JSON string directly: [{"a":{"a":{"a":...}}}]
+    depth = 1500
+    # Build valid nested JSON string
+    deep_json = "[" + ("{\"a\":" * depth) + "1" + ("}" * depth) + "]"
+    db.write_text(deep_json, encoding="utf-8")
+
+    # Verify the file is actually small (< 10MB)
+    assert db.stat().st_size < 10 * 1024 * 1024
+
+    # Should raise ValueError for deeply nested JSON
+    with pytest.raises(ValueError, match=r"nesting|depth|deeply"):
+        storage.load()
+
+
+def test_storage_load_accepts_normal_nesting_json(tmp_path) -> None:
+    """Verify JSON with normal nesting levels is still accepted after depth limit is added."""
+    db = tmp_path / "normal_nested.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with reasonable nesting - just save a normal todo
+    todos = [Todo(id=1, text="normal todo")]
+    storage.save(todos)
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "normal todo"
