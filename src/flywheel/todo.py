@@ -78,9 +78,7 @@ class Todo:
         try:
             datetime.fromisoformat(date_str.replace("Z", "+00:00"))
         except ValueError as e:
-            raise ValueError(
-                f"Invalid date format: {date_str!r}. Expected ISO 8601 format."
-            ) from e
+            raise ValueError(f"Invalid date format: {date_str!r}. Expected ISO 8601 format.") from e
 
         self.due_date = date_str
         self.updated_at = _utc_now_iso()
