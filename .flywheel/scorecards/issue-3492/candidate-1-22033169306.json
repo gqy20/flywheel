@@ -1,0 +1,28 @@
+{
+  "issue": 3492,
+  "candidate": 1,
+  "run_id": "22033169306",
+  "score": 100,
+  "breakdown": {
+    "tests_added": 8,
+    "tests_passed": 8,
+    "tests_failed": 0,
+    "ruff_passed": true,
+    "coverage": 100
+  },
+  "criteria": {
+    "test_coverage": "PASS",
+    "linting": "PASS",
+    "acceptance_criteria": [
+      "Todo dataclass contains tags field",
+      "from_dict() can parse tags list (default empty list)",
+      "to_dict() output includes tags",
+      "Non-string tag values raise clear error"
+    ]
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3492_todo_tags.py"
+  ],
+  "timestamp": "2026-02-15T08:50:00Z"
+}
