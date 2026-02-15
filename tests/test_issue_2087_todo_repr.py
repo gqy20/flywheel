@@ -77,8 +77,18 @@ def test_todo_repr_handles_special_characters() -> None:
     todo2 = Todo(id=2, text="line1\nline2")
     result2 = repr(todo2)
     assert "Todo" in result2
-    # Should not have literal newlines in the repr output
-    assert "\n" not in result2 or repr(result2).count("\\n") > 0
+    # repr output must be a single line (no literal newlines)
+    assert "\n" not in result2, f"repr should not contain literal newline: {result2!r}"
+
+
+def test_todo_repr_escapes_newlines_not_literal() -> None:
+    """Issue #3489: repr should escape newlines, not output literal newlines."""
+    todo = Todo(id=1, text="a\nb\nc")
+    result = repr(todo)
+    # Must be single-line output
+    assert "\n" not in result, f"repr must be single line: {result!r}"
+    # Should contain escaped newline representation (e.g., \\n)
+    assert "\\n" in result or "a\\nb\\nc" in result or repr("a\nb\nc")[1:-1] in result
 
 
 def test_todo_repr_eval_able_optional() -> None:
