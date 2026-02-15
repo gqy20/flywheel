@@ -1,0 +1,68 @@
+{
+  "issue_number": 3520,
+  "candidate_number": 3,
+  "run_id": "22035294031",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "description": "Add copy() method to Todo class to create immutable-style copies",
+    "tdd_approach": "RED-GREEN-REFACTOR",
+    "files_to_touch": [
+      "tests/test_issue_3520_todo_copy.py",
+      "src/flywheel/todo.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "action": "RED: Create failing test file test_issue_3520_todo_copy.py",
+        "tests": [
+          "test_copy_returns_independent_object - verify copy() returns a new object",
+          "test_copy_preserves_all_fields - verify all fields are identical",
+          "test_copy_with_kwargs_overrides_fields - verify copy(text='new') works",
+          "test_copy_preserves_created_at - verify created_at stays the same",
+          "test_original_unaffected_by_copy_modifications - verify immutability pattern"
+        ]
+      },
+      {
+        "step": 2,
+        "action": "GREEN: Add copy() method to Todo class using dataclasses.replace",
+        "implementation": "Add import of `replace` from dataclasses and implement copy(self, **kwargs) -> Todo method"
+      },
+      {
+        "step": 3,
+        "action": "REFACTOR: Run linter and tests to verify correctness"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3520_todo_copy.py -v",
+      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
+      "uv run ruff check src/flywheel/todo.py",
+      "uv run ruff format --check src/flywheel/todo.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "todo.copy() returns new Todo object with all fields identical",
+    "todo.copy(text='new') returns copy with text updated",
+    "todo.copy() preserves created_at (does not reset it)",
+    "Original object is unaffected by copy operations"
+  ],
+  "risks": [
+    "None - simple additive feature using existing dataclasses.replace pattern"
+  ],
+  "implementation": {
+    "status": "completed",
+    "tests_added": 8,
+    "tests_passed": true,
+    "ruff_check_passed": true,
+    "all_tests_passed": true,
+    "total_tests_run": 120,
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3520_todo_copy.py"
+    ],
+    "changes_made": [
+      "Added 'replace' to imports from dataclasses module",
+      "Added copy(self, **kwargs) -> Todo method to Todo class"
+    ]
+  },
+  "status": "implemented"
+}

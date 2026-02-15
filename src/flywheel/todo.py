@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 
 
@@ -56,6 +56,18 @@ class Todo:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def copy(self, **kwargs) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        Args:
+            **kwargs: Optional field overrides (id, text, done, created_at, updated_at).
+
+        Returns:
+            A new Todo object with the same field values as this Todo,
+            with any specified fields overridden by the kwargs.
+        """
+        return replace(self, **kwargs)
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
