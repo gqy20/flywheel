@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,78 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_calls_fsync_before_rename(tmp_path) -> None:
+    """Regression test for issue #3490: save() should call fsync before rename.
+
+    Without fsync, data may remain in the OS page cache and could be lost
+    on system crash (power failure, kernel panic) even after os.replace()
+    succeeds. This test verifies that fsync is called to ensure data is
+    persisted to disk before the atomic rename operation.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test fsync")]
+
+    # Track fsync calls
+    fsync_calls = []
+    original_fsync = os.fsync
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        return original_fsync(fd)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called at least once
+    assert len(fsync_calls) >= 1, (
+        "fsync should be called after write to ensure data is persisted to disk"
+    )
+
+
+def test_save_calls_fsync_before_rename_not_after(tmp_path) -> None:
+    """Test that fsync is called BEFORE os.replace, not after.
+
+    The fsync must be called before the rename to ensure the temp file
+    data is on disk before making it visible via atomic rename.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test order")]
+
+    call_order = []
+    original_fsync = os.fsync
+    original_replace = os.replace
+
+    def tracking_fsync(fd):
+        call_order.append(("fsync", fd))
+        return original_fsync(fd)
+
+    def tracking_replace(src, dst):
+        call_order.append(("replace", src, dst))
+        return original_replace(src, dst)
+
+    with (
+        patch("flywheel.storage.os.fsync", tracking_fsync),
+        patch("flywheel.storage.os.replace", tracking_replace),
+    ):
+        storage.save(todos)
+
+    # Find positions of fsync and replace calls
+    fsync_positions = [i for i, call in enumerate(call_order) if call[0] == "fsync"]
+    replace_positions = [i for i, call in enumerate(call_order) if call[0] == "replace"]
+
+    assert len(fsync_positions) >= 1, "fsync should be called"
+    assert len(replace_positions) == 1, "replace should be called exactly once"
+
+    # First fsync should happen before replace
+    assert fsync_positions[0] < replace_positions[0], (
+        "fsync must be called before os.replace to ensure data is on disk"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
