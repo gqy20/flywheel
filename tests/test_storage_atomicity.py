@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,66 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_calls_fsync_before_rename(tmp_path) -> None:
+    """Regression test for issue #3490: fsync must be called before atomic rename.
+
+    Without fsync, data may remain in OS page cache and be lost on system crash
+    (not just process crash). This test verifies that:
+    1. flush() is called on the file
+    2. os.fsync() is called on the file descriptor
+    3. These happen BEFORE os.replace()
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track the order of operations
+    operations = []
+
+    original_fdopen = os.fdopen
+    original_fsync = os.fsync
+    original_replace = os.replace
+
+    def tracking_fdopen(fd, *args, **kwargs):
+        file_obj = original_fdopen(fd, *args, **kwargs)
+
+        # Wrap the flush method
+        original_flush = file_obj.flush
+
+        def tracking_flush():
+            operations.append("flush")
+            return original_flush()
+
+        file_obj.flush = tracking_flush
+        return file_obj
+
+    def tracking_fsync(fd):
+        operations.append("fsync")
+        return original_fsync(fd)
+
+    def tracking_replace(src, dst):
+        operations.append("replace")
+        return original_replace(src, dst)
+
+    with (
+        patch("flywheel.storage.os.fdopen", tracking_fdopen),
+        patch("flywheel.storage.os.fsync", tracking_fsync),
+        patch("flywheel.storage.os.replace", tracking_replace),
+    ):
+        storage.save(todos)
+
+    # Verify fsync was called
+    assert "fsync" in operations, "os.fsync() must be called to ensure data durability"
+
+    # Verify fsync was called before replace
+    fsync_idx = operations.index("fsync")
+    replace_idx = operations.index("replace")
+    assert fsync_idx < replace_idx, (
+        f"fsync must be called before replace, got order: {operations}"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:

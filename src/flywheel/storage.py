@@ -115,6 +115,11 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Ensure data is flushed from Python buffers to OS
+                f.flush()
+                # Ensure data is written to disk (not just OS page cache)
+                # This prevents data loss on system crash (not just process crash)
+                os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
