@@ -1,0 +1,19 @@
+{
+  "issue": 3433,
+  "candidate": 1,
+  "run_id": "22030199273",
+  "branch": "claude/issue-3433-candidate-1-22030199273",
+  "status": "implemented",
+  "tests_added": 2,
+  "tests_passed": true,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "implementation_summary": "Added validation in Todo.from_dict to reject empty or whitespace-only text strings by checking data[\"text\"].strip() before constructing the Todo object.",
+  "test_names": [
+    "test_todo_from_dict_rejects_empty_text",
+    "test_todo_from_dict_rejects_whitespace_only_text"
+  ]
+}
