@@ -1,28 +1,23 @@
 {
-  "issue_number": 3545,
+  "issue": 3545,
   "candidate": 1,
   "run_id": "22036606230",
-  "status": "implemented",
-  "tests_added": 6,
-  "tests_passed": 118,
-  "lint_status": "passed",
-  "implementation_summary": "Added 'rename' CLI command that exposes the existing Todo.rename() method",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_3545_cli_rename_command.py"
+  "branch": "claude/issue-3545-candidate-1-22036606230",
+  "pr_number": 3567,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3567",
+  "generated_at": "2026-02-15T14:16:30.868240+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "changes": {
-    "cli.py": {
-      "todoapp_rename_method": "Added rename() method to TodoApp class",
-      "build_parser": "Added 'rename' subparser with id and text arguments",
-      "run_command": "Added handler for 'rename' command"
-    }
-  },
-  "acceptance_criteria": {
-    "rename_success": "Running 'todo rename 1 new text' successfully renames todo #1",
-    "nonexistent_id_error": "Running 'todo rename 99 text' returns error code 1 with 'not found' message",
-    "empty_text_error": "Running 'todo rename 1 \"\"' returns error code 1 with 'cannot be empty' message"
-  },
-  "risks": "None - minimal change following existing patterns",
-  "timestamp": "2026-02-15T12:21:00Z"
+  "stage_response_sizes": {
+    "triage": 2118,
+    "plan": 2973,
+    "implement": 2230,
+    "verify": 1838,
+    "finalize": 1595
+  }
 }
