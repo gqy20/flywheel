@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #3558: Todo.from_dict() should reject negative IDs."""
+    with pytest.raises(ValueError, match="'id' must be a positive integer"):
+        Todo.from_dict({"id": -1, "text": "test"})
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Bug #3558: Todo.from_dict() should reject zero as ID."""
+    with pytest.raises(ValueError, match="'id' must be a positive integer"):
+        Todo.from_dict({"id": 0, "text": "test"})
+
+
+def test_todo_from_dict_accepts_positive_id() -> None:
+    """Bug #3558: Todo.from_dict() should accept positive IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "test"})
+    assert todo.id == 1
+    assert todo.text == "test"
+
+
+def test_storage_next_id_returns_1_for_empty_list() -> None:
+    """Bug #3558: next_id should return 1 for empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_storage_next_id_returns_1_for_negative_only_ids() -> None:
+    """Bug #3558: next_id should return 1 even when all existing IDs are negative."""
+    storage = TodoStorage()
+    # Create todos with negative IDs directly (bypassing from_dict validation)
+    todos = [Todo(id=-1, text="a"), Todo(id=-5, text="b")]
+    assert storage.next_id(todos) == 1
