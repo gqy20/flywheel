@@ -1,0 +1,39 @@
+{
+  "issue_number": 3544,
+  "candidate_number": 3,
+  "run_id": "22035294031",
+  "branch": "claude/issue-3544-candidate-3-22035294031",
+  "commit_sha": "5a969b4",
+  "created_at": "2026-02-15T12:30:00Z",
+  "status": "implemented",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_3544_windows_fchmod.py"
+    ],
+    "source_files": [
+      "src/flywheel/storage.py"
+    ]
+  },
+  "tests_run": [
+    "tests/test_issue_3544_windows_fchmod.py::test_save_handles_missing_fchmod_on_windows",
+    "tests/test_issue_3544_windows_fchmod.py::test_save_still_sets_permissions_on_unix_when_fchmod_available",
+    "tests/test_issue_3544_windows_fchmod.py::test_save_falls_back_gracefully_when_fchmod_fails",
+    "tests/test_issue_2027_permissions.py::test_temp_file_has_no_execute_bit",
+    "tests/test_issue_2027_permissions.py::test_temp_file_is_not_executable",
+    "tests/test_storage_atomicity.py (all 6 tests)"
+  ],
+  "tests_passed": 11,
+  "tests_failed": 0,
+  "linter_passed": true,
+  "summary": {
+    "problem": "os.fchmod() is not available on Windows, causing save() to fail with AttributeError",
+    "solution": "Wrapped os.fchmod call with contextlib.suppress(AttributeError, OSError) to gracefully handle Windows and filesystems that don't support chmod",
+    "approach": "Minimal fix using existing contextlib import to suppress both AttributeError (Windows) and OSError (unsupported filesystems)"
+  },
+  "risks": [
+    "On Windows, temp files will use default umask permissions instead of 0o600"
+  ],
+  "limitations": [
+    "Windows doesn't support Unix-style file permissions, so restrictive permissions cannot be guaranteed on that platform"
+  ]
+}
