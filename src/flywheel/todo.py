@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,59 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, date_str: str) -> None:
+        """Set the due date for this todo.
+
+        Args:
+            date_str: ISO 8601 date string (e.g., "2026-03-15" or
+                "2026-03-15T12:00:00+00:00"). Empty string clears the due date.
+
+        Raises:
+            ValueError: If date_str is not empty and is not a valid ISO 8601 format.
+        """
+        if date_str == "":
+            self.due_date = ""
+            self.updated_at = _utc_now_iso()
+            return
+
+        # Validate ISO 8601 format
+        try:
+            # Try parsing as full datetime first
+            datetime.fromisoformat(date_str)
+        except ValueError:
+            try:
+                # Try parsing as date-only format (YYYY-MM-DD)
+                datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(
+                    f"Invalid ISO 8601 date format: {date_str!r}. "
+                    "Expected format: 'YYYY-MM-DD' or full ISO datetime."
+                ) from None
+
+        self.due_date = date_str
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool | None:
+        """Check if this todo is overdue.
+
+        Returns:
+            True if the due date has passed, False if it hasn't,
+            or None if no due date is set.
+        """
+        if not self.due_date:
+            return None
+
+        # Parse the due date
+        try:
+            due_dt = datetime.fromisoformat(self.due_date)
+            # Compare dates only (not time)
+            return due_dt.date() < datetime.now(UTC).date()
+        except ValueError:
+            # Try date-only format
+            due_date = datetime.strptime(self.due_date, "%Y-%m-%d").date()
+            return due_date < datetime.now(UTC).date()
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +153,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date") or ""),
         )

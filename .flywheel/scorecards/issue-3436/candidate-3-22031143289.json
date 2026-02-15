@@ -1,0 +1,54 @@
+{
+  "issue_number": 3436,
+  "issue_title": "[Feature] Add due_date field to Todo data model",
+  "candidate": 3,
+  "run_id": "22031143289",
+  "branch": "claude/issue-3436-candidate-3-22031143289",
+  "stage": "IMPLEMENTED",
+  "plan": {
+    "files_touched": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3436_todo_due_date.py"
+    ],
+    "tdd_sequence": [
+      {
+        "phase": "RED",
+        "description": "Create failing tests for due_date feature",
+        "status": "completed",
+        "tests": [
+          "Create Todo with no due_date (default empty string)",
+          "set_due_date() with valid ISO string",
+          "set_due_date() with invalid format raises ValueError",
+          "is_overdue returns None when no due_date set",
+          "is_overdue returns False for future dates",
+          "is_overdue returns True for past dates",
+          "from_dict() handles due_date field",
+          "to_dict() includes due_date field"
+        ]
+      },
+      {
+        "phase": "GREEN",
+        "description": "Implement minimal code to pass tests",
+        "status": "completed",
+        "implementation": [
+          "Add due_date: str = \"\" field to Todo dataclass",
+          "Add set_due_date(date_str: str) -> None method with ISO validation",
+          "Add is_overdue property returning bool | None",
+          "Update from_dict() to handle due_date field"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3436_todo_due_date.py -v",
+      "uv run pytest",
+      "uv run ruff check src/flywheel/todo.py"
+    ],
+    "verification_results": {
+      "due_date_tests": "15 passed",
+      "full_test_suite": "127 passed",
+      "lint_check": "All checks passed"
+    }
+  },
+  "created_at": "2026-02-15T04:30:00Z",
+  "implemented_at": "2026-02-15T04:35:00Z"
+}
