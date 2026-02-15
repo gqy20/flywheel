@@ -187,7 +187,7 @@ def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
     assert db.stat().st_size < 10 * 1024 * 1024
 
     # Should raise ValueError for deeply nested JSON
-    with pytest.raises(ValueError, match="nested|depth|recursion"):
+    with pytest.raises(ValueError, match=r"nested|depth|recursion"):
         storage.load()
 
 
