@@ -47,6 +47,12 @@ class Todo:
         self.done = False
         self.updated_at = _utc_now_iso()
 
+    def toggle(self) -> bool:
+        """Flip the done state and return the new state."""
+        self.done = not self.done
+        self.updated_at = _utc_now_iso()
+        return self.done
+
     def rename(self, text: str) -> None:
         text = text.strip()
         if not text:
