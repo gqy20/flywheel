@@ -1,0 +1,54 @@
+{
+  "issue": 3545,
+  "candidate": 3,
+  "run_id": 22036606230,
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add 'rename' subcommand to CLI to expose the existing Todo.rename() method",
+    "files_to_touch": [
+      "tests/test_issue_3545_cli_rename_command.py",
+      "src/flywheel/cli.py"
+    ],
+    "tdd_approach": {
+      "red_phase": "Create failing tests in new test file that verify rename command works via CLI",
+      "green_phase": "Add rename subparser to build_parser() and rename handler to run_command() plus TodoApp.rename() method"
+    },
+    "implementation_sequence": [
+      "1. Create new test file tests/test_issue_3545_cli_rename_command.py with 3 failing tests",
+      "2. Add rename() method to TodoApp class in cli.py",
+      "3. Add 'rename' subparser to build_parser() function",
+      "4. Add 'rename' handler to run_command() function"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3545_cli_rename_command.py -v",
+      "uv run ruff check src/flywheel/cli.py tests/test_issue_3545_cli_rename_command.py"
+    ]
+  },
+  "test_cases": [
+    {
+      "name": "test_cli_rename_command_success",
+      "description": "Running 'todo rename 1 new text' successfully renames todo #1"
+    },
+    {
+      "name": "test_cli_rename_command_nonexistent_id",
+      "description": "Running 'todo rename 99 text' with non-existent ID returns error code 1"
+    },
+    {
+      "name": "test_cli_rename_command_empty_text",
+      "description": "Running 'todo rename 1 \"\"' with empty text returns error code 1"
+    }
+  ],
+  "implementation": {
+    "files_modified": ["src/flywheel/cli.py"],
+    "files_added": ["tests/test_issue_3545_cli_rename_command.py"],
+    "changes": [
+      "Added rename() method to TodoApp class",
+      "Added 'rename' subparser to build_parser() function",
+      "Added 'rename' handler to run_command() function"
+    ],
+    "tests_passed": 3,
+    "ruff_check": "passed"
+  },
+  "created_at": "2026-02-15T12:21:00Z",
+  "implemented_at": "2026-02-15T12:25:00Z"
+}
