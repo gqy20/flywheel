@@ -1,19 +1,23 @@
 {
-  "issue_number": 3460,
+  "issue": 3460,
   "candidate": 2,
   "run_id": "22031789793",
   "branch": "claude/issue-3460-candidate-2-22031789793",
-  "status": "implemented",
-  "fix_summary": "Added validation in Todo.__post_init__() to reject empty or whitespace-only text, matching the validation in rename() method.",
-  "tests_added": [
-    "test_todo_constructor_rejects_empty_string",
-    "test_todo_constructor_rejects_whitespace_only",
-    "test_todo_constructor_accepts_valid_text"
+  "pr_number": 3483,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3483",
+  "generated_at": "2026-02-15T08:01:04.316825+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ],
-  "risks": "Low risk - minimal change that adds validation matching existing rename() behavior. May break any code that was relying on creating Todos with empty text (which is invalid per the spec).",
-  "limitations": "None identified."
+  "stage_response_sizes": {
+    "triage": 2389,
+    "plan": 3802,
+    "implement": 2027,
+    "verify": 1737,
+    "finalize": 948
+  }
 }
