@@ -121,8 +121,13 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except Exception as exc:
+    except (ValueError, OSError) as exc:
+        # Expected errors: business logic validation or file operations
         print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    except Exception as exc:
+        # Unexpected errors: likely programming bugs (TypeError, AttributeError, etc.)
+        print(f"Unexpected error: {exc}", file=sys.stderr)
         return 1
 
 
