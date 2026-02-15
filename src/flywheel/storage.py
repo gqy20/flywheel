@@ -125,4 +125,14 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return a unique ID that doesn't collide with existing IDs.
+
+        Uses a set to track used IDs and ensures the returned ID is unique,
+        even in edge cases where max+1 might somehow exist.
+        """
+        used_ids = {todo.id for todo in todos}
+        next_id = max(used_ids, default=0) + 1
+        # Defensive check: ensure next_id doesn't collide (shouldn't happen with max+1)
+        while next_id in used_ids:
+            next_id += 1
+        return next_id

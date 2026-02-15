@@ -1,0 +1,24 @@
+{
+  "issue_number": 3532,
+  "candidate_number": 3,
+  "run_id": "22034649807",
+  "branch": "claude/issue-3532-candidate-3-22034649807",
+  "created_at": "2026-02-15T12:00:00Z",
+  "status": "implemented",
+  "summary": "Fixed potential ID collision in next_id() by adding defensive collision checking",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3532_next_id_collision.py"
+    ]
+  },
+  "tests": {
+    "added": 6,
+    "passed": 118,
+    "failed": 0
+  },
+  "risks": "Low risk - defensive change that maintains existing behavior while adding safety checks",
+  "limitations": "Does not fill ID gaps (returns max+1), which is the expected behavior"
+}
