@@ -119,3 +119,32 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3404 - reject float-like ids that would be silently truncated
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float values for 'id' to prevent silent truncation."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_string_float_id() -> None:
+    """Todo.from_dict should reject string float values for 'id' to prevent silent truncation.
+
+    Note: int('1.5') already raises ValueError, but we should have explicit validation
+    with a clear error message for consistency.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*must"):
+        Todo.from_dict({"id": "1.5", "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept integer values for 'id'."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_string_integer_id() -> None:
+    """Todo.from_dict should accept string integer values for 'id' (backwards compat)."""
+    todo = Todo.from_dict({"id": "1", "text": "task"})
+    assert todo.id == 1

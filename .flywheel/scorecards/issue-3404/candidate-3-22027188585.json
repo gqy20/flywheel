@@ -1,0 +1,21 @@
+{
+  "issue_number": 3404,
+  "candidate": 3,
+  "run_id": "22027188585",
+  "branch": "claude/issue-3404-candidate-3-22027188585",
+  "created_at": "2026-02-15T00:00:00Z",
+  "status": "implemented",
+  "summary": "Fix from_dict() to reject float ids that would be silently truncated",
+  "changes": {
+    "test_files": ["tests/test_issue_2000_json_validation.py"],
+    "source_files": ["src/flywheel/todo.py"],
+    "lines_changed": 15
+  },
+  "tests_passed": 116,
+  "acceptance_criteria": {
+    "integer_id_accepted": true,
+    "string_integer_id_accepted": true,
+    "float_id_rejected": true,
+    "string_float_id_rejected": true
+  }
+}
