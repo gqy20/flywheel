@@ -24,5 +24,5 @@
     "ruff_command": "uv run ruff check src/flywheel/",
     "ruff_result": "All checks passed!"
   },
-  "pr_created": null
+  "pr_created": "https://github.com/gqy20/flywheel/pull/3430"
 }
