@@ -158,3 +158,27 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_toggle_flips_done_state() -> None:
+    """Issue #3408: toggle() should flip done state and return new state."""
+    import time
+
+    # Test toggle on undone todo
+    todo = Todo(id=1, text="test", done=False)
+    original_updated_at = todo.updated_at
+    time.sleep(0.001)  # Ensure timestamp difference
+
+    result = todo.toggle()
+    assert result is True, "toggle() on undone todo should return True"
+    assert todo.done is True, "toggle() on undone todo should set done=True"
+    assert todo.updated_at > original_updated_at, "toggle() should update updated_at"
+
+    # Test toggle on done todo
+    original_updated_at = todo.updated_at
+    time.sleep(0.001)  # Ensure timestamp difference
+
+    result = todo.toggle()
+    assert result is False, "toggle() on done todo should return False"
+    assert todo.done is False, "toggle() on done todo should set done=False"
+    assert todo.updated_at > original_updated_at, "toggle() should update updated_at"
