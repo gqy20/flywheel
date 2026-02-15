@@ -51,7 +51,12 @@
       "Empty list [] vs None semantics correctly distinguished"
     ]
   },
-  "status": "VERIFIED",
+  "status": "FINALIZED",
+  "finalize_summary": {
+    "pr_created": true,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/3423",
+    "pr_number": 3423
+  },
   "verify_summary": {
     "pytest_targeted": {
       "command": "uv run pytest tests/test_issue_3394_todo_tags.py -v",
