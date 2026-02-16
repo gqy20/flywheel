@@ -1,0 +1,23 @@
+{
+  "issue": 3606,
+  "candidate": 1,
+  "run_id": "22052909423",
+  "status": "ready",
+  "score": {
+    "tests_pass": true,
+    "lint_pass": true,
+    "minimal_changes": true,
+    "follows_tdd": true
+  },
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3606_todo_text_validation.py"],
+    "lines_added": 18,
+    "lines_removed": 0
+  },
+  "tests": {
+    "new_tests": 9,
+    "all_passed": true,
+    "total_suite_passed": 121
+  }
+}
