@@ -1,0 +1,39 @@
+{
+  "issue_number": 3650,
+  "issue_title": "[Bug] os.fchmod is not available on Windows, causing AttributeError on Windows platform",
+  "candidate_id": 1,
+  "run_id": "22055460478",
+  "created_at": "2026-02-16T09:00:00Z",
+  "scorecard": {
+    "test_coverage": {
+      "has_failing_test_first": true,
+      "test_file": "tests/test_storage_atomicity.py",
+      "test_name": "test_save_works_when_fchmod_not_available",
+      "covers_edge_case": true
+    },
+    "fix_minimality": {
+      "single_concern": true,
+      "no_unrelated_changes": true,
+      "lines_changed": 3
+    },
+    "correctness": {
+      "fixes_root_cause": true,
+      "preserves_existing_behavior": true,
+      "handles_platform_differences": true
+    },
+    "code_quality": {
+      "linting_passed": true,
+      "follows_project_conventions": true,
+      "no_over_engineering": true
+    },
+    "tests_passed": {
+      "all_tests": 113,
+      "failed": 0
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "summary": "Fixed Windows compatibility issue by adding hasattr check for os.fchmod before calling it. The fix allows the save() function to work on Windows where fchmod is not available, while still setting restrictive permissions on Unix systems."
+}
