@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -116,8 +115,18 @@ class TodoStorage:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
 
+            # Preserve original file permissions if file exists
+            # This ensures we don't lose user-configured permissions on overwrite
+            original_mode = None
+            if self.path.exists():
+                original_mode = stat.S_IMODE(self.path.stat().st_mode)
+
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Restore original permissions if file existed before
+            if original_mode is not None:
+                os.chmod(self.path, original_mode)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):

@@ -1,0 +1,33 @@
+{
+  "issue_number": 3676,
+  "candidate_number": 3,
+  "run_id": "22059344888",
+  "plan": {
+    "summary": "Preserve original file permissions when overwriting existing files in TodoStorage.save()",
+    "root_cause": "os.replace() atomically moves temp file (0o600 perms) to replace target, losing original file permissions",
+    "files_to_touch": [
+      "tests/test_issue_3676_permission_preservation.py",
+      "src/flywheel/storage.py"
+    ],
+    "test_strategy": "Create file with 0o644 permissions, call save(), verify permissions are preserved",
+    "implementation": "Capture original permissions before os.replace(), restore after",
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3676_permission_preservation.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff format src/flywheel/storage.py --check"
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_3676_permission_preservation.py",
+    "source_file": "src/flywheel/storage.py",
+    "tests_added": 4,
+    "lines_changed": 11
+  },
+  "test_results": {
+    "new_tests": "4 passed",
+    "all_tests": "116 passed",
+    "ruff_check": "All checks passed",
+    "ruff_format": "passed"
+  },
+  "status": "completed"
+}
