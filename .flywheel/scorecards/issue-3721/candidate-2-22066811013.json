@@ -1,0 +1,13 @@
+{
+  "issue": 3721,
+  "candidate": 2,
+  "run_id": "22066811013",
+  "status": "implemented",
+  "summary": "Fixed inconsistent validation in Todo.__init__ by adding empty text validation to __post_init__",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3721_todo_empty_text_validation.py"]
+  },
+  "tests_passed": 118,
+  "approach": "Added validation in __post_init__ to reject empty/whitespace-only text, consistent with add() and rename() behavior"
+}
