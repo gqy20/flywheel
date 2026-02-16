@@ -79,13 +79,42 @@
     "full_suite_count": 119
   },
   "verification": {
+    "stage": "VERIFY",
+    "completed_at": "2026-02-16T22:00:00Z",
+    "commands_run": [
+      {
+        "command": "uv run pytest tests/test_issue_3817_todo_constructor_validation.py -v",
+        "result": "7 passed"
+      },
+      {
+        "command": "uv run pytest tests/test_minimal_framework.py -v",
+        "result": "10 passed"
+      },
+      {
+        "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3817_todo_constructor_validation.py",
+        "result": "All checks passed"
+      },
+      {
+        "command": "uv run pytest -x -q",
+        "result": "119 passed"
+      }
+    ],
     "ruff_check": "passed",
-    "pytest": "119 tests passed"
+    "pytest": "119 tests passed",
+    "targeted_tests": "7 passed (issue-specific)",
+    "framework_tests": "10 passed",
+    "full_suite": "119 passed"
   },
   "risks": {
     "breaking_change": true,
     "description": "This is a breaking change for any code that relies on the constructor accepting whitespace-only text. However, this is an edge case that was likely unintentional, and the fix aligns behavior with rename() validation.",
     "mitigation": "None needed - this fixes a bug/inconsistency, not a documented feature"
   },
-  "timestamp": "2026-02-16T21:50:00Z"
+  "timestamp": "2026-02-16T21:50:00Z",
+  "finalize": {
+    "stage": "FINALIZE",
+    "completed_at": "2026-02-16T22:30:00Z",
+    "branch": "claude/issue-3817-candidate-1-22077749152",
+    "commit_sha": "8a8c36f"
+  }
 }
