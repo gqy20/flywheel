@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,39 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+class FileLock:
+    """Cross-process file lock using fcntl.flock.
+
+    Provides exclusive locking for concurrent access to shared resources.
+    Uses lock files (e.g., `.todo.json.lock`) separate from the data file.
+    """
+
+    def __init__(self, lock_path: Path) -> None:
+        self.lock_path = lock_path
+        self._fd: int | None = None
+
+    def __enter__(self) -> FileLock:
+        self._fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(self._fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(self._fd)
+            self._fd = None
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._fd is not None:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                os.close(self._fd)
+            finally:
+                self._fd = None
+                # Note: We intentionally don't delete the lock file.
+                # Deleting it can cause race conditions where another process
+                # creates a new lock file before we fully release our lock.
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +89,15 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    @property
+    def _lock_path(self) -> Path:
+        """Path to the lock file for this storage."""
+        return Path(str(self.path) + ".lock")
+
+    def _lock(self) -> FileLock:
+        """Get a file lock for this storage."""
+        return FileLock(self._lock_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +169,33 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Add a todo atomically with file-based locking.
+
+        This method ensures that the load-compute-next_id-save sequence
+        is atomic, preventing duplicate IDs under concurrent access.
+
+        Args:
+            todo: Todo item to add (id will be overwritten with next available ID)
+
+        Returns:
+            The todo with the assigned ID.
+        """
+        # Ensure parent directory exists before acquiring lock
+        _ensure_parent_directory(self.path)
+
+        with self._lock():
+            todos = self.load()
+            assigned_id = self.next_id(todos)
+            # Create new todo with the assigned ID
+            new_todo = Todo(
+                id=assigned_id,
+                text=todo.text,
+                done=todo.done,
+                created_at=todo.created_at,
+                updated_at=todo.updated_at,
+            )
+            todos.append(new_todo)
+            self.save(todos)
+            return new_todo

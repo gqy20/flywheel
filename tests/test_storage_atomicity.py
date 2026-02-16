@@ -229,3 +229,86 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_operations_produce_unique_ids(tmp_path) -> None:
+    """Regression test for issue #3577: Duplicate ID generation in concurrent writes.
+
+    Tests that multiple processes adding todos concurrently never produce duplicate IDs.
+    The bug occurs because next_id() computes max(id) + 1 without locking, allowing
+    race conditions where multiple processes compute the same ID.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_ids.json"
+
+    # Initialize with empty storage
+    storage = TodoStorage(str(db))
+    storage.save([])
+
+    def add_worker(worker_id: int, num_todos: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds todos using proper load-modify-save pattern with retry."""
+        from flywheel.cli import TodoApp
+
+        added_ids = []
+        errors = []
+
+        for i in range(num_todos):
+            # Retry logic to handle concurrent write conflicts
+            max_retries = 10
+            for attempt in range(max_retries):
+                try:
+                    app = TodoApp(db_path=str(db))
+                    todo = app.add(f"worker-{worker_id}-todo-{i}")
+                    added_ids.append(todo.id)
+                    break
+                except (OSError, ValueError) as e:
+                    if attempt == max_retries - 1:
+                        errors.append(str(e))
+                    time.sleep(0.001 * (attempt + 1))
+
+        result_queue.put((worker_id, added_ids, errors))
+
+    # Run multiple workers concurrently, each adding multiple todos
+    num_workers = 5
+    todos_per_worker = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(
+            target=add_worker, args=(i, todos_per_worker, result_queue)
+        )
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    all_ids = []
+    all_errors = []
+    while not result_queue.empty():
+        worker_id, ids, errors = result_queue.get()
+        all_ids.extend(ids)
+        all_errors.extend(errors)
+
+    # Report any errors that occurred
+    assert len(all_errors) == 0, f"Workers encountered errors: {all_errors}"
+
+    # Verify all IDs are unique - this is the core assertion for issue #3577
+    assert len(all_ids) == len(set(all_ids)), (
+        f"Duplicate IDs detected! "
+        f"Got {len(all_ids)} IDs but only {len(set(all_ids))} unique. "
+        f"Duplicates: {[i for i in all_ids if all_ids.count(i) > 1]}"
+    )
+
+    # Verify the final file contains todos with unique IDs
+    final_todos = storage.load()
+    final_ids = [todo.id for todo in final_todos]
+    assert len(final_ids) == len(set(final_ids)), (
+        f"Duplicate IDs in final file! "
+        f"IDs: {sorted(final_ids)}"
+    )
