@@ -1,0 +1,74 @@
+{
+  "issue_number": 3804,
+  "candidate_number": 2,
+  "run_id": "22076341371",
+  "stage": "VERIFY",
+  "created_at": "2026-02-16T19:50:00Z",
+  "updated_at": "2026-02-16T20:50:00Z",
+  "status": "COMPLETED",
+  "plan": {
+    "summary": "Fix Todo.from_dict() to raise ValueError instead of TypeError when data is None or non-dict",
+    "root_cause": "At line 63 in todo.py, `if \"id\" not in data` causes TypeError when data is None (not iterable) or when data is a non-dict type (e.g., list, int) that doesn't support 'in' operator with strings",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3804_from_dict_type_check.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Add failing regression tests for None, list, int, and string inputs to from_dict()",
+        "file": "tests/test_issue_3804_from_dict_type_check.py",
+        "test_cases": [
+          "test_todo_from_dict_raises_valueerror_for_none",
+          "test_todo_from_dict_raises_valueerror_for_list",
+          "test_todo_from_dict_raises_valueerror_for_int",
+          "test_todo_from_dict_raises_valueerror_for_string"
+        ],
+        "expected_failure": "TypeError: argument of type 'NoneType' is not iterable",
+        "status": "PASSED"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Add type check at start of from_dict() to validate data is a dict",
+        "file": "src/flywheel/todo.py",
+        "line": 61,
+        "implementation": "Add `if not isinstance(data, dict): raise ValueError(...)` before existing field checks",
+        "status": "PASSED"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3804_from_dict_type_check.py tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ],
+    "acceptance_criteria": [
+      "Todo.from_dict(None) raises ValueError with message containing 'dict'",
+      "Todo.from_dict([]) raises ValueError with message containing 'dict'",
+      "Todo.from_dict(123) raises ValueError with message containing 'dict'",
+      "Todo.from_dict('not a dict') raises ValueError with message containing 'dict'",
+      "All existing tests continue to pass",
+      "Code passes ruff lint and format checks"
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_3804_from_dict_type_check.py",
+    "source_file": "src/flywheel/todo.py",
+    "lines_added": 5,
+    "tests_added": 4,
+    "pytest_result": "16 passed",
+    "ruff_result": "All checks passed"
+  },
+  "commit": {
+    "sha": "a503da2",
+    "message": "fix(todo): raise ValueError instead of TypeError for non-dict input in from_dict()"
+  },
+  "pr": {
+    "number": 3824,
+    "url": "https://github.com/gqy20/flywheel/pull/3824",
+    "title": "[AUTOFIX][ISSUE-3804][CANDIDATE-2] fix(todo): raise ValueError instead of TypeError for non-dict input in from_dict()"
+  },
+  "risks": [
+    "Low risk: change only affects error type for invalid inputs, not valid behavior"
+  ]
+}
