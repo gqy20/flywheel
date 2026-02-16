@@ -35,7 +35,7 @@ def test_load_rejects_symlink_to_file(tmp_path: Path) -> None:
 
     # Before fix: load() would follow symlink and attempt to read sensitive file
     # After fix: load() should raise ValueError
-    with pytest.raises(ValueError, match="symlink|Symlinks not allowed"):
+    with pytest.raises(ValueError, match=r"symlink|Symlinks not allowed"):
         storage.load()
 
 
@@ -58,7 +58,7 @@ def test_load_rejects_symlink_to_json_file(tmp_path: Path) -> None:
     storage = TodoStorage(str(db_symlink))
 
     # Should reject symlink even if target is valid JSON
-    with pytest.raises(ValueError, match="symlink|Symlinks not allowed"):
+    with pytest.raises(ValueError, match=r"symlink|Symlinks not allowed"):
         storage.load()
 
 
