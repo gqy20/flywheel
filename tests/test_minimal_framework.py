@@ -77,6 +77,56 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert "not found" in captured.out or "not found" in captured.err
 
 
+def test_cli_rename_subcommand_works(tmp_path, capsys) -> None:
+    """Issue #3559: CLI should expose todo rename functionality."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Rename the todo
+    args = parser.parse_args(["--db", db, "rename", "1", "renamed task"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed" in captured.out
+    assert "renamed task" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "renamed task" in captured.out
+    assert "original task" not in captured.out
+
+
+def test_cli_rename_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Issue #3559: CLI rename should error for non-existent todo."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
+def test_cli_rename_returns_error_for_empty_text(tmp_path, capsys) -> None:
+    """Issue #3559: CLI rename should reject empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "task"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "cannot be empty" in captured.out or "cannot be empty" in captured.err
+
+
 def test_storage_load_rejects_oversized_json(tmp_path) -> None:
     """Security: JSON files larger than 10MB should be rejected to prevent DoS."""
     db = tmp_path / "large.json"

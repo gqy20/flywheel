@@ -1,0 +1,34 @@
+{
+  "issue_number": 3559,
+  "candidate_number": 1,
+  "run_id": "22046544852",
+  "status": "implemented",
+  "summary": "Exposed Todo.rename method via CLI by adding 'todo rename <id> <new_text>' subcommand",
+  "changes": {
+    "source_files": [
+      "src/flywheel/cli.py"
+    ],
+    "test_files": [
+      "tests/test_minimal_framework.py"
+    ],
+    "lines_changed": 20
+  },
+  "tests": {
+    "added": 3,
+    "passed": 13,
+    "failed": 0
+  },
+  "verification": {
+    "pytest": "passed",
+    "ruff": "passed"
+  },
+  "risks": [
+    "None - minimal change following existing patterns"
+  ],
+  "implementation_notes": [
+    "Added TodoApp.rename() method that calls Todo.rename() and persists changes",
+    "Added 'rename' subcommand to CLI parser with id and text arguments",
+    "Added handler in run_command() for rename command",
+    "Added 3 regression tests covering success, missing todo, and empty text cases"
+  ]
+}
