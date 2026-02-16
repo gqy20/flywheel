@@ -105,3 +105,45 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_sanitizes_null_byte() -> None:
+    """repr(Todo) should escape null bytes (Issue #3776)."""
+    todo = Todo(id=1, text="test\x00\x01")
+    result = repr(todo)
+
+    # Should not contain literal null byte
+    assert "\x00" not in result
+    # Should contain escaped representation
+    assert "\\x00" in result
+    assert "\\x01" in result
+
+
+def test_todo_repr_sanitizes_ansi_escape() -> None:
+    """repr(Todo) should escape ANSI escape sequences (Issue #3776)."""
+    todo = Todo(id=1, text="test\x1b[31mred\x1b[0m")
+    result = repr(todo)
+
+    # Should not contain literal ANSI escape
+    assert "\x1b" not in result
+    # Should contain escaped representation
+    assert "\\x1b" in result
+
+
+def test_todo_repr_sanitizes_control_characters() -> None:
+    """repr(Todo) should escape various control characters (Issue #3776)."""
+    # Test DEL character (0x7f)
+    todo = Todo(id=1, text="test\x7f")
+    result = repr(todo)
+    assert "\x7f" not in result
+    assert "\\x7f" in result
+
+
+def test_todo_repr_sanitizes_newline_as_escaped() -> None:
+    """repr(Todo) should escape newlines properly (Issue #3776)."""
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # The repr output should not have literal newlines in the text portion
+    # The entire repr should be a single line
+    assert result.count("\n") == 0
