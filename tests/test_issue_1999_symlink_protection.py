@@ -136,7 +136,7 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
     try:
         # Do multiple saves
         for i in range(3):
-            storage.save([Todo(id=i, text=f"todo {i}")])
+            storage.save([Todo(id=i + 1, text=f"todo {i}")])
     finally:
         tempfile.mkstemp = original
 

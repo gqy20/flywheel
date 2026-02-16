@@ -1,0 +1,29 @@
+{
+  "issue_number": 3707,
+  "candidate_number": 3,
+  "run_id": "22065504497",
+  "created_at": "2026-02-16T12:56:00Z",
+  "score": {
+    "test_coverage": 100,
+    "linting": "passed",
+    "all_tests_pass": true,
+    "minimal_changes": true,
+    "follows_conventions": true
+  },
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3707_todo_positive_id.py"],
+    "fixed_test_files": [
+      "tests/test_issue_1999_symlink_protection.py",
+      "tests/test_storage_atomicity.py"
+    ]
+  },
+  "validation": {
+    "todo_id_zero_raises_valueerror": true,
+    "todo_id_negative_raises_valueerror": true,
+    "todo_id_positive_works": true,
+    "from_dict_negative_id_raises_valueerror": true,
+    "from_dict_zero_id_raises_valueerror": true,
+    "from_dict_positive_id_works": true
+  }
+}
