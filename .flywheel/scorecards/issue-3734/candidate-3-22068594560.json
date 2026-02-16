@@ -1,0 +1,78 @@
+{
+  "issue_number": 3734,
+  "issue_title": "[Test] Missing test coverage for to_dict/from_dict round-trip preserving all fields",
+  "candidate_number": 3,
+  "run_id": "22068594560",
+  "branch_name": "claude/issue-3734-candidate-3-22068594560",
+  "stage": "VERIFY",
+  "status": "COMPLETED",
+  "tdd_plan": {
+    "phase": "RED",
+    "description": "Add failing regression test for to_dict/from_dict round-trip",
+    "test_file": "tests/test_issue_3734_to_dict_from_dict_roundtrip.py",
+    "test_cases": [
+      {
+        "name": "test_todo_to_dict_from_dict_roundtrip_preserves_all_fields",
+        "description": "Verify basic Todo round-trip preserves all 5 fields (id, text, done, created_at, updated_at)"
+      },
+      {
+        "name": "test_todo_to_dict_from_dict_roundtrip_with_special_characters",
+        "description": "Verify round-trip handles special characters (unicode, emojis, quotes, backslashes)"
+      },
+      {
+        "name": "test_todo_to_dict_from_dict_roundtrip_with_long_text",
+        "description": "Verify round-trip handles very long text (1000+ chars)"
+      },
+      {
+        "name": "test_todo_to_dict_from_dict_roundtrip_with_done_true",
+        "description": "Verify round-trip preserves done=True state"
+      }
+    ]
+  },
+  "implementation_sequence": [
+    {
+      "step": 1,
+      "action": "Create test file tests/test_issue_3734_to_dict_from_dict_roundtrip.py",
+      "files": ["tests/test_issue_3734_to_dict_from_dict_roundtrip.py"]
+    },
+    {
+      "step": 2,
+      "action": "Run tests to verify they pass (no implementation changes needed)",
+      "command": "uv run pytest tests/test_issue_3734_to_dict_from_dict_roundtrip.py -v"
+    }
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_3734_to_dict_from_dict_roundtrip.py -v",
+    "uv run ruff check tests/test_issue_3734_to_dict_from_dict_roundtrip.py",
+    "uv run ruff format --check tests/test_issue_3734_to_dict_from_dict_roundtrip.py"
+  ],
+  "files_to_touch": [
+    "tests/test_issue_3734_to_dict_from_dict_roundtrip.py"
+  ],
+  "source_changes_needed": false,
+  "rationale": "The issue is for MISSING TEST COVERAGE only - not a bug. The existing to_dict() and from_dict() implementations in src/flywheel/todo.py are correct. This is purely a test addition task to add regression tests that verify round-trip behavior.",
+  "verification_results": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_3734_to_dict_from_dict_roundtrip.py -v",
+      "result": "PASSED",
+      "tests_count": 5,
+      "tests_passed": 5,
+      "tests_failed": 0
+    },
+    "ruff_check": {
+      "command": "uv run ruff check tests/test_issue_3734_to_dict_from_dict_roundtrip.py src/flywheel/todo.py",
+      "result": "All checks passed!"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check tests/test_issue_3734_to_dict_from_dict_roundtrip.py",
+      "result": "1 file already formatted"
+    },
+    "full_test_suite": {
+      "command": "uv run pytest tests/ -v",
+      "result": "PASSED",
+      "tests_count": 117,
+      "tests_passed": 117,
+      "tests_failed": 0
+    }
+  }
+}
