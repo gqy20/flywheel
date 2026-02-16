@@ -1,26 +1,34 @@
 {
-  "issue": 3693,
-  "candidate": 3,
+  "issue_number": 3693,
+  "issue_title": "[Bug] Todo.__init__ 不验证 text 为非空字符串，允许空字符串",
+  "issue_url": "https://github.com/gqy20/flywheel/issues/3693",
+  "candidate_number": 3,
   "run_id": "22062781638",
-  "created_at": "2026-02-16T12:00:00Z",
-  "fix_details": {
-    "summary": "Add text validation and stripping in Todo.__post_init__",
-    "files_changed": ["src/flywheel/todo.py", "tests/test_minimal_framework.py"],
-    "approach": "TDD - first wrote failing tests, then implemented minimal fix",
-    "lines_changed": 6
+  "branch": "claude/issue-3693-candidate-3-22062781638",
+  "commit_sha": "7d21bb8",
+  "commit_message": "fix(todo): add text validation in Todo.__init__ (#3693)",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": [
+    "test_todo_init_rejects_empty_string",
+    "test_todo_init_rejects_whitespace_only",
+    "test_todo_init_strips_whitespace",
+    "test_todo_init_accepts_valid_text"
+  ],
+  "validation_status": {
+    "tests_passed": true,
+    "ruff_check_passed": true,
+    "test_command": "uv run pytest tests/test_minimal_framework.py -v -k test_todo_init",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
   },
-  "tests": {
-    "added": [
-      "test_todo_init_rejects_empty_string",
-      "test_todo_init_rejects_whitespace_only",
-      "test_todo_init_strips_whitespace",
-      "test_todo_init_accepts_valid_text"
-    ],
-    "passed": 14,
-    "failed": 0
+  "fix_summary": "Added text validation in Todo.__post_init__ to strip whitespace and reject empty strings. The fix raises ValueError with message 'Todo text cannot be empty' for both empty strings and whitespace-only strings.",
+  "acceptance_criteria_met": {
+    "empty_string_raises_valueerror": true,
+    "whitespace_only_raises_valueerror": true,
+    "valid_text_creates_todo": true,
+    "whitespace_stripped": true
   },
-  "quality_checks": {
-    "ruff": "passed",
-    "pytest": "passed"
-  }
+  "created_at": "2026-02-16T12:00:00Z"
 }
