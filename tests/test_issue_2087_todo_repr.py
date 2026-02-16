@@ -105,3 +105,50 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_sanitizes_control_characters() -> None:
+    """repr(Todo) should escape/sanitize control characters in text (Issue #3776).
+
+    Control characters like null bytes, ANSI escape sequences, and other
+    non-printable characters should be escaped to prevent terminal output
+    manipulation and ensure the repr output is safe to display.
+    """
+    # Test null byte (0x00)
+    todo_null = Todo(id=1, text="test\x00null")
+    result_null = repr(todo_null)
+    assert "\x00" not in result_null, "repr should not contain literal null byte"
+    assert "\\x00" in result_null, "repr should escape null byte as \\x00"
+
+    # Test ANSI escape sequence (0x1b)
+    todo_ansi = Todo(id=2, text="test\x1b[31mred\x1b[0m")
+    result_ansi = repr(todo_ansi)
+    assert "\x1b" not in result_ansi, "repr should not contain literal ESC character"
+    assert "\\x1b" in result_ansi, "repr should escape ESC as \\x1b"
+
+    # Test carriage return (0x0d)
+    todo_cr = Todo(id=3, text="test\rreturn")
+    result_cr = repr(todo_cr)
+    assert "\r" not in result_cr, "repr should not contain literal carriage return"
+    assert "\\r" in result_cr, "repr should escape CR as \\r"
+
+    # Test tab character (0x09)
+    todo_tab = Todo(id=4, text="test\ttab")
+    result_tab = repr(todo_tab)
+    assert "\t" not in result_tab, "repr should not contain literal tab"
+    assert "\\t" in result_tab, "repr should escape TAB as \\t"
+
+    # Test DEL character (0x7f)
+    todo_del = Todo(id=5, text="test\x7fdelete")
+    result_del = repr(todo_del)
+    assert "\x7f" not in result_del, "repr should not contain literal DEL character"
+    assert "\\x7f" in result_del, "repr should escape DEL as \\x7f"
+
+
+def test_todo_repr_sanitizes_c1_control_characters() -> None:
+    """repr(Todo) should escape C1 control characters (0x80-0x9f)."""
+    # Test a C1 control character (0x85 - NEL, Next Line)
+    todo_c1 = Todo(id=1, text="test\x85data")
+    result_c1 = repr(todo_c1)
+    assert "\x85" not in result_c1, "repr should not contain literal C1 control char"
+    assert "\\x85" in result_c1, "repr should escape C1 control char as \\x85"
