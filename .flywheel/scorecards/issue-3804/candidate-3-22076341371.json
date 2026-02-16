@@ -3,14 +3,21 @@
   "candidate": 3,
   "run_id": "22076341371",
   "branch": "claude/issue-3804-candidate-3-22076341371",
-  "status": "implemented",
-  "tests_added": 3,
-  "tests_passed": 15,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 3827,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3827",
+  "generated_at": "2026-02-16T20:50:51.093437+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Fix from_dict() to raise ValueError instead of TypeError when data is None or non-dict",
-  "approach": "Add isinstance(data, dict) check at the start of from_dict() method before field validation",
-  "risks": "None - minimal change with clear error message"
+  "stage_response_sizes": {
+    "triage": 1627,
+    "plan": 3244,
+    "implement": 2633,
+    "verify": 2429,
+    "finalize": 1485
+  }
 }
