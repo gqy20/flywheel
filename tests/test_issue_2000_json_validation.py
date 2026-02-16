@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3804 - from_dict should raise ValueError for None/non-dict input
+def test_todo_from_dict_raises_valueerror_for_none() -> None:
+    """Todo.from_dict should raise ValueError, not TypeError, when data is None."""
+    with pytest.raises(ValueError, match=r"dict|dictionary"):
+        Todo.from_dict(None)
+
+
+def test_todo_from_dict_raises_valueerror_for_list() -> None:
+    """Todo.from_dict should raise ValueError, not TypeError, when data is a list."""
+    with pytest.raises(ValueError, match=r"dict|dictionary"):
+        Todo.from_dict([])
+
+
+def test_todo_from_dict_raises_valueerror_for_int() -> None:
+    """Todo.from_dict should raise ValueError, not TypeError, when data is an int."""
+    with pytest.raises(ValueError, match=r"dict|dictionary"):
+        Todo.from_dict(123)
+
+
+def test_todo_from_dict_raises_valueerror_for_str() -> None:
+    """Todo.from_dict should raise ValueError, not TypeError, when data is a string."""
+    with pytest.raises(ValueError, match=r"dict|dictionary"):
+        Todo.from_dict("not a dict")

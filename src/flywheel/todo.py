@@ -59,6 +59,11 @@ class Todo:
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
+        # Validate that data is a dictionary (Issue #3804)
+        if not isinstance(data, dict):
+            raise ValueError(
+                f"Expected a dictionary, got {type(data).__name__}: {data!r}"
+            )
         # Validate required fields with clear error messages
         if "id" not in data:
             raise ValueError("Missing required field 'id' in todo data")
