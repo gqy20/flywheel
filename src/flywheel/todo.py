@@ -54,6 +54,36 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy_with(
+        self,
+        *,
+        id: int | None = None,
+        text: str | None = None,
+        done: bool | None = None,
+        updated_at: str | None = None,
+    ) -> Todo:
+        """Return a new Todo instance with specified fields overridden.
+
+        This method supports immutable-style updates without modifying the
+        original instance. The created_at timestamp is always preserved.
+
+        Args:
+            id: Override the id field (optional)
+            text: Override the text field (optional)
+            done: Override the done field (optional)
+            updated_at: Override the updated_at field (optional, defaults to now)
+
+        Returns:
+            A new Todo instance with the specified overrides applied.
+        """
+        return Todo(
+            id=id if id is not None else self.id,
+            text=text if text is not None else self.text,
+            done=done if done is not None else self.done,
+            created_at=self.created_at,
+            updated_at=updated_at if updated_at is not None else _utc_now_iso(),
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
