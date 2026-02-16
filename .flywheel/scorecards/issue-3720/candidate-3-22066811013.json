@@ -1,46 +1,23 @@
 {
-  "issue_number": 3720,
-  "issue_title": "[Bug] TodoApp.add() and Todo.rename() have duplicate validation logic for empty text",
-  "candidate_number": 3,
+  "issue": 3720,
+  "candidate": 3,
   "run_id": "22066811013",
   "branch": "claude/issue-3720-candidate-3-22066811013",
+  "pr_number": 3738,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3738",
-  "created_at": "2026-02-16T14:30:00Z",
-  "status": "ready_for_review",
-  "triage": {
-    "root_cause": "Duplicate validation logic for empty text in TodoApp.add() and Todo.rename(), with Todo.__init__ lacking validation",
-    "risk_points": [
-      "Todo.__init__ allowed empty text via direct construction",
-      "Inconsistency between Todo.rename() validation and Todo.__init__"
-    ],
-    "approach": "Move validation to Todo.__post_init__() as single source of truth"
-  },
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "src/flywheel/cli.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 38,
-    "lines_removed": 4,
-    "tests_added": 4
-  },
-  "tests": {
-    "total_run": 116,
-    "passed": 116,
-    "failed": 0,
-    "new_tests": [
-      "test_todo_init_rejects_empty_string",
-      "test_todo_init_rejects_whitespace_only",
-      "test_todo_init_strips_whitespace",
-      "test_app_add_empty_text_raises_error"
-    ]
-  },
-  "quality_checks": {
-    "ruff": "passed",
-    "pytest": "passed"
-  },
-  "risks": [
-    "Breaking change: Todo instances created directly with empty/whitespace text will now raise ValueError"
-  ]
+  "generated_at": "2026-02-16T15:18:50.327716+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3990,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2339,
+    "finalize": 747
+  }
 }
