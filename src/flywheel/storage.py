@@ -90,6 +90,14 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Note on cross-filesystem edge case: os.replace() is atomic on both Unix
+        and Windows when source and destination are on the same filesystem. The
+        temp file is created in the same directory as the target (dir=self.path.parent)
+        to ensure this in normal usage. However, if the target directory is on a
+        different filesystem than the default temp directory, os.replace() will
+        fall back to a non-atomic copy operation. This is a rare edge case that
+        typically only occurs when the target path spans filesystem mount points.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)

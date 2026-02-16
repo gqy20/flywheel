@@ -151,6 +151,38 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_docstring_documents_cross_filesystem_edge_case() -> None:
+    """Regression test for issue #3648: Cross-filesystem atomic rename documentation.
+
+    The save() method's docstring should document that atomic rename may fall
+    back to non-atomic copy when source and destination are on different
+    filesystems. This is a rare edge case but important for security-sensitive
+    contexts to be aware of.
+
+    Note: The current implementation already creates temp files in the same
+    directory as the target (using dir=self.path.parent), which avoids this
+    issue in normal usage. This test ensures the edge case is documented.
+    """
+    import inspect
+
+    from flywheel.storage import TodoStorage
+
+    docstring = inspect.getdoc(TodoStorage.save)
+    assert docstring is not None, "TodoStorage.save should have a docstring"
+
+    # Check that the docstring mentions the cross-filesystem edge case
+    docstring_lower = docstring.lower()
+    assert (
+        "cross-filesystem" in docstring_lower
+        or "cross filesystem" in docstring_lower
+        or "different filesystem" in docstring_lower
+        or "different file system" in docstring_lower
+    ), (
+        "TodoStorage.save docstring should document the cross-filesystem edge case "
+        "where atomic rename may fall back to non-atomic copy. Issue #3648"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
