@@ -1,29 +1,23 @@
 {
-  "issue_number": 3834,
-  "issue_title": "[Bug] CLI does not expose Todo.rename() functionality - incomplete API coverage",
-  "candidate_number": 3,
+  "issue": 3834,
+  "candidate": 3,
   "run_id": "22080310551",
-  "branch_name": "claude/issue-3834-candidate-3-22080310551",
-  "created_at": "2026-02-16T21:45:00Z",
-  "status": "implemented",
-  "tests_added": [
-    "tests/test_issue_3834_cli_rename_command.py"
+  "branch": "claude/issue-3834-candidate-3-22080310551",
+  "pr_number": 3872,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3872",
+  "generated_at": "2026-02-16T23:53:34.529006+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/cli.py"
-  ],
-  "acceptance_criteria_met": [
-    "CLI supports 'todo rename <id> <new_text>' command",
-    "Running 'todo rename 1 New Text' updates existing todo's text",
-    "Running 'todo rename 999 text' returns exit code 1 with 'Todo #999 not found' error",
-    "Success message sanitizes output like other commands"
-  ],
-  "test_results": {
-    "total_tests": 117,
-    "passed": 117,
-    "failed": 0,
-    "coverage_percent": 93
-  },
-  "implementation_summary": "Added rename subcommand to CLI that exposes Todo.rename() functionality. Added TodoApp.rename() method, rename subcommand parser, and command handler in run_command().",
-  "risks": "None - minimal change following existing patterns for done/undone/rm commands."
+  "stage_response_sizes": {
+    "triage": 2270,
+    "plan": 2347,
+    "implement": 1515,
+    "verify": 2177,
+    "finalize": 727
+  }
 }
