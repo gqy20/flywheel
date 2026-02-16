@@ -4,7 +4,9 @@
   "run_id": "22052909423",
   "branch_name": "claude/issue-3620-candidate-2-22052909423",
   "created_at": "2026-02-16T07:30:00Z",
-  "status": "implemented",
+  "status": "pr_created",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3631",
+  "pr_number": 3631,
   "summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir()",
   "changes": {
     "source_files": [
