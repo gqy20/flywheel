@@ -1,28 +1,23 @@
 {
-  "issue_number": 3848,
-  "candidate_number": 1,
+  "issue": 3848,
+  "candidate": 1,
   "run_id": "22080310551",
   "branch": "claude/issue-3848-candidate-1-22080310551",
-  "created_at": "2026-02-16T07:44:40Z",
-  "status": "verified",
-  "summary": "Fix Todo.__init__ to validate text is non-empty, consistent with Todo.rename and TodoApp.add",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_3848_todo_init_empty_text_validation.py"]
-  },
-  "tests_passed": 118,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_3848_todo_init_empty_text_validation.py -v",
-    "pytest_result": "6 tests passed",
-    "full_test_command": "uv run pytest tests/ -v",
-    "full_test_result": "118 tests passed",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3848_todo_init_empty_text_validation.py",
-    "ruff_check_result": "All checks passed",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_3848_todo_init_empty_text_validation.py",
-    "ruff_format_result": "2 files already formatted"
-  },
-  "risks": [
-    "Existing code that creates Todo objects with whitespace text will now raise ValueError"
+  "pr_number": 3871,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3871",
+  "generated_at": "2026-02-16T23:51:52.681479+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "mitigation": "The fix normalizes behavior to be consistent with rename() and add() methods"
+  "stage_response_sizes": {
+    "triage": 3469,
+    "plan": 3248,
+    "implement": 2622,
+    "verify": 3346,
+    "finalize": 1352
+  }
 }
