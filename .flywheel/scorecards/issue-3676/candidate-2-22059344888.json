@@ -1,0 +1,17 @@
+{
+  "issue_number": 3676,
+  "candidate_number": 2,
+  "run_id": "22059344888",
+  "branch": "claude/issue-3676-candidate-2-22059344888",
+  "created_at": "2026-02-16T11:00:00Z",
+  "status": "implemented",
+  "summary": "Fix permission preservation after atomic file replace",
+  "approach": "Capture original file permissions before atomic replace and restore them after the replace operation completes successfully",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_3676_permission_preservation.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": 17,
+  "ruff_check": "passed"
+}
