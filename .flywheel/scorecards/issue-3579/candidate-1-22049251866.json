@@ -1,15 +1,23 @@
 {
-  "issue_number": 3579,
-  "candidate_number": 1,
+  "issue": 3579,
+  "candidate": 1,
   "run_id": "22049251866",
   "branch": "claude/issue-3579-candidate-1-22049251866",
-  "created_at": "2026-02-16T00:00:00Z",
-  "status": "implemented",
-  "summary": "Optimized _sanitize_text to use single-pass approach instead of repeated replace() calls",
-  "changes": {
-    "source_files": ["src/flywheel/formatter.py"],
-    "test_files": ["tests/test_issue_3579_sanitize_text_performance.py"]
-  },
-  "tests_passed": 114,
-  "tests_added": 2
+  "pr_number": 3600,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3600",
+  "generated_at": "2026-02-16T04:10:36.767025+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3585,
+    "plan": 4000,
+    "implement": 3749,
+    "verify": 1839,
+    "finalize": 1946
+  }
 }
