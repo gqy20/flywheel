@@ -49,8 +49,6 @@ class TestTodoConstructorWhitespaceValidation:
 
     def test_consistency_between_constructor_and_rename(self) -> None:
         """Constructor and rename() should have consistent error messages."""
-        import re
-
         # Get error from constructor
         constructor_error = None
         try:
