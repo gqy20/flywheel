@@ -1,0 +1,28 @@
+{
+  "issue_number": 3777,
+  "issue_title": "[Perf] No length limit on todo text field allows potential memory exhaustion",
+  "candidate_number": 3,
+  "run_id": "22075095435",
+  "branch_name": "claude/issue-3777-candidate-3-22075095435",
+  "implementation": {
+    "approach": "Added MAX_TEXT_LENGTH constant (10000 chars) and validation in Todo constructor, rename(), and from_dict() methods",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3777_text_length_limit.py"
+    ],
+    "lines_changed": 15
+  },
+  "tests": {
+    "test_file": "tests/test_issue_3777_text_length_limit.py",
+    "test_count": 7,
+    "all_passed": true,
+    "full_suite_passed": true,
+    "total_tests_in_suite": 119
+  },
+  "verification": {
+    "pytest_passed": true,
+    "ruff_check_passed": true
+  },
+  "risks": [],
+  "limitations": []
+}
