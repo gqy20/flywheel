@@ -1,0 +1,27 @@
+{
+  "issue_number": 3580,
+  "candidate_number": 3,
+  "run_id": "22049251866",
+  "branch": "claude/issue-3580-candidate-3-22049251866",
+  "created_at": "2026-02-16T01:23:00Z",
+  "status": "implemented",
+  "summary": "Add 'edit' CLI subcommand to rename todo text",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_3580_edit_command.py"
+    ],
+    "lines_added": 80,
+    "lines_removed": 0
+  },
+  "tests": {
+    "test_file": "tests/test_issue_3580_edit_command.py",
+    "test_count": 5,
+    "all_passed": true
+  },
+  "acceptance_criteria": {
+    "cli_supports_edit": true,
+    "updated_at_updates": true,
+    "empty_text_error": true
+  }
+}
