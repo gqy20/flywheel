@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_duplicate_ids() -> None:
+    """Bug #3593: next_id() should return valid unused ID even with duplicate IDs.
+
+    When the todo list contains duplicate IDs (e.g., due to data corruption),
+    next_id() should still return a valid unused ID.
+    """
+    storage = TodoStorage("/dev/null")  # Path doesn't matter for next_id()
+
+    # Test with duplicate IDs: [1, 1]
+    todos_with_dupes = [Todo(id=1, text="first"), Todo(id=1, text="duplicate")]
+    next_id = storage.next_id(todos_with_dupes)
+    assert next_id == 2, f"Expected next_id=2 for [1,1], got {next_id}"
+
+    # Test with mixed duplicate IDs: [1, 1, 3]
+    todos_mixed = [
+        Todo(id=1, text="first"),
+        Todo(id=1, text="dupe"),
+        Todo(id=3, text="third"),
+    ]
+    next_id = storage.next_id(todos_mixed)
+    assert next_id == 4, f"Expected next_id=4 for [1,1,3], got {next_id}"
+
+    # Test with larger duplicate IDs: [5, 5]
+    todos_larger = [Todo(id=5, text="a"), Todo(id=5, text="b")]
+    next_id = storage.next_id(todos_larger)
+    assert next_id == 6, f"Expected next_id=6 for [5,5], got {next_id}"
+
+
+def test_next_id_with_empty_list() -> None:
+    """Verify next_id() returns 1 for empty list."""
+    storage = TodoStorage("/dev/null")
+    next_id = storage.next_id([])
+    assert next_id == 1, f"Expected next_id=1 for empty list, got {next_id}"
