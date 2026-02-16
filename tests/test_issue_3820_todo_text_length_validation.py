@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from flywheel.todo import Todo, MAX_TEXT_LENGTH
+from flywheel.todo import MAX_TEXT_LENGTH, Todo
 
 
 class TestTodoTextLengthValidation:
@@ -17,7 +17,7 @@ class TestTodoTextLengthValidation:
     def test_todo_text_exceeds_max_length_raises(self) -> None:
         """Todo constructor should reject text exceeding MAX_TEXT_LENGTH."""
         long_text = "a" * (MAX_TEXT_LENGTH + 1)
-        with pytest.raises(ValueError, match="maximum.*length|exceeds|too long"):
+        with pytest.raises(ValueError, match=r"maximum.*length|exceeds|too long"):
             Todo(id=1, text=long_text)
 
     def test_todo_rename_exceeds_max_length_raises(self) -> None:
@@ -26,7 +26,7 @@ class TestTodoTextLengthValidation:
         original_updated_at = todo.updated_at
         long_text = "b" * (MAX_TEXT_LENGTH + 1)
 
-        with pytest.raises(ValueError, match="maximum.*length|exceeds|too long"):
+        with pytest.raises(ValueError, match=r"maximum.*length|exceeds|too long"):
             todo.rename(long_text)
 
         # Verify state unchanged after failed validation
@@ -56,5 +56,5 @@ class TestTodoTextLengthValidation:
         """Todo.from_dict() should also validate text length."""
         long_text = "e" * (MAX_TEXT_LENGTH + 1)
         data = {"id": 1, "text": long_text}
-        with pytest.raises(ValueError, match="maximum.*length|exceeds|too long"):
+        with pytest.raises(ValueError, match=r"maximum.*length|exceeds|too long"):
             Todo.from_dict(data)
