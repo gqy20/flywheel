@@ -151,6 +151,30 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_docstring_documents_cross_filesystem_edge_case() -> None:
+    """Regression test for issue #3648: Document cross-filesystem atomicity edge case.
+
+    The save() method should document in its docstring:
+    1. That atomicity is guaranteed when temp file and target are on the same filesystem
+    2. That the temp file is created in the same directory as the target to ensure same filesystem
+    3. That in rare cross-filesystem cases, os.replace may fall back to non-atomic copy
+    """
+    docstring = TodoStorage.save.__doc__
+    assert docstring is not None, "TodoStorage.save() should have a docstring"
+
+    # Check that the docstring documents the atomicity guarantee
+    assert (
+        "same filesystem" in docstring.lower() or "same directory" in docstring.lower()
+    ), "Docstring should mention same filesystem/directory for atomicity"
+
+    # Check that the docstring documents the cross-filesystem edge case
+    assert (
+        "cross" in docstring.lower() and "filesystem" in docstring.lower()
+    ) or (
+        "fall back" in docstring.lower() or "fallback" in docstring.lower()
+    ), "Docstring should document the cross-filesystem edge case where atomicity may be lost"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

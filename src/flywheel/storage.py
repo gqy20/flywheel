@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -87,6 +86,20 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Atomicity Guarantee:
+            The temp file is created in the same directory as the target file
+            to ensure they are on the same filesystem. os.replace() is atomic
+            on both Unix and Windows when source and destination are on the
+            same filesystem.
+
+        Cross-Filesystem Edge Case:
+            In rare cases where the temp file and target file end up on
+            different filesystems, os.replace() may fall back to a non-atomic
+            copy operation, which could result in data corruption if the
+            process crashes during the copy. This should not occur with the
+            current implementation since the temp file is always created in
+            the same directory as the target.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
