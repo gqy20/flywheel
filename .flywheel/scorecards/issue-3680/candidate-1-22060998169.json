@@ -1,0 +1,22 @@
+{
+  "issue_number": 3680,
+  "candidate": 1,
+  "run_id": "22060998169",
+  "status": "implemented",
+  "created_at": "2026-02-16T11:00:00Z",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_3680_edit_alias.py"
+    ],
+    "summary": "Added edit() method as alias for rename() in Todo class, and added 'todo edit' CLI command",
+    "tests_added": 12,
+    "tests_passed": 12
+  },
+  "verification": {
+    "linting": "passed",
+    "tests": "passed",
+    "regression_tests": "passed"
+  }
+}

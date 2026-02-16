@@ -54,6 +54,10 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def edit(self, text: str) -> None:
+        """Alias for rename() - update the todo text."""
+        self.rename(text)
+
     def to_dict(self) -> dict:
         return asdict(self)
 

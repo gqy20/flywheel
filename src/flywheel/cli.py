@@ -57,6 +57,15 @@ class TodoApp:
                 return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def edit(self, todo_id: int, text: str) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.edit(text)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
     def remove(self, todo_id: int) -> None:
         todos = self._load()
         for i, todo in enumerate(todos):
@@ -84,6 +93,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_undone = sub.add_parser("undone", help="Mark todo undone")
     p_undone.add_argument("id", type=int)
+
+    p_edit = sub.add_parser("edit", help="Edit todo text")
+    p_edit.add_argument("id", type=int)
+    p_edit.add_argument("text", nargs="+", help="New todo text")
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
@@ -113,6 +126,12 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "undone":
             todo = app.mark_undone(args.id)
             print(f"Undone #{todo.id}: {_sanitize_text(todo.text)}")
+            return 0
+
+        if args.command == "edit":
+            text = " ".join(args.text)
+            todo = app.edit(args.id, text)
+            print(f"Edited #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 
         if args.command == "rm":
