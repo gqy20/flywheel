@@ -4,9 +4,12 @@
   "candidate_number": 1,
   "run_id": "22073699620",
   "branch_name": "claude/issue-3765-candidate-1-22073699620",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
+  "finalized_at": "2026-02-16T19:15:00Z",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3797",
   "created_at": "2026-02-16T18:50:00Z",
   "implemented_at": "2026-02-16T18:55:00Z",
+  "verified_at": "2026-02-16T19:00:00Z",
   "plan": {
     "summary": "Add due_date field to Todo dataclass with is_overdue() method",
     "files_to_touch": [
