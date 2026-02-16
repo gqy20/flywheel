@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_init_rejects_empty_string() -> None:
+    """Bug #3720: Todo.__init__ should reject empty strings after strip."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="")
+
+
+def test_todo_init_rejects_whitespace_only() -> None:
+    """Bug #3720: Todo.__init__ should reject whitespace-only strings."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text=" ")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="\t\n")
+
+
+def test_todo_init_strips_whitespace_and_accepts_valid_text() -> None:
+    """Bug #3720: Todo.__init__ should strip whitespace from valid text."""
+    todo = Todo(id=1, text="  valid text  ")
+    assert todo.text == "valid text"
+
+
+def test_app_add_still_rejects_empty_text_after_refactor(tmp_path) -> None:
+    """Bug #3720: TodoApp.add() should still reject empty text via Todo.__init__."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        app.add("")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        app.add("   ")

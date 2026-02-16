@@ -23,10 +23,6 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-
         todos = self._load()
         todo = Todo(id=self.storage.next_id(todos), text=text)
         todos.append(todo)
