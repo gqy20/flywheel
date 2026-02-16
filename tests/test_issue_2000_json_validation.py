@@ -119,3 +119,55 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3791 - validate todo IDs are unique when loading from JSON
+def test_storage_load_rejects_duplicate_ids(tmp_path) -> None:
+    """Storage.load should raise ValueError when JSON contains duplicate todo IDs."""
+    db = tmp_path / "duplicate_ids.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with duplicate IDs (both have id=1)
+    db.write_text(
+        '[{"id": 1, "text": "first task"}, {"id": 1, "text": "second task"}]',
+        encoding="utf-8",
+    )
+
+    # Should raise ValueError with clear message about duplicate ID
+    with pytest.raises(ValueError, match=r"(?i)duplicate.*id|duplicate.*1"):
+        storage.load()
+
+
+def test_storage_load_rejects_duplicate_ids_with_clear_message(tmp_path) -> None:
+    """Storage.load error message should indicate which ID is duplicated."""
+    db = tmp_path / "duplicate_ids_msg.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with duplicate IDs (id=42 appears twice)
+    db.write_text(
+        '[{"id": 42, "text": "task a"}, {"id": 42, "text": "task b"}]',
+        encoding="utf-8",
+    )
+
+    # Error message should mention ID 42
+    with pytest.raises(ValueError, match=r"42"):
+        storage.load()
+
+
+def test_storage_load_accepts_unique_ids(tmp_path) -> None:
+    """Storage.load should succeed when all todo IDs are unique."""
+    db = tmp_path / "unique_ids.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with unique IDs
+    db.write_text(
+        '[{"id": 1, "text": "first task"}, {"id": 2, "text": "second task"}, {"id": 3, "text": "third task"}]',
+        encoding="utf-8",
+    )
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 3
+    assert todos[0].id == 1
+    assert todos[1].id == 2
+    assert todos[2].id == 3

@@ -74,13 +74,25 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        # Parse all todos
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Validate ID uniqueness
+        seen_ids = set()
+        for todo in todos:
+            if todo.id in seen_ids:
+                raise ValueError(
+                    f"Duplicate todo ID {todo.id} found. Each todo must have a unique ID."
+                )
+            seen_ids.add(todo.id)
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
