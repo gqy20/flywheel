@@ -71,8 +71,7 @@ class TestSanitizeTextPerformance:
 
         # Should complete in < 1s for 1MB of plain text
         assert elapsed < 1.0, (
-            f"_sanitize_text took {elapsed:.3f}s for 1MB plain text input, "
-            f"expected < 1s."
+            f"_sanitize_text took {elapsed:.3f}s for 1MB plain text input, expected < 1s."
         )
 
     def test_sanitize_text_memory_efficiency(self):
@@ -125,7 +124,7 @@ class TestSanitizeTextPerformance:
         # Verify no control characters remain
         for char in result:
             code = ord(char)
-            if code <= 0x1f or 0x7f <= code <= 0x9f:
+            if code <= 0x1F or 0x7F <= code <= 0x9F:
                 # This should only happen if there's a literal backslash followed by
                 # x and hex digits - the escaped representation
                 pass  # These are now in escaped form, not actual control chars

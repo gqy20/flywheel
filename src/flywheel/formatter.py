@@ -18,7 +18,7 @@ _SANITZE_REPLACEMENTS: dict[int, str] = {
 for code in range(0x00, 0x20):
     if code not in (ord("\n"), ord("\r"), ord("\t")):
         _SANITZE_REPLACEMENTS[code] = f"\\x{code:02x}"
-for code in range(0x7f, 0xa0):  # DEL (0x7f) and C1 (0x80-0x9f)
+for code in range(0x7F, 0xA0):  # DEL (0x7f) and C1 (0x80-0x9f)
     _SANITZE_REPLACEMENTS[code] = f"\\x{code:02x}"
 
 
