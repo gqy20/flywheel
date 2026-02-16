@@ -1,0 +1,16 @@
+{
+  "issue_number": 3748,
+  "candidate_number": 3,
+  "run_id": "22068594560",
+  "branch": "claude/issue-3748-candidate-3-22068594560",
+  "created_at": "2026-02-16T16:15:00Z",
+  "status": "implemented",
+  "fix_summary": "Added conditional check for os.fchmod availability before calling it in save() method to handle Windows platform compatibility",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_3748_windows_fchmod.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": 115,
+  "approach": "Use hasattr() and callable() to check if os.fchmod is available before calling it. This allows graceful degradation on Windows where the function doesn't exist while preserving Unix behavior."
+}
