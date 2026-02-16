@@ -3,7 +3,7 @@
   "candidate_number": 1,
   "run_id": "22062781638",
   "branch": "claude/issue-3706-candidate-1-22062781638",
-  "status": "implemented",
+  "status": "verified",
   "test_first": true,
   "tests_pass": true,
   "ruff_clean": true,
@@ -16,5 +16,19 @@
     "todo_with_none_raises": true,
     "repr_with_valid_text_works": true,
     "from_dict_validation_unchanged": true
+  },
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_3706_todo_text_validation.py -v",
+      "result": "4 passed in 0.04s"
+    },
+    "pytest_todo_tests": {
+      "command": "uv run pytest tests/ -k todo -v",
+      "result": "38 passed in 0.14s"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check .",
+      "result": "All checks passed!"
+    }
   }
 }
