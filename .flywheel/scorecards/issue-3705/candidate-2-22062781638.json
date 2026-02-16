@@ -1,20 +1,23 @@
 {
-  "issue_number": 3705,
-  "candidate_number": 2,
+  "issue": 3705,
+  "candidate": 2,
   "run_id": "22062781638",
   "branch": "claude/issue-3705-candidate-2-22062781638",
-  "approach": "Add validation in __post_init__ to reject empty/whitespace-only text, consistent with rename() method",
-  "tests_added": [
-    "test_todo_init_rejects_empty_string",
-    "test_todo_init_rejects_whitespace_only",
-    "test_todo_init_accepts_valid_text"
+  "pr_number": 3717,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3717",
+  "generated_at": "2026-02-16T13:17:37.385886+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ],
-  "validation": {
-    "pytest": "passed",
-    "ruff": "passed"
+  "stage_response_sizes": {
+    "triage": 2438,
+    "plan": 4000,
+    "implement": 3264,
+    "verify": 3259,
+    "finalize": 1735
   }
 }
