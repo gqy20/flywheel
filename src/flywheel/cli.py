@@ -22,13 +22,13 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
-    def add(self, text: str) -> Todo:
+    def add(self, text: str, priority: int = 2) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
         todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
+        todo = Todo(id=self.storage.next_id(todos), text=text, priority=priority)
         todos.append(todo)
         self._save(todos)
         return todo
@@ -75,6 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_add = sub.add_parser("add", help="Add a todo")
     p_add.add_argument("text", help="Todo text")
+    p_add.add_argument(
+        "--priority", "-p", type=int, default=2, choices=[0, 1, 2],
+        help="Priority level: 0=high, 1=medium, 2=low (default: 2)"
+    )
 
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
@@ -96,7 +100,7 @@ def run_command(args: argparse.Namespace) -> int:
 
     try:
         if args.command == "add":
-            todo = app.add(args.text)
+            todo = app.add(args.text, args.priority)
             print(f"Added #{todo.id}: {_sanitize_text(todo.text)}")
             return 0
 

@@ -1,0 +1,84 @@
+{
+  "issue_number": 3736,
+  "candidate_number": 1,
+  "run_id": "22068594560",
+  "status": "IMPLEMENTED",
+  "plan": {
+    "summary": "Add priority field (0=high/1=medium/2=low) to Todo dataclass with validation and CLI support",
+    "files_to_touch": [
+      "tests/test_issue_3736_priority.py",
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing regression tests in tests/test_issue_3736_priority.py",
+        "tests": [
+          "test_todo_default_priority_is_2",
+          "test_todo_from_dict_rejects_invalid_priority_above_2",
+          "test_todo_from_dict_rejects_invalid_priority_below_0",
+          "test_todo_from_dict_accepts_valid_priority_0_1_2",
+          "test_cli_add_command_accepts_priority_flag",
+          "test_cli_add_command_priority_default_is_2"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add priority: int = 2 field to Todo dataclass",
+        "file": "src/flywheel/todo.py",
+        "changes": [
+          "Add priority: int = 2 field to @dataclass Todo",
+          "Update __repr__ to include priority (optional but helpful)"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "GREEN",
+        "description": "Add priority validation in Todo.from_dict",
+        "file": "src/flywheel/todo.py",
+        "changes": [
+          "Add validation that priority is in range 0-2",
+          "Raise ValueError with clear message for invalid priority values",
+          "Include priority in from_dict return cls()"
+        ]
+      },
+      {
+        "step": 4,
+        "phase": "GREEN",
+        "description": "Add --priority/-p argument to CLI add command",
+        "file": "src/flywheel/cli.py",
+        "changes": [
+          "Add --priority/-p argument to p_add subparser with type=int, default=2",
+          "Update TodoApp.add() to accept priority parameter",
+          "Pass priority to Todo() constructor in add()"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3736_priority.py -v",
+      "uv run pytest tests/ -v --tb=short",
+      "uv run ruff check src/flywheel/todo.py src/flywheel/cli.py"
+    ]
+  },
+  "implementation": {
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_3736_todo_priority.py"
+    ],
+    "tests_added": 10,
+    "tests_passed": 10,
+    "all_tests_passed": true,
+    "linting_passed": true
+  },
+  "acceptance_criteria": [
+    "PASS: Todo(id=1, text='x', priority=0) creates successfully",
+    "PASS: Todo.from_dict({'id':1,'text':'x','priority':3}) raises ValueError",
+    "PASS: Todo.from_dict({'id':1,'text':'x','priority':-1}) raises ValueError",
+    "PASS: CLI add command supports --priority/-p flag",
+    "PASS: All existing tests continue to pass"
+  ]
+}
