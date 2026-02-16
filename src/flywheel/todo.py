@@ -16,9 +16,7 @@ def _utc_now_iso() -> str:
 def _validate_text_length(text: str) -> None:
     """Validate that text length does not exceed the maximum allowed."""
     if len(text) > _MAX_TEXT_LENGTH:
-        raise ValueError(
-            f"Todo text too long ({len(text)} chars, max {_MAX_TEXT_LENGTH})"
-        )
+        raise ValueError(f"Todo text too long ({len(text)} chars, max {_MAX_TEXT_LENGTH})")
 
 
 @dataclass(slots=True)
