@@ -13,8 +13,6 @@ import multiprocessing
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.storage import TodoStorage, _ensure_parent_directory
 from flywheel.todo import Todo
 
