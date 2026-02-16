@@ -11,11 +11,8 @@ complete successfully without FileExistsError.
 from __future__ import annotations
 
 import multiprocessing
-import time
 from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from flywheel.storage import TodoStorage, _ensure_parent_directory
 from flywheel.todo import Todo
