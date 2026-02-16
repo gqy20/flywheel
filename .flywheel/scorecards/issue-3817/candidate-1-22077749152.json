@@ -1,0 +1,91 @@
+{
+  "issue": 3817,
+  "candidate": 1,
+  "run_id": "22077749152",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Fix inconsistent validation between Todo constructor and rename() method by adding text validation in __post_init__",
+    "files_to_touch": [
+      "tests/test_issue_3817_todo_constructor_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "type": "RED",
+        "action": "Create failing regression tests for Todo constructor validation",
+        "file": "tests/test_issue_3817_todo_constructor_validation.py",
+        "tests": [
+          "test_todo_constructor_rejects_whitespace_only_single_space",
+          "test_todo_constructor_rejects_whitespace_only_tabs_newlines",
+          "test_todo_constructor_rejects_empty_string",
+          "test_todo_constructor_accepts_valid_text",
+          "test_todo_constructor_strips_whitespace_from_valid_text"
+        ]
+      },
+      {
+        "step": 2,
+        "type": "GREEN",
+        "action": "Add text validation in Todo.__post_init__ to match rename() behavior",
+        "file": "src/flywheel/todo.py",
+        "changes": [
+          "Add text.strip() validation in __post_init__",
+          "Raise ValueError('Todo text cannot be empty') for empty/whitespace-only text"
+        ]
+      },
+      {
+        "step": 3,
+        "type": "VERIFY",
+        "action": "Run tests and linting",
+        "commands": [
+          "uv run pytest tests/test_issue_3817_todo_constructor_validation.py -v",
+          "uv run pytest tests/test_minimal_framework.py -v",
+          "uv run ruff check src/flywheel/todo.py"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3817_todo_constructor_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest -x -q",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_3817_todo_constructor_validation.py"
+    ],
+    "acceptance_criteria": [
+      "Todo(id=1, text='   ') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='\\t\\n') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='valid text') works normally",
+      "Todo(id=1, text='  valid  ') strips whitespace and stores 'valid'",
+      "All existing tests continue to pass"
+    ],
+    "risks": [
+      "Breaking change: code that currently creates Todo with whitespace-only text will now raise ValueError",
+      "This is intentional and matches the behavior of rename() method"
+    ]
+  },
+  "implementation": {
+    "summary": "Added text validation in Todo.__post_init__ to match rename() behavior",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3817_todo_constructor_validation.py"
+    ],
+    "lines_changed": 6
+  },
+  "tests": {
+    "file": "tests/test_issue_3817_todo_constructor_validation.py",
+    "test_count": 7,
+    "all_passed": true,
+    "full_suite_passed": true,
+    "full_suite_count": 119
+  },
+  "verification": {
+    "ruff_check": "passed",
+    "pytest": "119 tests passed"
+  },
+  "risks": {
+    "breaking_change": true,
+    "description": "This is a breaking change for any code that relies on the constructor accepting whitespace-only text. However, this is an edge case that was likely unintentional, and the fix aligns behavior with rename() validation.",
+    "mitigation": "None needed - this fixes a bug/inconsistency, not a documented feature"
+  },
+  "timestamp": "2026-02-16T21:50:00Z"
+}
