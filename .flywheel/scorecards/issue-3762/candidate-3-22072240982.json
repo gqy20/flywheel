@@ -31,5 +31,26 @@
     "tests/test_issue_3762_duplicate_id_validation.py"
   ],
   "tests_passed": 116,
-  "ruff_checks": "passed"
+  "ruff_checks": "passed",
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_3762_duplicate_id_validation.py -v",
+      "result": "4/4 passed",
+      "tests": [
+        "test_storage_load_rejects_duplicate_ids",
+        "test_storage_load_accepts_unique_ids",
+        "test_storage_load_rejects_multiple_duplicate_ids",
+        "test_next_id_remains_consistent_after_valid_load"
+      ]
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ --tb=short -q",
+      "result": "116/116 passed"
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_3762_duplicate_id_validation.py",
+      "result": "All checks passed"
+    },
+    "verified_at": "2026-02-16T18:06:00Z"
+  }
 }
