@@ -1,0 +1,16 @@
+{
+  "issue_number": 3818,
+  "candidate_id": 1,
+  "run_id": "22077749152",
+  "branch": "claude/issue-3818-candidate-1-22077749152",
+  "triage_summary": "Todo constructor accepts any type for 'done' field while from_dict validates strictly. Root cause: dataclass type annotation is only static, no runtime validation in __post_init__.",
+  "root_cause": "Missing runtime validation for 'done' field in __post_init__ method",
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "tests_added": 5,
+  "tests_passed": 117,
+  "ruff_check": "passed",
+  "created_at": "2026-02-16T20:33:00Z"
+}

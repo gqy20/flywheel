@@ -119,3 +119,40 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3818 - validate 'done' field in constructor to match from_dict
+def test_todo_constructor_rejects_string_done() -> None:
+    """Todo constructor should reject strings for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo(id=1, text="task", done="yes")
+
+
+def test_todo_constructor_rejects_truthy_int_done() -> None:
+    """Todo constructor should reject non-boolean integers like 2 for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo(id=1, text="task", done=2)
+
+
+def test_todo_constructor_rejects_negative_int_done() -> None:
+    """Todo constructor should reject negative integers for 'done' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'done'|'done'.*bool|'done'.*boolean"):
+        Todo(id=1, text="task", done=-1)
+
+
+def test_todo_constructor_accepts_boolean_done() -> None:
+    """Todo constructor should accept boolean True/False for 'done' field."""
+    todo_true = Todo(id=1, text="task", done=True)
+    assert todo_true.done is True
+
+    todo_false = Todo(id=2, text="task2", done=False)
+    assert todo_false.done is False
+
+
+def test_todo_constructor_accepts_legacy_int_done() -> None:
+    """Todo constructor should accept legacy int values 0 and 1 for 'done' field."""
+    todo_true = Todo(id=1, text="task", done=1)
+    assert todo_true.done is True
+
+    todo_false = Todo(id=2, text="task2", done=0)
+    assert todo_false.done is False
