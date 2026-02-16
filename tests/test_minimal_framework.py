@@ -158,3 +158,29 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command(tmp_path, capsys) -> None:
+    """Bug #3559: CLI should expose 'rename' subcommand."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Rename it via CLI
+    args = parser.parse_args(["--db", db, "rename", "1", "renamed task"])
+    assert run_command(args) == 0
+
+    # Verify rename output
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+    assert "renamed task" in captured.out
+
+    # Verify the todo was actually renamed
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "renamed task" in out
+    assert "original task" not in out
