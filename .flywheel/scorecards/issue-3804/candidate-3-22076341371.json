@@ -1,0 +1,16 @@
+{
+  "issue": 3804,
+  "candidate": 3,
+  "run_id": "22076341371",
+  "branch": "claude/issue-3804-candidate-3-22076341371",
+  "status": "implemented",
+  "tests_added": 3,
+  "tests_passed": 15,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Fix from_dict() to raise ValueError instead of TypeError when data is None or non-dict",
+  "approach": "Add isinstance(data, dict) check at the start of from_dict() method before field validation",
+  "risks": "None - minimal change with clear error message"
+}
