@@ -1,44 +1,23 @@
 {
-  "issue_number": 3648,
-  "candidate_number": 1,
+  "issue": 3648,
+  "candidate": 1,
   "run_id": "22055460478",
-  "stage": "FINALIZE",
-  "analysis": {
-    "issue_type": "documentation",
-    "severity": "p3",
-    "root_cause": "Missing docstring documentation about cross-filesystem atomic rename edge case"
-  },
-  "plan": {
-    "approach": "Add documentation to save() method docstring explaining cross-filesystem edge case",
-    "files_to_modify": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "files_to_create": [],
-    "tests_to_add": [
-      "test_save_docstring_documents_cross_filesystem_edge_case"
-    ]
-  },
-  "test_plan": {
-    "red_phase": "Added test to verify docstring mentions filesystem considerations",
-    "green_phase": "Added docstring note about cross-filesystem edge case",
-    "verification_commands": [
-      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
-      "uv run pytest tests/test_storage_atomicity.py -v"
-    ]
-  },
-  "risk_assessment": {
-    "risk_level": "very_low",
-    "rationale": "Documentation-only change with regression test, no code logic modifications"
-  },
-  "verification_results": {
-    "ruff_check": "PASSED - All checks passed",
-    "pytest": "PASSED - 7/7 tests passed",
-    "verification_timestamp": "2026-02-16T09:01:00Z"
-  },
-  "finalize": {
-    "pr_url": "https://github.com/gqy20/flywheel/pull/3659",
-    "pr_number": 3659,
-    "finalize_timestamp": "2026-02-16T09:06:00Z"
+  "branch": "claude/issue-3648-candidate-1-22055460478",
+  "pr_number": 3659,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3659",
+  "generated_at": "2026-02-16T09:04:50.142642+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2891,
+    "plan": 3035,
+    "implement": 3359,
+    "verify": 2132,
+    "finalize": 2108
   }
 }
