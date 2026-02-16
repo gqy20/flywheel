@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -38,6 +39,11 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+        # Validate priority: must be None or 1-3
+        if self.priority is not None and self.priority not in (1, 2, 3):
+            raise ValueError(
+                f"Invalid priority: {self.priority}. Priority must be 1, 2, or 3."
+            )
 
     def mark_done(self) -> None:
         self.done = True
@@ -93,10 +99,21 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' if present
+        raw_priority = data.get("priority")
+        if raw_priority is not None and (
+            not isinstance(raw_priority, int) or raw_priority not in (1, 2, 3)
+        ):
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be 1, 2, or 3."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=raw_priority,
         )
