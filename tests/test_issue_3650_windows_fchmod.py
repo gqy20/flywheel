@@ -80,7 +80,7 @@ def test_save_uses_fchmod_on_unix_when_available(tmp_path) -> None:
 
     # Verify fchmod was called with 0o600 permissions
     assert len(fchmod_calls) == 1, f"Expected 1 fchmod call, got {len(fchmod_calls)}"
-    fd, mode = fchmod_calls[0]
+    _fd, mode = fchmod_calls[0]
     assert mode == 0o600, f"Expected 0o600 mode, got {oct(mode)}"
 
 
