@@ -20,6 +20,29 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id, text, and done status (ignoring timestamps)."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id and self.text == other.text and self.done == other.done
+
+    def __hash__(self) -> int:
+        """Hash based on id, text, and done status."""
+        return hash((self.id, self.text, self.done))
+
+    def copy(self, **kwargs) -> Todo:
+        """Create a copy of this todo with optional field overrides.
+
+        Args:
+            **kwargs: Fields to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified overrides.
+        """
+        data = self.to_dict()
+        data.update(kwargs)
+        return Todo.from_dict(data)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 

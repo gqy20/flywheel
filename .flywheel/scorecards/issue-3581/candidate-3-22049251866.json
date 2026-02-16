@@ -1,0 +1,22 @@
+{
+  "issue_number": 3581,
+  "issue_title": "[Feature] 添加 Todo 不可变性/拷贝支持（__eq__, __hash__, copy 方法）",
+  "candidate_number": 3,
+  "run_id": "22049251866",
+  "branch": "claude/issue-3581-candidate-3-22049251866",
+  "approach": "Added __eq__, __hash__, and copy methods to Todo dataclass. __eq__ compares id, text, done (ignoring timestamps). __hash__ hashes the same tuple for consistency with __eq__. copy() creates a new instance with optional field overrides.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3581_todo_immutability.py"
+  ],
+  "tests_added": 16,
+  "tests_passed": true,
+  "linter_passed": true,
+  "acceptance_criteria_met": {
+    "equality_works": true,
+    "hash_works": true,
+    "copy_works": true
+  },
+  "risks": "None identified. The implementation follows Python conventions for __eq__, __hash__, and the copy method uses existing to_dict/from_dict methods.",
+  "limitations": "The hash is based on id, text, and done - if any of these fields change on a Todo that's already in a set/dict, it will break (standard Python mutable-hashable caveat)."
+}
