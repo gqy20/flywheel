@@ -64,7 +64,6 @@ def test_copy_with_preserves_id() -> None:
 def test_copy_with_updates_updated_at() -> None:
     """copy_with() should update the updated_at timestamp when any field changes."""
     todo = Todo(id=1, text="buy milk", done=False)
-    original_updated_at = todo.updated_at
     new_todo = todo.copy_with(done=True)
 
     # updated_at should be updated (different from original)
