@@ -1,0 +1,57 @@
+{
+  "issue_number": 3775,
+  "issue_title": "[Bug] Negative IDs are accepted without validation",
+  "candidate_number": 1,
+  "run_id": "22073699620",
+  "branch_name": "claude/issue-3775-candidate-1-22073699620",
+  "stage": "FINALIZE_COMPLETE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3799",
+  "plan": {
+    "summary": "Add validation to Todo.from_dict() to reject negative IDs",
+    "files_to_touch": [
+      "tests/test_issue_2000_json_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_stages": {
+      "red": "Add 3 failing tests for negative ID validation",
+      "green": "Add validation check after int conversion in from_dict()"
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+      "uv run pytest tests/ -v"
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_2000_json_validation.py",
+    "source_file": "src/flywheel/todo.py",
+    "tests_added": 3,
+    "lines_changed": 5
+  },
+  "verification_results": {
+    "specific_tests": "15 passed",
+    "linting": "All checks passed",
+    "full_suite": "115 passed"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError with message containing 'id' and 'non-negative'",
+      "status": "MET"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 0, 'text': 'test'}) still works (0 is valid)",
+      "status": "MET"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 1, 'text': 'test'}) still works",
+      "status": "MET"
+    }
+  ],
+  "risks_limitations": [
+    "Low risk: only affects invalid inputs (negative IDs) which were not documented as supported behavior",
+    "No breaking changes: positive IDs and zero continue to work"
+  ],
+  "status": "ready_for_pr",
+  "created_at": "2026-02-16T17:52:00Z",
+  "updated_at": "2026-02-16T17:55:00Z"
+}
