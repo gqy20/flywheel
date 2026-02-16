@@ -1,0 +1,55 @@
+{
+  "issue_number": 3620,
+  "candidate": 3,
+  "run_id": "22052909423",
+  "status": "IMPLEMENT",
+  "plan": {
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_3620_toctou_mkdir_race.py",
+        "action": "create",
+        "description": "Regression test for TOCTOU race condition"
+      },
+      {
+        "path": "src/flywheel/storage.py",
+        "action": "modify",
+        "description": "Change exist_ok=False to exist_ok=True in _ensure_parent_directory"
+      }
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Create failing regression test that simulates TOCTOU race condition"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Change exist_ok=False to exist_ok=True in src/flywheel/storage.py:45"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3620_toctou_mkdir_race.py -v",
+      "uv run pytest tests/test_issue_1894_security_mkdir_fix.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ],
+    "acceptance_criteria": [
+      "No OSError raised when directory is created by another process between check and mkdir",
+      "File-as-directory validation error still raised appropriately",
+      "Existing tests continue to pass"
+    ],
+    "risks": [
+      "None - the fix is minimal and safe"
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_3620_toctou_mkdir_race.py",
+    "source_file": "src/flywheel/storage.py",
+    "change_description": "Changed exist_ok=False to exist_ok=True in _ensure_parent_directory() to handle TOCTOU race condition",
+    "tests_passed": true,
+    "ruff_check_passed": true
+  },
+  "created_at": "2026-02-16T07:15:00Z",
+  "implemented_at": "2026-02-16T07:30:00Z"
+}
