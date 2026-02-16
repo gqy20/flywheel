@@ -54,6 +54,14 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def update_text(self, text: str) -> None:
+        """Alias for :meth:`rename`.
+
+        Improves API discoverability: the todo field is named ``text``,
+        so ``update_text()`` is more intuitive than ``rename()``.
+        """
+        self.rename(text)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
