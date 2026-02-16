@@ -1,29 +1,23 @@
 {
-  "issue_number": 3777,
-  "issue_title": "[Perf] No length limit on todo text field allows potential memory exhaustion",
-  "candidate_number": 3,
+  "issue": 3777,
+  "candidate": 3,
   "run_id": "22075095435",
-  "branch_name": "claude/issue-3777-candidate-3-22075095435",
-  "implementation": {
-    "approach": "Added MAX_TEXT_LENGTH constant (10000 chars) and validation in Todo constructor, rename(), and from_dict() methods",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3777_text_length_limit.py"
-    ],
-    "lines_changed": 15
-  },
-  "tests": {
-    "test_file": "tests/test_issue_3777_text_length_limit.py",
-    "test_count": 7,
-    "all_passed": true,
-    "full_suite_passed": true,
-    "total_tests_in_suite": 119
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_check_passed": true,
-    "ruff_format_passed": true
-  },
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-3777-candidate-3-22075095435",
+  "pr_number": 3815,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3815",
+  "generated_at": "2026-02-16T20:08:11.542204+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2716,
+    "plan": 2728,
+    "implement": 1460,
+    "verify": 3160,
+    "finalize": 1289
+  }
 }
