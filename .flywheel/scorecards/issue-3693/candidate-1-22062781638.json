@@ -1,52 +1,23 @@
 {
-  "issue_number": 3693,
-  "candidate_number": 1,
+  "issue": 3693,
+  "candidate": 1,
   "run_id": "22062781638",
-  "branch_name": "claude/issue-3693-candidate-1-22062781638",
+  "branch": "claude/issue-3693-candidate-1-22062781638",
+  "pr_number": 3710,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3710",
-  "created_at": "2026-02-16T12:00:00Z",
-  "triage": {
-    "root_cause": "Todo.__post_init__ did not validate the text field, allowing empty or whitespace-only strings",
-    "risk_points": [
-      "Data integrity: Empty todo items can be created via direct instantiation",
-      "Inconsistency: rename() and add() validate text, but __init__ did not"
-    ],
-    "verification_targets": [
-      "Todo(id=1, text='') should raise ValueError",
-      "Todo(id=1, text='   ') should raise ValueError",
-      "Todo(id=1, text='valid') should work normally",
-      "Todo(id=1, text='  padded  ') should strip whitespace"
-    ]
-  },
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 31,
-    "lines_removed": 0
-  },
-  "tests": {
-    "new_tests": 4,
-    "tests_passed": 116,
-    "tests_failed": 0,
-    "test_commands": [
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run pytest tests/ -v"
-    ]
-  },
-  "lint": {
-    "tool": "ruff",
-    "status": "passed",
-    "command": "uv run ruff check src/flywheel/todo.py"
-  },
-  "scorecard": {
-    "correctness": 5,
-    "minimal_changes": 5,
-    "test_coverage": 5,
-    "code_quality": 5,
-    "notes": "Fix follows existing pattern from rename() method. All tests pass."
+  "generated_at": "2026-02-16T13:13:48.710731+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3226,
+    "plan": 2964,
+    "implement": 2431,
+    "verify": 2305,
+    "finalize": 864
   }
 }
