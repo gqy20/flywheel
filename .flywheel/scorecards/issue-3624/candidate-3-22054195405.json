@@ -1,0 +1,93 @@
+{
+  "issue": 3624,
+  "candidate": 3,
+  "run_id": "22054195405",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add text length validation to prevent oversized input in Todo class",
+    "tdd_approach": "RED-GREEN-REFACTOR",
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_3624_text_length_validation.py",
+        "action": "create",
+        "description": "New test file with failing regression tests for text length validation"
+      },
+      {
+        "path": "src/flywheel/todo.py",
+        "action": "edit",
+        "description": "Add _MAX_TEXT_LENGTH constant and _validate_text_length helper, apply in __post_init__, rename(), and from_dict"
+      }
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Create test file with failing tests for text length validation",
+        "tests": [
+          "test_rename_rejects_text_over_10000_chars",
+          "test_rename_accepts_text_at_10000_chars",
+          "test_post_init_rejects_text_over_10000_chars",
+          "test_from_dict_rejects_text_over_10000_chars",
+          "test_error_message_includes_actual_and_max_length"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Implement minimal fix in todo.py",
+        "changes": [
+          "Add _MAX_TEXT_LENGTH = 10000 constant at module level",
+          "Add _validate_text_length(text: str) helper that raises ValueError if len > max",
+          "Call validator in __post_init__ after empty check",
+          "Call validator in rename() after strip and empty check",
+          "Call validator in from_dict() after type validation"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "action": "Run targeted checks to confirm all tests pass",
+        "commands": [
+          "uv run pytest tests/test_issue_3624_text_length_validation.py -v",
+          "uv run pytest tests/test_minimal_framework.py -v -k rename",
+          "uv run ruff check src/flywheel/todo.py"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3624_text_length_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py",
+      "uv run ruff format --check src/flywheel/todo.py"
+    ],
+    "acceptance_criteria": [
+      "Text > 10000 chars raises ValueError",
+      "Error message includes actual length and max length",
+      "Both __post_init__ and rename() apply validation",
+      "from_dict also validates text length",
+      "Normal length text (<=10000) passes unaffected"
+    ],
+    "risks_limitations": [
+      "Existing stored todos with >10000 chars will fail to load via from_dict - acceptable as this protects against malformed data"
+    ]
+  },
+  "implementation": {
+    "tests_added": ["tests/test_issue_3624_text_length_validation.py"],
+    "files_changed": ["src/flywheel/todo.py"],
+    "test_results": {
+      "total_tests": 121,
+      "passed": 121,
+      "failed": 0
+    },
+    "acceptance_criteria_met": [
+      "Text exceeding 10000 chars raises ValueError",
+      "Error message includes actual length and max length",
+      "__post_init__ and rename() both apply validation",
+      "from_dict applies validation via __post_init__",
+      "Normal length text is unaffected"
+    ]
+  },
+  "created_at": "2026-02-16T07:10:00Z",
+  "implemented_at": "2026-02-16T07:15:00Z"
+}
