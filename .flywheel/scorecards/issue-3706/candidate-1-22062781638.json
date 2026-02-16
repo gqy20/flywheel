@@ -1,34 +1,23 @@
 {
-  "issue_number": 3706,
-  "candidate_number": 1,
+  "issue": 3706,
+  "candidate": 1,
   "run_id": "22062781638",
   "branch": "claude/issue-3706-candidate-1-22062781638",
-  "status": "verified",
-  "test_first": true,
-  "tests_pass": true,
-  "ruff_clean": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_3706_todo_text_validation.py"
+  "pr_number": 3718,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3718",
+  "generated_at": "2026-02-16T13:18:19.825626+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added type validation in Todo.__post_init__ to ensure text field is a string and not None, preventing TypeError in __repr__",
-  "validation_criteria_met": {
-    "todo_with_none_raises": true,
-    "repr_with_valid_text_works": true,
-    "from_dict_validation_unchanged": true
-  },
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_3706_todo_text_validation.py -v",
-      "result": "4 passed in 0.04s"
-    },
-    "pytest_todo_tests": {
-      "command": "uv run pytest tests/ -k todo -v",
-      "result": "38 passed in 0.14s"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check .",
-      "result": "All checks passed!"
-    }
+  "stage_response_sizes": {
+    "triage": 2185,
+    "plan": 2002,
+    "implement": 2121,
+    "verify": 2222,
+    "finalize": 1290
   }
 }
