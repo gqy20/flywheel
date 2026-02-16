@@ -1,42 +1,23 @@
 {
-  "issue_number": 3846,
-  "candidate_id": 1,
+  "issue": 3846,
+  "candidate": 1,
   "run_id": "22079040794",
-  "branch_name": "claude/issue-3846-candidate-1-22079040794",
-  "stage": "FINALIZE",
-  "triage_summary": {
-    "root_cause": "The _sanitize_text function in src/flywheel/formatter.py only sanitizes C0 control characters (0x00-0x1f), DEL (0x7f), and C1 control characters (0x80-0x9f). It does NOT sanitize Unicode bidirectional text control characters (U+202A-U+202E, U+200E, U+200F) or zero-width characters (U+200B-U+200D, U+2060, U+FEFF). These characters can be exploited for visual spoofing/Trojan Source attacks by reordering displayed text to hide malicious content.",
-    "affected_code": "src/flywheel/formatter.py:34 - The conditional check only covers ranges 0x00-0x1f, 0x7f-0x9f",
-    "risk_points": [
-      "Bidirectional override characters (U+202A-U+202E) can reverse text direction, hiding malicious content",
-      "Zero-width characters (U+200B-U+200D, U+FEFF) are invisible and can be used for obfuscation",
-      "Direction markers (U+200E, U+200F) can affect text rendering without visible characters"
-    ],
-    "existing_tests": [
-      "tests/test_issue_2028_del_char_sanitization.py - DEL character sanitization",
-      "tests/test_issue_2057_c1_control_sanitization.py - C1 control character sanitization",
-      "tests/test_issue_2097_backslash_escape_collision.py - Backslash escape collision prevention"
-    ]
-  },
-  "implementation_summary": {
-    "source_files_changed": [
-      "src/flywheel/formatter.py"
-    ],
-    "test_files_added": [
-      "tests/test_issue_3846_bidirectional_text_sanitization.py"
-    ],
-    "new_tests_count": 20,
-    "tests_passed": true,
-    "linter_passed": true
-  },
-  "verification_summary": {
-    "pytest_command": "uv run pytest tests/test_issue_3846_bidirectional_text_sanitization.py -v",
-    "pytest_result": "20 passed in 0.07s",
-    "ruff_command": "uv run ruff check src/flywheel/formatter.py tests/test_issue_3846_bidirectional_text_sanitization.py",
-    "ruff_result": "All checks passed!",
-    "related_tests_command": "uv run pytest tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
-    "related_tests_result": "22 passed in 0.08s"
-  },
-  "status": "FINALIZE_COMPLETE",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/3856"
+  "branch": "claude/issue-3846-candidate-1-22079040794",
+  "pr_number": 3856,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3856",
+  "generated_at": "2026-02-16T22:46:17.899803+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1411,
+    "plan": 3255,
+    "implement": 2841,
+    "verify": 1710,
+    "finalize": 1675
+  }
 }
