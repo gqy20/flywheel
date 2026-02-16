@@ -5,10 +5,6 @@ Tests for __eq__, __hash__, and copy method.
 
 from __future__ import annotations
 
-from copy import copy as shallow_copy
-
-import pytest
-
 from flywheel.todo import Todo
 
 
