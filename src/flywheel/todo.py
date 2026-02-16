@@ -20,6 +20,24 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    @staticmethod
+    def _validate_text(text: str) -> str:
+        """Validate and normalize todo text.
+
+        Args:
+            text: The text to validate.
+
+        Returns:
+            The stripped/normalized text.
+
+        Raises:
+            ValueError: If text is empty after stripping whitespace.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        return text
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
@@ -34,11 +52,8 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        # Validate and normalize text - single source of truth for empty text validation
-        text = self.text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        # Validate and normalize text using shared helper
+        self.text = self._validate_text(self.text)
 
         if not self.created_at:
             self.created_at = _utc_now_iso()
@@ -54,10 +69,7 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-        self.text = text
+        self.text = self._validate_text(text)
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:

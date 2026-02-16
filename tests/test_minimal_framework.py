@@ -190,3 +190,34 @@ def test_app_add_empty_text_raises_error(tmp_path) -> None:
 
     with pytest.raises(ValueError, match="Todo text cannot be empty"):
         app.add("   ")
+
+
+def test_empty_text_validation_is_consolidated() -> None:
+    """Bug #3720: Empty text validation should use a single helper method.
+
+    This regression test verifies that the validation logic for empty text
+    is consolidated into a single helper method `_validate_text` rather than
+    being duplicated across __post_init__ and rename().
+    """
+    import inspect
+
+    # Verify the helper method exists
+    assert hasattr(Todo, "_validate_text"), "Todo should have _validate_text helper method"
+
+    # Verify __post_init__ calls the helper instead of inline validation
+    source = inspect.getsource(Todo.__post_init__)
+    assert "_validate_text" in source, "__post_init__ should call _validate_text"
+
+    # Verify rename() calls the helper instead of inline validation
+    source = inspect.getsource(Todo.rename)
+    assert "_validate_text" in source, "rename() should call _validate_text"
+
+    # Verify the helper works correctly
+    assert Todo._validate_text("valid text") == "valid text"
+    assert Todo._validate_text("  padded  ") == "padded"
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo._validate_text("")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo._validate_text("   ")
