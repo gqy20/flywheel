@@ -1,21 +1,23 @@
 {
-  "issue_number": 3622,
+  "issue": 3622,
   "candidate": 3,
   "run_id": "22054195405",
   "branch": "claude/issue-3622-candidate-3-22054195405",
-  "status": "implemented",
-  "fix_summary": "Added validation in Todo.__post_init__ to reject whitespace-only text, making constructor behavior consistent with rename() method",
-  "tests_added": [
-    "test_todo_constructor_rejects_whitespace_only_text",
-    "test_todo_constructor_accepts_valid_text_without_stripping"
+  "pr_number": 3640,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3640",
+  "generated_at": "2026-02-16T08:10:55.151058+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ],
-  "validation": {
-    "pytest": "114 passed",
-    "ruff": "All checks passed"
-  },
-  "created_at": "2026-02-16T07:30:00Z"
+  "stage_response_sizes": {
+    "triage": 2514,
+    "plan": 2834,
+    "implement": 2187,
+    "verify": 1883,
+    "finalize": 1071
+  }
 }
