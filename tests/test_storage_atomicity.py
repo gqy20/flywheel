@@ -291,7 +291,7 @@ def test_concurrent_add_operations_produce_unique_ids(tmp_path) -> None:
     all_ids = []
     all_errors = []
     while not result_queue.empty():
-        worker_id, ids, errors = result_queue.get()
+        _worker_id, ids, errors = result_queue.get()
         all_ids.extend(ids)
         all_errors.extend(errors)
 
