@@ -1,14 +1,23 @@
 {
-  "issue_number": 3789,
+  "issue": 3789,
   "candidate": 2,
   "run_id": "22075095435",
   "branch": "claude/issue-3789-candidate-2-22075095435",
-  "status": "verified",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_3789_positive_id_validation.py", "tests/test_storage_atomicity.py"]
-  },
-  "tests_passed": true,
-  "ruff_clean": true,
-  "summary": "Added validation in Todo.from_dict() to reject zero or negative IDs. IDs must now be positive integers (>= 1). Also fixed pre-existing test that was using id=0."
+  "pr_number": 3811,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3811",
+  "generated_at": "2026-02-16T20:04:27.736709+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2870,
+    "plan": 3085,
+    "implement": 1865,
+    "verify": 3356,
+    "finalize": 1904
+  }
 }
