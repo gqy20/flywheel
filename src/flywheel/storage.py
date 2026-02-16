@@ -90,9 +90,18 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Permission preservation: If the target file already exists, its permissions
+        are preserved after the atomic rename to maintain intended access controls.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Preserve original file permissions if file exists
+        original_mode = None
+        if self.path.exists():
+            with contextlib.suppress(OSError):
+                original_mode = stat.S_IMODE(self.path.stat().st_mode)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -118,6 +127,11 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Restore original file permissions if they were preserved
+            if original_mode is not None:
+                with contextlib.suppress(OSError):
+                    os.chmod(self.path, original_mode)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
