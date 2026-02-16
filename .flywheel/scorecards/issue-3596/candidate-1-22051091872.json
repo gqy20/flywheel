@@ -1,33 +1,23 @@
 {
-  "issue_number": 3596,
-  "candidate_number": 1,
+  "issue": 3596,
+  "candidate": 1,
   "run_id": "22051091872",
   "branch": "claude/issue-3596-candidate-1-22051091872",
-  "status": "implemented",
-  "implementation": {
-    "summary": "Added toggle() method to Todo class that flips done status and updates timestamp",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3596_toggle_method.py"
-    ],
-    "approach": "Followed existing pattern from mark_done() and mark_undone() methods - flip boolean and update timestamp"
-  },
-  "tests": {
-    "test_file": "tests/test_issue_3596_toggle_method.py",
-    "tests_added": 3,
-    "tests_passed": 3,
-    "verification_commands": [
-      "uv run pytest tests/test_issue_3596_toggle_method.py -v",
-      "uv run ruff check src/flywheel/todo.py"
-    ]
-  },
-  "acceptance_criteria": {
-    "toggle_undone_to_done": true,
-    "toggle_done_to_undone": true,
-    "updated_at_refreshes": true
-  },
-  "risks": {
-    "breaking_changes": false,
-    "notes": "Simple enhancement following existing patterns - minimal risk"
+  "pr_number": 3614,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3614",
+  "generated_at": "2026-02-16T05:50:52.851399+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2229,
+    "plan": 2479,
+    "implement": 1877,
+    "verify": 1894,
+    "finalize": 843
   }
 }
