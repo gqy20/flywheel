@@ -4,8 +4,8 @@
   "candidate_number": 3,
   "run_id": "22068594560",
   "branch_name": "claude/issue-3734-candidate-3-22068594560",
-  "stage": "VERIFY",
-  "status": "COMPLETED",
+  "stage": "FINALIZE",
+  "status": "IN_PROGRESS",
   "tdd_plan": {
     "phase": "RED",
     "description": "Add failing regression test for to_dict/from_dict round-trip",
