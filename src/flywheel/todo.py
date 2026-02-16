@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _utc_now_iso() -> str:
@@ -32,6 +33,46 @@ class Todo:
             display_text = display_text[:47] + "..."
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id, text, and done status.
+
+        Timestamps (created_at, updated_at) are intentionally excluded from
+        equality comparison to allow semantic equality regardless of when
+        the objects were created.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash Todo objects based on id.
+
+        Since __eq__ compares id, text, and done, we use all three in the hash
+        to maintain the hash/equality contract.
+        """
+        return hash((self.id, self.text, self.done))
+
+    def copy(self, **kwargs: Any) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        Args:
+            **kwargs: Field names and values to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified field changes.
+
+        Example:
+            todo = Todo(id=1, text="buy milk")
+            new_todo = todo.copy(text="buy bread", done=True)
+        """
+        return Todo(
+            id=kwargs.get("id", self.id),
+            text=kwargs.get("text", self.text),
+            done=kwargs.get("done", self.done),
+            created_at=kwargs.get("created_at", self.created_at),
+            updated_at=kwargs.get("updated_at", self.updated_at),
+        )
 
     def __post_init__(self) -> None:
         if not self.created_at:

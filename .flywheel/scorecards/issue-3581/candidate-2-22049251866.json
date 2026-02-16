@@ -1,0 +1,32 @@
+{
+  "issue_number": 3581,
+  "candidate_number": 2,
+  "run_id": "22049251866",
+  "branch": "claude/issue-3581-candidate-2-22049251866",
+  "implementation_summary": {
+    "title": "[Feature] 添加 Todo 不可变性/拷贝支持（__eq__, __hash__, copy 方法）",
+    "description": "Added __eq__, __hash__, and copy methods to the Todo dataclass to enable proper object comparison, hashability for use in sets/dicts, and creating derived copies.",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3581_todo_immutability.py"
+    ]
+  },
+  "tests": {
+    "count": 14,
+    "all_passed": true,
+    "test_file": "tests/test_issue_3581_todo_immutability.py"
+  },
+  "code_quality": {
+    "ruff_check": "passed",
+    "full_test_suite": "126 tests passed"
+  },
+  "acceptance_criteria": {
+    "eq_method": "Todo(1, 'a') == Todo(1, 'a') returns True",
+    "hash_method": "hash(Todo(1, 'a')) does not throw exception and is consistent",
+    "copy_method": "todo.copy(text='new') returns new instance with updated text"
+  },
+  "risks": [
+    "Equality intentionally ignores timestamps (created_at, updated_at) to allow semantic equality",
+    "Hash uses (id, text, done) tuple to match __eq__ behavior"
+  ]
+}
