@@ -158,3 +158,48 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_for_non_contiguous_ids(tmp_path) -> None:
+    """Bug #3790: next_id() should return smallest unused ID, not max+1.
+
+    When IDs have gaps (e.g., [1, 3, 5]), next_id() should return 2
+    (the smallest unused positive integer), not 6 (max + 1).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs [1, 5, 10]
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=5, text="fifth"),
+        Todo(id=10, text="tenth"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2 (smallest unused), not 11 (max + 1)
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_fills_gap_after_removal(tmp_path) -> None:
+    """Bug #3790: next_id() should fill gaps created by removal.
+
+    When a middle todo is removed leaving a gap, next_id() should
+    return that gap ID rather than incrementing to max + 1.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos [1, 2, 3, 4, 5]
+    todos = [Todo(id=i, text=f"task {i}") for i in range(1, 6)]
+    storage.save(todos)
+
+    # Simulate removing id=3, leaving [1, 2, 4, 5]
+    loaded = storage.load()
+    remaining = [t for t in loaded if t.id != 3]
+    storage.save(remaining)
+
+    # next_id should return 3 (the gap), not 6 (max + 1)
+    loaded_again = storage.load()
+    assert storage.next_id(loaded_again) == 3
