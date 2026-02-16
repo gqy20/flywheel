@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -38,6 +39,12 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+        # Validate priority: None or 1-3 are valid
+        if self.priority is not None and self.priority not in (1, 2, 3):
+            raise ValueError(
+                f"Invalid priority: {self.priority!r}. "
+                "Priority must be None or an integer between 1 and 3."
+            )
 
     def mark_done(self) -> None:
         self.done = True
@@ -99,4 +106,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=data.get("priority"),
         )

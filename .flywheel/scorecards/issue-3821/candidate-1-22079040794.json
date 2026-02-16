@@ -1,0 +1,24 @@
+{
+  "issue_number": 3821,
+  "issue_title": "[Feature] 添加 Todo 优先级字段 (priority)",
+  "candidate_number": 1,
+  "run_id": "22079040794",
+  "branch_name": "claude/issue-3821-candidate-1-22079040794",
+  "status": "implemented",
+  "stage": "IMPLEMENT",
+  "test_results": {
+    "total": 12,
+    "passed": 12,
+    "failed": 0
+  },
+  "linter_results": {
+    "ruff": "passed"
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3821_todo_priority.py"
+  ],
+  "implementation_summary": "Added optional priority field (int | None) to Todo dataclass with validation (valid values: None, 1, 2, 3). Updated to_dict/from_dict methods for proper serialization/deserialization.",
+  "risks": "None - backward compatible change with sensible defaults.",
+  "limitations": "CLI and formatter not yet updated to use priority for sorting/filtering (out of scope for minimal fix)."
+}
