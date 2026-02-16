@@ -1,0 +1,15 @@
+{
+  "issue_number": 3736,
+  "candidate_number": 2,
+  "run_id": "22068594560",
+  "branch": "claude/issue-3736-candidate-2-22068594560",
+  "status": "implemented",
+  "tests_passed": 12,
+  "tests_total": 12,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "src/flywheel/cli.py",
+    "tests/test_issue_3736_todo_priority.py"
+  ],
+  "implementation_summary": "Added priority field (0=high, 1=medium, 2=low) to Todo dataclass with default value 2. Added validation in from_dict to ensure priority is in range 0-2. Added --priority/-p CLI argument for add command."
+}
