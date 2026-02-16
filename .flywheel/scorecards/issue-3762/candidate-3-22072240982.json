@@ -1,56 +1,23 @@
 {
-  "issue_number": 3762,
-  "candidate_number": 3,
+  "issue": 3762,
+  "candidate": 3,
   "run_id": "22072240982",
-  "branch_name": "claude/issue-3762-candidate-3-22072240982",
-  "created_at": "2026-02-16T17:00:00Z",
-  "scorecard": {
-    "root_cause_analysis": {
-      "score": 5,
-      "justification": "Identified that Todo.from_dict allows creating Todos with duplicate ids, and storage.load() did not validate uniqueness. This breaks next_id() which assumes max+1 uniqueness and mark_done/remove which match on first occurrence."
-    },
-    "test_coverage": {
-      "score": 5,
-      "justification": "Added 4 new tests covering: rejection of duplicate ids, acceptance of unique ids, rejection of multiple duplicates, and validation of next_id consistency after valid load."
-    },
-    "minimal_change": {
-      "score": 5,
-      "justification": "Minimal fix added only 12 lines of validation logic in storage.load() to check for duplicate ids after parsing todos. No changes to existing interfaces or data structures."
-    },
-    "backward_compatibility": {
-      "score": 5,
-      "justification": "Fix is backward compatible. Existing valid data (with unique ids) loads normally. Only corrupt data with duplicate ids is rejected with a clear error message."
-    },
-    "error_handling": {
-      "score": 5,
-      "justification": "Clear error message includes which id(s) are duplicated: 'Duplicate todo id(s) found in storage: 1, 2. Each todo must have a unique id.'"
-    }
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_3762_duplicate_id_validation.py"
+  "branch": "claude/issue-3762-candidate-3-22072240982",
+  "pr_number": 3785,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3785",
+  "generated_at": "2026-02-16T18:09:50.151241+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 116,
-  "ruff_checks": "passed",
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_3762_duplicate_id_validation.py -v",
-      "result": "4/4 passed",
-      "tests": [
-        "test_storage_load_rejects_duplicate_ids",
-        "test_storage_load_accepts_unique_ids",
-        "test_storage_load_rejects_multiple_duplicate_ids",
-        "test_next_id_remains_consistent_after_valid_load"
-      ]
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ --tb=short -q",
-      "result": "116/116 passed"
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_3762_duplicate_id_validation.py",
-      "result": "All checks passed"
-    },
-    "verified_at": "2026-02-16T18:06:00Z"
+  "stage_response_sizes": {
+    "triage": 2860,
+    "plan": 2377,
+    "implement": 1450,
+    "verify": 1799,
+    "finalize": 1197
   }
 }
