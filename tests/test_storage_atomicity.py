@@ -7,6 +7,8 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
+import stat
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +151,52 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_uses_chmod_fallback_when_fchmod_unavailable(tmp_path) -> None:
+    """Regression test for issue #3650: os.fchmod not available on Windows.
+
+    Verifies that save() works correctly when os.fchmod is not available
+    (e.g., on Windows) by falling back to os.chmod(path, mode).
+    """
+    import builtins as builtins_module
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    # Track if os.chmod was called when fchmod is unavailable
+    chmod_calls = []
+
+    original_chmod = os.chmod
+    original_hasattr = builtins_module.hasattr
+
+    def mock_hasattr(obj, name):
+        # Simulate Windows where os.fchmod doesn't exist
+        if obj is os and name == "fchmod":
+            return False
+        return original_hasattr(obj, name)
+
+    def tracking_chmod(path, mode):
+        chmod_calls.append((path, mode))
+        return original_chmod(path, mode)
+
+    with (
+        patch("builtins.hasattr", side_effect=mock_hasattr),
+        patch("os.chmod", side_effect=tracking_chmod),
+    ):
+        storage.save(todos)
+
+    # Verify chmod was called with the temp file path and correct mode
+    assert len(chmod_calls) >= 1
+    # 0o600 = stat.S_IRUSR | stat.S_IWUSR = 384
+    expected_mode = stat.S_IRUSR | stat.S_IWUSR
+    assert chmod_calls[0][1] == expected_mode
+
+    # Verify file was saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
