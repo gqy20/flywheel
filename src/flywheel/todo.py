@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -19,6 +19,22 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id, text, and done status only.
+
+        Timestamps are excluded from equality comparison as they are metadata.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on id for set/dict usage.
+
+        Using only id allows todos to be deduplicated by their unique identifier.
+        """
+        return hash(self.id)
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -56,6 +72,19 @@ class Todo:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def copy(self, **updates: str | int | bool) -> Todo:
+        """Create a copy of this Todo with optional field updates.
+
+        Args:
+            **updates: Fields to update in the copy (e.g., text='new', done=True)
+
+        Returns:
+            A new Todo instance with the specified updates applied.
+        """
+        data = asdict(self)
+        data.update(updates)
+        return Todo(**data)
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
