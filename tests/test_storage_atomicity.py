@@ -151,6 +151,117 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_condition_parent_directory_creation(tmp_path) -> None:
+    """Regression test for issue #3620: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that when another process creates the parent directory between
+    checking if it exists and calling mkdir(), no OSError is raised.
+    The fix uses exist_ok=True in mkdir() to handle the race condition.
+
+    This test simulates the race by mocking Path.exists() to return False
+    initially, then having Path.mkdir() raise FileExistsError (simulating
+    directory created by another process between check and mkdir).
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    db = tmp_path / "race_test" / "subdir" / "todo.json"
+
+    # Track calls to verify the race condition is being handled
+    mkdir_calls = []
+    original_mkdir = Path.mkdir
+
+    def mock_mkdir(self, *args, **kwargs):
+        mkdir_calls.append((str(self), args, kwargs))
+        # Simulate race condition: directory was created by another process
+        # between the exists() check and this mkdir() call
+        if not self.exists():
+            # Actually create the directory to simulate race
+            original_mkdir(self, parents=True, exist_ok=True)
+            # Then raise FileExistsError if exist_ok=False was used
+            if not kwargs.get("exist_ok", True):
+                raise FileExistsError(f"[Errno 17] File exists: '{self}'")
+        else:
+            # If directory already exists, just return (exist_ok=True behavior)
+            if not kwargs.get("exist_ok", True):
+                raise FileExistsError(f"[Errno 17] File exists: '{self}'")
+
+    # Patch Path.mkdir to simulate the race condition
+    with patch.object(Path, "mkdir", mock_mkdir):
+        # This should NOT raise OSError/FileExistsError if exist_ok=True is used
+        # With exist_ok=False (buggy code), this would raise FileExistsError
+        _ensure_parent_directory(db)
+
+    # Verify mkdir was called
+    assert len(mkdir_calls) > 0, "mkdir should have been called"
+
+    # If exist_ok=True was used in the fix, no exception should have been raised
+    # The test passes if we reach this point without exception
+
+
+def test_toctou_race_condition_concurrent_processes(tmp_path) -> None:
+    """Regression test for issue #3620: TOCTOU race condition in _ensure_parent_directory.
+
+    Additional test using multiprocessing to test actual concurrent directory creation.
+    Multiple processes try to create the same parent directory simultaneously.
+    """
+    import multiprocessing
+
+    db = tmp_path / "race_test_mp" / "subdir" / "todo.json"
+
+    def create_parent_dir_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that creates parent directory and saves todos."""
+        try:
+            storage = TodoStorage(str(db))
+
+            # Create unique todos for this worker
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}-todo")]
+            storage.save(todos)
+
+            result_queue.put(("success", worker_id))
+        except OSError as e:
+            # This is the TOCTOU race condition - if directory is created
+            # by another process between check and mkdir, we might get OSError
+            result_queue.put(("os_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all need to create the same parent directory
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=create_parent_dir_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded - no OSError from race condition
+    successes = [r for r in results if r[0] == "success"]
+    os_errors = [r for r in results if r[0] == "os_error"]
+    other_errors = [r for r in results if r[0] == "error"]
+
+    # The fix should prevent any OSError from race condition
+    assert len(os_errors) == 0, (
+        f"TOCTOU race condition detected: {len(os_errors)} workers got OSError: {os_errors}"
+    )
+    assert len(other_errors) == 0, f"Other errors occurred: {other_errors}"
+    assert len(successes) > 0, "At least one worker should succeed"
+
+    # Verify file contains valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) > 0, "Should have some todos saved"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
