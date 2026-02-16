@@ -3,7 +3,8 @@
   "candidate": 1,
   "run_id": 22079040794,
   "branch": "claude/issue-3820-candidate-1-22079040794",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3858",
   "summary": "Add MAX_TEXT_LENGTH validation to Todo class to prevent oversized text that could cause JSON bloat, memory issues, or display problems.",
   "changes": {
     "test_files": [
