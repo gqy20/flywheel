@@ -57,6 +57,28 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy_with(self, **kwargs) -> Todo:
+        """Return a new Todo instance with specified fields updated.
+
+        This supports immutable-style updates without modifying the original.
+        The created_at field is preserved; updated_at is refreshed automatically.
+
+        Args:
+            **kwargs: Fields to override (id, text, done, created_at, updated_at)
+
+        Returns:
+            A new Todo instance with the specified updates.
+
+        Example:
+            new_todo = todo.copy_with(done=True)
+        """
+        data = asdict(self)
+        data.update(kwargs)
+        # Refresh updated_at unless explicitly provided
+        if "updated_at" not in kwargs:
+            data["updated_at"] = _utc_now_iso()
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
