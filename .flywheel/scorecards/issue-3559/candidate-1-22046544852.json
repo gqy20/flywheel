@@ -1,42 +1,23 @@
 {
-  "issue_number": 3559,
-  "candidate_number": 1,
+  "issue": 3559,
+  "candidate": 1,
   "run_id": "22046544852",
-  "status": "finalized",
-  "summary": "Exposed Todo.rename method via CLI by adding 'todo rename <id> <new_text>' subcommand",
-  "changes": {
-    "source_files": [
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_changed": 20
-  },
-  "tests": {
-    "added": 3,
-    "passed": 13,
-    "failed": 0
-  },
-  "verification": {
-    "pytest": "passed",
-    "ruff": "passed",
-    "verify_commands": [
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run ruff check src/flywheel/cli.py tests/test_minimal_framework.py"
-    ],
-    "verify_results": {
-      "pytest": "13 passed in 0.20s",
-      "ruff": "All checks passed"
-    }
-  },
-  "risks": [
-    "None - minimal change following existing patterns"
+  "branch": "claude/issue-3559-candidate-1-22046544852",
+  "pr_number": 3586,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3586",
+  "generated_at": "2026-02-16T01:39:00.793502+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation_notes": [
-    "Added TodoApp.rename() method that calls Todo.rename() and persists changes",
-    "Added 'rename' subcommand to CLI parser with id and text arguments",
-    "Added handler in run_command() for rename command",
-    "Added 3 regression tests covering success, missing todo, and empty text cases"
-  ]
+  "stage_response_sizes": {
+    "triage": 2598,
+    "plan": 3504,
+    "implement": 2308,
+    "verify": 1748,
+    "finalize": 833
+  }
 }
