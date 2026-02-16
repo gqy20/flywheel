@@ -1,48 +1,23 @@
 {
-  "issue_number": 3707,
-  "candidate_number": 3,
+  "issue": 3707,
+  "candidate": 3,
   "run_id": "22065504497",
-  "created_at": "2026-02-16T12:56:00Z",
-  "score": {
-    "test_coverage": 100,
-    "linting": "passed",
-    "all_tests_pass": true,
-    "minimal_changes": true,
-    "follows_conventions": true
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_3707_todo_positive_id.py"],
-    "fixed_test_files": [
-      "tests/test_issue_1999_symlink_protection.py",
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "validation": {
-    "todo_id_zero_raises_valueerror": true,
-    "todo_id_negative_raises_valueerror": true,
-    "todo_id_positive_works": true,
-    "from_dict_negative_id_raises_valueerror": true,
-    "from_dict_zero_id_raises_valueerror": true,
-    "from_dict_positive_id_works": true
-  },
-  "verify_stage": {
-    "completed_at": "2026-02-16T12:58:00Z",
-    "pytest_results": {
-      "issue_3707_tests": "6/6 passed",
-      "todo_related_tests": "40/40 passed",
-      "full_suite": "118/118 passed"
-    },
-    "ruff_results": {
-      "changed_files": "All checks passed",
-      "all_source_and_tests": "All checks passed"
-    },
-    "commands_executed": [
-      "uv run pytest tests/test_issue_3707_todo_positive_id.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_3707_todo_positive_id.py",
-      "uv run pytest tests/ -k \"todo\" -v",
-      "uv run pytest tests/ -v",
-      "uv run ruff check src/flywheel/ tests/"
-    ]
+  "branch": "claude/issue-3707-candidate-3-22065504497",
+  "pr_number": 3729,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3729",
+  "generated_at": "2026-02-16T14:35:46.843418+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1854,
+    "plan": 3014,
+    "implement": 3793,
+    "verify": 1889,
+    "finalize": 966
   }
 }
