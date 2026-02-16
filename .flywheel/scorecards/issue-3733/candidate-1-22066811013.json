@@ -1,0 +1,18 @@
+{
+  "issue_number": 3733,
+  "candidate_number": 1,
+  "run_id": "22066811013",
+  "branch": "claude/issue-3733-candidate-1-22066811013",
+  "created_at": "2026-02-16T15:05:00Z",
+  "status": "implemented",
+  "checks": {
+    "tests_pass": true,
+    "lint_pass": true,
+    "coverage": 92
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py",
+    "tests/test_storage_atomicity.py"
+  ]
+}
