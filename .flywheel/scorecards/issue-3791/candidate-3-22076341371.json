@@ -1,0 +1,22 @@
+{
+  "issue_number": 3791,
+  "candidate_number": 3,
+  "run_id": "22076341371",
+  "branch": "claude/issue-3791-candidate-3-22076341371",
+  "created_at": "2026-02-16T19:00:00Z",
+  "status": "implemented",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3791_duplicate_id_validation.py"
+    ]
+  },
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "total": 5
+  },
+  "implementation_summary": "Added validation in TodoStorage.load() to check for duplicate todo IDs before creating Todo objects. Raises ValueError with clear message indicating which ID is duplicated."
+}
