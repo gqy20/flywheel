@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,20 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def is_overdue(self) -> bool:
+        """Return True if the todo has a due_date that is in the past."""
+        if not self.due_date:
+            return False
+        try:
+            due_dt = datetime.fromisoformat(self.due_date)
+            now = datetime.now(UTC)
+            # Make both timezone-aware for comparison
+            if due_dt.tzinfo is None:
+                due_dt = due_dt.replace(tzinfo=UTC)
+            return now > due_dt
+        except (ValueError, TypeError):
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +114,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date") or ""),
         )
