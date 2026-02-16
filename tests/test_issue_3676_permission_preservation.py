@@ -80,8 +80,7 @@ def test_new_file_has_restrictive_permissions(tmp_path) -> None:
     # New files should have restrictive permissions (0o600 - rw-------)
     actual_mode = stat.S_IMODE(db.stat().st_mode)
     assert actual_mode == 0o600, (
-        f"New file should have restrictive 0o600 permissions, "
-        f"got {oct(actual_mode)}"
+        f"New file should have restrictive 0o600 permissions, got {oct(actual_mode)}"
     )
 
 
@@ -126,6 +125,5 @@ def test_preserves_group_read_permission_on_overwrite(tmp_path) -> None:
     # Verify group read permission is preserved
     actual_mode = stat.S_IMODE(db.stat().st_mode)
     assert actual_mode == 0o640, (
-        f"Group read permission not preserved. "
-        f"Expected 0o640, got {oct(actual_mode)}"
+        f"Group read permission not preserved. Expected 0o640, got {oct(actual_mode)}"
     )
