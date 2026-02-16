@@ -2,7 +2,7 @@
   "issue": 3624,
   "candidate": 3,
   "run_id": "22054195405",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Add text length validation to prevent oversized input in Todo class",
     "tdd_approach": "RED-GREEN-REFACTOR",
@@ -110,7 +110,12 @@
       "Applied ruff format to src/flywheel/todo.py to consolidate multi-line ValueError"
     ]
   },
+  "finalize": {
+    "pr_created": true,
+    "pr_url": "pending"
+  },
   "created_at": "2026-02-16T07:10:00Z",
   "implemented_at": "2026-02-16T07:15:00Z",
-  "verified_at": "2026-02-16T07:20:00Z"
+  "verified_at": "2026-02-16T07:20:00Z",
+  "finalized_at": "2026-02-16T08:30:00Z"
 }
