@@ -36,6 +36,7 @@ def test_load_rejects_symlink_pointing_to_file(tmp_path) -> None:
     # Before fix: load() would read the symlink target content without error
     # After fix: load() should raise ValueError for symlinks
     import pytest
+
     with pytest.raises(ValueError, match=r"(?i)symlink"):
         storage.load()
 
@@ -59,6 +60,7 @@ def test_load_rejects_symlink_pointing_to_directory(tmp_path) -> None:
     # load() should reject symlinks before attempting to read
     # The fix should catch symlinks and raise ValueError, not IsADirectoryError
     import pytest
+
     with pytest.raises(ValueError, match=r"(?i)symlink"):
         storage.load()
 
@@ -109,5 +111,6 @@ def test_load_rejects_broken_symlink(tmp_path) -> None:
     # load() should reject symlinks even if broken
     # The fix should catch symlinks and raise ValueError, not FileNotFoundError
     import pytest
+
     with pytest.raises(ValueError, match=r"(?i)symlink"):
         storage.load()
