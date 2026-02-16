@@ -158,3 +158,21 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_toggle_flips_done_status() -> None:
+    """Issue #3596: toggle() should flip done status and update timestamp."""
+    todo = Todo(id=1, text="test todo")
+    assert todo.done is False
+
+    # Toggle from undone to done
+    original_updated_at = todo.updated_at
+    todo.toggle()
+    assert todo.done is True
+    assert todo.updated_at >= original_updated_at
+
+    # Toggle from done to undone
+    original_updated_at = todo.updated_at
+    todo.toggle()
+    assert todo.done is False
+    assert todo.updated_at >= original_updated_at
