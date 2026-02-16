@@ -174,7 +174,7 @@ def test_storage_load_detects_duplicate_ids(tmp_path) -> None:
     db.write_text(json.dumps(duplicate_data), encoding="utf-8")
 
     # Should raise ValueError when loading
-    with pytest.raises(ValueError, match="Duplicate.*ID.*1"):
+    with pytest.raises(ValueError, match=r"Duplicate.*ID.*1"):
         storage.load()
 
 
