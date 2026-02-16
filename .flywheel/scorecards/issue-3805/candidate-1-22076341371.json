@@ -1,0 +1,15 @@
+{
+  "issue_number": 3805,
+  "candidate_number": 1,
+  "run_id": "22076341371",
+  "branch": "claude/issue-3805-candidate-1-22076341371",
+  "status": "implemented",
+  "tests_added": 6,
+  "tests_passed": 118,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3805_negative_id_validation.py"
+  ],
+  "summary": "Add validation in Todo.__post_init__ to reject negative ID values with clear error message",
+  "risks": "None - minimal change with clear validation in __post_init__"
+}
