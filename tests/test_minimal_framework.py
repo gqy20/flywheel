@@ -158,3 +158,42 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_detects_duplicate_ids(tmp_path) -> None:
+    """Bug #3749: load() should detect duplicate IDs from manually edited JSON."""
+    db = tmp_path / "duplicate_ids.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with duplicate IDs (simulating manual edit error)
+    duplicate_data = [
+        {"id": 1, "text": "first todo", "done": False},
+        {"id": 2, "text": "second todo", "done": False},
+        {"id": 1, "text": "duplicate id", "done": False},  # Duplicate ID 1
+    ]
+    db.write_text(json.dumps(duplicate_data), encoding="utf-8")
+
+    # Should raise ValueError when loading
+    with pytest.raises(ValueError, match="Duplicate.*ID.*1"):
+        storage.load()
+
+
+def test_storage_load_accepts_unique_ids(tmp_path) -> None:
+    """Bug #3749: Normal JSON with unique IDs should continue to work."""
+    db = tmp_path / "unique_ids.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with unique IDs
+    unique_data = [
+        {"id": 1, "text": "first todo", "done": False},
+        {"id": 2, "text": "second todo", "done": True},
+        {"id": 5, "text": "third todo", "done": False},  # Non-consecutive ID
+    ]
+    db.write_text(json.dumps(unique_data), encoding="utf-8")
+
+    # Should load successfully
+    loaded = storage.load()
+    assert len(loaded) == 3
+    assert loaded[0].id == 1
+    assert loaded[1].id == 2
+    assert loaded[2].id == 5
