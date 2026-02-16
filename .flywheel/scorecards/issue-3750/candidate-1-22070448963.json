@@ -1,23 +1,23 @@
 {
-  "issue_number": 3750,
-  "candidate_number": 1,
+  "issue": 3750,
+  "candidate": 1,
   "run_id": "22070448963",
-  "branch_name": "claude/issue-3750-candidate-1-22070448963",
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo class for comparison by id and set operations",
-  "tests_added": ["tests/test_issue_3750_todo_eq_hash.py"],
-  "files_modified": ["src/flywheel/todo.py"],
-  "test_results": {
-    "passed": 119,
-    "failed": 0,
-    "total": 119
-  },
-  "lint_results": "All checks passed",
-  "acceptance_criteria_met": [
-    "Todo(id=1, text='a') == Todo(id=1, text='b') returns True",
-    "Todo(id=1, text='a') == Todo(id=2, text='a') returns False",
-    "hash(Todo(id=1, text='a')) == hash(Todo(id=1, text='b')) returns True",
-    "Can use Todo objects in set() and as dict keys"
+  "branch": "claude/issue-3750-candidate-1-22070448963",
+  "pr_number": 3768,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3768",
+  "generated_at": "2026-02-16T17:02:28.758822+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": "None - minimal change that only affects equality comparison and hashing behavior",
-  "limitations": "None"
+  "stage_response_sizes": {
+    "triage": 2631,
+    "plan": 2805,
+    "implement": 2062,
+    "verify": 2085,
+    "finalize": 1858
+  }
 }
