@@ -1,0 +1,35 @@
+{
+  "issue_number": 3762,
+  "candidate_number": 3,
+  "run_id": "22072240982",
+  "branch_name": "claude/issue-3762-candidate-3-22072240982",
+  "created_at": "2026-02-16T17:00:00Z",
+  "scorecard": {
+    "root_cause_analysis": {
+      "score": 5,
+      "justification": "Identified that Todo.from_dict allows creating Todos with duplicate ids, and storage.load() did not validate uniqueness. This breaks next_id() which assumes max+1 uniqueness and mark_done/remove which match on first occurrence."
+    },
+    "test_coverage": {
+      "score": 5,
+      "justification": "Added 4 new tests covering: rejection of duplicate ids, acceptance of unique ids, rejection of multiple duplicates, and validation of next_id consistency after valid load."
+    },
+    "minimal_change": {
+      "score": 5,
+      "justification": "Minimal fix added only 12 lines of validation logic in storage.load() to check for duplicate ids after parsing todos. No changes to existing interfaces or data structures."
+    },
+    "backward_compatibility": {
+      "score": 5,
+      "justification": "Fix is backward compatible. Existing valid data (with unique ids) loads normally. Only corrupt data with duplicate ids is rejected with a clear error message."
+    },
+    "error_handling": {
+      "score": 5,
+      "justification": "Clear error message includes which id(s) are duplicated: 'Duplicate todo id(s) found in storage: 1, 2. Each todo must have a unique id.'"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_3762_duplicate_id_validation.py"
+  ],
+  "tests_passed": 116,
+  "ruff_checks": "passed"
+}
