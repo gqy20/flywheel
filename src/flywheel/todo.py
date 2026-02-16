@@ -34,6 +34,8 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and normalize text - single source of truth for validation
+        self.text = self._validate_text(self.text)
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -48,11 +50,18 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def rename(self, text: str) -> None:
+        # Reuse validation logic by calling a helper method
+        text = self._validate_text(text)
+        self.text = text
+        self.updated_at = _utc_now_iso()
+
+    @staticmethod
+    def _validate_text(text: str) -> str:
+        """Validate and normalize todo text. Single source of truth for validation."""
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
-        self.text = text
-        self.updated_at = _utc_now_iso()
+        return text
 
     def to_dict(self) -> dict:
         return asdict(self)

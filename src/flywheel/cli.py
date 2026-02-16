@@ -23,10 +23,7 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
-
+        # Validation is handled by Todo.__post_init__
         todos = self._load()
         todo = Todo(id=self.storage.next_id(todos), text=text)
         todos.append(todo)
