@@ -1,0 +1,22 @@
+{
+  "issue_number": 3707,
+  "candidate_number": 1,
+  "run_id": "22065504497",
+  "branch": "claude/issue-3707-candidate-1-22065504497",
+  "created_at": "2026-02-16T14:56:00Z",
+  "status": "implemented",
+  "score": {
+    "test_coverage": 9,
+    "minimal_change": 10,
+    "follows_conventions": 10,
+    "no_regressions": 10
+  },
+  "summary": "Added validation in Todo.__post_init__ and Todo.from_dict to reject non-positive IDs (id <= 0) with clear error messages.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3707_positive_id_validation.py",
+    "tests/test_issue_1999_symlink_protection.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_passed": 121
+}
