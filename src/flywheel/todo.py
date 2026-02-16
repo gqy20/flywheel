@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, order=False, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -38,6 +38,40 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+
+    def __eq__(self, other: object) -> bool:
+        """Check equality based on id and text only."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) == (other.id, other.text)
+
+    def __lt__(self, other: object) -> bool:
+        """Compare based on (id, text) tuple for sorting."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) < (other.id, other.text)
+
+    def __le__(self, other: object) -> bool:
+        """Less-than-or-equal based on (id, text) tuple."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) <= (other.id, other.text)
+
+    def __gt__(self, other: object) -> bool:
+        """Greater-than based on (id, text) tuple."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) > (other.id, other.text)
+
+    def __ge__(self, other: object) -> bool:
+        """Greater-than-or-equal based on (id, text) tuple."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) >= (other.id, other.text)
+
+    def __hash__(self) -> int:
+        """Hash based on id and text for use in sets and as dict keys."""
+        return hash((self.id, self.text))
 
     def mark_done(self) -> None:
         self.done = True
