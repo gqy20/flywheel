@@ -1,0 +1,14 @@
+{
+  "issue_number": 3789,
+  "candidate": 2,
+  "run_id": "22075095435",
+  "branch": "claude/issue-3789-candidate-2-22075095435",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3789_positive_id_validation.py"]
+  },
+  "tests_passed": true,
+  "ruff_clean": true,
+  "summary": "Added validation in Todo.from_dict() to reject zero or negative IDs. IDs must now be positive integers (>= 1)."
+}
