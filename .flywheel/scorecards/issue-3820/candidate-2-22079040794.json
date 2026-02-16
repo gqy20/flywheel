@@ -1,0 +1,15 @@
+{
+  "issue": 3820,
+  "candidate": 2,
+  "run_id": "22079040794",
+  "branch": "claude/issue-3820-candidate-2-22079040794",
+  "status": "implemented",
+  "approach": "Add MAX_TEXT_LENGTH constant (1000 chars) and validate in __post_init__() and rename() methods",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3820_todo_text_length_validation.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": true,
+  "lint_passed": true
+}

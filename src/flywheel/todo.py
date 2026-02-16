@@ -10,6 +10,9 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+MAX_TEXT_LENGTH = 1000
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -34,6 +37,10 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if len(self.text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -51,6 +58,10 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+            )
         self.text = text
         self.updated_at = _utc_now_iso()
 
