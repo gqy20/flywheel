@@ -2,48 +2,22 @@
   "issue": 3709,
   "candidate": 1,
   "run_id": "22065504497",
-  "plan": {
-    "title": "Add copy_with() method for immutable-style updates",
-    "files_to_touch": [
-      "tests/test_issue_3709_copy_with.py",
-      "src/flywheel/todo.py"
-    ],
-    "tdd_phases": {
-      "red": [
-        "test_copy_with_returns_new_instance",
-        "test_copy_with_done_true",
-        "test_copy_with_text",
-        "test_copy_with_original_unchanged",
-        "test_copy_with_preserves_created_at",
-        "test_copy_with_updates_updated_at",
-        "test_copy_with_no_args",
-        "test_copy_with_multiple_fields"
-      ],
-      "green": "Add copy_with(**kwargs) -> Todo method to Todo class"
-    },
-    "verification_commands": [
-      "uv run pytest tests/test_issue_3709_copy_with.py -v",
-      "uv run pytest -v",
-      "uv run ruff check src/flywheel/todo.py",
-      "uv run ruff check tests/test_issue_3709_copy_with.py"
-    ]
-  },
-  "acceptance_criteria": [
-    "todo.copy_with(done=True) returns new Todo instance, original unchanged",
-    "copy_with() supports overriding text, done, updated_at fields",
-    "New instance's created_at preserved from original",
-    "updated_at automatically refreshed (unless explicitly overridden)"
+  "branch": "claude/issue-3709-candidate-1-22065504497",
+  "pr_number": 3725,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3725",
+  "generated_at": "2026-02-16T14:35:59.361746+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks_limitations": [
-    "Minimal risk - additive feature only, no existing behavior changed",
-    "Uses existing asdict() and from_dict() patterns already in codebase"
-  ],
-  "status": "implemented",
-  "created_at": "2026-02-16T14:25:00Z",
-  "completed_at": "2026-02-16T14:30:00Z",
-  "test_results": {
-    "tests_passed": 8,
-    "tests_total": 8,
-    "all_passed": true
+  "stage_response_sizes": {
+    "triage": 2238,
+    "plan": 4000,
+    "implement": 3608,
+    "verify": 2194,
+    "finalize": 1407
   }
 }
