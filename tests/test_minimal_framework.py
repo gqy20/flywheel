@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_next_id_fills_gaps_in_non_contiguous_ids(tmp_path) -> None:
+    """Bug #3790: next_id() should return smallest unused ID, not max+1.
+
+    When IDs are non-contiguous (e.g., [1, 3, 5] after deletions),
+    next_id() should fill gaps starting from the smallest unused ID.
+    """
+    db = tmp_path / "gap_test.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+
+    # next_id should return 2 (smallest unused), not 6 (max+1)
+    assert storage.next_id(todos) == 2
+
+
+def test_storage_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #3790: next_id() should return 1 for empty todo list."""
+    db = tmp_path / "empty_test.json"
+    storage = TodoStorage(str(db))
+
+    assert storage.next_id([]) == 1
+
+
+def test_storage_next_id_returns_next_after_contiguous_ids(tmp_path) -> None:
+    """Bug #3790: next_id() should still work correctly for contiguous IDs."""
+    db = tmp_path / "contiguous_test.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+
+    # With contiguous IDs, next_id should return 4
+    assert storage.next_id(todos) == 4
