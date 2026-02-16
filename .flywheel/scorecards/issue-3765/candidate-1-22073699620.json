@@ -1,77 +1,23 @@
 {
-  "issue_number": 3765,
-  "issue_title": "[Feature] 添加 Todo 过期时间字段 (due_date)",
-  "candidate_number": 1,
+  "issue": 3765,
+  "candidate": 1,
   "run_id": "22073699620",
-  "branch_name": "claude/issue-3765-candidate-1-22073699620",
-  "stage": "FINALIZE",
-  "finalized_at": "2026-02-16T19:15:00Z",
+  "branch": "claude/issue-3765-candidate-1-22073699620",
+  "pr_number": 3797,
   "pr_url": "https://github.com/gqy20/flywheel/pull/3797",
-  "created_at": "2026-02-16T18:50:00Z",
-  "implemented_at": "2026-02-16T18:55:00Z",
-  "verified_at": "2026-02-16T19:00:00Z",
-  "plan": {
-    "summary": "Add due_date field to Todo dataclass with is_overdue() method",
-    "files_to_touch": [
-      {
-        "path": "tests/test_issue_3765_todo_due_date.py",
-        "action": "create",
-        "purpose": "Regression tests for due_date field and is_overdue() method"
-      },
-      {
-        "path": "src/flywheel/todo.py",
-        "action": "modify",
-        "purpose": "Add due_date field, is_overdue() method, update from_dict/to_dict"
-      }
-    ],
-    "tdd_sequence": [
-      {
-        "step": 1,
-        "phase": "RED",
-        "action": "Create test file with failing tests for due_date field and is_overdue() method",
-        "tests": [
-          "test_todo_has_due_date_field - verify Todo instances have due_date attribute",
-          "test_todo_due_date_default_empty - verify default value is empty string",
-          "test_todo_is_overdue_expired - due_date in past returns True",
-          "test_todo_is_overdue_not_expired - due_date in future returns False",
-          "test_todo_is_overdue_no_due_date - empty due_date returns False",
-          "test_todo_to_dict_includes_due_date - serialization includes due_date",
-          "test_todo_from_dict_parses_due_date - deserialization handles due_date"
-        ]
-      },
-      {
-        "step": 2,
-        "phase": "GREEN",
-        "action": "Implement minimal changes to pass all tests",
-        "changes": [
-          "Add due_date: str = \"\" field to Todo dataclass",
-          "Add is_overdue() method that compares current time to due_date",
-          "Update from_dict() to parse due_date field",
-          "to_dict() automatically includes due_date via asdict()"
-        ]
-      },
-      {
-        "step": 3,
-        "phase": "VERIFY",
-        "action": "Run targeted checks to ensure quality",
-        "commands": [
-          "uv run pytest tests/test_issue_3765_todo_due_date.py -v",
-          "uv run ruff check src/flywheel/todo.py",
-          "uv run pytest tests/ -v --tb=short"
-        ]
-      }
-    ],
-    "acceptance_criteria": [
-      "Todo instance supports due_date field (optional, defaults to empty string)",
-      "is_overdue() correctly returns True when current time > due_date",
-      "is_overdue() correctly returns False when current time < due_date",
-      "is_overdue() returns False when due_date is empty",
-      "from_dict() correctly parses due_date field",
-      "to_dict() correctly includes due_date field"
-    ],
-    "risks": [
-      "Time comparison uses UTC timezone - tests must use ISO format strings",
-      "is_overdue() returns False for invalid date strings (graceful degradation)"
-    ]
+  "generated_at": "2026-02-16T18:57:23.656310+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2904,
+    "plan": 1709,
+    "implement": 2355,
+    "verify": 1773,
+    "finalize": 1392
   }
 }
