@@ -11,30 +11,30 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Uses a single-pass approach to avoid creating intermediate strings.
     """
-    # First: Escape backslash to prevent collision with escape sequences
-    # This MUST be done before any other escaping to prevent ambiguity
-    # between literal backslash-escape text and sanitized control characters.
-    text = text.replace("\\", "\\\\")
+    # Pre-built escape mapping for common control characters
+    # Backslash is escaped first to prevent collision with escape sequences
+    escape_map = {
+        "\\": "\\\\",
+        "\n": "\\n",
+        "\r": "\\r",
+        "\t": "\\t",
+    }
 
-    # Common control characters - replace with readable escapes
-    replacements = [
-        ("\n", "\\n"),
-        ("\r", "\\r"),
-        ("\t", "\\t"),
-    ]
-    for char, escaped in replacements:
-        text = text.replace(char, escaped)
-
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
     result = []
     for char in text:
-        code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
+        # Check if it's a common escaped character
+        if char in escape_map:
+            result.append(escape_map[char])
         else:
-            result.append(char)
+            code = ord(char)
+            # Control characters: 0x00-0x1f (excluding \n, \r, \t), DEL 0x7f, C1 0x80-0x9f
+            if (0 <= code <= 0x1f) or (0x7f <= code <= 0x9f):
+                result.append(f"\\x{code:02x}")
+            else:
+                result.append(char)
     return "".join(result)
 
 
