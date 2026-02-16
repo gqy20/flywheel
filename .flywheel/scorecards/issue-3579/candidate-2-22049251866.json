@@ -1,0 +1,75 @@
+{
+  "issue_number": 3579,
+  "issue_title": "[Perf] _sanitize_text creates multiple intermediate strings via repeated replace() call",
+  "candidate_number": 2,
+  "run_id": "22049251866",
+  "branch_name": "claude/issue-3579-candidate-2-22049251866",
+  "created_at": "2026-02-16T04:03:00Z",
+  "status": "implemented",
+  "stage": "IMPLEMENT",
+  "summary": {
+    "problem": "_sanitize_text created multiple intermediate strings via repeated replace() calls, leading to O(n*m) string allocations",
+    "solution": "Implemented single-pass character-by-character approach with precomputed replacement map for O(n) complexity",
+    "files_changed": [
+      "src/flywheel/formatter.py",
+      "tests/test_issue_3579_sanitize_text_performance.py"
+    ]
+  },
+  "tests": {
+    "added": [
+      "tests/test_issue_3579_sanitize_text_performance.py"
+    ],
+    "passed": 36,
+    "failed": 0
+  },
+  "risks": {
+    "behavior_change": false,
+    "breaking_change": false,
+    "notes": "Pure performance optimization with identical output. All 36 existing sanitization tests pass."
+  },
+  "commands_executed": [
+    "uv run pytest tests/test_issue_*_sanitization.py tests/test_issue_*_backslash_escape*.py tests/test_issue_3579_sanitize_text_performance.py -v",
+    "uv run ruff check --fix src/flywheel/formatter.py tests/test_issue_3579_sanitize_text_performance.py"
+  ],
+  "plan": {
+    "summary": "Optimize _sanitize_text to use single-pass character processing, eliminating O(n*m) intermediate string creation from repeated replace() calls",
+    "files_to_touch": [
+      "src/flywheel/formatter.py",
+      "tests/test_issue_3579_sanitize_text_performance.py"
+    ],
+    "tdd_approach": {
+      "red_phase": {
+        "description": "Add a performance regression test that verifies single-pass behavior by measuring memory allocation or using a benchmark test that fails if too many intermediate strings are created",
+        "test_file": "tests/test_issue_3579_sanitize_text_performance.py",
+        "test_strategy": "Create a benchmark test using time-based assertions. Since we cannot directly measure string allocations in pure Python, we'll verify correctness on large inputs and document the expected O(n) behavior"
+      },
+      "green_phase": {
+        "description": "Refactor _sanitize_text to use a single list comprehension or generator that processes each character exactly once, combining all escape logic in a single pass",
+        "implementation_file": "src/flywheel/formatter.py"
+      }
+    },
+    "implementation_sequence": [
+      "1. Create new test file tests/test_issue_3579_sanitize_text_performance.py with correctness tests for large inputs and a benchmark test",
+      "2. Run tests to verify current implementation passes correctness tests (GREEN baseline)",
+      "3. Refactor _sanitize_text: Replace multiple replace() calls with single-pass character iteration using str.translate() or list comprehension",
+      "4. Verify all existing tests still pass (test_issue_1924, test_issue_2028, test_issue_2057, test_issue_2083, test_issue_2084, test_issue_2097)",
+      "5. Verify new performance tests pass"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_3579_sanitize_text_performance.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
+      "uv run ruff check src/flywheel/formatter.py",
+      "uv run ruff format --check src/flywheel/formatter.py"
+    ],
+    "risks": [
+      "str.translate() approach requires a 256-char translation table which won't work for Unicode characters > 0xFF",
+      "Single-pass must maintain same escape order: backslash first, then control chars",
+      "Edge case: C1 control chars (0x80-0x9f) are single-byte but Unicode chars like € are multi-byte in UTF-8"
+    ],
+    "acceptance_criteria": [
+      "All existing tests for _sanitize_text continue to pass",
+      "No behavioral changes to escape output format",
+      "Code processes input string in single pass (no intermediate strings from replace())"
+    ]
+  }
+}
