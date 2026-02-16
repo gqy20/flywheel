@@ -77,6 +77,40 @@ def test_cli_run_command_returns_error_for_missing_todo(tmp_path, capsys) -> Non
     assert "not found" in captured.out or "not found" in captured.err
 
 
+def test_cli_edit_command_updates_todo_text(tmp_path, capsys) -> None:
+    """Issue #3680: CLI edit command should update todo text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Edit the todo
+    args = parser.parse_args(["--db", db, "edit", "1", "new text"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Edited" in captured.out or "new text" in captured.out
+
+    # Verify the change persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "new text" in captured.out
+    assert "original text" not in captured.out
+
+
+def test_cli_edit_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Issue #3680: CLI edit command should return error for non-existent todo."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "edit", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
 def test_storage_load_rejects_oversized_json(tmp_path) -> None:
     """Security: JSON files larger than 10MB should be rejected to prevent DoS."""
     db = tmp_path / "large.json"
@@ -158,3 +192,34 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_edit_is_alias_for_rename() -> None:
+    """Issue #3680: Todo.edit() should be an alias for rename()."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # edit() should work exactly like rename()
+    todo.edit("edited text")
+    assert todo.text == "edited text"
+    assert todo.updated_at >= original_updated_at
+
+    # edit() should strip whitespace like rename()
+    todo.edit("  padded  ")
+    assert todo.text == "padded"
+
+
+def test_todo_edit_rejects_empty_string() -> None:
+    """Issue #3680: Todo.edit() should reject empty strings (delegates to rename)."""
+    todo = Todo(id=1, text="original")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit("")
+
+
+def test_todo_edit_rejects_whitespace_only() -> None:
+    """Issue #3680: Todo.edit() should reject whitespace-only strings (delegates to rename)."""
+    todo = Todo(id=1, text="original")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit("   ")
