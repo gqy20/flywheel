@@ -1,0 +1,23 @@
+{
+  "issue_number": 3708,
+  "candidate_number": 2,
+  "run_id": "22065504497",
+  "branch": "claude/issue-3708-candidate-2-22065504497",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Manual implementation of __eq__, __lt__, and __hash__ methods based on (id, text) tuple",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3708_todo_comparison.py"
+    ],
+    "test_count": 9,
+    "tests_passed": 121,
+    "ruff_check": "passed"
+  },
+  "validation_criteria": {
+    "todo_equality": "Todo(id=1) == Todo(id=1) returns True",
+    "todo_ordering": "sorted() works correctly, sorting by id then text",
+    "todo_hash": "hash(Todo) works and enables set/dict operations"
+  },
+  "created_at": "2026-02-16T14:30:00Z"
+}

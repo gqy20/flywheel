@@ -20,6 +20,22 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Two todos are equal if they have the same id and text."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id and self.text == other.text
+
+    def __lt__(self, other: Todo) -> bool:
+        """Compare todos by id, then by text for stability."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) < (other.id, other.text)
+
+    def __hash__(self) -> int:
+        """Hash based on id and text for set/dict operations."""
+        return hash((self.id, self.text))
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
