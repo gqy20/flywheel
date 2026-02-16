@@ -37,7 +37,7 @@ def _sanitize_text(text: str) -> str:
     # - Bidirectional formatting (U+202A-U+202E)
     # - BOM/Zero-width no-break space (U+FEFF)
     def needs_escape(code: int) -> bool:
-        if (0 <= code <= 0x1f) or (0x7f <= code <= 0x9f):
+        if (0 <= code <= 0x1F) or (0x7F <= code <= 0x9F):
             return True
         if 0x200B <= code <= 0x200F:  # Zero-width chars and direction marks
             return True
