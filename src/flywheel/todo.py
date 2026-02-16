@@ -33,6 +33,16 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id for equality."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __lt__(self, other: Todo) -> bool:
+        """Compare todos by created_at for sorting (ascending order)."""
+        return self.created_at < other.created_at
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
