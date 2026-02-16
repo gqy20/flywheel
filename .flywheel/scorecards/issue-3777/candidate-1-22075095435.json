@@ -1,0 +1,94 @@
+{
+  "issue_number": 3777,
+  "issue_title": "[Perf] No length limit on todo text field allows potential memory exhaustion",
+  "candidate_number": 1,
+  "run_id": "22075095435",
+  "branch_name": "claude/issue-3777-candidate-1-22075095435",
+  "stage": "IMPLEMENTED",
+  "created_at": "2026-02-16T18:00:00Z",
+  "status": "ready_for_pr",
+  "summary": "Added MAX_TEXT_LENGTH constant (10000 chars) to prevent memory exhaustion attacks on todo text fields. Validation is applied in Todo.__post_init__, Todo.rename(), and inherits through Todo.from_dict().",
+  "plan": {
+    "summary": "Add MAX_TEXT_LENGTH limit to Todo text field to prevent memory exhaustion",
+    "max_text_length": 10000,
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3777_todo_text_length_limit.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Add failing regression test for text length validation in Todo constructor and rename()",
+        "status": "completed",
+        "test_cases": [
+          "Todo(id=1, text='a' * 10001) raises ValueError",
+          "todo.rename('a' * 10001) raises ValueError",
+          "Todo(id=1, text='a' * 10000) succeeds (boundary case)",
+          "todo.rename('a' * 10000) succeeds (boundary case)",
+          "Error message indicates maximum allowed length"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add MAX_TEXT_LENGTH constant and validation in todo.py",
+        "status": "completed",
+        "changes": [
+          "Add MAX_TEXT_LENGTH = 10000 constant at module level",
+          "Add validation in __post_init__() for constructor validation",
+          "Add validation in rename() method"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run tests and linter to ensure all pass",
+        "status": "completed",
+        "commands": [
+          "uv run pytest tests/test_issue_3777_todo_text_length_limit.py -v",
+          "uv run ruff check src/flywheel/todo.py"
+        ]
+      }
+    ]
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3777_todo_text_length_limit.py"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_3777_todo_text_length_limit.py",
+    "test_count": 6,
+    "tests_passed": 6,
+    "all_tests_passed": true
+  },
+  "verification": {
+    "pytest_passed": true,
+    "ruff_passed": true,
+    "total_tests_in_suite": 118
+  },
+  "implementation_details": {
+    "approach": "Added MAX_TEXT_LENGTH constant (10000 chars) consistent with the 10MB storage limit spirit. Validation occurs in __post_init__ for constructor/from_dict, and in rename() method.",
+    "error_message": "Todo text too long: {len} characters (maximum {MAX_TEXT_LENGTH})",
+    "edge_cases_handled": [
+      "Text exactly at limit accepted",
+      "Whitespace stripped before length check in rename()",
+      "from_dict inherits validation via __post_init__"
+    ]
+  },
+  "acceptance_criteria": [
+    {"criterion": "Todo.rename() with text > MAX_TEXT_LENGTH (10000) raises ValueError", "met": true},
+    {"criterion": "Todo constructor with text > MAX_TEXT_LENGTH raises ValueError", "met": true},
+    {"criterion": "Error message indicates maximum allowed length", "met": true},
+    {"criterion": "Boundary case (exactly MAX_TEXT_LENGTH chars) succeeds", "met": true},
+    {"criterion": "All existing tests continue to pass", "met": true}
+  ],
+  "risks_limitations": {
+    "backward_compatibility": "Existing todos with text > 10000 chars will fail to load from storage. This is intentional security hardening.",
+    "breaking_changes": "None for normal usage - typical todo texts are far under 10000 chars"
+  }
+}
