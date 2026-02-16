@@ -158,3 +158,58 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_with_valid_id_returns_exit_code_0(tmp_path, capsys) -> None:
+    """Bug #3834: CLI should support rename command with valid ID."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Rename it
+    args = parser.parse_args(["--db", db, "rename", "1", "renamed task"])
+    assert run_command(args) == 0
+
+    # Verify output contains sanitized text
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "renamed task" in captured.out
+    assert "original task" not in captured.out
+
+
+def test_cli_rename_with_invalid_id_returns_exit_code_1(tmp_path, capsys) -> None:
+    """Bug #3834: CLI rename with non-existent ID should return exit code 1."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "rename", "999", "new text"])
+    assert run_command(args) == 1
+
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
+def test_cli_rename_with_empty_text_returns_exit_code_1(tmp_path, capsys) -> None:
+    """Bug #3834: CLI rename with empty text should return exit code 1."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "some task"])
+    assert run_command(args) == 0
+    capsys.readouterr()  # Clear output
+
+    # Try to rename with empty text
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+
+    captured = capsys.readouterr()
+    assert "cannot be empty" in captured.out or "cannot be empty" in captured.err
