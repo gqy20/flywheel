@@ -1,0 +1,19 @@
+{
+  "issue_number": 3733,
+  "candidate_number": 3,
+  "run_id": "22066811013",
+  "branch_name": "claude/issue-3733-candidate-3-22066811013",
+  "created_at": "2026-02-16T15:05:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_3733_positive_id_validation.py"],
+    "lines_added": 37,
+    "lines_removed": 0
+  },
+  "validation": {
+    "tests_pass": true,
+    "ruff_check_pass": true,
+    "tests_added": 3
+  }
+}
