@@ -34,10 +34,16 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and normalize text (issue #3677)
+        text = self.text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        object.__setattr__(self, "text", text)
+
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
@@ -79,6 +85,11 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate text content (issue #3677)
+        text = data["text"].strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
@@ -95,7 +106,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=text,
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
