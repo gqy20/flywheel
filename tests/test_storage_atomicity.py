@@ -151,6 +151,28 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_docstring_documents_cross_filesystem_edge_case() -> None:
+    """Regression test for issue #3648: Document cross-filesystem atomicity edge case.
+
+    The save() method should document that while os.replace is atomic on Unix
+    and Windows when source and target are on the same filesystem, atomicity
+    may be lost if they are on different filesystems (which is prevented by
+    creating temp files in the same directory as the target).
+    """
+    import inspect
+
+    from flywheel.storage import TodoStorage
+
+    docstring = inspect.getdoc(TodoStorage.save)
+    assert docstring is not None, "save() method should have a docstring"
+
+    # Check that the docstring mentions the cross-filesystem edge case
+    docstring_lower = docstring.lower()
+    assert (
+        "filesystem" in docstring_lower or "file system" in docstring_lower
+    ), "save() docstring should mention filesystem considerations for atomicity"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
