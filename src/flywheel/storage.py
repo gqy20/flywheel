@@ -57,6 +57,15 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        # Security: Reject symlinks to prevent reading arbitrary files
+        # Must check is_symlink() before exists() since exists() follows symlinks
+        # and returns False for broken symlinks
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Database path '{self.path}' is a symlink. "
+                "Symlinks are not allowed for security reasons."
+            )
+
         if not self.path.exists():
             return []
 
