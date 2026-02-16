@@ -54,6 +54,20 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def update_text(self, text: str) -> None:
+        """Alias for rename(). Updates the todo text.
+
+        This method provides a more discoverable API since the todo field
+        is named 'text' rather than 'name'.
+
+        Args:
+            text: The new text for the todo item.
+
+        Raises:
+            ValueError: If text is empty or whitespace-only.
+        """
+        self.rename(text)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
