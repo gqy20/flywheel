@@ -81,6 +81,37 @@ def test_todo_repr_handles_special_characters() -> None:
     assert "\n" not in result2 or repr(result2).count("\\n") > 0
 
 
+def test_todo_repr_no_literal_newlines_issue_3663() -> None:
+    """repr(Todo) must produce single-line output with no literal newline bytes.
+
+    Regression test for issue #3663: ensure __repr__ escapes newlines so that
+    debugger output remains on a single line.
+    """
+    # Text with actual newline character
+    todo = Todo(id=1, text="line1\nline2\nline3")
+    result = repr(todo)
+
+    # Critical: repr output must NOT contain literal newline byte (0x0A)
+    assert "\n" not in result, (
+        f"__repr__ produced multi-line output: {result!r}"
+    )
+    # Also verify no carriage returns
+    assert "\r" not in result, (
+        f"__repr__ produced output with carriage return: {result!r}"
+    )
+
+
+def test_todo_repr_no_literal_tabs_issue_3663() -> None:
+    """repr(Todo) must escape tab characters to maintain readable output."""
+    todo = Todo(id=1, text="col1\tcol2\tcol3")
+    result = repr(todo)
+
+    # repr output should not contain literal tab byte (0x09)
+    assert "\t" not in result, (
+        f"__repr__ produced output with literal tab: {result!r}"
+    )
+
+
 def test_todo_repr_eval_able_optional() -> None:
     """repr(Todo) output should ideally be eval-able or at least informative."""
     todo = Todo(id=1, text="simple task", done=True)
