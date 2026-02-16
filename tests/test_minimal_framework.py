@@ -158,3 +158,29 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_constructor_rejects_whitespace_only() -> None:
+    """Bug #3622: Todo constructor should reject whitespace-only text."""
+    # Single space should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text=" ")
+
+    # Tab and newline should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="\t\n")
+
+    # Multiple spaces should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo(id=1, text="   ")
+
+
+def test_todo_constructor_accepts_valid_text_with_whitespace() -> None:
+    """Bug #3622: Todo constructor should accept valid text (no auto-strip on constructor)."""
+    # Valid text should work
+    todo = Todo(id=1, text="valid")
+    assert todo.text == "valid"
+
+    # Text with leading/trailing whitespace should be preserved (no auto-strip)
+    todo2 = Todo(id=1, text=" valid ")
+    assert todo2.text == " valid "
