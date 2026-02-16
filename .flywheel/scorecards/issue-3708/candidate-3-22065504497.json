@@ -4,8 +4,8 @@
   "candidate_number": 3,
   "run_id": "22065504497",
   "branch_name": "claude/issue-3708-candidate-3-22065504497",
-  "stage": "IMPLEMENT",
-  "status": "implementation_complete",
+  "stage": "VERIFY",
+  "status": "verification_complete",
   "implementation": {
     "files_changed": [
       "src/flywheel/todo.py",
