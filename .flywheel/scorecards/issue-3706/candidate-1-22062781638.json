@@ -1,0 +1,20 @@
+{
+  "issue_number": 3706,
+  "candidate_number": 1,
+  "run_id": "22062781638",
+  "branch": "claude/issue-3706-candidate-1-22062781638",
+  "status": "implemented",
+  "test_first": true,
+  "tests_pass": true,
+  "ruff_clean": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_3706_todo_text_validation.py"
+  ],
+  "summary": "Added type validation in Todo.__post_init__ to ensure text field is a string and not None, preventing TypeError in __repr__",
+  "validation_criteria_met": {
+    "todo_with_none_raises": true,
+    "repr_with_valid_text_works": true,
+    "from_dict_validation_unchanged": true
+  }
+}

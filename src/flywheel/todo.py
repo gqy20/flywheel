@@ -34,6 +34,11 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text is a string and not None
+        if not isinstance(self.text, str):
+            raise TypeError(
+                f"Invalid value for 'text': {self.text!r}. 'text' must be a string."
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
