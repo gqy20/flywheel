@@ -1,0 +1,23 @@
+{
+  "issue_number": 3791,
+  "candidate_number": 1,
+  "run_id": "22076341371",
+  "branch": "claude/issue-3791-candidate-1-22076341371",
+  "status": "implemented",
+  "summary": "Add validation to check for duplicate todo IDs when loading from JSON storage",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_3791_duplicate_id_validation.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "implementation_details": {
+    "approach": "Added ID uniqueness validation in TodoStorage.load() after converting JSON items to Todo objects",
+    "error_message": "Duplicate todo ID {id} found in storage",
+    "validation_timing": "After individual item validation via Todo.from_dict(), before returning the list"
+  }
+}
