@@ -65,7 +65,10 @@ def test_storage_load_error_message_includes_duplicate_id(tmp_path) -> None:
     storage = TodoStorage(str(db))
 
     # Create JSON with a specific duplicate ID (42)
-    db.write_text('[{"id": 1, "text": "task a"}, {"id": 42, "text": "task b"}, {"id": 42, "text": "task c"}]', encoding="utf-8")
+    db.write_text(
+        '[{"id": 1, "text": "task a"}, {"id": 42, "text": "task b"}, {"id": 42, "text": "task c"}]',
+        encoding="utf-8",
+    )
 
     # Should raise ValueError that includes the duplicate ID value (42)
     with pytest.raises(ValueError, match=r"42"):
@@ -77,7 +80,7 @@ def test_storage_load_empty_list_succeeds(tmp_path) -> None:
     db = tmp_path / "empty.json"
     storage = TodoStorage(str(db))
 
-    db.write_text('[]', encoding="utf-8")
+    db.write_text("[]", encoding="utf-8")
 
     todos = storage.load()
     assert todos == []
