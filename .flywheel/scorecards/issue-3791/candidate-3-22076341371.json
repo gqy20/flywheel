@@ -1,32 +1,23 @@
 {
-  "issue_number": 3791,
-  "issue_title": "[Bug] No validation that todo IDs are unique when loading from JSON",
-  "candidate_number": 3,
+  "issue": 3791,
+  "candidate": 3,
   "run_id": "22076341371",
   "branch": "claude/issue-3791-candidate-3-22076341371",
-  "verification": {
-    "pytest": {
-      "status": "passed",
-      "command": "uv run pytest tests/test_issue_3791_duplicate_id_validation.py -v",
-      "tests_run": 5,
-      "tests_passed": 5,
-      "tests_failed": 0
-    },
-    "ruff": {
-      "status": "passed",
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_3791_duplicate_id_validation.py"
-    },
-    "storage_tests": {
-      "status": "passed",
-      "command": "uv run pytest tests/test_storage*.py -v",
-      "tests_run": 6,
-      "tests_passed": 6,
-      "tests_failed": 0
-    }
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_3791_duplicate_id_validation.py"
+  "pr_number": 3829,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3829",
+  "generated_at": "2026-02-16T20:51:26.014458+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added validation in TodoStorage.load() to check for duplicate todo IDs before returning todos. Raises ValueError with clear message indicating which ID is duplicated."
+  "stage_response_sizes": {
+    "triage": 3171,
+    "plan": 4000,
+    "implement": 1923,
+    "verify": 2056,
+    "finalize": 1518
+  }
 }
