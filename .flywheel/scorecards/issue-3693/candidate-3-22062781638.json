@@ -1,0 +1,26 @@
+{
+  "issue": 3693,
+  "candidate": 3,
+  "run_id": "22062781638",
+  "created_at": "2026-02-16T12:00:00Z",
+  "fix_details": {
+    "summary": "Add text validation and stripping in Todo.__post_init__",
+    "files_changed": ["src/flywheel/todo.py", "tests/test_minimal_framework.py"],
+    "approach": "TDD - first wrote failing tests, then implemented minimal fix",
+    "lines_changed": 6
+  },
+  "tests": {
+    "added": [
+      "test_todo_init_rejects_empty_string",
+      "test_todo_init_rejects_whitespace_only",
+      "test_todo_init_strips_whitespace",
+      "test_todo_init_accepts_valid_text"
+    ],
+    "passed": 14,
+    "failed": 0
+  },
+  "quality_checks": {
+    "ruff": "passed",
+    "pytest": "passed"
+  }
+}
