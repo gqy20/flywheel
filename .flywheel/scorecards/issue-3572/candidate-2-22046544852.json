@@ -1,44 +1,23 @@
 {
-  "issue_number": 3572,
-  "candidate_id": 2,
+  "issue": 3572,
+  "candidate": 2,
   "run_id": "22046544852",
-  "stage": "FINALIZE",
-  "triage_summary": {
-    "root_cause": "TOCTOU race condition in _ensure_parent_directory: exists() check followed by mkdir(exist_ok=False) is not atomic",
-    "location": "src/flywheel/storage.py:43-50",
-    "severity": "p0",
-    "risk": "Concurrent save() calls to same new directory can raise FileExistsError",
-    "proposed_fix": "Use exist_ok=True in mkdir() and remove the exists() check to make operation atomic/idempotent"
-  },
-  "implementation": {
-    "test_file": "tests/test_issue_3572_toctou_mkdir_race.py",
-    "source_file": "src/flywheel/storage.py",
-    "fix_description": "Replaced non-atomic exists()-then-mkdir pattern with atomic mkdir(exist_ok=True)",
-    "tests_passed": true,
-    "ruff_check_passed": true
-  },
-  "verification": {
-    "pytest_commands": [
-      "uv run pytest tests/test_issue_3572_toctou_mkdir_race.py -v",
-      "uv run pytest tests/test_storage_atomicity.py tests/test_issue_1894_security_mkdir_fix.py -v"
-    ],
-    "ruff_commands": [
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_3572_toctou_mkdir_race.py"
-    ],
-    "results": {
-      "issue_tests_passed": "5/5 tests passed",
-      "related_tests_passed": "12/12 tests passed (storage atomicity + mkdir security tests)",
-      "ruff_check": "All checks passed"
-    },
-    "lint_fixes": "Removed unused imports (time, pytest) from test file"
-  },
-  "verification_targets": [
-    "Concurrent save() calls to same non-existent directory should not raise FileExistsError",
-    "Existing tests should pass (no regression)",
-    "Path confusion protection (file-as-directory check) should remain intact"
-  ],
   "branch": "claude/issue-3572-candidate-2-22046544852",
-  "commit_sha": "0645696",
-  "created_at": "2026-02-16T01:25:00Z",
-  "updated_at": "2026-02-16T01:35:00Z"
+  "pr_number": 3587,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3587",
+  "generated_at": "2026-02-16T01:40:07.087946+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2859,
+    "plan": 3396,
+    "implement": 4000,
+    "verify": 2710,
+    "finalize": 1137
+  }
 }
