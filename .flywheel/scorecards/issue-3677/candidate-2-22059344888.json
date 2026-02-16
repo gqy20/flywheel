@@ -1,34 +1,23 @@
 {
-  "issue_number": 3677,
-  "candidate_number": 2,
+  "issue": 3677,
+  "candidate": 2,
   "run_id": "22059344888",
   "branch": "claude/issue-3677-candidate-2-22059344888",
-  "status": "VERIFIED",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/ -v -k 'todo'",
-      "result": "45 passed, 79 deselected",
-      "status": "PASSED"
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/todo.py",
-      "result": "All checks passed!",
-      "status": "PASSED"
-    },
-    "manual_verification": {
-      "constructor_empty_text": "PASS - raises ValueError",
-      "constructor_whitespace_only": "PASS - raises ValueError",
-      "from_dict_empty_text": "PASS - raises ValueError",
-      "from_dict_whitespace_only": "PASS - raises ValueError",
-      "constructor_strips_whitespace": "PASS - normalizes correctly",
-      "rename_empty_text": "PASS - raises ValueError"
-    }
-  },
-  "fix_summary": "Added text validation in __post_init__ and from_dict to strip whitespace and reject empty text, matching rename() behavior. The fix ensures consistent validation across constructor, from_dict, and rename() methods.",
-  "files_changed": [
-    "src/flywheel/todo.py"
+  "pr_number": 3689,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3689",
+  "generated_at": "2026-02-16T11:20:14.012006+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_covering": [
-    "tests/test_issue_3677_text_validation.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 2820,
+    "plan": 3029,
+    "implement": 3165,
+    "verify": 2131,
+    "finalize": 654
+  }
 }
