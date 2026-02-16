@@ -3,14 +3,44 @@
   "candidate_id": 1,
   "run_id": "22077749152",
   "branch": "claude/issue-3818-candidate-1-22077749152",
+  "status": "IMPLEMENTATION_COMPLETE",
   "triage_summary": "Todo constructor accepts any type for 'done' field while from_dict validates strictly. Root cause: dataclass type annotation is only static, no runtime validation in __post_init__.",
   "root_cause": "Missing runtime validation for 'done' field in __post_init__ method",
+  "fix_description": "Added validation in __post_init__ to match from_dict behavior: accept bool/0/1, reject other types and invalid integers",
   "files_modified": [
     "src/flywheel/todo.py",
     "tests/test_issue_2000_json_validation.py"
   ],
-  "tests_added": 5,
-  "tests_passed": 117,
-  "ruff_check": "passed",
+  "tests_added": [
+    "test_todo_constructor_rejects_string_done",
+    "test_todo_constructor_rejects_truthy_int_done",
+    "test_todo_constructor_rejects_negative_int_done",
+    "test_todo_constructor_accepts_boolean_done",
+    "test_todo_constructor_accepts_legacy_int_done"
+  ],
+  "acceptance_criteria_met": {
+    "Todo(id=1, text='test', done='yes') raises ValueError": true,
+    "Todo(id=1, text='test', done=2) raises ValueError": true,
+    "Todo(id=1, text='test', done=True) works normally": true
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "uv run pytest tests/ -v",
+    "uv run ruff check src/ tests/"
+  ],
+  "test_results": {
+    "passed": 117,
+    "failed": 0,
+    "total": 117,
+    "targeted_tests": {
+      "passed": 17,
+      "failed": 0,
+      "total": 17
+    }
+  },
+  "lint_results": "All checks passed",
+  "verification_status": "PASSED",
+  "verified_at": "2026-02-16T20:45:00Z",
   "created_at": "2026-02-16T20:33:00Z"
 }
