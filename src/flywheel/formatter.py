@@ -42,13 +42,15 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
-    def format_todo(todo: Todo) -> str:
+    def format_todo(todo: Todo, id_width: int = 3) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        return f"[{status}] {todo.id:>{id_width}} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
         if not todos:
             return "No todos yet."
-        return "\n".join(cls.format_todo(todo) for todo in todos)
+        # Calculate the width needed for the largest ID
+        id_width = max(len(str(todo.id)) for todo in todos)
+        return "\n".join(cls.format_todo(todo, id_width) for todo in todos)
