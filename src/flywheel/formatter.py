@@ -42,10 +42,17 @@ class TodoFormatter:
     """Render todos in simple text tables."""
 
     @staticmethod
+    def _priority_marker(priority: int) -> str:
+        """Return priority marker string (!, !!, !!! for 1, 2, 3)."""
+        markers = {3: "!!! ", 2: "!! ", 1: "! "}
+        return markers.get(priority, "")
+
+    @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        priority_marker = TodoFormatter._priority_marker(todo.priority)
+        return f"[{status}] {todo.id:>3} {priority_marker}{safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
