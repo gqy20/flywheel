@@ -34,6 +34,8 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if self.id <= 0:
+            raise ValueError(f"id must be a positive integer, got {self.id}")
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -72,6 +74,10 @@ class Todo:
             raise ValueError(
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
             ) from e
+
+        # Validate 'id' is a positive integer
+        if todo_id <= 0:
+            raise ValueError(f"id must be a positive integer, got {todo_id}")
 
         # Validate 'text' is a string
         if not isinstance(data["text"], str):
