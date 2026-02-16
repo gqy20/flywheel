@@ -34,10 +34,21 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate 'done' field matches from_dict validation rules
+        # Accept: True, False, 0, 1
+        # Reject: other integers (2, -1), strings, or other types
+        if not isinstance(self.done, bool):
+            if isinstance(self.done, int) and self.done in (0, 1):
+                object.__setattr__(self, "done", bool(self.done))
+            else:
+                raise ValueError(
+                    f"Invalid value for 'done': {self.done!r}. "
+                    "'done' must be a boolean (true/false) or 0/1."
+                )
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
