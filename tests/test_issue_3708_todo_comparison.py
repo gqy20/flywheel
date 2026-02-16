@@ -3,8 +3,6 @@
 This module tests the __eq__, __lt__, and __hash__ methods on the Todo class.
 """
 
-import pytest
-
 from flywheel.todo import Todo
 
 
