@@ -1,37 +1,23 @@
 {
-  "issue_number": 3736,
+  "issue": 3736,
   "candidate": 3,
   "run_id": "22068594560",
   "branch": "claude/issue-3736-candidate-3-22068594560",
-  "status": "implemented",
-  "implementation_summary": {
-    "title": "Add Todo priority field support",
-    "changes": [
-      "Added priority field to Todo dataclass with default value 2 (low)",
-      "Added priority validation in from_dict (0-2 range)",
-      "Added --priority/-p CLI argument to add command"
-    ],
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "src/flywheel/cli.py"
-    ],
-    "files_added": [
-      "tests/test_issue_3736_priority_field.py"
-    ]
-  },
-  "test_results": {
-    "total_tests": 127,
-    "passed": 127,
-    "new_tests": 15,
-    "new_tests_passed": 15
-  },
-  "verification_criteria": {
-    "todo_with_priority_zero": true,
-    "from_dict_rejects_invalid_priority": true,
-    "cli_add_priority_argument": true
-  },
-  "risks": [
-    "Existing storage files without priority field will use default priority=2",
-    "No migration needed as priority has a sensible default"
-  ]
+  "pr_number": 3758,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3758",
+  "generated_at": "2026-02-16T16:06:58.916616+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3273,
+    "plan": 3366,
+    "implement": 2101,
+    "verify": 1791,
+    "finalize": 1457
+  }
 }
