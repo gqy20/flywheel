@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, order=True)
 class Todo:
     """Simple todo item."""
 
@@ -38,6 +38,16 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+
+    def __hash__(self) -> int:
+        """Hash based on (id, text) for set operations and dict keys."""
+        return hash((self.id, self.text))
+
+    def __eq__(self, other: object) -> bool:
+        """Equality based on (id, text) only."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text) == (other.id, other.text)
 
     def mark_done(self) -> None:
         self.done = True
