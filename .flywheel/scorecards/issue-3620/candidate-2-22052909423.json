@@ -1,29 +1,23 @@
 {
-  "issue_number": 3620,
-  "candidate_number": 2,
+  "issue": 3620,
+  "candidate": 2,
   "run_id": "22052909423",
-  "branch_name": "claude/issue-3620-candidate-2-22052909423",
-  "created_at": "2026-02-16T07:30:00Z",
-  "status": "pr_created",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/3631",
+  "branch": "claude/issue-3620-candidate-2-22052909423",
   "pr_number": 3631,
-  "summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir()",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py"
-    ],
-    "test_files": [
-      "tests/test_issue_3620_toctou_race_condition.py"
-    ]
-  },
-  "test_results": {
-    "passed": 17,
-    "failed": 0,
-    "total": 17
-  },
-  "implementation_details": {
-    "root_cause": "Time-of-check-time-of-use race condition between checking if parent directory exists and calling mkdir with exist_ok=False",
-    "fix": "Changed exist_ok=False to exist_ok=True in parent.mkdir() call to gracefully handle concurrent directory creation",
-    "validation": "File-as-directory validation is preserved and still catches path confusion attacks"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3631",
+  "generated_at": "2026-02-16T07:29:33.936315+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2393,
+    "plan": 3950,
+    "implement": 3281,
+    "verify": 2344,
+    "finalize": 800
   }
 }
