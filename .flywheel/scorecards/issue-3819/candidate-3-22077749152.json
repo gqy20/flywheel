@@ -1,0 +1,32 @@
+{
+  "issue_number": 3819,
+  "issue_title": "[Bug] Todo.from_dict accepts negative id values without validation",
+  "candidate_number": 3,
+  "run_id": "22077749152",
+  "branch_name": "claude/issue-3819-candidate-3-22077749152",
+  "created_at": "2026-02-16T20:40:00Z",
+  "status": "implemented",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ],
+    "files_added": [
+      "tests/test_issue_3819_negative_id_validation.py"
+    ],
+    "lines_changed": 8
+  },
+  "test_results": {
+    "tests_passed": 117,
+    "tests_failed": 0,
+    "test_coverage": "92%"
+  },
+  "validation": {
+    "acceptance_criteria_met": [
+      "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError",
+      "Todo.from_dict({'id': 0, 'text': 'test'}) works",
+      "Todo.from_dict({'id': 1, 'text': 'test'}) works normally"
+    ],
+    "ruff_check": "passed"
+  },
+  "implementation_notes": "Added validation in Todo.from_dict to reject negative id values after int conversion. The fix adds a simple check: if todo_id < 0, raise ValueError with a clear message."
+}
