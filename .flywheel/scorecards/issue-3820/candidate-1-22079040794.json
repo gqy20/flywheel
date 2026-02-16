@@ -1,0 +1,30 @@
+{
+  "issue": 3820,
+  "candidate": 1,
+  "run_id": 22079040794,
+  "branch": "claude/issue-3820-candidate-1-22079040794",
+  "stage": "IMPLEMENT",
+  "summary": "Add MAX_TEXT_LENGTH validation to Todo class to prevent oversized text that could cause JSON bloat, memory issues, or display problems.",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_3820_todo_text_length_validation.py"
+    ],
+    "source_files": [
+      "src/flywheel/todo.py"
+    ]
+  },
+  "tests_run": [
+    "test_todo_text_exceeds_max_length_raises",
+    "test_todo_rename_exceeds_max_length_raises",
+    "test_todo_text_at_max_length_accepts",
+    "test_todo_rename_at_max_length_accepts",
+    "test_todo_rename_empty_still_rejected",
+    "test_todo_from_dict_validates_text_length"
+  ],
+  "all_tests_passed": true,
+  "risks": [
+    "Existing todos with text longer than 10000 characters in storage will fail to load via from_dict()"
+  ],
+  "limitations": [],
+  "status": "implemented"
+}
