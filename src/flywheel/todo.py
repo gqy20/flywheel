@@ -5,6 +5,24 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Maximum text length to prevent oversized input (10KB per todo)
+_MAX_TEXT_LENGTH = 10000
+
+
+def _validate_text_length(text: str) -> None:
+    """Validate that text does not exceed maximum allowed length.
+
+    Args:
+        text: The text to validate
+
+    Raises:
+        ValueError: If text length exceeds _MAX_TEXT_LENGTH
+    """
+    if len(text) > _MAX_TEXT_LENGTH:
+        raise ValueError(
+            f"Todo text too long ({len(text)} chars, max {_MAX_TEXT_LENGTH})"
+        )
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -34,6 +52,7 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        _validate_text_length(self.text)
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -51,6 +70,7 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        _validate_text_length(text)
         self.text = text
         self.updated_at = _utc_now_iso()
 
