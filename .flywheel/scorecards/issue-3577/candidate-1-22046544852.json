@@ -1,25 +1,23 @@
 {
-  "issue_number": 3577,
-  "candidate_id": 1,
+  "issue": 3577,
+  "candidate": 1,
   "run_id": "22046544852",
-  "branch_name": "claude/issue-3577-candidate-1-22046544852",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_storage_atomicity.py -v",
-      "status": "passed",
-      "tests_run": 7,
-      "tests_passed": 7,
-      "tests_failed": 0
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
-      "status": "passed"
-    }
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_atomicity.py"
+  "branch": "claude/issue-3577-candidate-1-22046544852",
+  "pr_number": 3589,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3589",
+  "generated_at": "2026-02-16T01:42:59.761967+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Fixed duplicate ID generation in concurrent writes by implementing file-based locking using fcntl.flock. Added FileLock class and atomic_add method to ensure load-compute-next_id-save sequence is atomic.",
-  "commit_sha": "1e58a5d"
+  "stage_response_sizes": {
+    "triage": 2434,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2841,
+    "finalize": 1462
+  }
 }
