@@ -21,7 +21,8 @@
   },
   "verification": {
     "pytest_passed": true,
-    "ruff_check_passed": true
+    "ruff_check_passed": true,
+    "ruff_format_passed": true
   },
   "risks": [],
   "limitations": []
