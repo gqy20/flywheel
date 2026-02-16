@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +124,12 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available unique ID for a new todo.
+
+        Uses a set to ensure duplicate IDs in the list don't affect the result.
+        Returns max(existing_ids) + 1, or 1 if the list is empty.
+        """
+        if not todos:
+            return 1
+        existing_ids = {todo.id for todo in todos}
+        return max(existing_ids) + 1
