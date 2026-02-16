@@ -5,7 +5,8 @@
   "run_id": "22068594560",
   "branch_name": "claude/issue-3734-candidate-3-22068594560",
   "stage": "FINALIZE",
-  "status": "IN_PROGRESS",
+  "status": "COMPLETED",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3757",
   "tdd_plan": {
     "phase": "RED",
     "description": "Add failing regression test for to_dict/from_dict round-trip",
