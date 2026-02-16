@@ -1,0 +1,18 @@
+{
+  "issue_number": 3819,
+  "candidate": 1,
+  "run_id": "22077749152",
+  "branch": "claude/issue-3819-candidate-1-22077749152",
+  "status": "implemented",
+  "test_first": true,
+  "tests_added": 3,
+  "tests_passed": true,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Add validation in Todo.from_dict to reject negative id values. The fix adds a simple check after int conversion to raise ValueError if todo_id < 0.",
+  "risks": "Minimal risk. The change only adds validation and does not modify existing behavior for valid inputs.",
+  "limitation": "Zero id (0) is accepted as valid, which aligns with the issue's acceptance criteria."
+}
