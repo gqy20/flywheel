@@ -1,50 +1,23 @@
 {
-  "issue_number": 3648,
-  "candidate_number": 3,
+  "issue": 3648,
+  "candidate": 3,
   "run_id": "22055460478",
-  "stage": "VERIFY",
-  "plan": {
-    "summary": "Add documentation to TodoStorage.save() docstring about cross-filesystem atomic rename edge case",
-    "files_to_touch": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "implementation_sequence": [
-      {
-        "step": 1,
-        "phase": "RED",
-        "description": "Add failing test verifying docstring documents cross-filesystem edge case"
-      },
-      {
-        "step": 2,
-        "phase": "GREEN",
-        "description": "Update save() docstring to document atomicity guarantee and cross-filesystem edge case"
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py",
-      "uv run ruff format --check src/flywheel/storage.py"
-    ]
-  },
-  "implementation": {
-    "test_file": "tests/test_storage_atomicity.py",
-    "source_file": "src/flywheel/storage.py",
-    "commit_sha": "94d82f3",
-    "branch": "claude/issue-3648-candidate-3-22055460478",
-    "tests_passed": true,
-    "linter_passed": true
-  },
-  "created_at": "2026-02-16T00:00:00Z",
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_storage_atomicity.py -v",
-    "pytest_outcome": "7 tests passed",
-    "ruff_check_command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
-    "ruff_check_outcome": "All checks passed",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/storage.py tests/test_storage_atomicity.py",
-    "ruff_format_outcome": "2 files already formatted",
-    "formatting_fix_commit": "87aa3d2"
-  },
-  "status": "finalized",
-  "final_commit_sha": "87aa3d2"
+  "branch": "claude/issue-3648-candidate-3-22055460478",
+  "pr_number": 3661,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3661",
+  "generated_at": "2026-02-16T09:04:52.181871+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1885,
+    "plan": 4000,
+    "implement": 2358,
+    "verify": 1788,
+    "finalize": 2324
+  }
 }
