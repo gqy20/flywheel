@@ -1,0 +1,28 @@
+{
+  "issue_number": 3706,
+  "candidate": 2,
+  "run_id": "22062781638",
+  "branch": "claude/issue-3706-candidate-2-22062781638",
+  "status": "implemented",
+  "summary": "Add type validation in Todo.__post_init__ to ensure text is a string and not None",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Added isinstance check in __post_init__ to validate text is a string"
+    },
+    {
+      "file": "tests/test_issue_3706_todo_text_none_validation.py",
+      "change_type": "added",
+      "description": "Added regression tests for text=None validation"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_3706_todo_text_none_validation.py",
+    "tests/test_issue_2087_todo_repr.py"
+  ],
+  "tests_passed": true,
+  "lint_passed": true,
+  "risks": [],
+  "limitations": []
+}
