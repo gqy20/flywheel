@@ -51,7 +51,28 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Uses atomic writes via temp file + rename to prevent data corruption during
+    process crashes. However, this implementation has important concurrency
+    limitations that users should be aware of:
+
+    **Concurrency Warning:**
+    This storage uses last-writer-wins semantics without conflict detection.
+    Concurrent writes from multiple processes will NOT detect conflicts, and
+    the last write operation will overwrite any previous writes. This can
+    result in silent data loss in multi-process scenarios.
+
+    For single-process usage (typical CLI use case), this is safe. For
+    multi-process or distributed deployments, consider implementing external
+    file locking or using a database with proper MVCC support.
+
+    Example of data loss scenario:
+        Process A: loads todos [1, 2, 3]
+        Process B: loads todos [1, 2, 3]
+        Process A: adds todo 4, saves [1, 2, 3, 4]
+        Process B: adds todo 5, saves [1, 2, 3, 5]  # todo 4 is lost!
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")

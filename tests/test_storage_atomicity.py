@@ -2,6 +2,8 @@
 
 This test suite verifies that TodoStorage.save() writes files atomically,
 preventing data corruption if the process crashes during write.
+
+Also verifies that concurrency limitations are properly documented.
 """
 
 from __future__ import annotations
@@ -229,3 +231,46 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrency_limitations_are_documented() -> None:
+    """Regression test for issue #3874: Ensure concurrency limitations are documented.
+
+    The TodoStorage class uses atomic writes but has no conflict detection.
+    Concurrent writes follow last-writer-wins semantics, which can cause data loss.
+    This test verifies that the documentation clearly states this limitation.
+    """
+    import inspect
+
+    from flywheel.storage import TodoStorage
+
+    # Check that the TodoStorage class docstring mentions concurrency limitations
+    class_doc = inspect.getdoc(TodoStorage)
+    assert class_doc is not None, "TodoStorage class should have a docstring"
+
+    # The documentation should mention key concurrency concepts
+    doc_lower = class_doc.lower()
+
+    # Check for concurrency-related documentation
+    has_concurrency_warning = any(
+        term in doc_lower
+        for term in [
+            "concurrent",
+            "concurrency",
+            "last-writer-wins",
+            "last writer wins",
+            "race condition",
+            "multi-process",
+            "multiprocess",
+            "parallel",
+            "conflict",
+            "locking",
+        ]
+    )
+
+    assert has_concurrency_warning, (
+        "TodoStorage class docstring must document concurrency limitations. "
+        "The storage uses last-writer-wins semantics without conflict detection, "
+        "which can cause data loss in multi-process scenarios. "
+        "Current docstring: " + (class_doc[:200] if class_doc else "None")
+    )
