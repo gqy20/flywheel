@@ -1,0 +1,15 @@
+{
+  "issue_number": 3964,
+  "issue_title": "[Bug] Todo 构造函数未验证 text 参数允许空字符串和纯空白，与 rename() 方法行为不一致",
+  "candidate": 1,
+  "run_id": "22096755374",
+  "branch": "claude/issue-3964-candidate-1-22096755374",
+  "status": "implemented",
+  "tests_added": 4,
+  "tests_passed": 14,
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "summary": "Added text validation in Todo.__post_init__ to reject empty strings and whitespace-only text, consistent with rename() method behavior."
+}
