@@ -1,0 +1,19 @@
+{
+  "issue_number": 3950,
+  "candidate_number": 2,
+  "run_id": "22095008567",
+  "branch": "claude/issue-3950-candidate-2-22095008567",
+  "status": "implemented",
+  "summary": "Add validation in Todo.__post_init__ to reject empty text strings at construction time",
+  "tests_added": [
+    "test_todo_constructor_rejects_empty_string",
+    "test_todo_constructor_rejects_whitespace_only",
+    "test_todo_from_dict_rejects_empty_text"
+  ],
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "risks": "None - the fix adds validation consistent with existing rename() and add() methods",
+  "limitations": "None - the fix is minimal and complete"
+}
