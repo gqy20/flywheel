@@ -1,0 +1,33 @@
+{
+  "issue": {
+    "number": 3881,
+    "title": "[Test] Missing unit tests for mark_done() and mark_undone() methods updating updated_at",
+    "url": "https://github.com/gqy20/flywheel/issues/3881"
+  },
+  "candidate": {
+    "number": 1,
+    "branch": "claude/issue-3881-candidate-1-22086829014",
+    "author": "claude-opus-4-6"
+  },
+  "implementation": {
+    "approach": "Added explicit unit tests to verify updated_at timestamp changes after mark_done() and mark_undone() calls",
+    "files_changed": [
+      "tests/test_minimal_framework.py"
+    ],
+    "tests_added": 2,
+    "tests_passed": true,
+    "ruff_passed": true
+  },
+  "tests": {
+    "added": [
+      "test_mark_done_updates_timestamp",
+      "test_mark_undone_updates_timestamp"
+    ],
+    "verification": "Both tests verify that updated_at > initial_updated_at after calling the respective methods"
+  },
+  "risks": {
+    "level": "low",
+    "description": "Test-only changes with no production code modifications. Minimal risk."
+  },
+  "timestamp": "2026-02-17T04:00:00Z"
+}
