@@ -1,0 +1,9 @@
+{
+  "issue_number": 3978,
+  "candidate": 2,
+  "run_id": "22101284017",
+  "branch": "claude/issue-3978-candidate-2-22101284017",
+  "created_at": "2026-02-17T12:00:00Z",
+  "score": null,
+  "status": "implemented"
+}
