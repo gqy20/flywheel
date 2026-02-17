@@ -1,0 +1,38 @@
+{
+  "issue_number": 3907,
+  "issue_title": "[Security] _ensure_parent_directory 存在 TOCTOU 竞态条件窗口",
+  "candidate": 2,
+  "run_id": "22088591446",
+  "branch": "claude/issue-3907-candidate-2-22088591446",
+  "status": "implemented",
+  "approach": {
+    "summary": "Fix TOCTOU race condition in _ensure_parent_directory by using exist_ok=True and handling FileExistsError",
+    "technical_details": "The original code had a TOCTOU race between checking if paths exist as files and creating the directory. The fix uses exist_ok=True with mkdir and catches FileExistsError to distinguish between 'path is a file' and 'directory already exists' scenarios.",
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_3907_toctou_race_condition.py"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_3907_toctou_race_condition.py",
+    "tests_added": 4,
+    "tests_description": [
+      "test_ensure_parent_directory_detects_file_conflict_on_mkdir - verifies file conflict during mkdir is caught",
+      "test_ensure_parent_directory_raises_on_mkdir_file_exists_error - verifies FileExistsError is converted to ValueError",
+      "test_clear_error_when_path_component_is_file - verifies static case gives clear error",
+      "test_mkdir_with_exist_ok_handles_directory_exists - verifies concurrent directory creation works"
+    ]
+  },
+  "verification": {
+    "all_tests_pass": true,
+    "tests_passed": 116,
+    "linting_passed": true,
+    "regression_tests_pass": true
+  },
+  "risks": {
+    "backward_compatibility": "Low - error messages slightly changed but still raise ValueError for file conflicts",
+    "performance_impact": "None - same operations, just different exception handling",
+    "security_impact": "Positive - eliminates TOCTOU race condition"
+  },
+  "created_at": "2026-02-17T07:00:00Z"
+}

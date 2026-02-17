@@ -23,6 +23,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    Note: TOCTOU race condition is mitigated by using exist_ok=True and handling
+    FileExistsError to distinguish between 'path is a file' and 'directory already exists'.
+
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
@@ -39,15 +42,23 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory using exist_ok=True to handle TOCTOU race condition
+    # If mkdir fails with FileExistsError, we check whether it's a file or directory
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        # Another process created something at this path during the race window
+        # Check if it's a file (error) or directory (ok)
+        if not parent.is_dir():
+            raise ValueError(
+                f"Path error: '{parent}' exists as a file, not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from None
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
