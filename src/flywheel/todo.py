@@ -2,12 +2,49 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+# ISO 8601 timestamp pattern:
+# - Date: YYYY-MM-DD
+# - Time: HH:MM:SS with optional fractional seconds (.SSSSSS)
+# - Timezone: Z or ±HH:MM or ±HHMM or empty (naive datetime)
+_ISO_8601_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"  # Date: YYYY-MM-DD
+    r"T"  # Time separator
+    r"\d{2}:\d{2}:\d{2}"  # Time: HH:MM:SS
+    r"(?:\.\d+)?"  # Optional fractional seconds
+    r"(?:Z|[+-]\d{2}:\d{2}|[+-]\d{4})?$"  # Optional timezone (Z or ±HH:MM or ±HHMM)
+)
+
+
+def _validate_iso_timestamp(value: str, field_name: str) -> str:
+    """Validate that a timestamp string is in ISO 8601 format.
+
+    Args:
+        value: The timestamp string to validate.
+        field_name: The field name for error messages.
+
+    Returns:
+        The validated timestamp string.
+
+    Raises:
+        ValueError: If the timestamp is not empty and not in ISO 8601 format.
+    """
+    if not value:
+        return value
+    if not _ISO_8601_PATTERN.match(value):
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"'{field_name}' must be an ISO 8601 timestamp (e.g., '2024-01-01T00:00:00Z')."
+        )
+    return value
 
 
 @dataclass(slots=True)
@@ -93,10 +130,18 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields are ISO 8601 format (if provided and non-empty)
+        created_at = _validate_iso_timestamp(
+            str(data.get("created_at") or ""), "created_at"
+        )
+        updated_at = _validate_iso_timestamp(
+            str(data.get("updated_at") or ""), "updated_at"
+        )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
