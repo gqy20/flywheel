@@ -1,21 +1,23 @@
 {
-  "issue_number": 3908,
+  "issue": 3908,
   "candidate": 2,
   "run_id": "22089945376",
-  "stage": "FINALIZE",
-  "timestamp": "2026-02-17T08:20:00Z",
-  "changes": {
-    "test_file": "tests/test_issue_3908_negative_id_validation.py",
-    "source_file": "src/flywheel/todo.py",
-    "summary": "Add validation in Todo.from_dict to reject negative IDs with clear error message"
-  },
-  "tests_passed": true,
-  "linting_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_3908_negative_id_validation.py -v",
-    "pytest_outcome": "3 passed in 0.05s",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_3908_negative_id_validation.py",
-    "ruff_outcome": "All checks passed",
-    "regression_tests": "37 todo-related tests passed"
+  "branch": "claude/issue-3908-candidate-2-22089945376",
+  "pr_number": 3928,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3928",
+  "generated_at": "2026-02-17T08:15:58.084326+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2367,
+    "plan": 3097,
+    "implement": 1919,
+    "verify": 1847,
+    "finalize": 1639
   }
 }
