@@ -128,9 +128,12 @@ class TodoStorage:
         """Return the next available ID in O(1) time.
 
         Maintains a cached max_id to avoid O(n) scanning on every call.
-        The cache is invalidated when todos list changes (cleared on load/save).
+        Updates the cache after returning to ensure next call is fast.
         """
         if self._max_id is None:
             # Compute max_id once (O(n)), then cache for subsequent calls
             self._max_id = max((todo.id for todo in todos), default=0)
-        return self._max_id + 1
+        result = self._max_id + 1
+        # Update cache to track the new max ID for next call
+        self._max_id = result
+        return result
