@@ -2,22 +2,22 @@
   "issue": 3935,
   "candidate": 2,
   "run_id": "22093185106",
-  "created_at": "2026-02-17T09:00:00Z",
-  "status": "completed",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/3955",
+  "branch": "claude/issue-3935-candidate-2-22093185106",
   "pr_number": 3955,
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_minimal_framework.py"],
-    "lines_added": 22,
-    "lines_removed": 0
-  },
-  "tests": {
-    "total": 12,
-    "passed": 12,
-    "failed": 0
-  },
-  "linter": {
-    "ruff": "passed"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3955",
+  "generated_at": "2026-02-17T10:11:52.791119+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2657,
+    "plan": 2632,
+    "implement": 2908,
+    "verify": 1463,
+    "finalize": 1224
   }
 }
