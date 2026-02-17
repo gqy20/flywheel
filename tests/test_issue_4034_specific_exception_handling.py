@@ -7,9 +7,9 @@ This test file ensures that run_command catches only expected exception types
 
 from __future__ import annotations
 
-import json
-import sys
 from unittest import mock
+
+import pytest
 
 from flywheel.cli import TodoApp, build_parser, run_command
 
@@ -75,11 +75,13 @@ class TestUnexpectedExceptionsPropagate:
         def broken_init(self, db_path=None):
             self.storage = None  # Deliberately set to None to cause AttributeError
 
-        with mock.patch.object(TodoApp, "__init__", broken_init):
-            # This should raise AttributeError when app.list() calls self.storage.load()
-            # because self.storage is None and None has no attribute 'load'
-            with pytest.raises(AttributeError):
-                run_command(args)
+        # This should raise AttributeError when app.list() calls self.storage.load()
+        # because self.storage is None and None has no attribute 'load'
+        with (
+            mock.patch.object(TodoApp, "__init__", broken_init),
+            pytest.raises(AttributeError),
+        ):
+            run_command(args)
 
     def test_type_error_propagates(self, tmp_path) -> None:
         """TypeError (program bug) should NOT be caught and should propagate."""
@@ -90,11 +92,9 @@ class TestUnexpectedExceptionsPropagate:
         args = parser.parse_args(["--db", str(db), "list"])
 
         # Mock the list method to raise TypeError (simulating a program bug)
-        with mock.patch.object(TodoApp, "list", side_effect=TypeError("program bug")):
-            # This should raise TypeError, not return 1
-            with pytest.raises(TypeError):
-                run_command(args)
-
-
-# Import pytest at module level for the above tests
-import pytest
+        # This should raise TypeError, not return 1
+        with (
+            mock.patch.object(TodoApp, "list", side_effect=TypeError("program bug")),
+            pytest.raises(TypeError),
+        ):
+            run_command(args)
