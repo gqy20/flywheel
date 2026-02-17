@@ -158,3 +158,32 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_edit_updates_text() -> None:
+    """Feature #3863: Todo.edit() should update text identically to rename()."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    todo.edit("new text")
+    assert todo.text == "new text"
+    assert todo.updated_at >= original_updated_at
+
+
+def test_todo_edit_rejects_empty_string() -> None:
+    """Feature #3863: Todo.edit() should reject empty strings like rename()."""
+    todo = Todo(id=1, text="original")
+    original_text = todo.text
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit("")
+
+    assert todo.text == original_text
+
+
+def test_todo_edit_strips_whitespace() -> None:
+    """Feature #3863: Todo.edit() should strip whitespace like rename()."""
+    todo = Todo(id=1, text="original")
+
+    todo.edit("  padded  ")
+    assert todo.text == "padded"

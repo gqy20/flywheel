@@ -54,6 +54,17 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def edit(self, text: str) -> None:
+        """Update the todo text inline. Alias for rename().
+
+        Args:
+            text: New text for the todo item.
+
+        Raises:
+            ValueError: If text is empty or whitespace-only.
+        """
+        self.rename(text)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
