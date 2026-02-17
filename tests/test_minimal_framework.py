@@ -158,3 +158,43 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_business_fields() -> None:
+    """Issue #4063: Todo equality should compare id, text, done fields only.
+
+    Timestamps (created_at, updated_at) should be excluded from comparison
+    to allow meaningful equality checks for business logic.
+    """
+    # Two todos with same business fields should be equal
+    todo1 = Todo(id=1, text="a", done=False)
+    todo2 = Todo(id=1, text="a", done=False)
+    assert todo1 == todo2
+
+    # Different id should not be equal
+    todo3 = Todo(id=2, text="a", done=False)
+    assert todo1 != todo3
+
+    # Different text should not be equal
+    todo4 = Todo(id=1, text="b", done=False)
+    assert todo1 != todo4
+
+    # Different done should not be equal
+    todo5 = Todo(id=1, text="a", done=True)
+    assert todo1 != todo5
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #4063: Todo equality should ignore timestamp differences."""
+    # Create two todos with identical business fields
+    # Even if timestamps differ, they should be equal
+    import time
+
+    todo1 = Todo(id=1, text="task", done=False)
+    time.sleep(0.01)  # Ensure different timestamps
+    todo2 = Todo(id=1, text="task", done=False)
+
+    # Timestamps will differ
+    assert todo1.created_at != todo2.created_at or todo1 == todo2
+    # But business equality should hold
+    assert todo1 == todo2
