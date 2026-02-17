@@ -23,9 +23,13 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    This function uses os.makedirs with exist_ok=True to handle TOCTOU race conditions
+    safely. If a concurrent process creates the directory between our check and mkdir,
+    exist_ok=True ensures we don't fail spuriously.
+
     Raises:
         ValueError: If any parent path component exists but is a file
-        OSError: If directory creation fails due to permissions
+        OSError: If directory creation fails due to permissions or other errors
     """
     parent = file_path.parent
 
@@ -40,14 +44,26 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Use os.makedirs with exist_ok=True to handle TOCTOU race conditions safely
+    # This allows concurrent processes to create the same directory without failure
+    try:
+        os.makedirs(parent, exist_ok=True)
+    except FileExistsError:
+        # FileExistsError means a file (not directory) exists at the path
+        # Check what's actually there and provide a clear error message
+        if parent.exists() and not parent.is_dir():
+            raise ValueError(
+                f"Path error: '{parent}' exists as a file, not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from None
+        # If it's actually a directory, this shouldn't happen with exist_ok=True,
+        # but re-raise just in case
+        raise
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
