@@ -1,19 +1,43 @@
 {
   "issue_number": 3950,
+  "issue_title": "[Bug] Todo allows empty text string on construction (no validation), but Todo.rename()",
   "candidate_number": 2,
   "run_id": "22095008567",
-  "branch": "claude/issue-3950-candidate-2-22095008567",
-  "status": "implemented",
-  "summary": "Add validation in Todo.__post_init__ to reject empty text strings at construction time",
-  "tests_added": [
-    "test_todo_constructor_rejects_empty_string",
-    "test_todo_constructor_rejects_whitespace_only",
-    "test_todo_from_dict_rejects_empty_text"
-  ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ],
-  "risks": "None - the fix adds validation consistent with existing rename() and add() methods",
-  "limitations": "None - the fix is minimal and complete"
+  "branch_name": "claude/issue-3950-candidate-2-22095008567",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_minimal_framework.py -v",
+      "result": "PASSED",
+      "tests_run": 13,
+      "tests_passed": 13,
+      "tests_failed": 0
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/todo.py",
+      "result": "PASSED",
+      "violations": 0
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/todo.py",
+      "result": "PASSED",
+      "files_formatted": 1
+    }
+  },
+  "fix_summary": {
+    "file_changed": "src/flywheel/todo.py",
+    "change_description": "Added validation in __post_init__ method to reject empty or whitespace-only text strings in Todo constructor",
+    "acceptance_criteria_met": [
+      "Todo(id=1, text='') raises ValueError",
+      "Todo(id=1, text=' ') raises ValueError",
+      "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_minimal_framework.py",
+    "tests_added": [
+      "test_todo_constructor_rejects_empty_string",
+      "test_todo_constructor_rejects_whitespace_only",
+      "test_todo_from_dict_rejects_empty_text"
+    ]
+  }
 }
