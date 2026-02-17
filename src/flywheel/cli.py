@@ -121,7 +121,11 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
-    except Exception as exc:
+    except (ValueError, OSError) as exc:
+        # Only catch expected user/environment errors:
+        # - ValueError: invalid input, todo not found, malformed data
+        # - OSError: permission denied, disk full, file system errors
+        # Unexpected exceptions (AttributeError, TypeError, etc.) propagate for debugging.
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
