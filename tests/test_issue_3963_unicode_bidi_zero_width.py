@@ -19,8 +19,6 @@ Zero-width and directional formatting characters:
 - U+200F: RIGHT-TO-LEFT MARK
 """
 
-import pytest
-
 from flywheel.formatter import _sanitize_text
 
 
