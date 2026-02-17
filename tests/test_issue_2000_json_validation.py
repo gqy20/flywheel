@@ -119,3 +119,26 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #3880 - verify to_dict() serialization output
+def test_todo_to_dict_returns_expected_keys() -> None:
+    """to_dict() should return a dict with all expected keys: id, text, done, created_at, updated_at."""
+    todo = Todo(id=1, text="test task", done=True)
+    result = todo.to_dict()
+
+    assert isinstance(result, dict)
+    assert set(result.keys()) == {"id", "text", "done", "created_at", "updated_at"}
+
+
+def test_todo_to_dict_round_trip_equality() -> None:
+    """to_dict() output should deserialize via from_dict() with matching field values."""
+    original = Todo(id=42, text="round trip test", done=True)
+    serialized = original.to_dict()
+    restored = Todo.from_dict(serialized)
+
+    assert restored.id == original.id
+    assert restored.text == original.text
+    assert restored.done == original.done
+    assert restored.created_at == original.created_at
+    assert restored.updated_at == original.updated_at
