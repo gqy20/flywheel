@@ -158,3 +158,60 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #3893: Verify next_id behavior with non-contiguous IDs.
+
+    ID generation strategy: next_id returns max(existing IDs) + 1.
+    This test verifies the expected behavior for various scenarios:
+    - Non-contiguous IDs should return max + 1
+    - After partial deletion, should still return max + 1 of remaining
+    - Empty list should return 1
+    """
+    storage = TodoStorage("/tmp/test.json")
+
+    # Non-contiguous IDs: [1, 5, 10] -> next_id should be 11
+    todos_non_contiguous = [
+        Todo(id=1, text="a"),
+        Todo(id=5, text="b"),
+        Todo(id=10, text="c"),
+    ]
+    assert storage.next_id(todos_non_contiguous) == 11
+
+    # After deleting ID 5: [1, 10] -> next_id should still be 11
+    todos_after_partial_delete = [Todo(id=1, text="a"), Todo(id=10, text="c")]
+    assert storage.next_id(todos_after_partial_delete) == 11
+
+    # Single high ID: [5] -> next_id should be 6
+    todos_single_high = [Todo(id=5, text="b")]
+    assert storage.next_id(todos_single_high) == 6
+
+    # Empty list: [] -> next_id should be 1
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_real_world_deletion_scenario(tmp_path) -> None:
+    """Bug #3893: Verify next_id behavior in a real app deletion scenario.
+
+    This test simulates: create todos, delete all, add new.
+    Expected: After deleting all, new todo gets ID 1 (fresh start).
+    """
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    # Create todos with non-contiguous IDs via add/remove operations
+    todo1 = app.add("first")
+    todo2 = app.add("second")
+    todo3 = app.add("third")
+
+    # Delete all todos
+    app.remove(todo1.id)
+    app.remove(todo2.id)
+    app.remove(todo3.id)
+
+    # List should be empty
+    assert app.list() == []
+
+    # Add a new todo - should get ID 1
+    new_todo = app.add("after deletion")
+    assert new_todo.id == 1
