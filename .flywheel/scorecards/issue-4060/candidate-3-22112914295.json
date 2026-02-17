@@ -1,24 +1,23 @@
 {
-  "issue_number": 4060,
-  "issue_title": "[Bug] Todo.from_dict() accepts negative ID values without validation",
+  "issue": 4060,
   "candidate": 3,
   "run_id": "22112914295",
-  "status": "implemented",
-  "changes": {
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "source_files": [
-      "src/flywheel/todo.py"
-    ]
-  },
-  "tests_run": [
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_accepts_zero_id",
-    "test_todo_from_dict_accepts_positive_id"
+  "branch": "claude/issue-4060-candidate-3-22112914295",
+  "pr_number": 4081,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4081",
+  "generated_at": "2026-02-17T20:10:06.554354+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "validation": {
-    "pytest": "15 passed",
-    "ruff": "All checks passed"
+  "stage_response_sizes": {
+    "triage": 2155,
+    "plan": 2878,
+    "implement": 1699,
+    "verify": 3288,
+    "finalize": 649
   }
 }
