@@ -20,10 +20,7 @@ These tests verify the fix properly handles race conditions and provides clear e
 
 from __future__ import annotations
 
-import os
 import threading
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
