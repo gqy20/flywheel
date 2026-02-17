@@ -33,6 +33,14 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __hash__(self) -> int:
+        """Return hash based on the immutable id field.
+
+        This allows Todo objects to be used in sets and as dictionary keys.
+        Hash is based on id since it's the immutable identifier.
+        """
+        return hash(self.id)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
