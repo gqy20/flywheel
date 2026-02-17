@@ -1,67 +1,23 @@
 {
-  "issue_number": 3907,
-  "issue_title": "[Security] _ensure_parent_directory 存在 TOCTOU 竞态条件窗口",
-  "candidate_number": 3,
+  "issue": 3907,
+  "candidate": 3,
   "run_id": "22088591446",
-  "branch_name": "claude/issue-3907-candidate-3-22088591446",
-  "created_at": "2026-02-17T07:15:00Z",
-  "status": "ready_for_review",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_3907_toctou_race.py"
-    ],
-    "test_count": 9,
-    "lines_changed": 35
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_passed": true,
-    "ruff_format_passed": true,
-    "tests_added": 9,
-    "tests_total": 121,
-    "verification_commands": [
-      "uv run pytest tests/test_issue_3907_toctou_race.py -v",
-      "uv run pytest tests/ --ignore=tests/test_cli.py",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_3907_toctou_race.py",
-      "uv run ruff format --check src/flywheel/storage.py tests/test_issue_3907_toctou_race.py"
-    ],
-    "verification_outcomes": {
-      "pytest_targeted": "9/9 tests passed",
-      "pytest_full": "121/121 tests passed",
-      "ruff_lint": "All checks passed",
-      "ruff_format": "2 files already formatted (after auto-formatting)"
-    }
-  },
-  "fix_summary": {
-    "root_cause": "TOCTOU race condition between validation loop (lines 35-40) and mkdir call (lines 43-50). An attacker could create a file in the parent path during this window, causing misleading OSError with 'check permissions' message.",
-    "solution": "Use os.makedirs with exist_ok=True to eliminate the race window. Catch FileExistsError and NotADirectoryError to provide clear, specific error messages about file-as-directory confusion.",
-    "key_changes": [
-      "Changed from parent.mkdir(parents=True, exist_ok=False) to os.makedirs(parent, exist_ok=True)",
-      "Added specific exception handling for FileExistsError to detect file-as-directory cases",
-      "Added specific exception handling for NotADirectoryError for TOCTOU race cases",
-      "Error messages now clearly distinguish 'file exists as non-directory' from permission errors"
-    ]
-  },
-  "test_coverage": {
-    "test_file": "tests/test_issue_3907_toctou_race.py",
-    "tests": [
-      "test_toctou_race_detection_with_thread - Static file-as-directory detection",
-      "test_toctou_race_clear_error_message - Clear error message validation",
-      "test_toctou_race_actual_simulation - Simulated TOCTOU race with patched Path.exists",
-      "test_simulated_toctou_attack_threaded - Threaded attack simulation",
-      "test_ensure_parent_directory_handles_file_in_path - Direct function test",
-      "test_ensure_parent_directory_succeeds_for_normal_paths - Normal operation",
-      "test_ensure_parent_directory_succeeds_for_existing_directory - Existing directory",
-      "test_concurrent_ensure_parent_directory_calls - Concurrent creation safety",
-      "test_error_message_for_permission_denied_distinct - Permission vs file errors"
-    ]
-  },
-  "risks_and_limitations": [
-    "The fix uses os.makedirs which is atomic for directory creation but may still have race windows at the individual path component level on some filesystems",
-    "Symlink attacks are not directly addressed by this fix (they are handled separately by issue #1999)",
-    "The error message improvement is focused on the most common race condition scenario"
-  ]
+  "branch": "claude/issue-3907-candidate-3-22088591446",
+  "pr_number": 3920,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3920",
+  "generated_at": "2026-02-17T07:17:48.208851+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2978,
+    "implement": 1994,
+    "verify": 2775,
+    "finalize": 1592
+  }
 }
