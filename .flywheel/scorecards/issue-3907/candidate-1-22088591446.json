@@ -1,55 +1,23 @@
 {
-  "issue_number": 3907,
-  "issue_title": "[Security] _ensure_parent_directory 存在 TOCTOU 竞态条件窗口",
-  "candidate_number": 1,
+  "issue": 3907,
+  "candidate": 1,
   "run_id": "22088591446",
-  "branch_name": "claude/issue-3907-candidate-1-22088591446",
-  "commit_sha": "846b903",
-  "created_at": "2026-02-17T07:00:00Z",
-  "status": "verified",
-  "fix_summary": {
-    "problem": "TOCTOU race condition in _ensure_parent_directory between path validation (line 35-40) and directory creation (line 43-50)",
-    "solution": "Replace check-then-create pattern with os.makedirs(exist_ok=True) to handle race conditions atomically",
-    "approach": "atomic_operation"
-  },
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_created": [
-      "tests/test_issue_3907_toctou_race_condition.py"
-    ],
-    "lines_added": 163,
-    "lines_removed": 9
-  },
-  "tests": {
-    "new_tests": 5,
-    "all_tests_passed": true,
-    "test_names": [
-      "test_toctou_race_condition_clear_error_message",
-      "test_atomic_directory_creation_no_false_positives",
-      "test_concurrent_directory_creation_stress_test",
-      "test_makedirs_with_exist_ok_handles_concurrent_creation",
-      "test_error_distinguishes_file_vs_directory_exists"
-    ]
-  },
-  "validation": {
-    "ruff_check_passed": true,
-    "existing_tests_passed": true,
-    "total_tests_passed": 117,
-    "verification_commands": [
-      "uv run pytest tests/test_issue_3907_toctou_race_condition.py -v",
-      "uv run ruff check src/flywheel/storage.py tests/test_issue_3907_toctou_race_condition.py",
-      "uv run pytest tests/test_issue_1894_security_mkdir_fix.py tests/test_issue_2000_json_validation.py -v"
-    ],
-    "verification_results": {
-      "issue_tests": "5 passed",
-      "related_tests": "18 passed",
-      "ruff_check": "All checks passed"
-    }
-  },
-  "risks_and_limitations": [
-    "The fix handles concurrent directory creation safely, but cannot prevent all TOCTOU attacks if an attacker has write access to the parent directory",
-    "File-as-directory conflicts are detected and reported with clear error messages"
-  ]
+  "branch": "claude/issue-3907-candidate-1-22088591446",
+  "pr_number": 3919,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3919",
+  "generated_at": "2026-02-17T07:15:50.617943+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3716,
+    "plan": 3876,
+    "implement": 4000,
+    "verify": 1810,
+    "finalize": 941
+  }
 }
