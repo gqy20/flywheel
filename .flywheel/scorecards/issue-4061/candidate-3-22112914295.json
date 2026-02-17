@@ -3,7 +3,7 @@
   "candidate": 3,
   "run_id": "22112914295",
   "branch": "claude/issue-4061-candidate-3-22112914295",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Add validation in Todo.from_dict() to reject empty or whitespace-only text, matching the validation already present in rename() method.",
     "files_to_touch": [
