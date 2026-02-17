@@ -1,43 +1,23 @@
 {
-  "issue_number": 3950,
-  "issue_title": "[Bug] Todo allows empty text string on construction (no validation), but Todo.rename()",
-  "candidate_number": 2,
+  "issue": 3950,
+  "candidate": 2,
   "run_id": "22095008567",
-  "branch_name": "claude/issue-3950-candidate-2-22095008567",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_minimal_framework.py -v",
-      "result": "PASSED",
-      "tests_run": 13,
-      "tests_passed": 13,
-      "tests_failed": 0
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py",
-      "result": "PASSED",
-      "violations": 0
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py",
-      "result": "PASSED",
-      "files_formatted": 1
-    }
-  },
-  "fix_summary": {
-    "file_changed": "src/flywheel/todo.py",
-    "change_description": "Added validation in __post_init__ method to reject empty or whitespace-only text strings in Todo constructor",
-    "acceptance_criteria_met": [
-      "Todo(id=1, text='') raises ValueError",
-      "Todo(id=1, text=' ') raises ValueError",
-      "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError"
-    ]
-  },
-  "tests": {
-    "test_file": "tests/test_minimal_framework.py",
-    "tests_added": [
-      "test_todo_constructor_rejects_empty_string",
-      "test_todo_constructor_rejects_whitespace_only",
-      "test_todo_from_dict_rejects_empty_text"
-    ]
+  "branch": "claude/issue-3950-candidate-2-22095008567",
+  "pr_number": 3975,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3975",
+  "generated_at": "2026-02-17T11:06:55.256675+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2712,
+    "plan": 2862,
+    "implement": 2295,
+    "verify": 3281,
+    "finalize": 693
   }
 }
