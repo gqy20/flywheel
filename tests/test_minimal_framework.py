@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_mark_done_updates_updated_at_timestamp() -> None:
+    """Issue #3881: Verify mark_done() updates the updated_at timestamp."""
+    import time
+
+    todo = Todo(id=1, text="test task")
+    initial_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp difference
+    time.sleep(0.01)
+
+    todo.mark_done()
+    assert todo.done is True
+    assert todo.updated_at > initial_updated_at
+
+
+def test_mark_undone_updates_updated_at_timestamp() -> None:
+    """Issue #3881: Verify mark_undone() updates the updated_at timestamp."""
+    import time
+
+    todo = Todo(id=1, text="test task", done=True)
+    initial_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp difference
+    time.sleep(0.01)
+
+    todo.mark_undone()
+    assert todo.done is False
+    assert todo.updated_at > initial_updated_at
