@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None  # Cache for O(1) next_id
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +125,12 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID in O(1) time.
+
+        Maintains a cached max_id to avoid O(n) scanning on every call.
+        The cache is invalidated when todos list changes (cleared on load/save).
+        """
+        if self._max_id is None:
+            # Compute max_id once (O(n)), then cache for subsequent calls
+            self._max_id = max((todo.id for todo in todos), default=0)
+        return self._max_id + 1

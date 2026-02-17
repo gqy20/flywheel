@@ -158,3 +158,47 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_is_constant_time(tmp_path) -> None:
+    """Issue #4020: next_id() should have O(1) complexity.
+
+    Verifies that next_id execution time does not grow linearly with
+    todo count. We compare execution times for 10 vs 1000 todos and
+    ensure the ratio is bounded (not 100x).
+    """
+    import time
+
+    db_small = tmp_path / "small.json"
+    db_large = tmp_path / "large.json"
+
+    # Create small dataset (10 todos)
+    small_storage = TodoStorage(str(db_small))
+    small_todos = [Todo(id=i, text=f"task {i}") for i in range(1, 11)]
+    small_storage.save(small_todos)
+
+    # Create large dataset (1000 todos)
+    large_storage = TodoStorage(str(db_large))
+    large_todos = [Todo(id=i, text=f"task {i}") for i in range(1, 1001)]
+    large_storage.save(large_todos)
+
+    # Measure next_id for small dataset
+    small_start = time.perf_counter()
+    for _ in range(100):
+        small_storage.next_id(small_todos)
+    small_elapsed = time.perf_counter() - small_start
+
+    # Measure next_id for large dataset
+    large_start = time.perf_counter()
+    for _ in range(100):
+        large_storage.next_id(large_todos)
+    large_elapsed = time.perf_counter() - large_start
+
+    # If O(n), ratio would be ~100x (1000 todos / 10 todos)
+    # If O(1), ratio should be close to 1x
+    # Allow up to 10x tolerance for measurement noise
+    ratio = large_elapsed / small_elapsed if small_elapsed > 0 else 0
+    assert ratio < 10, (
+        f"next_id appears to be O(n): large={large_elapsed:.6f}s, "
+        f"small={small_elapsed:.6f}s, ratio={ratio:.1f}x (expected <10x for O(1))"
+    )
