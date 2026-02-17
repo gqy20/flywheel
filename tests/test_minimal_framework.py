@@ -158,3 +158,55 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_edit_updates_text() -> None:
+    """Feature #3863: Todo.edit() should update text inline."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Call edit() with new text
+    todo.edit("new text")
+    assert todo.text == "new text"
+    # Verify updated_at changes after edit
+    assert todo.updated_at >= original_updated_at
+
+
+def test_todo_edit_rejects_empty_string() -> None:
+    """Feature #3863: Todo.edit() should reject empty strings after strip."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Empty string should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit("")
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_edit_rejects_whitespace_only() -> None:
+    """Feature #3863: Todo.edit() should reject whitespace-only strings."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Various whitespace-only strings should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit(" ")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        todo.edit("\t\n")
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_edit_strips_whitespace() -> None:
+    """Feature #3863: Todo.edit() should strip whitespace from text."""
+    todo = Todo(id=1, text="original")
+
+    # Whitespace should be stripped
+    todo.edit("  padded  ")
+    assert todo.text == "padded"
