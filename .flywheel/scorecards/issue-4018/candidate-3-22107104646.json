@@ -1,34 +1,23 @@
 {
-  "issue_number": 4018,
-  "candidate_number": 3,
+  "issue": 4018,
+  "candidate": 3,
   "run_id": "22107104646",
-  "status": "verified",
-  "implementation": {
-    "test_first": true,
-    "tests_added": 4,
-    "tests_modified": 1,
-    "source_files_changed": 1,
-    "lines_changed": 8
-  },
-  "validation": {
-    "all_tests_pass": true,
-    "lint_check": "passed",
-    "test_count": 116,
-    "verify_commands": [
-      "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "uv run pytest tests/test_storage_atomicity.py -v"
-    ],
-    "verify_outcomes": {
-      "test_issue_2000_json_validation": "16 passed in 0.07s",
-      "ruff_check": "All checks passed!",
-      "test_storage_atomicity": "6 passed in 0.09s"
-    }
-  },
-  "acceptance_criteria": {
-    "negative_id_raises_valueerror": true,
-    "zero_id_raises_valueerror": true,
-    "positive_id_succeeds": true,
-    "string_id_converts_and_validates": true
+  "branch": "claude/issue-4018-candidate-3-22107104646",
+  "pr_number": 4040,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4040",
+  "generated_at": "2026-02-17T17:23:27.423930+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3002,
+    "plan": 2696,
+    "implement": 2821,
+    "verify": 2039,
+    "finalize": 875
   }
 }
