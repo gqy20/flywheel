@@ -4,8 +4,6 @@ The Todo constructor should enforce the int type contract for the id field.
 When a float is passed, it should be coerced to int.
 """
 
-import pytest
-
 from flywheel.todo import Todo
 
 
