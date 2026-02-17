@@ -1,0 +1,21 @@
+{
+  "issue_number": 4007,
+  "candidate_number": 2,
+  "run_id": "22102802821",
+  "status": "implemented",
+  "summary": "Fix Todo constructor float id coercion by adding type validation in __post_init__",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_4007_todo_float_id_coercion.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "risks": [
+    "Using object.__setattr__ for slots-based dataclass may be slightly unusual but is necessary for __post_init__ mutation"
+  ],
+  "limitations": []
+}
