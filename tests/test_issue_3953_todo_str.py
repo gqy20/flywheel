@@ -47,7 +47,9 @@ def test_todo_str_differs_from_repr() -> None:
     repr_result = repr(todo)
 
     # str should be different from repr (repr is for debugging with class name etc.)
-    assert str_result != repr_result, f"str and repr should differ: str={str_result!r}, repr={repr_result!r}"
+    assert str_result != repr_result, (
+        f"str and repr should differ: str={str_result!r}, repr={repr_result!r}"
+    )
 
 
 def test_todo_str_does_not_include_class_name() -> None:
@@ -56,7 +58,9 @@ def test_todo_str_does_not_include_class_name() -> None:
     result = str(todo)
 
     # str should not start with "Todo(" like repr does
-    assert not result.startswith("Todo("), f"str should be user-friendly, not debug format: {result}"
+    assert not result.startswith("Todo("), (
+        f"str should be user-friendly, not debug format: {result}"
+    )
 
 
 def test_todo_str_with_long_text() -> None:
