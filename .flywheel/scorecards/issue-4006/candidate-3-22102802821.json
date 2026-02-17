@@ -1,15 +1,23 @@
 {
-  "issue_number": 4006,
+  "issue": 4006,
   "candidate": 3,
   "run_id": "22102802821",
   "branch": "claude/issue-4006-candidate-3-22102802821",
-  "approach": "Add validation in Todo.__post_init__ to reject empty/whitespace-only text, matching the validation in rename() method",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4006_todo_constructor_validation.py"
+  "pr_number": 4017,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4017",
+  "generated_at": "2026-02-17T15:40:03.636697+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passing": true,
-  "ruff_clean": true,
-  "timestamp": "2026-02-17T15:30:00Z"
+  "stage_response_sizes": {
+    "triage": 2740,
+    "plan": 3344,
+    "implement": 3099,
+    "verify": 2164,
+    "finalize": 1140
+  }
 }
