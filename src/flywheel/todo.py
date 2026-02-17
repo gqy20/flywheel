@@ -59,7 +59,7 @@ class Todo:
 
         Allowed attributes: text, done
         The id attribute cannot be modified.
-        Updates the updated_at timestamp.
+        Updates the updated_at timestamp only when changes are made.
 
         Args:
             **kwargs: Attribute name and value pairs to update.
@@ -77,19 +77,25 @@ class Todo:
             if attr not in allowed_attrs:
                 raise ValueError(f"Unknown attribute: '{attr}'")
 
+        # Track if any changes were made
+        changed = False
+
         # Process text update with validation (same as rename)
         if "text" in kwargs:
             text = kwargs["text"].strip()
             if not text:
                 raise ValueError("Todo text cannot be empty")
             self.text = text
+            changed = True
 
         # Process done update
         if "done" in kwargs:
             self.done = kwargs["done"]
+            changed = True
 
-        # Always update timestamp
-        self.updated_at = _utc_now_iso()
+        # Only update timestamp if changes were made
+        if changed:
+            self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
         return asdict(self)

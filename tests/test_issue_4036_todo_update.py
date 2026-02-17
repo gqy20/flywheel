@@ -93,8 +93,8 @@ def test_todo_update_unknown_attribute_raises_error() -> None:
         todo.update(unknown_attr="value")
 
 
-def test_todo_update_no_arguments_still_updates_timestamp() -> None:
-    """update() with no arguments should still update timestamp."""
+def test_todo_update_no_arguments_no_timestamp_change() -> None:
+    """update() with no arguments should NOT update timestamp."""
     todo = Todo(id=1, text="task")
     original_updated_at = todo.updated_at
 
@@ -102,7 +102,7 @@ def test_todo_update_no_arguments_still_updates_timestamp() -> None:
 
     todo.update()
 
-    assert todo.updated_at > original_updated_at
+    assert todo.updated_at == original_updated_at
 
 
 def test_todo_update_id_is_not_modifiable() -> None:
