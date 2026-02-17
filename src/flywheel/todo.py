@@ -54,6 +54,43 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def update(self, **kwargs) -> None:
+        """Update multiple todo attributes at once.
+
+        Allowed attributes: text, done
+        The id attribute cannot be modified.
+        Updates the updated_at timestamp.
+
+        Args:
+            **kwargs: Attribute name and value pairs to update.
+
+        Raises:
+            ValueError: If unknown attribute provided, text is empty,
+                        or attempting to modify id.
+        """
+        allowed_attrs = {"text", "done"}
+
+        # Check for unknown or protected attributes
+        for attr in kwargs:
+            if attr == "id":
+                raise ValueError("Cannot modify 'id' attribute")
+            if attr not in allowed_attrs:
+                raise ValueError(f"Unknown attribute: '{attr}'")
+
+        # Process text update with validation (same as rename)
+        if "text" in kwargs:
+            text = kwargs["text"].strip()
+            if not text:
+                raise ValueError("Todo text cannot be empty")
+            self.text = text
+
+        # Process done update
+        if "done" in kwargs:
+            self.done = kwargs["done"]
+
+        # Always update timestamp
+        self.updated_at = _utc_now_iso()
+
     def to_dict(self) -> dict:
         return asdict(self)
 
