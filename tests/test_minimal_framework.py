@@ -158,3 +158,37 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_content() -> None:
+    """Issue #4063: Todo objects with same id/text/done should be equal."""
+    todo1 = Todo(id=1, text="a", done=False)
+    todo2 = Todo(id=1, text="a", done=False)
+
+    # Different instances with same content should be equal
+    assert todo1 == todo2
+
+    # Different id should not be equal
+    todo3 = Todo(id=2, text="a", done=False)
+    assert todo1 != todo3
+
+    # Different text should not be equal
+    todo4 = Todo(id=1, text="b", done=False)
+    assert todo1 != todo4
+
+    # Different done status should not be equal
+    todo5 = Todo(id=1, text="a", done=True)
+    assert todo1 != todo5
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #4063: Timestamps should not affect equality comparison."""
+    import time
+
+    todo1 = Todo(id=1, text="test", done=False)
+    time.sleep(0.01)  # Ensure different timestamp
+    todo2 = Todo(id=1, text="test", done=False)
+
+    # Timestamps will differ but objects should still be equal
+    assert todo1.created_at != todo2.created_at
+    assert todo1 == todo2
