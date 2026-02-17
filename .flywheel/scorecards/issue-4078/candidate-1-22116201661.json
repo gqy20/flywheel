@@ -1,0 +1,26 @@
+{
+  "issue_number": 4078,
+  "candidate_number": 1,
+  "run_id": "22116201661",
+  "branch": "claude/issue-4078-candidate-1-22116201661",
+  "status": "implemented",
+  "test_results": {
+    "tests_passed": 3,
+    "tests_failed": 0,
+    "coverage_percentage": 73
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_4078_cli_clear_command.py"
+    ]
+  },
+  "implementation_summary": "Added 'clear' subcommand to CLI that batch deletes all completed todos. Added clear_completed() method to TodoApp class. Implementation follows existing patterns from remove() and list() methods.",
+  "acceptance_criteria_met": [
+    "Running 'todo clear' deletes all done=True tasks",
+    "Outputs 'Cleared N completed todos' when tasks are cleared",
+    "Outputs 'No completed todos to clear' when no completed tasks exist"
+  ]
+}
