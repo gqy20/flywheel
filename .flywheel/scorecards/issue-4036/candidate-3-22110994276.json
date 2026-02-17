@@ -1,0 +1,21 @@
+{
+  "issue_number": 4036,
+  "issue_title": "[Feature] 添加 update() 方法批量更新 Todo 属性",
+  "candidate": 3,
+  "run_id": "22110994276",
+  "branch": "claude/issue-4036-candidate-3-22110994276",
+  "status": "implemented",
+  "created_at": "2026-02-17T19:04:00Z",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_4036_todo_update.py"],
+    "tests_added": 11,
+    "tests_passed": 123
+  },
+  "implementation_summary": "Added update() method to Todo class that allows batch updating of text and done attributes with a single updated_at timestamp update. The method validates text is not empty (after stripping whitespace) and only updates timestamp when actual changes are provided.",
+  "validation": {
+    "pytest_passed": true,
+    "ruff_passed": true,
+    "all_tests_count": 123
+  }
+}
