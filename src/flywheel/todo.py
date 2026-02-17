@@ -33,6 +33,19 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo instances by essential fields only (id, text, done).
+
+        Timestamps (created_at, updated_at) are excluded from equality comparison
+        to allow meaningful equality checks regardless of when instances were created.
+
+        Returns NotImplemented for non-Todo comparisons to allow Python's fallback
+        to the other operand's __eq__ method.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()

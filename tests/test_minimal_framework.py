@@ -158,3 +158,48 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_same_fields() -> None:
+    """Issue #3925: Todo instances with same id/text/done should be equal."""
+    # Create two separate Todo instances with the same essential fields
+    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00", updated_at="2024-01-01T00:00:00")
+    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-02T00:00:00", updated_at="2024-01-02T00:00:00")
+
+    # They should be equal (timestamps should not affect equality)
+    assert todo1 == todo2
+
+
+def test_todo_equality_different_id() -> None:
+    """Issue #3925: Todo instances with different id should not be equal."""
+    todo1 = Todo(id=1, text="buy milk", done=False)
+    todo2 = Todo(id=2, text="buy milk", done=False)
+
+    assert todo1 != todo2
+
+
+def test_todo_equality_different_text() -> None:
+    """Issue #3925: Todo instances with different text should not be equal."""
+    todo1 = Todo(id=1, text="buy milk", done=False)
+    todo2 = Todo(id=1, text="buy bread", done=False)
+
+    assert todo1 != todo2
+
+
+def test_todo_equality_different_done() -> None:
+    """Issue #3925: Todo instances with different done status should not be equal."""
+    todo1 = Todo(id=1, text="buy milk", done=False)
+    todo2 = Todo(id=1, text="buy milk", done=True)
+
+    assert todo1 != todo2
+
+
+def test_todo_equality_not_implemented() -> None:
+    """Issue #3925: Todo equality with non-Todo should return NotImplemented."""
+    todo = Todo(id=1, text="buy milk")
+
+    # Comparing with a different type should return NotImplemented (which Python
+    # handles by trying the reverse comparison, ultimately returning False for ==)
+    assert todo != "not a todo"
+    assert todo != 1
+    assert todo != {"id": 1, "text": "buy milk"}
