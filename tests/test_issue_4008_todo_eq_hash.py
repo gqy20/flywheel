@@ -72,8 +72,20 @@ def test_todo_hash_is_hashable() -> None:
 
 def test_todo_hash_in_set() -> None:
     """Todo objects should be usable in sets."""
-    todo1 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
     todo3 = Todo(id=2, text="b", done=False)
 
     todo_set = {todo1, todo2, todo3}
@@ -84,8 +96,20 @@ def test_todo_hash_in_set() -> None:
 
 def test_todo_hash_as_dict_key() -> None:
     """Todo objects should be usable as dict keys."""
-    todo1 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
+    todo1 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
 
     todo_dict = {todo1: "first"}
 
