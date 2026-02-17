@@ -81,9 +81,7 @@ class Todo:
 
         # Validate 'text' is not empty or whitespace-only
         if not data["text"].strip():
-            raise ValueError(
-                "'text' cannot be empty or whitespace-only."
-            )
+            raise ValueError("'text' cannot be empty or whitespace-only.")
 
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
