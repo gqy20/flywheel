@@ -4,7 +4,12 @@
   "run_id": "22093185106",
   "branch": "claude/issue-3949-candidate-2-22093185106",
   "commit": "5e777d6",
-  "status": "implemented",
+  "status": "verified",
+  "verification": {
+    "pytest": "116 tests passed (including 4 new tests for issue #3949)",
+    "ruff_check": "All checks passed",
+    "ruff_format": "All files formatted correctly"
+  },
   "approach": "Add explicit type check for 'id' field before accepting it. Check for bool first (since bool is subclass of int in Python), then check isinstance(raw_id, int). Reject bools and floats by raising ValueError.",
   "tests_added": 4,
   "test_names": [
