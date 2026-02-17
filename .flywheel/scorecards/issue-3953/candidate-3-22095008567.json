@@ -1,0 +1,31 @@
+{
+  "issue_number": 3953,
+  "candidate": 3,
+  "run_id": "22095008567",
+  "implementation": {
+    "approach": "Add __str__ method to Todo class returning '[x] Task text' format for done and '[ ] Task text' for undone todos",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_3953_todo_str.py"
+    ],
+    "lines_added": 55,
+    "lines_removed": 0
+  },
+  "tests": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "coverage_delta": "92%"
+  },
+  "acceptance_criteria": {
+    "str_returns_user_friendly_format": true,
+    "str_includes_done_status_indicator": true,
+    "str_differs_from_repr": true
+  },
+  "linting": {
+    "ruff": "passed",
+    "type_check": "not_run"
+  },
+  "risks": [],
+  "limitations": []
+}
