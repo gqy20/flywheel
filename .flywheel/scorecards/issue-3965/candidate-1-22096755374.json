@@ -1,34 +1,23 @@
 {
-  "issue_number": 3965,
-  "candidate_id": 1,
+  "issue": 3965,
+  "candidate": 1,
   "run_id": "22096755374",
   "branch": "claude/issue-3965-candidate-1-22096755374",
-  "status": "ready",
-  "tdd_phases": {
-    "red": {
-      "status": "passed",
-      "tests_added": [
-        "test_todo_from_dict_rejects_empty_text",
-        "test_todo_from_dict_rejects_whitespace_text",
-        "test_todo_from_dict_accepts_valid_text"
-      ]
-    },
-    "green": {
-      "status": "passed",
-      "implementation": "Added text.strip() validation in from_dict method"
-    },
-    "verify": {
-      "status": "passed",
-      "pytest_result": "15 passed",
-      "ruff_result": "All checks passed"
-    }
-  },
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 3989,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3989",
+  "generated_at": "2026-02-17T12:07:35.122049+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 2144,
+    "plan": 4000,
+    "implement": 2678,
+    "verify": 1977,
+    "finalize": 2489
+  }
 }
