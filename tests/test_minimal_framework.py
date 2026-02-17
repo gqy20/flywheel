@@ -26,6 +26,42 @@ def test_todo_lifecycle_updates_state() -> None:
     assert todo.text == "b"
 
 
+def test_mark_done_updates_timestamp() -> None:
+    """Issue #3881: mark_done() must update updated_at timestamp."""
+    import time
+
+    todo = Todo(id=1, text="test")
+    initial_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp changes
+    time.sleep(0.001)
+
+    todo.mark_done()
+
+    assert todo.done is True
+    assert todo.updated_at > initial_updated_at, (
+        f"updated_at should change after mark_done(): {todo.updated_at} > {initial_updated_at}"
+    )
+
+
+def test_mark_undone_updates_timestamp() -> None:
+    """Issue #3881: mark_undone() must update updated_at timestamp."""
+    import time
+
+    todo = Todo(id=1, text="test", done=True)
+    initial_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp changes
+    time.sleep(0.001)
+
+    todo.mark_undone()
+
+    assert todo.done is False
+    assert todo.updated_at > initial_updated_at, (
+        f"updated_at should change after mark_undone(): {todo.updated_at} > {initial_updated_at}"
+    )
+
+
 def test_storage_roundtrip(tmp_path) -> None:
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
