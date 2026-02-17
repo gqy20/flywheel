@@ -1,0 +1,20 @@
+{
+  "issue_number": 4076,
+  "candidate": 3,
+  "run_id": "22116201661",
+  "branch": "claude/issue-4076-candidate-3-22116201661",
+  "status": "ready",
+  "tests_passed": true,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Add validation in Todo.from_dict to reject negative 'id' values. The fix raises a clear ValueError when a negative id is provided, while accepting 0 and positive integers.",
+  "test_coverage": {
+    "test_todo_from_dict_rejects_negative_id": "Tests that id=-1 raises ValueError",
+    "test_todo_from_dict_rejects_large_negative_id": "Tests that id=-100 raises ValueError",
+    "test_todo_from_dict_accepts_zero_id": "Tests that id=0 is accepted",
+    "test_todo_from_dict_accepts_positive_id": "Tests that positive ids are still accepted"
+  }
+}
