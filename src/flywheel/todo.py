@@ -2,12 +2,29 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+# ISO 8601 timestamp pattern (accepts various valid formats)
+# Supports: YYYY-MM-DDTHH:MM:SS with optional timezone (Z, +HH:MM, -HH:MM, or no tz)
+_ISO_8601_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d+)?"
+    r"(?:Z|[+-]\d{2}:\d{2})?$"
+)
+
+
+def _is_valid_iso_timestamp(value: str) -> bool:
+    """Check if a string is a valid ISO 8601 timestamp format."""
+    if not value:
+        return True  # Empty strings are valid (will be filled by __post_init__)
+    return bool(_ISO_8601_PATTERN.match(value))
 
 
 @dataclass(slots=True)
@@ -93,10 +110,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields are ISO 8601 format (if provided)
+        created_at = str(data.get("created_at") or "")
+        updated_at = str(data.get("updated_at") or "")
+
+        if not _is_valid_iso_timestamp(created_at):
+            raise ValueError(
+                f"Invalid value for 'created_at': {created_at!r}. "
+                "'created_at' must be in ISO 8601 format (e.g., '2024-01-01T00:00:00+00:00')."
+            )
+        if not _is_valid_iso_timestamp(updated_at):
+            raise ValueError(
+                f"Invalid value for 'updated_at': {updated_at!r}. "
+                "'updated_at' must be in ISO 8601 format (e.g., '2024-01-01T00:00:00+00:00')."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
