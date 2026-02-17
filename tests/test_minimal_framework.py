@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_same_id_text_done() -> None:
+    """Issue #3925: Todo instances with same id, text, done should be equal."""
+    # Acceptance: Todo(id=1, text='a') == Todo(id=1, text='a') returns True
+    # Equality should be based on semantic fields (id, text, done), not timestamps
+    t1 = Todo(id=1, text="a")
+    t2 = Todo(id=1, text="a")
+    assert t1 == t2, "Todo instances with same id, text, done should be equal"
+
+
+def test_todo_inequality_different_id() -> None:
+    """Issue #3925: Todo instances with different id should not be equal."""
+    t1 = Todo(id=1, text="a")
+    t2 = Todo(id=2, text="a")
+    assert t1 != t2, "Todo instances with different id should not be equal"
+
+
+def test_todo_inequality_different_text() -> None:
+    """Issue #3925: Todo instances with different text should not be equal."""
+    t1 = Todo(id=1, text="a")
+    t2 = Todo(id=1, text="b")
+    assert t1 != t2, "Todo instances with different text should not be equal"
+
+
+def test_todo_inequality_different_done() -> None:
+    """Issue #3925: Todo instances with different done state should not be equal."""
+    t1 = Todo(id=1, text="a")
+    t2 = Todo(id=1, text="a", done=True)
+    assert t1 != t2, "Todo instances with different done state should not be equal"
