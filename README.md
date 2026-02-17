@@ -38,6 +38,14 @@ todo delete 1
 
 ## 安全与配置
 
+### 并发限制 / Concurrency Limitations
+
+此工具设计用于单用户、单进程场景。并发写入遵循"最后写入者胜"（last-writer-wins）语义，可能导致数据丢失。
+
+如需多进程或生产环境并发访问，请考虑使用数据库后端替代。
+
+This tool is designed for single-user, single-process usage. Concurrent writes follow last-writer-wins semantics and may result in data loss. For multi-process or production use cases requiring concurrent access, consider using a database backend instead.
+
 ### `FLYWHEEL_STRICT_MODE`
 
 推荐生产环境开启，防止在锁能力降级时继续运行：

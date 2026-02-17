@@ -51,7 +51,21 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos using a simple JSON file.
+
+    Concurrency Limitations:
+        This storage implementation is designed for single-user, single-process
+        usage. Concurrent writes from multiple processes follow last-writer-wins
+        semantics and may result in data loss. There is no file locking or MVCC
+        (Multi-Version Concurrency Control) to prevent race conditions.
+
+        For multi-process or production use cases requiring concurrent access,
+        consider using a database backend instead.
+
+    Warning:
+        Running multiple instances of this application simultaneously may cause
+        data loss as later writes will overwrite earlier ones without detection.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
@@ -87,6 +101,12 @@ class TodoStorage:
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Concurrency Warning:
+            Concurrent writes from multiple processes follow last-writer-wins
+            semantics. If two processes save simultaneously, one will overwrite
+            the other's changes without detection or conflict resolution.
+            This may result in data loss in multi-process scenarios.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
