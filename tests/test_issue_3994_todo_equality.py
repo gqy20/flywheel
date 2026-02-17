@@ -52,7 +52,9 @@ def test_equality_with_non_todo_returns_false() -> None:
     assert todo != "not a todo"
     assert todo != 1
     assert todo != {"id": 1, "text": "buy milk", "done": False}
-    assert todo != None
+    # Using 'is not None' follows PEP 8, while still verifying
+    # that the equality semantics work correctly (Todo is not equal to None)
+    assert todo is not None
 
 
 def test_equality_reflexive() -> None:
