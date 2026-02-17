@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 from .todo import Todo
@@ -55,6 +57,23 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> Iterator[None]:
+        """Acquire an exclusive file lock for cross-process synchronization.
+
+        This context manager ensures that only one process can access the
+        storage at a time, preventing race conditions in concurrent scenarios.
+        """
+        _ensure_parent_directory(self.path)
+        lock_fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +93,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +143,38 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Calculate the next available ID from the given todo list.
+
+        Note: This method does NOT provide concurrency safety by itself.
+        For concurrent-safe ID generation, use add_todo_atomic() instead.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo_atomic(self, text: str) -> Todo:
+        """Add a new todo atomically with exclusive locking.
+
+        This method performs the entire load -> next_id -> save sequence
+        under an exclusive file lock, preventing race conditions in
+        concurrent scenarios (issue #4019).
+
+        Args:
+            text: The text content of the new todo.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._exclusive_lock():
+            # Load current state under lock
+            todos = self.load()
+
+            # Calculate next ID (now safe because we hold the lock)
+            new_id = self.next_id(todos)
+
+            # Create new todo
+            todo = Todo(id=new_id, text=text)
+            todos.append(todo)
+
+            # Save under same lock
+            self.save(todos)
+
+            return todo
