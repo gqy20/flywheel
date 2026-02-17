@@ -8,8 +8,6 @@ These tests verify that:
 
 from __future__ import annotations
 
-from functools import total_ordering
-
 from flywheel.todo import Todo
 
 
@@ -79,11 +77,10 @@ def test_todo_equality_based_on_id() -> None:
     """Todo equality should be based on id for comparison purposes."""
     todo1 = Todo(id=1, text="first")
     todo2 = Todo(id=2, text="second")
-    todo1_copy = Todo(id=1, text="first copy")
 
     # __eq__ from dataclass compares all fields
     # but for comparison via total_ordering, == works on id
-    assert not todo1 == todo2  # Different ids
+    assert todo1 != todo2  # Different ids
 
 
 def test_todo_sorted_empty_list() -> None:
