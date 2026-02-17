@@ -66,6 +66,15 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def clear_completed(self) -> int:
+        """Remove all completed todos and return the count removed."""
+        todos = self._load()
+        remaining = [todo for todo in todos if not todo.done]
+        count = len(todos) - len(remaining)
+        if count > 0:
+            self._save(remaining)
+        return count
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -87,6 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
+
+    sub.add_parser("clear", help="Clear completed todos")
 
     return parser
 
@@ -118,6 +129,14 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "clear":
+            count = app.clear_completed()
+            if count > 0:
+                print(f"Cleared {count} completed todo{'s' if count != 1 else ''}")
+            else:
+                print("No completed todos to clear")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
