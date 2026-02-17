@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +229,91 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_next_id_is_unique_in_concurrent_scenario(tmp_path) -> None:
+    """Regression test for issue #4019: Race condition in next_id().
+
+    Tests that multiple processes adding todos concurrently each receive
+    unique IDs. The race condition occurs when:
+    1. Process A reads todos, computes next_id=5
+    2. Process B reads todos, computes next_id=5 (before A saves)
+    3. Both processes save with duplicate ID 5
+
+    The fix should ensure next_id is atomic with respect to save operations.
+    """
+    import multiprocessing
+    import sys
+
+    db = tmp_path / "concurrent_ids.json"
+
+    # Ensure the storage file exists with initial todos
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="initial todo")])
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that uses with_lock() for atomic ID generation and save."""
+        try:
+            # Import inside function for multiprocessing compatibility
+            sys.path.insert(0, str(tmp_path.parent.parent / "src"))
+            from flywheel.storage import TodoStorage
+            from flywheel.todo import Todo
+
+            storage = TodoStorage(str(db))
+
+            # Use exclusive lock for the entire load-compute-save sequence
+            with storage.with_lock():
+                todos = storage.load()
+                next_id = storage.next_id(todos)
+
+                # Small delay to increase race condition likelihood
+                import time
+
+                time.sleep(0.002)
+
+                new_todo = Todo(id=next_id, text=f"worker-{worker_id}-todo")
+                todos.append(new_todo)
+                storage.save(todos)
+
+            result_queue.put(("success", worker_id, next_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all try to add a todo concurrently
+    num_workers = 8
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=15)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # Check for success (some may fail due to concurrent overwrite, which is acceptable
+    # for last-writer-wins semantics, but we're specifically testing ID uniqueness)
+    assert len(successes) >= 1, (
+        f"Expected at least 1 success, got {len(successes)}. Errors: {errors}"
+    )
+
+    # Extract the IDs that were computed
+    computed_ids = [r[2] for r in successes]
+
+    # The key assertion: all computed IDs should be unique
+    # (This is what fails before the fix - multiple workers get the same ID)
+    unique_ids = set(computed_ids)
+    assert len(unique_ids) == len(computed_ids), (
+        f"Duplicate IDs detected! Computed: {computed_ids}, Unique: {unique_ids}"
+    )

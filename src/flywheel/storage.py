@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -74,8 +77,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +127,50 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Compute the next available ID for a new todo.
+
+        Note: This method is not atomic with respect to save operations.
+        For concurrent scenarios, use with_lock() context manager instead.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextmanager
+    def with_lock(self) -> Iterator[TodoStorage]:
+        """Context manager that provides exclusive access to the storage.
+
+        Acquires an exclusive file lock before entering the context and
+        releases it on exit. This ensures atomicity for operations that
+        need to read-modify-write the storage without race conditions.
+
+        Usage:
+            with storage.with_lock():
+                todos = storage.load()
+                next_id = storage.next_id(todos)
+                todos.append(Todo(id=next_id, text="new"))
+                storage.save(todos)
+
+        Yields:
+            The TodoStorage instance (self) for convenience.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file (not the data file) to avoid conflicts
+        # with the load() method which opens its own file descriptor
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open/create the lock file
+        lock_fd = os.open(
+            str(lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            # Acquire exclusive lock (blocking)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield self
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
