@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_business_fields() -> None:
+    """Issue #4063: Todo objects with same id/text/done should be equal."""
+    # Two todos with same business fields but different timestamps should be equal
+    t1 = Todo(id=1, text="a", done=False)
+    t2 = Todo(id=1, text="a", done=False)
+
+    assert t1 == t2, "Todos with same id/text/done should be equal"
+
+    # Todos with different id should not be equal
+    t3 = Todo(id=2, text="a", done=False)
+    assert t1 != t3, "Todos with different id should not be equal"
+
+    # Todos with different text should not be equal
+    t4 = Todo(id=1, text="b", done=False)
+    assert t1 != t4, "Todos with different text should not be equal"
+
+    # Todos with different done status should not be equal
+    t5 = Todo(id=1, text="a", done=True)
+    assert t1 != t5, "Todos with different done status should not be equal"

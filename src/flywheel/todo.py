@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
 
@@ -17,8 +17,8 @@ class Todo:
     id: int
     text: str
     done: bool = False
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str = field(default="", compare=False)
+    updated_at: str = field(default="", compare=False)
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
