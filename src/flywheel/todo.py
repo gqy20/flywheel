@@ -54,6 +54,36 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def update(self, text: str | None = None, done: bool | None = None) -> None:
+        """Batch update Todo attributes.
+
+        Only updates the provided fields and sets updated_at once if any change occurs.
+
+        Args:
+            text: New text value (stripped, cannot be empty/whitespace if provided)
+            done: New done status
+
+        Raises:
+            ValueError: If text is provided but empty/whitespace
+        """
+        # Track if any changes are made
+        has_changes = False
+
+        if text is not None:
+            text = text.strip()
+            if not text:
+                raise ValueError("Todo text cannot be empty")
+            self.text = text
+            has_changes = True
+
+        if done is not None:
+            self.done = done
+            has_changes = True
+
+        # Only update timestamp if there were actual changes
+        if has_changes:
+            self.updated_at = _utc_now_iso()
+
     def to_dict(self) -> dict:
         return asdict(self)
 
