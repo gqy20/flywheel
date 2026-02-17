@@ -1,14 +1,23 @@
 {
-  "issue_number": 4008,
-  "candidate_number": 2,
+  "issue": 4008,
+  "candidate": 2,
   "run_id": "22107104646",
   "branch": "claude/issue-4008-candidate-2-22107104646",
-  "created_at": "2026-02-17T17:15:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_4008_todo_eq_hash.py"]
-  },
-  "tests_passed": 119,
-  "lint_passed": true
+  "pr_number": 4037,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4037",
+  "generated_at": "2026-02-17T17:21:19.132849+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2162,
+    "plan": 3731,
+    "implement": 1499,
+    "verify": 1816,
+    "finalize": 673
+  }
 }
