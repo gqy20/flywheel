@@ -1,4 +1,22 @@
-"""JSON-backed todo storage."""
+"""JSON-backed todo storage.
+
+Concurrency Limitations:
+    This storage implementation uses last-writer-wins semantics for concurrent
+    writes. There is no conflict detection, file locking, or MVCC (Multi-Version
+    Concurrency Control).
+
+    WARNING: In multi-process or concurrent access scenarios, data loss may occur
+    if multiple processes write to the same file simultaneously. The last write
+    operation to complete will overwrite any previous writes.
+
+    For production use with concurrent access requirements, consider:
+    - Using a database-backed storage solution
+    - Implementing application-level locking
+    - Using a single writer process pattern
+
+    This design prioritizes simplicity and atomic single-file writes over
+    concurrent write safety.
+"""
 
 from __future__ import annotations
 

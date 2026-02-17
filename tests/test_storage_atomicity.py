@@ -151,6 +151,44 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_concurrency_limitation_documented(tmp_path) -> None:
+    """Regression test for issue #3874: Concurrency limitation must be documented.
+
+    The storage module MUST document that:
+    1. Concurrent writes follow last-writer-wins semantics
+    2. No conflict detection or file locking is provided
+    3. Data loss may occur in multi-process scenarios
+    """
+    from flywheel import storage
+
+    # Check that the module docstring mentions concurrency limitations
+    docstring = storage.__doc__ or ""
+    class_docstring = storage.TodoStorage.__doc__ or ""
+
+    combined_docs = docstring + " " + class_docstring
+    combined_lower = combined_docs.lower()
+
+    # Must mention concurrent/concurrency
+    has_concurrency_doc = (
+        "concurrent" in combined_lower or "concurrency" in combined_lower
+    )
+    assert has_concurrency_doc, (
+        "Storage module must document concurrency behavior. "
+        "Users need to understand the limitations for production use."
+    )
+
+    # Must mention last-writer-wins semantics
+    has_lww_doc = (
+        "last-writer-wins" in combined_lower
+        or "last writer wins" in combined_lower
+        or "last-writer wins" in combined_lower
+    )
+    assert has_lww_doc, (
+        "Storage module must document last-writer-wins semantics. "
+        "Users need to understand that concurrent writes may lose data."
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
