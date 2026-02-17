@@ -1,0 +1,16 @@
+{
+  "issue": 3964,
+  "candidate": 3,
+  "run_id": "22096755374",
+  "branch": "claude/issue-3964-candidate-3-22096755374",
+  "status": "implemented",
+  "approach": "Add text validation in Todo.__post_init__() to reject empty strings and whitespace-only strings, consistent with rename() method",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": 5,
+  "tests_passed": true,
+  "linter_passed": true,
+  "commit_sha": "6cbac01"
+}
