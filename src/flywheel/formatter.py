@@ -11,6 +11,9 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes Unicode bidirectional override characters (U+202A-U+202E)
+    and zero-width characters (U+200B-U+200F) to prevent text spoofing attacks.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,13 +29,25 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
+    # Ranges of dangerous characters to escape:
+    # - Control characters: 0x00-0x1f (excluding \n, \r, \t), 0x7f (DEL), 0x80-0x9f (C1)
+    # - Zero-width characters: 0x200b-0x200f (ZWSP, ZWNJ, ZWJ, LRM, RLM)
+    # - Bidirectional override characters: 0x202a-0x202e (LRE, RLE, PDF, LRO, RLO)
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
+        if (
+            (0 <= code <= 0x1f and char not in ("\n", "\r", "\t"))
+            or 0x7f <= code <= 0x9f
+            or 0x200b <= code <= 0x200f
+            or 0x202a <= code <= 0x202e
+        ):
+            # Use 2 hex digits for values < 0x100 for backward compatibility,
+            # 4 hex digits for higher Unicode values
+            if code < 0x100:
+                result.append(f"\\x{code:02x}")
+            else:
+                result.append(f"\\x{code:04x}")
         else:
             result.append(char)
     return "".join(result)
