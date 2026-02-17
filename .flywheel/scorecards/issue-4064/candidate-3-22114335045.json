@@ -1,29 +1,23 @@
 {
-  "issue_number": 4064,
-  "issue_title": "[Enhancement] 添加 __hash__ 方法支持 Todo 作为字典键或集合元素",
-  "candidate_number": 3,
+  "issue": 4064,
+  "candidate": 3,
   "run_id": "22114335045",
-  "branch_name": "claude/issue-4064-candidate-3-22114335045",
-  "triage_summary": {
-    "root_cause": "Todo class uses @dataclass(slots=True) with eq=True, making objects unhashable by default",
-    "fix_approach": "Add __hash__ and __eq__ methods based on id field",
-    "risk_points": [
-      "Todos with same id but different content are now considered equal",
-      "Hash is stable based on id which never changes"
-    ]
-  },
-  "verification_targets": [
-    "hash(Todo(id=1, text='a')) succeeds",
-    "set([Todo(id=1), Todo(id=1)]) has length 1",
-    "{Todo(id=1): 'value'} works as dict key"
+  "branch": "claude/issue-4064-candidate-3-22114335045",
+  "pr_number": 4093,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4093",
+  "generated_at": "2026-02-17T20:57:23.638864+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "test_results": {
-    "tests_passed": 118,
-    "tests_failed": 0,
-    "new_tests_added": 6
-  },
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4064_todo_hash.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 3696,
+    "plan": 1943,
+    "implement": 1653,
+    "verify": 2406,
+    "finalize": 939
+  }
 }
