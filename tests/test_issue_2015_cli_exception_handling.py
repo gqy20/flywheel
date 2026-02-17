@@ -140,9 +140,7 @@ def test_cli_run_command_propagates_unexpected_exceptions(monkeypatch, tmp_path)
     try:
         result = run_command(args)
         # If we get here, the exception was caught (BAD - test fails)
-        raise AssertionError(
-            f"AttributeError should propagate, but got return code {result}"
-        )
+        raise AssertionError(f"AttributeError should propagate, but got return code {result}")
     except AttributeError as e:
         # Good - the internal bug is exposed
         assert "broken_attr" in str(e)
