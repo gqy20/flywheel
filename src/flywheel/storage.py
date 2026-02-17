@@ -125,4 +125,19 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available todo ID.
+
+        ID Generation Strategy:
+        - Empty list: returns 1 (starting ID)
+        - Non-empty list: returns max(existing_ids) + 1 (monotonic increment)
+
+        This approach does NOT reuse deleted IDs. IDs are monotonically
+        increasing, which is the intended behavior for a simple todo app.
+
+        Examples:
+            [] → 1
+            [id=1, id=2] → 3
+            [id=1, id=5, id=10] → 11 (handles non-contiguous IDs)
+            [id=100] → 101
+        """
+        return max((todo.id for todo in todos), default=0) + 1
