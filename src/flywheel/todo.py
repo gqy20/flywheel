@@ -33,6 +33,16 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __hash__(self) -> int:
+        """Return hash based on id, allowing Todo to be used in sets and as dict keys."""
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare Todos by id for equality, consistent with __hash__."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
