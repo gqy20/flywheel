@@ -55,9 +55,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None  # Cached max_id for O(1) next_id()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            self._max_id = 0
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -78,9 +80,28 @@ class TodoStorage:
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Handle new format: {"todos": [...], "max_id": N}
+        if isinstance(raw, dict):
+            if "todos" not in raw:
+                raise ValueError("Todo storage dict must have 'todos' key")
+            todo_list = raw["todos"]
+            if not isinstance(todo_list, list):
+                raise ValueError("'todos' must be a JSON list")
+            # Use stored max_id if available, otherwise compute (for migration)
+            self._max_id = raw.get("max_id")
+            if self._max_id is None:
+                # Migration: compute max_id from existing todos
+                self._max_id = max((t.get("id", 0) for t in todo_list), default=0)
+            return [Todo.from_dict(item) for item in todo_list]
+
+        # Backward compatibility: old format was just a list [...]
+        if isinstance(raw, list):
+            todos = [Todo.from_dict(item) for item in raw]
+            # Compute max_id from todos for backward compatibility
+            self._max_id = max((todo.id for todo in todos), default=0)
+            return todos
+
+        raise ValueError("Todo storage must be a JSON list or object with 'todos' key")
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +115,18 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Update max_id if any todo has higher id than current
+        if self._max_id is None:
+            self._max_id = max((todo.id for todo in todos), default=0)
+        else:
+            for todo in todos:
+                if todo.id > self._max_id:
+                    self._max_id = todo.id
+
+        payload = {
+            "todos": [todo.to_dict() for todo in todos],
+            "max_id": self._max_id,
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
@@ -125,4 +157,11 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available todo ID in O(1) time.
+
+        Uses cached max_id instead of scanning all todos.
+        """
+        if self._max_id is None:
+            # Fallback: compute from todos if max_id not cached
+            self._max_id = max((todo.id for todo in todos), default=0)
+        return self._max_id + 1
