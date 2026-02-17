@@ -1,42 +1,23 @@
 {
-  "issue_number": 4076,
-  "issue_title": "[Bug] Todo.from_dict accepts negative 'id' values without validation",
-  "candidate_number": 2,
+  "issue": 4076,
+  "candidate": 2,
   "run_id": "22116201661",
-  "branch_name": "claude/issue-4076-candidate-2-22116201661",
-  "created_at": "2026-02-17T21:50:00Z",
-  "status": "ready",
-  "triage_summary": {
-    "root_cause": "Todo.from_dict converts 'id' to int but never validates it's non-negative",
-    "location": "src/flywheel/todo.py:68-74",
-    "impact": "Low/Medium - negative IDs could cause unexpected behavior in storage lookups or sorting",
-    "proposed_fix": "Add validation after int conversion: if todo_id < 0: raise ValueError"
-  },
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4076_negative_id_validation.py"
+  "branch": "claude/issue-4076-candidate-2-22116201661",
+  "pr_number": 4108,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4108",
+  "generated_at": "2026-02-17T22:19:43.583872+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 5,
-  "tests_passed": 117,
-  "lint_status": "passed",
-  "verification_targets": [
-    {
-      "target": "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError",
-      "status": "verified"
-    },
-    {
-      "target": "Todo.from_dict({'id': -100, 'text': 'test'}) raises ValueError",
-      "status": "verified"
-    },
-    {
-      "target": "Todo.from_dict({'id': 0, 'text': 'test'}) succeeds",
-      "status": "verified"
-    },
-    {
-      "target": "Todo.from_dict({'id': 1, 'text': 'test'}) succeeds as before",
-      "status": "verified"
-    }
-  ],
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 3836,
+    "plan": 2785,
+    "implement": 2348,
+    "verify": 1846,
+    "finalize": 797
+  }
 }
