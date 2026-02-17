@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,44 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_concurrent_ensure_parent_directory_no_race_condition(tmp_path) -> None:
+    """Regression test for issue #3923: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that multiple threads calling _ensure_parent_directory concurrently on the
+    same path should not raise OSError (FileExistsError). The race condition occurs
+    between the check `if not parent.exists()` and `mkdir(..., exist_ok=False)`.
+    """
+    import threading
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path that will need parent directory creation
+    db_path = tmp_path / "nested" / "dir" / "db.json"
+    errors: list[Exception] = []
+    barrier = threading.Barrier(5)  # Synchronize threads to maximize race window
+
+    def worker():
+        try:
+            barrier.wait()  # All threads start at the same time
+            _ensure_parent_directory(db_path)
+        except (OSError, FileExistsError) as e:
+            errors.append(e)
+
+    # Run multiple threads concurrently
+    threads = [threading.Thread(target=worker) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # No errors should occur - the directory should be created without race condition
+    assert len(errors) == 0, f"Race condition detected, got errors: {errors}"
+
+    # Verify directory exists
+    assert db_path.parent.exists(), "Parent directory should exist after concurrent calls"
+    assert db_path.parent.is_dir(), "Parent should be a directory"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +258,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"

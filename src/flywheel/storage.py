@@ -42,7 +42,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     # Create parent directory if it doesn't exist
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(
+                parents=True, exist_ok=True
+            )  # exist_ok=True handles concurrent creation (fixes #3923)
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
@@ -74,8 +76,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
