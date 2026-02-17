@@ -1,17 +1,23 @@
 {
-  "issue_number": 4047,
-  "candidate_id": 1,
+  "issue": 4047,
+  "candidate": 1,
   "run_id": "22110994276",
-  "status": "completed",
-  "created_at": "2026-02-17T18:02:00Z",
-  "completed_at": "2026-02-17T18:05:00Z",
-  "checks": {
-    "test_file_created": true,
-    "source_file_changed": true,
-    "tests_pass": true,
-    "linting_pass": true,
-    "branch_created": true,
-    "pr_created": true
-  },
-  "pr_url": "https://github.com/gqy20/flywheel/pull/4068"
+  "branch": "claude/issue-4047-candidate-1-22110994276",
+  "pr_number": 4068,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4068",
+  "generated_at": "2026-02-17T19:15:27.108366+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3017,
+    "plan": 4000,
+    "implement": 2389,
+    "verify": 2143,
+    "finalize": 417
+  }
 }
