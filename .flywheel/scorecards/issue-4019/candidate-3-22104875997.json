@@ -5,7 +5,7 @@
   "run_id": "22104875997",
   "branch_name": "claude/issue-4019-candidate-3-22104875997",
   "created_at": "2026-02-17T16:30:00Z",
-  "status": "implemented",
+  "status": "verified",
   "approach": "file-based-locking",
   "summary": "Added exclusive file locking using fcntl.flock to synchronize the load -> next_id -> save sequence across concurrent processes. Introduced a new add_todo_atomic() method in TodoStorage that performs the entire add operation under lock.",
   "files_changed": [
@@ -15,6 +15,24 @@
   "tests_added": 2,
   "tests_passing": true,
   "lint_clean": true,
+  "verification_stage": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_4019_race_condition_next_id.py -v",
+      "result": "2 tests passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_4019_race_condition_next_id.py",
+      "result": "All checks passed"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format src/flywheel/storage.py tests/test_issue_4019_race_condition_next_id.py",
+      "result": "2 files reformatted, now all formatted correctly"
+    },
+    "pytest_full": {
+      "command": "uv run pytest -xvs",
+      "result": "All 114 tests passed, no regressions"
+    }
+  },
   "acceptance_criteria_met": [
     "When two processes add todos simultaneously, each todo has a unique ID",
     "next_id is atomic with respect to save operations"
