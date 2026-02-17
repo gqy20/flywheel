@@ -1,29 +1,23 @@
 {
-  "issue_number": 3949,
-  "candidate_number": 2,
+  "issue": 3949,
+  "candidate": 2,
   "run_id": "22093185106",
   "branch": "claude/issue-3949-candidate-2-22093185106",
-  "commit": "5e777d6",
-  "status": "verified",
-  "verification": {
-    "pytest": "116 tests passed (including 4 new tests for issue #3949)",
-    "ruff_check": "All checks passed",
-    "ruff_format": "All files formatted correctly"
-  },
-  "approach": "Add explicit type check for 'id' field before accepting it. Check for bool first (since bool is subclass of int in Python), then check isinstance(raw_id, int). Reject bools and floats by raising ValueError.",
-  "tests_added": 4,
-  "test_names": [
-    "test_todo_from_dict_rejects_boolean_id",
-    "test_todo_from_dict_rejects_false_boolean_id",
-    "test_todo_from_dict_rejects_float_id",
-    "test_todo_from_dict_accepts_valid_integer_id"
+  "pr_number": 3961,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3961",
+  "generated_at": "2026-02-17T10:16:58.536702+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "lines_changed": {
-    "added": 42,
-    "removed": 6
+  "stage_response_sizes": {
+    "triage": 2121,
+    "plan": 1824,
+    "implement": 2578,
+    "verify": 2540,
+    "finalize": 591
   }
 }
