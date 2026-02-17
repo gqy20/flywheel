@@ -1,0 +1,14 @@
+{
+  "issue_number": 4034,
+  "candidate": 1,
+  "run_id": "22109255704",
+  "branch": "claude/issue-4034-candidate-1-22109255704",
+  "status": "implemented",
+  "tests_passed": true,
+  "ruff_passed": true,
+  "summary": "Fixed overly broad exception handling in run_command by catching only specific expected exceptions (ValueError, OSError, json.JSONDecodeError) instead of catching all Exception types. This allows unexpected exceptions (AttributeError, TypeError, etc.) to propagate for debugging.",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_2015_cli_exception_handling.py"
+  ]
+}

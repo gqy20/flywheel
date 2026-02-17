@@ -114,3 +114,35 @@ def test_cli_run_command_handles_corrupt_json_not_value_error(tmp_path, capsys) 
     captured = capsys.readouterr()
     # Some error message should be present
     assert captured.err or captured.out
+
+
+def test_cli_run_command_propagates_unexpected_exceptions(monkeypatch, tmp_path) -> None:
+    """Issue #4034: Unexpected exceptions should propagate, not be silently caught.
+
+    Only specific exceptions (ValueError, OSError, json.JSONDecodeError) should be
+    caught. Unexpected exceptions like AttributeError, TypeError should propagate
+    to expose program bugs during development/testing.
+    """
+    import flywheel.cli as cli_module
+
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "list"])
+
+    # Simulate an internal bug by breaking the storage attribute
+    def broken_load(self):
+        raise AttributeError("'TodoStorage' object has no attribute 'broken_attr'")
+
+    monkeypatch.setattr(cli_module.TodoStorage, "load", broken_load)
+
+    # This should propagate AttributeError, NOT return 1
+    # If it returns 1, the bug is silently swallowed (current broken behavior)
+    try:
+        result = run_command(args)
+        # If we get here, the exception was caught (BAD - test fails)
+        raise AssertionError(
+            f"AttributeError should propagate, but got return code {result}"
+        )
+    except AttributeError as e:
+        # Good - the internal bug is exposed
+        assert "broken_attr" in str(e)
