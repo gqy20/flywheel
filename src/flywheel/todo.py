@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 0
     created_at: str = ""
     updated_at: str = ""
 
@@ -97,6 +98,7 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=int(data.get("priority") or 0),
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
