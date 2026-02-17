@@ -24,8 +24,14 @@
     "Backward compatibility is maintained - old format files can still be read"
   ],
   "commands_run": [
-    "uv run pytest tests/test_issue_4020_next_id_performance.py -v",
-    "uv run pytest tests/ -v",
-    "uv run ruff check src/flywheel/storage.py tests/"
-  ]
+    "uv run pytest tests/test_issue_4020_next_id_performance.py tests/test_storage_atomicity.py -v",
+    "uv run pytest tests/ -v --ignore=tests/test_issue_4020_next_id_performance.py --ignore=tests/test_storage_atomicity.py",
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_4020_next_id_performance.py tests/test_storage_atomicity.py",
+    "uv run ruff check src/flywheel/"
+  ],
+  "verification_results": {
+    "targeted_tests": "10 tests passed",
+    "full_test_suite": "106 tests passed",
+    "ruff_checks": "All checks passed"
+  }
 }
