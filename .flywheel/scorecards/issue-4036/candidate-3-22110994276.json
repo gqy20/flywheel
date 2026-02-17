@@ -4,8 +4,9 @@
   "candidate": 3,
   "run_id": "22110994276",
   "branch": "claude/issue-4036-candidate-3-22110994276",
-  "status": "implemented",
+  "status": "verified",
   "created_at": "2026-02-17T19:04:00Z",
+  "verified_at": "2026-02-17T19:06:00Z",
   "changes": {
     "source_files": ["src/flywheel/todo.py"],
     "test_files": ["tests/test_issue_4036_todo_update.py"],
@@ -16,6 +17,16 @@
   "validation": {
     "pytest_passed": true,
     "ruff_passed": true,
-    "all_tests_count": 123
+    "all_tests_count": 123,
+    "verification_commands": [
+      "uv run pytest tests/test_issue_4036_todo_update.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_4036_todo_update.py",
+      "uv run pytest tests/ -v --tb=short"
+    ],
+    "verification_outcomes": {
+      "targeted_tests": "11/11 passed",
+      "ruff_check": "All checks passed",
+      "full_test_suite": "123/123 passed, 92% coverage"
+    }
   }
 }
