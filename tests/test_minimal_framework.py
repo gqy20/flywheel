@@ -158,3 +158,32 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_compares_essential_fields() -> None:
+    """Issue #3925: Todo instances with same id/text/done should be equal."""
+    # Two todos with same essential fields should be equal
+    t1 = Todo(id=1, text="a", done=False, created_at="x", updated_at="y")
+    t2 = Todo(id=1, text="a", done=False, created_at="z", updated_at="w")
+    assert t1 == t2, "Todos with same id/text/done should be equal"
+
+
+def test_todo_inequality_by_id() -> None:
+    """Issue #3925: Todo instances with different id should not be equal."""
+    t1 = Todo(id=1, text="a", done=False)
+    t2 = Todo(id=2, text="a", done=False)
+    assert t1 != t2, "Todos with different id should not be equal"
+
+
+def test_todo_inequality_by_text() -> None:
+    """Issue #3925: Todo instances with different text should not be equal."""
+    t1 = Todo(id=1, text="a", done=False)
+    t2 = Todo(id=1, text="b", done=False)
+    assert t1 != t2, "Todos with different text should not be equal"
+
+
+def test_todo_inequality_by_done() -> None:
+    """Issue #3925: Todo instances with different done status should not be equal."""
+    t1 = Todo(id=1, text="a", done=False)
+    t2 = Todo(id=1, text="a", done=True)
+    assert t1 != t2, "Todos with different done status should not be equal"
