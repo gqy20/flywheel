@@ -1,27 +1,23 @@
 {
-  "issue_number": 3953,
-  "issue_title": "[Feature] Add __str__ method for user-friendly string representation",
-  "candidate_number": 1,
+  "issue": 3953,
+  "candidate": 1,
   "run_id": "22095008567",
-  "branch_name": "claude/issue-3953-candidate-1-22095008567",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_3953_todo_str.py"
-    ],
-    "summary": "Added __str__ method to Todo class that returns a user-friendly string format '[x] id text' for done todos and '[ ] id text' for undone todos, mirroring the CLI output style.",
-    "test_coverage": [
-      "test_todo_str_returns_user_friendly_format",
-      "test_todo_str_includes_done_indicator_when_complete",
-      "test_todo_str_includes_undone_indicator_when_not_complete",
-      "test_todo_str_differs_from_repr",
-      "test_todo_str_does_not_include_class_name",
-      "test_todo_str_with_long_text",
-      "test_todo_str_matches_cli_format"
-    ]
-  },
-  "tests_passed": true,
-  "linter_passed": true,
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-3953-candidate-1-22095008567",
+  "pr_number": 3972,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/3972",
+  "generated_at": "2026-02-17T11:08:46.560480+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1978,
+    "plan": 3714,
+    "implement": 1856,
+    "verify": 1694,
+    "finalize": 474
+  }
 }
