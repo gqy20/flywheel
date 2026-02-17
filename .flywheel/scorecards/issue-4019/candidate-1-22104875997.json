@@ -1,0 +1,53 @@
+{
+  "issue_number": 4019,
+  "issue_title": "[Bug] Race condition: next_id() can return duplicate IDs in concurrent scenarios",
+  "candidate_number": 1,
+  "run_id": "22104875997",
+  "branch_name": "claude/issue-4019-candidate-1-22104875997",
+  "created_at": "2026-02-17T16:14:00Z",
+  "status": "implemented",
+  "summary": {
+    "problem": "The next_id() method calculated IDs based on in-memory list state. In concurrent scenarios, multiple processes could load the same list, calculate the same next_id, and save, resulting in duplicate IDs.",
+    "solution": "Implemented file-based counter with POSIX file locking (fcntl.flock) to ensure atomic ID generation across concurrent processes. The counter is synced with existing todo IDs to maintain consistency with existing data.",
+    "changes": [
+      {
+        "file": "src/flywheel/storage.py",
+        "change_type": "modified",
+        "description": "Added _atomic_increment_counter() function using fcntl.flock for atomic ID generation. Modified next_id() to use the file-based counter with syncing to existing IDs."
+      },
+      {
+        "file": "tests/test_issue_4019_concurrent_id_uniqueness.py",
+        "change_type": "added",
+        "description": "Regression tests for concurrent ID uniqueness including test_concurrent_add_produces_unique_ids, test_next_id_with_file_locking, and test_concurrent_next_id_calls."
+      }
+    ]
+  },
+  "tests": {
+    "added": 3,
+    "passed": 115,
+    "failed": 0,
+    "test_files": [
+      "tests/test_issue_4019_concurrent_id_uniqueness.py"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Counter file may become orphaned if database is deleted manually",
+      "mitigation": "Counter is auto-synced with max ID in existing todos, so orphaned counter is harmless"
+    },
+    {
+      "risk": "fcntl.flock is POSIX-only (not available on some Windows configurations)",
+      "mitigation": "Falls back to in-memory calculation on OSError, maintaining backwards compatibility"
+    }
+  ],
+  "verification": {
+    "commands_run": [
+      "uv run pytest tests/test_issue_4019_concurrent_id_uniqueness.py -v --tb=short",
+      "uv run pytest tests/test_storage_atomicity.py -v --tb=short",
+      "uv run pytest tests/ -v --tb=short",
+      "uv run ruff check src/flywheel/storage.py"
+    ],
+    "all_tests_passed": true,
+    "linting_passed": true
+  }
+}

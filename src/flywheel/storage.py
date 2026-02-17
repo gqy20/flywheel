@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,60 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _atomic_increment_counter(counter_path: Path, min_value: int = 0) -> int:
+    """Atomically read and increment a counter file, returning the new value.
+
+    Uses file locking to ensure atomicity across multiple processes.
+    Creates the counter file if it doesn't exist.
+
+    Args:
+        counter_path: Path to the counter file
+        min_value: Minimum value for the counter. If current counter is below this,
+                   it will be set to min_value before incrementing.
+
+    Returns:
+        The new counter value after incrementing
+    """
+    # Ensure parent directory exists
+    _ensure_parent_directory(counter_path)
+
+    # Open/create the counter file
+    fd = os.open(
+        str(counter_path),
+        os.O_RDWR | os.O_CREAT,
+        stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+    )
+
+    try:
+        # Acquire exclusive lock (blocks until available)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+
+        # Read current value (default to 0 if empty/missing)
+        try:
+            content = os.read(fd, 1024).decode("utf-8").strip()
+            current = int(content) if content else 0
+        except (ValueError, UnicodeDecodeError):
+            current = 0
+
+        # Ensure counter is at least min_value to sync with existing data
+        if current < min_value:
+            current = min_value
+
+        # Increment and write back
+        new_value = current + 1
+
+        # Truncate and write new value
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        os.write(fd, str(new_value).encode("utf-8"))
+
+        return new_value
+    finally:
+        # Release lock and close file
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -124,5 +179,29 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    @property
+    def _counter_path(self) -> Path:
+        """Path to the ID counter file (alongside the main database)."""
+        return self.path.with_suffix(self.path.suffix + ".counter")
+
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Generate a unique ID for a new todo.
+
+        Uses file-based locking to ensure uniqueness across concurrent processes.
+        The counter is stored in a separate file and atomically incremented.
+        The counter is synced with existing todo IDs to ensure consistency.
+
+        Args:
+            todos: Current list of todos (used to sync counter with existing data)
+
+        Returns:
+            A unique integer ID for the new todo
+        """
+        try:
+            # Calculate max ID from existing todos to sync counter if needed
+            max_existing_id = max((todo.id for todo in todos), default=0)
+            return _atomic_increment_counter(self._counter_path, min_value=max_existing_id)
+        except OSError:
+            # Fallback to in-memory calculation if file locking fails
+            # This maintains backwards compatibility but may have race conditions
+            return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
