@@ -2,7 +2,7 @@
   "issue_number": 4018,
   "candidate_number": 3,
   "run_id": "22107104646",
-  "status": "implemented",
+  "status": "verified",
   "implementation": {
     "test_first": true,
     "tests_added": 4,
@@ -13,7 +13,17 @@
   "validation": {
     "all_tests_pass": true,
     "lint_check": "passed",
-    "test_count": 116
+    "test_count": 116,
+    "verify_commands": [
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+      "uv run pytest tests/test_storage_atomicity.py -v"
+    ],
+    "verify_outcomes": {
+      "test_issue_2000_json_validation": "16 passed in 0.07s",
+      "ruff_check": "All checks passed!",
+      "test_storage_atomicity": "6 passed in 0.09s"
+    }
   },
   "acceptance_criteria": {
     "negative_id_raises_valueerror": true,
