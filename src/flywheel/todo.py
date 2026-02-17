@@ -20,6 +20,10 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __hash__(self) -> int:
+        """Hash based on id for use in sets and as dict keys."""
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 

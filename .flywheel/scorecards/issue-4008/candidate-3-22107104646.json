@@ -1,0 +1,34 @@
+{
+  "issue_number": 4008,
+  "candidate_number": 3,
+  "run_id": "22107104646",
+  "branch": "claude/issue-4008-candidate-3-22107104646",
+  "summary": "Added __hash__ method to Todo class to support hashing for use in sets and as dict keys. The __eq__ method is already provided by dataclass decorator.",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "type": "modified",
+      "description": "Added __hash__ method based on id field"
+    },
+    {
+      "file": "tests/test_issue_4008_todo_eq_hash.py",
+      "type": "added",
+      "description": "Added comprehensive tests for __eq__ and __hash__ methods"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_4008_todo_eq_hash.py - 13 tests passed",
+    "All 125 tests passed"
+  ],
+  "lint_results": "All ruff checks passed",
+  "acceptance_criteria": {
+    "todo_eq_same_fields": true,
+    "todo_neq_different_fields": true,
+    "hash_not_raises": true,
+    "existing_tests_pass": true
+  },
+  "risks": [
+    "Hash is based only on id, so two todos with same id but different text/done/timestamps will have same hash but may not be equal (hash collision)"
+  ],
+  "limitations": []
+}
