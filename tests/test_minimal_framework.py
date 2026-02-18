@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Issue #4216: next_id should handle negative/zero IDs
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #4216: next_id should return 1 for empty list."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_ignores_negative_ids(tmp_path) -> None:
+    """Bug #4216: next_id should ignore negative IDs when computing max."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+    todos = [Todo(id=5, text="positive"), Todo(id=-3, text="negative"), Todo(id=0, text="zero")]
+    assert storage.next_id(todos) == 6
+
+
+def test_next_id_returns_1_when_only_negative_ids(tmp_path) -> None:
+    """Bug #4216: next_id should return 1 when list contains only negative IDs."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+    todos = [Todo(id=-5, text="negative"), Todo(id=-1, text="negative")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_returns_1_when_only_zero_id(tmp_path) -> None:
+    """Bug #4216: next_id should return 1 when list contains only zero ID."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+    todos = [Todo(id=0, text="zero")]
+    assert storage.next_id(todos) == 1
