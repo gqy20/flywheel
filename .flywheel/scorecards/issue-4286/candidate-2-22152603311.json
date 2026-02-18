@@ -4,7 +4,7 @@
   "run_id": "22152603311",
   "branch": "claude/issue-4286-candidate-2-22152603311",
   "created_at": "2026-02-18T17:28:00Z",
-  "status": "implemented",
+  "status": "verified",
   "summary": "Fix silent float-to-int conversion in Todo.from_dict that caused precision loss. Float IDs are now explicitly rejected with clear error messages.",
   "changes": {
     "source_files": ["src/flywheel/todo.py"],
@@ -24,5 +24,11 @@
       "criterion": "Todo.from_dict({'id': 1.0, 'text': 'x'}) raises ValueError",
       "status": "met"
     }
-  ]
+  ],
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v && uv run pytest --tb=short",
+    "pytest_outcome": "114 tests passed",
+    "ruff_command": "uv run ruff check src/flywheel/ tests/",
+    "ruff_outcome": "All checks passed"
+  }
 }
