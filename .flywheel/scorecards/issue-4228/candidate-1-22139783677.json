@@ -1,0 +1,15 @@
+{
+  "issue_number": 4228,
+  "candidate": 1,
+  "run_id": "22139783677",
+  "branch": "claude/issue-4228-candidate-1-22139783677",
+  "status": "implemented",
+  "approach": "hasattr guard",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4228_windows_compat.py"
+  ],
+  "tests_passed": true,
+  "linting_passed": true,
+  "summary": "Fixed Windows compatibility by adding hasattr(os, 'fchmod') guard before calling os.fchmod. The fix allows save() to work on Windows by skipping the Unix-only fchmod call, relying on tempfile.mkstemp's secure defaults on Windows."
+}
