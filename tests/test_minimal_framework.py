@@ -158,3 +158,52 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_for_same_values() -> None:
+    """Issue #4260: Todos with same id, text, done should compare equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert todo1 == todo2
+
+
+def test_todo_inequality_for_different_id() -> None:
+    """Issue #4260: Todos with different id should compare unequal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    assert todo1 != todo2
+
+
+def test_todo_inequality_for_different_text() -> None:
+    """Issue #4260: Todos with different text should compare unequal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+    assert todo1 != todo2
+
+
+def test_todo_inequality_for_different_done() -> None:
+    """Issue #4260: Todos with different done status should compare unequal."""
+    todo1 = Todo(id=1, text="a", done=False)
+    todo2 = Todo(id=1, text="a", done=True)
+    assert todo1 != todo2
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #4260: Equality should ignore created_at and updated_at."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    # Force different timestamps
+    todo1.created_at = "2024-01-01T00:00:00+00:00"
+    todo1.updated_at = "2024-01-01T00:00:00+00:00"
+    todo2.created_at = "2025-01-01T00:00:00+00:00"
+    todo2.updated_at = "2025-01-01T00:00:00+00:00"
+    assert todo1 == todo2
+
+
+def test_todo_equality_with_non_todo() -> None:
+    """Issue #4260: Comparison with non-Todo should return False."""
+    todo = Todo(id=1, text="a")
+    assert todo != "not a todo"
+    assert todo != 1
+    assert todo != {"id": 1, "text": "a"}
+    assert todo.__eq__(None) is False  # Test __eq__ with None explicitly
