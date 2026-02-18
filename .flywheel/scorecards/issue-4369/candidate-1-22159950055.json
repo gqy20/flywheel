@@ -1,0 +1,54 @@
+{
+  "issue_number": 4369,
+  "issue_title": "[Security] Unicode双向文本控制字符(U+202E RLO, U+202D LRO, U+202E PDF等)未被转义，可能导致文本视觉欺骗攻击",
+  "candidate_number": 1,
+  "run_id": "22159950055",
+  "branch_name": "claude/issue-4369-candidate-1-22159950055",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4376",
+  "created_at": "2026-02-18T22:50:00Z",
+  "triage": {
+    "root_cause": "_sanitize_text() in src/flywheel/formatter.py only escaped ASCII control characters (0x00-0x1f, 0x7f-0x9f) but not Unicode bidirectional text control characters (U+202A-U+202E, U+2066-U+2069, U+2028-U+2029)",
+    "risk_points": ["RLO (U+202E) can reverse text display, enabling visual deception attacks like displaying 'exe.txt' as 'txt.exe'"],
+    "verification_targets": [
+      "Input '\\u202e' should output '\\\\u202e' (escaped)",
+      "Input '\\u2028' should output '\\\\u2028' (line separator)",
+      "RLO attack vector '\\u202eexe.txt\\u202c' should be fully escaped"
+    ]
+  },
+  "changes": {
+    "source_files": [
+      {
+        "path": "src/flywheel/formatter.py",
+        "change_type": "modified",
+        "lines_changed": 24
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/test_issue_4369_unicode_bidi_sanitization.py",
+        "change_type": "created",
+        "test_count": 19
+      }
+    ]
+  },
+  "tests": {
+    "new_tests_added": 19,
+    "all_tests_pass": true,
+    "total_tests_run": 131,
+    "linting_passed": true
+  },
+  "security": {
+    "is_security_fix": true,
+    "vulnerability_type": "Visual Text Deception / Unicode Bidirectional Attack",
+    "cwe": "CWE-116: Improper Encoding or Escaping of Output"
+  },
+  "checklist": {
+    "test_file_added": true,
+    "source_file_changed": true,
+    "tests_pass": true,
+    "linting_pass": true,
+    "branch_name_correct": true,
+    "pr_created": true,
+    "scorecard_created": true
+  }
+}
