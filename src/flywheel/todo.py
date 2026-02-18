@@ -93,10 +93,21 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'created_at' and 'updated_at' are strings or empty
+        def _validate_timestamp(value: object, field_name: str) -> str:
+            """Validate timestamp field is a string or empty/None."""
+            if value is None or value == "":
+                return ""
+            if not isinstance(value, str):
+                raise ValueError(
+                    f"Invalid value for '{field_name}': {value!r}. '{field_name}' must be a string."
+                )
+            return value
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=_validate_timestamp(data.get("created_at"), "created_at"),
+            updated_at=_validate_timestamp(data.get("updated_at"), "updated_at"),
         )
