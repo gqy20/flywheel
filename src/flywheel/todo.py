@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 0  # 0=low, 1=medium, 2=high
     created_at: str = ""
     updated_at: str = ""
 
@@ -52,6 +53,15 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, priority: int) -> None:
+        """Set the priority of the todo item.
+
+        Args:
+            priority: 0=low, 1=medium, 2=high
+        """
+        self.priority = priority
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -97,6 +107,7 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=int(data.get("priority", 0)),
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
