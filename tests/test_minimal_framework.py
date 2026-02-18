@@ -158,3 +158,73 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# === Due Date Feature Tests (Issue #4134) ===
+
+
+def test_todo_has_due_date_field() -> None:
+    """Issue #4134: Todo should have a due_date field."""
+    todo = Todo(id=1, text="task with deadline")
+    assert hasattr(todo, "due_date")
+    assert todo.due_date == ""  # Default empty string
+
+
+def test_todo_due_date_persists_in_dict() -> None:
+    """Issue #4134: due_date should be serialized in to_dict/from_dict."""
+    todo = Todo(id=1, text="task", due_date="2026-03-01")
+    data = todo.to_dict()
+    assert "due_date" in data
+    assert data["due_date"] == "2026-03-01"
+
+    # Round-trip through from_dict
+    restored = Todo.from_dict(data)
+    assert restored.due_date == "2026-03-01"
+
+
+def test_todo_is_overdue_with_past_date() -> None:
+    """Issue #4134: is_overdue() should return True for past dates."""
+    todo = Todo(id=1, text="overdue task", due_date="2020-01-01")
+    assert todo.is_overdue() is True
+
+
+def test_todo_is_overdue_with_future_date() -> None:
+    """Issue #4134: is_overdue() should return False for future dates."""
+    todo = Todo(id=1, text="future task", due_date="2030-12-31")
+    assert todo.is_overdue() is False
+
+
+def test_todo_is_overdue_with_no_due_date() -> None:
+    """Issue #4134: is_overdue() should return False when no due_date set."""
+    todo = Todo(id=1, text="no deadline")
+    assert todo.is_overdue() is False
+
+
+def test_todo_is_overdue_completed_task() -> None:
+    """Issue #4134: Completed tasks should not be overdue regardless of date."""
+    todo = Todo(id=1, text="done task", due_date="2020-01-01", done=True)
+    assert todo.is_overdue() is False
+
+
+def test_cli_add_with_due_flag(tmp_path, capsys) -> None:
+    """Issue #4134: CLI add command should support --due flag."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "add", "task with deadline", "--due", "2026-03-01"])
+    assert run_command(args) == 0
+
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "task with deadline" in out
+
+
+def test_formatter_shows_overdue_status() -> None:
+    """Issue #4134: Formatter should visually indicate overdue tasks."""
+    from flywheel.formatter import TodoFormatter
+
+    overdue_todo = Todo(id=1, text="overdue", due_date="2020-01-01")
+    formatted = TodoFormatter.format_todo(overdue_todo)
+    # Overdue indicator should be present (using * or similar marker)
+    assert "*" in formatted or "!" in formatted or "OVERDUE" in formatted.upper()
