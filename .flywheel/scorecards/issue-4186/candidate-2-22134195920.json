@@ -9,7 +9,7 @@
   "linter_passed": true,
   "changes": {
     "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
+    "test_files": ["tests/test_issue_2000_json_validation.py", "tests/test_storage_atomicity.py"]
   },
   "acceptance_criteria_met": [
     "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError",
