@@ -47,6 +47,11 @@ class Todo:
         self.done = False
         self.updated_at = _utc_now_iso()
 
+    def toggle_done(self) -> None:
+        """Invert the done status and update the timestamp."""
+        self.done = not self.done
+        self.updated_at = _utc_now_iso()
+
     def rename(self, text: str) -> None:
         text = text.strip()
         if not text:
