@@ -1,29 +1,23 @@
 {
-  "issue_number": 4342,
+  "issue": 4342,
   "candidate": 3,
   "run_id": "22161570070",
-  "status": "finalized",
-  "approach": "Add CLI rename subcommand to expose existing Todo.rename() method",
+  "branch": "claude/issue-4342-candidate-3-22161570070",
+  "pr_number": 4387,
   "pr_url": "https://github.com/gqy20/flywheel/pull/4387",
-  "changes": {
-    "source_files": [
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 38,
-    "lines_removed": 0
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "verification": {
-    "test_command": "uv run pytest tests/test_minimal_framework.py -v",
-    "lint_command": "uv run ruff check src/flywheel/cli.py tests/test_minimal_framework.py",
-    "test_count": 13,
-    "tests_passed_count": 13,
-    "full_test_suite_passed": true,
-    "full_test_count": 115,
-    "verification_timestamp": "2026-02-18T21:00:00Z"
+  "generated_at": "2026-02-18T23:54:06.940741+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2621,
+    "plan": 3199,
+    "implement": 2206,
+    "verify": 1922,
+    "finalize": 979
   }
 }
