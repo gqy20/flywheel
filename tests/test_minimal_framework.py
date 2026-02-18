@@ -158,3 +158,70 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# ============================================================================
+# Due Date Feature Tests (Issue #4106)
+# ============================================================================
+
+
+def test_todo_with_due_date_creates_correctly() -> None:
+    """Issue #4106: Todo should support optional due_at field."""
+    todo = Todo(id=1, text="task with deadline", due_at="2024-12-31T23:59:59+00:00")
+
+    assert todo.due_at == "2024-12-31T23:59:59+00:00"
+
+
+def test_todo_is_overdue_returns_true_for_past_dates() -> None:
+    """Issue #4106: is_overdue should return True for past due dates."""
+    todo = Todo(
+        id=1, text="overdue task", due_at="2020-01-01T00:00:00+00:00"
+    )
+
+    assert todo.is_overdue is True
+
+
+def test_todo_is_overdue_returns_false_for_future_dates() -> None:
+    """Issue #4106: is_overdue should return False for future due dates."""
+    todo = Todo(
+        id=1, text="future task", due_at="2099-12-31T23:59:59+00:00"
+    )
+
+    assert todo.is_overdue is False
+
+
+def test_todo_is_overdue_returns_false_when_due_at_is_none() -> None:
+    """Issue #4106: is_overdue should return False when due_at is None."""
+    todo = Todo(id=1, text="no deadline")
+
+    assert todo.due_at is None
+    assert todo.is_overdue is False
+
+
+def test_todo_to_dict_includes_due_at() -> None:
+    """Issue #4106: to_dict should include due_at field."""
+    todo = Todo(id=1, text="task", due_at="2024-06-15T12:00:00+00:00")
+
+    result = todo.to_dict()
+
+    assert "due_at" in result
+    assert result["due_at"] == "2024-06-15T12:00:00+00:00"
+
+
+def test_todo_from_dict_handles_due_at() -> None:
+    """Issue #4106: from_dict should correctly load due_at field."""
+    data = {"id": 1, "text": "task", "due_at": "2024-06-15T12:00:00+00:00"}
+
+    todo = Todo.from_dict(data)
+
+    assert todo.due_at == "2024-06-15T12:00:00+00:00"
+
+
+def test_todo_backward_compatible_without_due_at() -> None:
+    """Issue #4106: Loading todos without due_at should work (backward compat)."""
+    data = {"id": 1, "text": "legacy task", "done": False}
+
+    todo = Todo.from_dict(data)
+
+    assert todo.due_at is None
+    assert todo.is_overdue is False
