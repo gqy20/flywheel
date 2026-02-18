@@ -55,9 +55,15 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._file_not_exist_cached: bool = False
 
     def load(self) -> list[Todo]:
+        # Check cache first to avoid repeated filesystem access
+        if self._file_not_exist_cached:
+            return []
         if not self.path.exists():
+            # Cache the "file doesn't exist" result for performance
+            self._file_not_exist_cached = True
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -118,6 +124,8 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            # Invalidate cache since file now exists
+            self._file_not_exist_cached = False
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
