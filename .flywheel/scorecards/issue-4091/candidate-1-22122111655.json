@@ -1,0 +1,15 @@
+{
+  "issue": 4091,
+  "candidate": 1,
+  "run_id": "22122111655",
+  "stage": "IMPLEMENT",
+  "timestamp": "2026-02-18T00:00:00Z",
+  "status": "completed",
+  "tests_passed": true,
+  "tests_count": 8,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4091_todo_priority.py"
+  ],
+  "summary": "Added priority field to Todo dataclass with default value 0, updated from_dict for backward compatibility"
+}
