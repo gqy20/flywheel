@@ -1,0 +1,24 @@
+{
+  "issue_number": 4132,
+  "issue_title": "[Bug] TOCTOU race condition in _ensure_parent_directory between path validation and mk",
+  "issue_url": "https://github.com/gqy20/flywheel/issues/4132",
+  "candidate_number": 1,
+  "run_id": "22129613711",
+  "branch_name": "claude/issue-4132-candidate-1-22129613711",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir() instead of pre-checking existence",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4132_toctou_mkdir_race.py"
+  ],
+  "tests_added": [
+    "test_toctou_race_condition_in_ensure_parent_directory",
+    "test_concurrent_parent_directory_creation_succeeds",
+    "test_ensure_parent_directory_idempotent"
+  ],
+  "risks": "Low risk - the change only affects the mkdir call behavior. Using exist_ok=True is the standard Python idiom for handling concurrent directory creation.",
+  "verification": {
+    "tests_passed": true,
+    "linter_passed": true,
+    "related_tests_passed": true
+  }
+}
