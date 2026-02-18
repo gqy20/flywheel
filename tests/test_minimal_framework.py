@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_one_for_empty_list() -> None:
+    """Bug #4145: next_id should return 1 for empty todo list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_fills_gap_in_sequence() -> None:
+    """Bug #4145: next_id should return first available ID, not max+1."""
+    storage = TodoStorage()
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b")]
+    # IDs are [1, 3], so 2 is the first gap
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_handles_duplicate_ids() -> None:
+    """Bug #4145: next_id should return unique ID even with duplicates."""
+    storage = TodoStorage()
+    todos = [Todo(id=1, text="a"), Todo(id=1, text="b"), Todo(id=2, text="c")]
+    # IDs are [1, 1, 2], next available is 3
+    assert storage.next_id(todos) == 3
+
+
+def test_next_id_returns_one_for_non_contiguous_ids() -> None:
+    """Bug #4145: next_id should return 1 when IDs don't start from 1."""
+    storage = TodoStorage()
+    todos = [Todo(id=5, text="a"), Todo(id=10, text="b")]
+    # IDs are [5, 10], first available is 1
+    assert storage.next_id(todos) == 1
