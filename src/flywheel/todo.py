@@ -10,6 +10,9 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+MAX_TEXT_LENGTH = 10000
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -51,6 +54,10 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters"
+            )
         self.text = text
         self.updated_at = _utc_now_iso()
 
@@ -77,6 +84,12 @@ class Todo:
         if not isinstance(data["text"], str):
             raise ValueError(
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
+            )
+
+        # Validate 'text' does not exceed max length
+        if len(data["text"]) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text cannot exceed {MAX_TEXT_LENGTH} characters"
             )
 
         # Validate 'done' is a proper boolean value
