@@ -46,9 +46,13 @@ def test_sorted_todos_incomplete_before_complete() -> None:
 def test_sorted_todos_done_status_priority_over_created_at() -> None:
     """Incomplete todos should come before completed ones regardless of created_at."""
     # Completed task created earlier
-    complete_early = Todo(id=1, text="done early", done=True, created_at="2024-01-01T00:00:00+00:00")
+    complete_early = Todo(
+        id=1, text="done early", done=True, created_at="2024-01-01T00:00:00+00:00"
+    )
     # Incomplete task created later
-    incomplete_late = Todo(id=2, text="pending late", done=False, created_at="2024-01-02T00:00:00+00:00")
+    incomplete_late = Todo(
+        id=2, text="pending late", done=False, created_at="2024-01-02T00:00:00+00:00"
+    )
 
     result = sorted([complete_early, incomplete_late])
 
