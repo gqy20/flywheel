@@ -21,10 +21,12 @@
     "approach": "Add validation in Todo.from_dict() after int conversion to check todo_id >= 1",
     "files_changed": [
       "src/flywheel/todo.py",
-      "tests/test_issue_4284_todo_id_validation.py"
+      "tests/test_issue_4284_todo_id_validation.py",
+      "tests/test_storage_atomicity.py"
     ],
-    "lines_changed": 5,
-    "tests_added": 3
+    "lines_changed": 11,
+    "tests_added": 3,
+    "additional_fix": "Fixed test_storage_atomicity.py which used id=0 (now invalid). Changed worker todo IDs from i to i+1 to ensure all IDs are positive."
   },
   "tests": {
     "new_tests": [
@@ -33,7 +35,7 @@
       "test_todo_from_dict_accepts_positive_id"
     ],
     "all_passed": true,
-    "regression_tests_passed": 25
+    "regression_tests_passed": 113
   },
   "lint": {
     "ruff_check": "passed"
