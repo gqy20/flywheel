@@ -158,3 +158,103 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# ===== Issue #4134: due_date field tests =====
+
+
+def test_todo_has_due_date_field() -> None:
+    """Issue #4134: Todo should have a due_date field."""
+    todo = Todo(id=1, text="task with due date", due_date="2025-12-31")
+    assert todo.due_date == "2025-12-31"
+
+
+def test_todo_due_date_defaults_to_empty() -> None:
+    """Issue #4134: Todo due_date should default to empty string."""
+    todo = Todo(id=1, text="task without due date")
+    assert todo.due_date == ""
+
+
+def test_todo_is_overdue_with_past_date() -> None:
+    """Issue #4134: is_overdue() should return True for past dates."""
+    todo = Todo(id=1, text="overdue task", due_date="2020-01-01")
+    assert todo.is_overdue() is True
+
+
+def test_todo_is_overdue_with_future_date() -> None:
+    """Issue #4134: is_overdue() should return False for future dates."""
+    todo = Todo(id=1, text="future task", due_date="2099-12-31")
+    assert todo.is_overdue() is False
+
+
+def test_todo_is_overdue_with_empty_date() -> None:
+    """Issue #4134: is_overdue() should return False for empty due_date."""
+    todo = Todo(id=1, text="task no date", due_date="")
+    assert todo.is_overdue() is False
+
+
+def test_todo_is_overdue_completed_task() -> None:
+    """Issue #4134: is_overdue() should return False for completed tasks."""
+    todo = Todo(id=1, text="done task", due_date="2020-01-01", done=True)
+    assert todo.is_overdue() is False
+
+
+def test_todo_from_dict_with_due_date() -> None:
+    """Issue #4134: from_dict should parse due_date field."""
+    data = {"id": 1, "text": "task", "due_date": "2025-06-15"}
+    todo = Todo.from_dict(data)
+    assert todo.due_date == "2025-06-15"
+
+
+def test_todo_from_dict_without_due_date() -> None:
+    """Issue #4134: from_dict should default due_date to empty string."""
+    data = {"id": 1, "text": "task"}
+    todo = Todo.from_dict(data)
+    assert todo.due_date == ""
+
+
+def test_todo_to_dict_includes_due_date() -> None:
+    """Issue #4134: to_dict should include due_date field."""
+    todo = Todo(id=1, text="task", due_date="2025-06-15")
+    data = todo.to_dict()
+    assert "due_date" in data
+    assert data["due_date"] == "2025-06-15"
+
+
+def test_cli_add_with_due_option(tmp_path, capsys) -> None:
+    """Issue #4134: CLI add command should support --due flag."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "add", "urgent task", "--due", "2025-12-31"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "urgent task" in out
+
+    # Verify the task was saved with due_date
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    # Task should appear in list output
+
+
+def test_storage_roundtrip_with_due_date(tmp_path) -> None:
+    """Issue #4134: Storage should persist and load due_date field."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="task", due_date="2025-06-15")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].due_date == "2025-06-15"
+
+
+def test_formatter_shows_overdue_status() -> None:
+    """Issue #4134: Formatter should show overdue indicator for overdue tasks."""
+    from flywheel.formatter import TodoFormatter
+
+    todo = Todo(id=1, text="overdue task", due_date="2020-01-01")
+    formatted = TodoFormatter.format_todo(todo)
+    # Overdue tasks should show some visual indicator (e.g., "!" or "OVERDUE")
+    assert "!" in formatted or "OVERDUE" in formatted.upper() or "⚠" in formatted
