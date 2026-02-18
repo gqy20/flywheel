@@ -1,0 +1,14 @@
+{
+  "issue_number": 4217,
+  "candidate_number": 3,
+  "run_id": "22137909823",
+  "branch": "claude/issue-4217-candidate-3-22137909823",
+  "status": "implemented",
+  "implementation_summary": "Added __eq__ and __hash__ methods to Todo dataclass to support comparison operations. __eq__ compares only business fields (id, text, done), ignoring timestamps. __hash__ uses id for hashing to enable set/dict operations.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4217_todo_eq_hash.py"
+  ],
+  "tests_passed": true,
+  "lint_passed": true
+}
