@@ -158,3 +158,43 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Regression tests for issue #4244: next_id() should always return positive ID
+def test_next_id_returns_1_when_all_todos_have_negative_ids(tmp_path) -> None:
+    """Bug #4244: next_id() should return 1 when all todos have negative IDs."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # When all todos have negative IDs, next_id() should return 1 (not 0 or negative)
+    todos = [Todo(id=-1, text="negative one"), Todo(id=-5, text="negative five")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_returns_1_when_max_id_is_zero(tmp_path) -> None:
+    """Bug #4244: next_id() should return 1 when max ID is 0."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # When max ID is 0, next_id() should return 1 (not 0)
+    todos = [Todo(id=0, text="zero id")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_returns_next_positive_id(tmp_path) -> None:
+    """Bug #4244: next_id() should return next positive ID when positive IDs exist."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # When positive IDs exist, next_id() should return max + 1
+    todos = [Todo(id=3, text="positive")]
+    assert storage.next_id(todos) == 4
+
+    # Mix of negative and positive IDs - should use max positive + 1
+    mixed_todos = [Todo(id=-5, text="neg"), Todo(id=2, text="pos")]
+    assert storage.next_id(mixed_todos) == 3
+
+
+def test_next_id_returns_1_for_empty_todos(tmp_path) -> None:
+    """Bug #4244: next_id() should return 1 for empty todo list."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
