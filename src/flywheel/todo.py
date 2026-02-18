@@ -69,15 +69,11 @@ class Todo:
         # Reject floats with fractional parts (e.g., 1.5) to prevent silent truncation
         raw_id = data["id"]
         if isinstance(raw_id, float) and not raw_id.is_integer():
-            raise ValueError(
-                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer."
-            )
+            raise ValueError(f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer.")
         try:
             todo_id = int(raw_id)
         except (ValueError, TypeError) as e:
-            raise ValueError(
-                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer."
-            ) from e
+            raise ValueError(f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer.") from e
 
         # Validate 'text' is a string
         if not isinstance(data["text"], str):
