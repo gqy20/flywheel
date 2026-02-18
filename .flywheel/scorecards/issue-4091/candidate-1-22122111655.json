@@ -2,31 +2,22 @@
   "issue": 4091,
   "candidate": 1,
   "run_id": "22122111655",
-  "stage": "FINALIZE",
-  "timestamp": "2026-02-18T01:30:00Z",
-  "status": "completed",
-  "tests_passed": true,
-  "tests_count": 8,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4091_todo_priority.py"
+  "branch": "claude/issue-4091-candidate-1-22122111655",
+  "pr_number": 4127,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4127",
+  "generated_at": "2026-02-18T01:28:36.068996+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added priority field to Todo dataclass with default value 0, updated from_dict for backward compatibility",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_4091_todo_priority.py -v",
-      "result": "8 passed in 0.05s",
-      "passed": true
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4091_todo_priority.py",
-      "result": "All checks passed!",
-      "passed": true
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4091_todo_priority.py",
-      "result": "2 files already formatted",
-      "passed": true
-    }
+  "stage_response_sizes": {
+    "triage": 2753,
+    "plan": 2965,
+    "implement": 2014,
+    "verify": 1503,
+    "finalize": 826
   }
 }
