@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from flywheel.todo import Todo, MAX_TEXT_LENGTH
+from flywheel.todo import MAX_TEXT_LENGTH, Todo
 
 
 class TestRenameMaxLength:
