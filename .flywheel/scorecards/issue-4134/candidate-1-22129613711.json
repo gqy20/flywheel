@@ -1,0 +1,38 @@
+{
+  "issue_number": 4134,
+  "issue_title": "[Feature] Add due_date field for task scheduling",
+  "candidate_number": 1,
+  "run_id": "22129613711",
+  "branch": "claude/issue-4134-candidate-1-22129613711",
+  "implementation": {
+    "summary": "Added due_date field to Todo dataclass with is_overdue() method, CLI --due flag support, and overdue status visual indicator in formatter",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "src/flywheel/formatter.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "acceptance_criteria_met": [
+      "Todo dataclass includes due_date field",
+      "is_overdue() method returns correct boolean",
+      "CLI supports --due flag on add command",
+      "Formatter shows overdue status visually"
+    ]
+  },
+  "tests": {
+    "added": 10,
+    "passed": 122,
+    "failed": 0,
+    "coverage_percent": 91
+  },
+  "quality_checks": {
+    "ruff_lint": "passed",
+    "all_tests": "passed"
+  },
+  "risks_and_limitations": [
+    "due_date is stored as ISO date string (YYYY-MM-DD), no timezone support",
+    "is_overdue() compares against local date.today(), not UTC",
+    "Invalid date formats in due_date field are silently ignored (treated as not overdue)"
+  ],
+  "created_at": "2026-02-18T03:54:00Z"
+}

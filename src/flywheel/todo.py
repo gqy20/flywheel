@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 
 def _utc_now_iso() -> str:
@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str = ""
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,30 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def is_overdue(self) -> bool:
+        """Check if this todo is overdue.
+
+        Returns True if:
+        - due_date is set (non-empty)
+        - todo is not completed
+        - due_date is in the past
+
+        Returns False if:
+        - due_date is not set
+        - todo is completed
+        - due_date is today or in the future
+        """
+        if not self.due_date or self.done:
+            return False
+        try:
+            # Parse ISO date string (YYYY-MM-DD)
+            due = date.fromisoformat(self.due_date)
+            today = date.today()
+            return due < today
+        except ValueError:
+            # Invalid date format - not overdue
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -99,4 +124,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=str(data.get("due_date") or ""),
         )
