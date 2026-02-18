@@ -1,15 +1,23 @@
 {
-  "issue_number": 4287,
-  "candidate_number": 1,
+  "issue": 4287,
+  "candidate": 1,
   "run_id": "22154762913",
   "branch": "claude/issue-4287-candidate-1-22154762913",
-  "status": "implemented",
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo class for id-based comparison and set deduplication",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4287_todo_eq_hash.py"
+  "pr_number": 4332,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4332",
+  "generated_at": "2026-02-18T20:16:00.982557+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passed": true,
-  "lint_passed": true
+  "stage_response_sizes": {
+    "triage": 2536,
+    "plan": 2343,
+    "implement": 1784,
+    "verify": 2359,
+    "finalize": 1249
+  }
 }
