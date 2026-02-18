@@ -34,6 +34,11 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Bug #4116: Validate id is non-negative
+        if self.id < 0:
+            raise ValueError(
+                f"Invalid value for 'id': {self.id}. 'id' must be a non-negative integer."
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -65,13 +70,19 @@ class Todo:
         if "text" not in data:
             raise ValueError("Missing required field 'text' in todo data")
 
-        # Validate 'id' is an integer (or can be converted to one)
+        # Validate 'id' is a non-negative integer (or can be converted to one)
         try:
             todo_id = int(data["id"])
         except (ValueError, TypeError) as e:
             raise ValueError(
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
             ) from e
+
+        # Bug #4116: Reject negative id values
+        if todo_id < 0:
+            raise ValueError(
+                f"Invalid value for 'id': {todo_id}. 'id' must be a non-negative integer."
+            )
 
         # Validate 'text' is a string
         if not isinstance(data["text"], str):
