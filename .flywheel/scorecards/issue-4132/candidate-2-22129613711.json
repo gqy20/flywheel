@@ -1,0 +1,63 @@
+{
+  "issue_number": 4132,
+  "issue_title": "[Bug] TOCTOU race condition in _ensure_parent_directory between path validation and mk",
+  "candidate_number": 2,
+  "run_id": "22129613711",
+  "branch_name": "claude/issue-4132-candidate-2-22129613711",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_4132_toctou_mkdir_race.py",
+      "src/flywheel/storage.py"
+    ],
+    "approach": "Replace exists() check + mkdir(exist_ok=False) with mkdir(exist_ok=True) to eliminate TOCTOU race condition",
+    "test_strategy": "Mock Path.exists and Path.mkdir to simulate concurrent directory creation between check and operation",
+    "verification_commands": [
+      "uv run pytest tests/test_issue_4132_toctou_mkdir_race.py -v",
+      "uv run pytest tests/test_storage_atomicity.py tests/test_issue_1894_security_mkdir_fix.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "implementation": {
+    "changes": [
+      {
+        "file": "src/flywheel/storage.py",
+        "change_type": "modified",
+        "description": "Removed exists() check and changed mkdir(exist_ok=False) to mkdir(exist_ok=True)"
+      },
+      {
+        "file": "tests/test_issue_4132_toctou_mkdir_race.py",
+        "change_type": "created",
+        "description": "Added 6 regression tests for TOCTOU race condition fix"
+      }
+    ],
+    "test_results": {
+      "new_tests_added": 6,
+      "test_names": [
+        "test_ensure_parent_directory_handles_existing_directory",
+        "test_concurrent_saves_with_directory_race_condition",
+        "test_ensure_parent_directory_uses_exist_ok_true",
+        "test_storage_save_succeeds_with_existing_parent_directory",
+        "test_ensure_parent_directory_no_exists_check_before_mkdir",
+        "test_multiprocess_directory_creation_race"
+      ],
+      "all_tests_passed": true,
+      "total_tests_run": 118
+    },
+    "verification": {
+      "ruff_check_passed": true,
+      "related_tests_passed": true
+    },
+    "risks_and_limitations": [
+      "Minimal risk - exist_ok=True is the standard idiom for atomic directory creation",
+      "The fix maintains all existing validation for file-as-directory conflicts",
+      "No breaking changes to API or behavior"
+    ]
+  },
+  "test_results": {
+    "passed": true,
+    "total_tests": 118,
+    "test_command": "uv run pytest tests/ -v"
+  },
+  "pr_url": null
+}
