@@ -54,6 +54,25 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy_with(self, **kwargs) -> Todo:
+        """Create a new Todo instance with optionally updated fields.
+
+        Returns a new Todo with the same field values as the original,
+        except for any fields specified in kwargs. The updated_at timestamp
+        is always set to the current time.
+
+        Args:
+            **kwargs: Field names and their new values. Valid fields are:
+                id, text, done, created_at, updated_at
+
+        Returns:
+            A new Todo instance with the specified fields updated.
+        """
+        current = asdict(self)
+        current.update(kwargs)
+        current["updated_at"] = _utc_now_iso()
+        return Todo(**current)
+
     def to_dict(self) -> dict:
         return asdict(self)
 

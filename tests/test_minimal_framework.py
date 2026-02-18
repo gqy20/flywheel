@@ -158,3 +158,50 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestTodoCopyWith:
+    """Tests for Todo.copy_with() immutable update method."""
+
+    def test_copy_with_text_returns_new_todo_with_updated_text(self) -> None:
+        """copy_with(text='new') returns new Todo with updated text, original unchanged."""
+        original = Todo(id=1, text="original text", done=False)
+        original_updated_at = original.updated_at
+
+        new_todo = original.copy_with(text="new text")
+
+        # Original should be unchanged
+        assert original.text == "original text"
+        assert original.updated_at == original_updated_at
+
+        # New todo should have updated text
+        assert new_todo.text == "new text"
+        assert new_todo.updated_at > original_updated_at
+
+    def test_copy_with_multiple_fields(self) -> None:
+        """copy_with can update multiple fields at once."""
+        original = Todo(id=1, text="original", done=False)
+        original_created = original.created_at
+
+        new_todo = original.copy_with(text="updated", done=True)
+
+        assert new_todo.text == "updated"
+        assert new_todo.done is True
+        assert new_todo.id == original.id  # id preserved
+        assert new_todo.created_at == original_created  # created_at preserved
+
+    def test_copy_with_no_args_returns_copy_with_updated_timestamp(self) -> None:
+        """copy_with() with no args returns a copy with same values but new updated_at."""
+        original = Todo(id=1, text="test", done=True)
+        original_updated_at = original.updated_at
+
+        new_todo = original.copy_with()
+
+        # All field values should be same
+        assert new_todo.id == original.id
+        assert new_todo.text == original.text
+        assert new_todo.done == original.done
+        assert new_todo.created_at == original.created_at
+
+        # But updated_at should be newer
+        assert new_todo.updated_at >= original_updated_at
