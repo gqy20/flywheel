@@ -1,0 +1,32 @@
+{
+  "issue": 4246,
+  "candidate": 1,
+  "run_id": "22146348529",
+  "triage_summary": "Todo class lacks __lt__ method for comparison. Adding comparison support to enable sorted() on Todo objects.",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Added __lt__ method to Todo class for sorting support"
+    },
+    {
+      "file": "tests/test_issue_4246_todo_comparison.py",
+      "change_type": "added",
+      "description": "New test file with 6 tests for Todo comparison"
+    }
+  ],
+  "tests_passed": 118,
+  "tests_added": 6,
+  "ruff_check": "passed",
+  "verification_targets": [
+    "sorted([todo1, todo2]) works without TypeError",
+    "Incomplete todos come before completed ones",
+    "Within same status, older created_at comes first",
+    "id used as tiebreaker when created_at is identical"
+  ],
+  "risks": [
+    "Low risk: Adding __lt__ is backwards-compatible",
+    "Edge case of same timestamps handled with id tiebreaker"
+  ],
+  "status": "ready_for_review"
+}

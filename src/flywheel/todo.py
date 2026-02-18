@@ -33,6 +33,23 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __lt__(self, other: object) -> bool:
+        """Compare todos for sorting.
+
+        Sort order: incomplete todos first (done=False), then by created_at (oldest first).
+        When both done status and created_at are equal, use id as tiebreaker.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        # Primary sort: done status (incomplete first)
+        if self.done != other.done:
+            return not self.done
+        # Secondary sort: created_at (older first)
+        if self.created_at != other.created_at:
+            return self.created_at < other.created_at
+        # Tertiary sort: id (lower first for consistency)
+        return self.id < other.id
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
