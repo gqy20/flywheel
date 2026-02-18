@@ -1,0 +1,28 @@
+{
+  "issue_number": 4228,
+  "candidate": 3,
+  "run_id": "22139783677",
+  "branch": "claude/issue-4228-candidate-3-22139783677",
+  "status": "verified",
+  "created_at": "2026-02-18T12:00:00Z",
+  "verified_at": "2026-02-18T13:20:00Z",
+  "changes": {
+    "test_added": "tests/test_storage_atomicity.py::test_save_handles_missing_fchmod_on_windows",
+    "source_modified": "src/flywheel/storage.py"
+  },
+  "test_results": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7
+  },
+  "lint_results": {
+    "ruff_check": "passed",
+    "ruff_format": "passed"
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_storage_atomicity.py -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+    "uv run ruff format --check src/flywheel/storage.py tests/test_storage_atomicity.py"
+  ],
+  "verification_summary": "All 7 tests pass. Ruff check and format checks pass."
+}
