@@ -1,26 +1,23 @@
 {
-  "issue_number": 4260,
-  "candidate_number": 2,
+  "issue": 4260,
+  "candidate": 2,
   "run_id": "22150923071",
   "branch": "claude/issue-4260-candidate-2-22150923071",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "tests_added": 7,
-    "tests_passed": 119,
-    "linter_status": "passed"
-  },
-  "acceptance_criteria": {
-    "todo_with_same_id_text_done_equal": true,
-    "todo_with_different_id_unequal": true,
-    "todo_with_different_text_unequal": true,
-    "todo_with_different_done_unequal": true,
-    "comparison_with_non_todo_returns_false": true,
-    "timestamps_ignored": true
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 4310,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4310",
+  "generated_at": "2026-02-18T18:23:57.552594+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2466,
+    "plan": 4000,
+    "implement": 2773,
+    "verify": 1962,
+    "finalize": 1883
+  }
 }
