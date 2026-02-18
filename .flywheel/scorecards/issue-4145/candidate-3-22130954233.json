@@ -1,0 +1,15 @@
+{
+  "issue_number": 4145,
+  "candidate": 3,
+  "run_id": "22130954233",
+  "status": "implemented",
+  "summary": "Fixed next_id() to return smallest available positive integer using set-based lookup",
+  "changes": [
+    "src/flywheel/storage.py: Fixed next_id() method to use set for deduplication",
+    "tests/test_minimal_framework.py: Added 4 regression tests for edge cases"
+  ],
+  "tests_passed": true,
+  "ruff_passed": true,
+  "test_count": 14,
+  "implementation": "Uses set comprehension to collect existing IDs, then iterates to find smallest positive integer not in set"
+}

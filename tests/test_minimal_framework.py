@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_duplicate_ids() -> None:
+    """Bug #4145: next_id() should return unique ID even with duplicates."""
+    storage = TodoStorage(":memory:")
+    # When there are duplicate IDs like [1, 1, 2], next_id should return 3
+    todos = [Todo(id=1, text="a"), Todo(id=1, text="b"), Todo(id=2, text="c")]
+    assert storage.next_id(todos) == 3
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #4145: next_id() should return smallest available positive integer."""
+    storage = TodoStorage(":memory:")
+    # When IDs are non-contiguous like [1, 3, 5], next_id should return 2
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_with_empty_list() -> None:
+    """Bug #4145: next_id() should return 1 for empty list."""
+    storage = TodoStorage(":memory:")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_with_gap_at_start() -> None:
+    """Bug #4145: next_id() should return 1 if no todo has id=1."""
+    storage = TodoStorage(":memory:")
+    # When IDs start from higher values like [5, 6, 7], next_id should return 1
+    todos = [Todo(id=5, text="a"), Todo(id=6, text="b"), Todo(id=7, text="c")]
+    assert storage.next_id(todos) == 1
