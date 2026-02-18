@@ -1,28 +1,23 @@
 {
-  "issue_number": 4228,
+  "issue": 4228,
   "candidate": 3,
   "run_id": "22139783677",
   "branch": "claude/issue-4228-candidate-3-22139783677",
-  "status": "verified",
-  "created_at": "2026-02-18T12:00:00Z",
-  "verified_at": "2026-02-18T13:20:00Z",
-  "changes": {
-    "test_added": "tests/test_storage_atomicity.py::test_save_handles_missing_fchmod_on_windows",
-    "source_modified": "src/flywheel/storage.py"
-  },
-  "test_results": {
-    "passed": 7,
-    "failed": 0,
-    "total": 7
-  },
-  "lint_results": {
-    "ruff_check": "passed",
-    "ruff_format": "passed"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
-    "uv run ruff format --check src/flywheel/storage.py tests/test_storage_atomicity.py"
+  "pr_number": 4254,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4254",
+  "generated_at": "2026-02-18T13:28:49.451786+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification_summary": "All 7 tests pass. Ruff check and format checks pass."
+  "stage_response_sizes": {
+    "triage": 2756,
+    "plan": 2767,
+    "implement": 2155,
+    "verify": 2483,
+    "finalize": 1849
+  }
 }
