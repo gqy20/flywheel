@@ -158,3 +158,53 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestTodoEquality:
+    """Test value-based equality comparison for Todo objects.
+
+    Issue #4260: Add __eq__ method for value-based equality comparison.
+    """
+
+    def test_equal_todos_compare_equal(self) -> None:
+        """Todos with same id, text, and done should be equal."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=1, text="a", done=False)
+        assert todo1 == todo2
+
+    def test_different_id_todos_compare_unequal(self) -> None:
+        """Todos with different ids should not be equal."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=2, text="a", done=False)
+        assert todo1 != todo2
+
+    def test_different_text_todos_compare_unequal(self) -> None:
+        """Todos with different text should not be equal."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=1, text="b", done=False)
+        assert todo1 != todo2
+
+    def test_different_done_todos_compare_unequal(self) -> None:
+        """Todos with different done status should not be equal."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=1, text="a", done=True)
+        assert todo1 != todo2
+
+    def test_comparison_with_non_todo_returns_false(self) -> None:
+        """Comparing Todo with non-Todo should return False."""
+        todo = Todo(id=1, text="a", done=False)
+        assert todo != "not a todo"
+        assert todo != 1
+        assert todo != {"id": 1, "text": "a"}
+        assert todo is not None
+
+    def test_equality_ignores_timestamps(self) -> None:
+        """Equality should be based on id, text, done, not timestamps."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=1, text="a", done=False)
+        # Manually set different timestamps
+        todo1.created_at = "2024-01-01T00:00:00+00:00"
+        todo1.updated_at = "2024-01-01T00:00:00+00:00"
+        todo2.created_at = "2024-12-31T23:59:59+00:00"
+        todo2.updated_at = "2024-12-31T23:59:59+00:00"
+        assert todo1 == todo2

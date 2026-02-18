@@ -33,6 +33,16 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Value-based equality comparison.
+
+        Compares only id, text, and done fields. Timestamps are excluded
+        to enable practical equality checks in tests and business logic.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
