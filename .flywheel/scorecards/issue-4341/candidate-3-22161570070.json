@@ -1,17 +1,23 @@
 {
-  "issue_number": 4341,
-  "issue_title": "[Perf] load 方法在文件不存在时未缓存结果，频繁调用时重复检查文件存在性",
-  "candidate_number": 3,
+  "issue": 4341,
+  "candidate": 3,
   "run_id": "22161570070",
   "branch": "claude/issue-4341-candidate-3-22161570070",
-  "created_at": "2026-02-18T21:00:00Z",
-  "status": "implemented",
-  "approach": "Add a simple boolean cache `_file_not_exist_cached` to TodoStorage to cache the 'file does not exist' result, avoiding repeated filesystem existence checks.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_4341_load_cache.py"
+  "pr_number": 4392,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4392",
+  "generated_at": "2026-02-18T23:59:00.659159+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": 115,
-  "ruff_check": "passed"
+  "stage_response_sizes": {
+    "triage": 2812,
+    "plan": 2710,
+    "implement": 3201,
+    "verify": 1639,
+    "finalize": 3249
+  }
 }
