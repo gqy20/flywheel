@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -19,6 +19,20 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        """Compare Todos based on business key fields only.
+
+        Two Todos are equal if they have the same id, text, and done status.
+        Timestamps (created_at, updated_at) are excluded from comparison.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on business key fields for set/dict usage."""
+        return hash((self.id, self.text, self.done))
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
