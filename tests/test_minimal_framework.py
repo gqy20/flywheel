@@ -158,3 +158,52 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_available_with_gaps(tmp_path) -> None:
+    """Bug #4188: next_id should return smallest unused ID, not max+1."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # When todos=[{id:1}, {id:5}], next_id should return 2 (not 6)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_returns_smallest_available_unordered(tmp_path) -> None:
+    """Bug #4188: next_id should work with unordered IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # When todos=[{id:3}, {id:1}], next_id should return 2
+    todos = [Todo(id=3, text="a"), Todo(id=1, text="b")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_returns_one_for_large_id_only(tmp_path) -> None:
+    """Bug #4188: next_id should return 1 when only large ID exists."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # When todos=[{id:1000000}], next_id should return 1
+    todos = [Todo(id=1000000, text="a")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_returns_next_when_sequential(tmp_path) -> None:
+    """Bug #4188: next_id should still work correctly for sequential IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # When todos=[{id:1}, {id:2}, {id:3}], next_id should return 4
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+
+def test_next_id_returns_one_for_empty_list(tmp_path) -> None:
+    """Bug #4188: next_id should return 1 for empty list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # When todos=[], next_id should return 1
+    assert storage.next_id([]) == 1
