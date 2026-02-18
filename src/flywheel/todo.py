@@ -68,8 +68,7 @@ class Todo:
         # Validate 'id' is an integer (reject floats to prevent silent truncation)
         if isinstance(data["id"], float) and not data["id"].is_integer():
             raise ValueError(
-                f"Invalid value for 'id': {data['id']!r}. "
-                "'id' must be an integer, not a float."
+                f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer, not a float."
             )
         try:
             todo_id = int(data["id"])
