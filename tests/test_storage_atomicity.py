@@ -151,6 +151,43 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_handles_missing_fchmod_on_windows(tmp_path) -> None:
+    """Regression test for issue #4228: os.fchmod is Unix-only.
+
+    On Windows, os.fchmod does not exist and raises AttributeError.
+    The save() function should handle this gracefully by either:
+    1. Skipping permission setting on Windows, or
+    2. Providing a clear platform-specific error message
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+
+    # Simulate Windows where os.fchmod doesn't exist
+    original_fchmod = getattr(os, "fchmod", None)
+
+    # Remove fchmod to simulate Windows behavior
+    if hasattr(os, "fchmod"):
+        delattr(os, "fchmod")
+
+    try:
+        # save() should work without fchmod on Windows
+        # It should either skip the permission setting or handle the error gracefully
+        storage.save(todos)
+
+        # Verify the save succeeded
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test todo"
+    finally:
+        # Restore original fchmod if it existed
+        if original_fchmod is not None:
+            os.fchmod = original_fchmod
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
