@@ -119,3 +119,41 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4258 - reject float values that silently truncate
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float values with fractional parts for 'id'."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_float_id() -> None:
+    """Todo.from_dict should reject negative float values for 'id'."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": -2.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_large_float_id() -> None:
+    """Todo.from_dict should reject large float values for 'id'."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": 999.999, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_float_id() -> None:
+    """Todo.from_dict should accept float values that are whole numbers (1.0 -> 1)."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+    assert isinstance(todo.id, int)
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept integer values for 'id'."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_string_integer_id() -> None:
+    """Todo.from_dict should accept string representations of integers for 'id'."""
+    todo = Todo.from_dict({"id": "42", "text": "task"})
+    assert todo.id == 42
