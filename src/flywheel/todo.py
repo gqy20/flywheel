@@ -93,10 +93,18 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Get timestamps, treating None as "not provided" (empty string)
+        # but preserving other falsy values like 0, False as their string representations
+        created_at_value = data.get("created_at")
+        created_at = "" if created_at_value is None else str(created_at_value)
+
+        updated_at_value = data.get("updated_at")
+        updated_at = "" if updated_at_value is None else str(updated_at_value)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
