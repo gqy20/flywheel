@@ -1,0 +1,24 @@
+{
+  "issue_number": 4218,
+  "candidate_number": 1,
+  "run_id": "22139783677",
+  "branch_name": "claude/issue-4218-candidate-1-22139783677",
+  "status": "implemented",
+  "implementation_summary": "Added copy_with(**changes) method to Todo dataclass that returns a new Todo instance with specified field changes while preserving the original. Uses dataclasses.replace() internally and automatically updates the updated_at timestamp.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4218_copy_with.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": true,
+  "linting_passed": true,
+  "acceptance_criteria_met": [
+    "todo.copy_with(done=True) returns new Todo instance",
+    "Original todo.done remains unchanged",
+    "New instance's updated_at is automatically updated",
+    "Supports updating any field (text, done)"
+  ],
+  "risks_limitations": [
+    "No validation on text field changes (allows empty text via copy_with, consistent with original constructor behavior)"
+  ]
+}
