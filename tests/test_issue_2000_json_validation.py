@@ -119,3 +119,35 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4298 - validate 'id' is not a truncated float
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs that would be truncated (e.g., 1.9)."""
+    with pytest.raises(ValueError, match=r"float|integer|'id'"):
+        Todo.from_dict({"id": 1.9, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject bool for 'id' (bool is subclass of int)."""
+    with pytest.raises(ValueError, match=r"bool|'id'.*type|'id'.*integer"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_accepts_whole_number_float_id() -> None:
+    """Todo.from_dict should accept float IDs that are whole numbers (e.g., 1.0)."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+    assert isinstance(todo.id, int)
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept plain integer IDs."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
+
+
+def test_todo_from_dict_accepts_string_integer_id() -> None:
+    """Todo.from_dict should accept string representations of integers."""
+    todo = Todo.from_dict({"id": "123", "text": "task"})
+    assert todo.id == 123
