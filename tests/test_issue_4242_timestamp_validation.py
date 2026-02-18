@@ -52,30 +52,24 @@ class TestTimestampValidStringAcceptance:
 
     def test_from_dict_accepts_valid_iso_created_at(self) -> None:
         """Todo.from_dict should accept valid ISO format string for 'created_at'."""
-        todo = Todo.from_dict({
-            "id": 1,
-            "text": "task",
-            "created_at": "2026-02-18T12:00:00+00:00"
-        })
+        todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "2026-02-18T12:00:00+00:00"})
         assert todo.created_at == "2026-02-18T12:00:00+00:00"
 
     def test_from_dict_accepts_valid_iso_updated_at(self) -> None:
         """Todo.from_dict should accept valid ISO format string for 'updated_at'."""
-        todo = Todo.from_dict({
-            "id": 1,
-            "text": "task",
-            "updated_at": "2026-02-18T13:00:00+00:00"
-        })
+        todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": "2026-02-18T13:00:00+00:00"})
         assert todo.updated_at == "2026-02-18T13:00:00+00:00"
 
     def test_from_dict_accepts_both_valid_timestamps(self) -> None:
         """Todo.from_dict should accept both valid timestamps."""
-        todo = Todo.from_dict({
-            "id": 1,
-            "text": "task",
-            "created_at": "2026-02-18T12:00:00+00:00",
-            "updated_at": "2026-02-18T13:00:00+00:00"
-        })
+        todo = Todo.from_dict(
+            {
+                "id": 1,
+                "text": "task",
+                "created_at": "2026-02-18T12:00:00+00:00",
+                "updated_at": "2026-02-18T13:00:00+00:00",
+            }
+        )
         assert todo.created_at == "2026-02-18T12:00:00+00:00"
         assert todo.updated_at == "2026-02-18T13:00:00+00:00"
 
