@@ -1,0 +1,17 @@
+{
+  "issue_number": 4256,
+  "candidate_number": 2,
+  "run_id": "22148864911",
+  "branch": "claude/issue-4256-candidate-2-22148864911",
+  "summary": "Add text validation in Todo.__post_init__ to reject empty or whitespace-only text, making behavior consistent with rename() method.",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_4256_todo_text_validation.py"]
+  },
+  "tests_passed": 120,
+  "approach": "Add validation in __post_init__ which covers both direct constructor calls and from_dict calls (since from_dict uses the constructor).",
+  "risks": [
+    "Existing code that relied on empty text being accepted will now raise ValueError"
+  ],
+  "limitations": []
+}
