@@ -1,48 +1,23 @@
 {
-  "issue_number": 4284,
-  "issue_title": "[Bug] Todo.id accepts negative integers without validation",
-  "candidate_number": 1,
+  "issue": 4284,
+  "candidate": 1,
   "run_id": "22152603311",
-  "branch_name": "claude/issue-4284-candidate-1-22152603311",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/4317",
+  "branch": "claude/issue-4284-candidate-1-22152603311",
   "pr_number": 4317,
-  "triage": {
-    "root_cause": "Todo.id field accepts any integer without validation. Todo.from_dict() validates that id can be converted to int but never checks id >= 1.",
-    "affected_files": [
-      "src/flywheel/todo.py"
-    ],
-    "risk_points": [
-      "Negative IDs silently accepted",
-      "Zero ID silently accepted",
-      "Inconsistent with storage.next_id() which returns minimum 1"
-    ]
-  },
-  "fix": {
-    "approach": "Add validation in Todo.from_dict() after int conversion to check todo_id >= 1",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_4284_todo_id_validation.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "lines_changed": 11,
-    "tests_added": 3,
-    "additional_fix": "Fixed test_storage_atomicity.py which used id=0 (now invalid). Changed worker todo IDs from i to i+1 to ensure all IDs are positive."
-  },
-  "tests": {
-    "new_tests": [
-      "test_todo_from_dict_rejects_negative_id",
-      "test_todo_from_dict_rejects_zero_id",
-      "test_todo_from_dict_accepts_positive_id"
-    ],
-    "all_passed": true,
-    "regression_tests_passed": 113
-  },
-  "lint": {
-    "ruff_check": "passed"
-  },
-  "verification_criteria": {
-    "negative_id_rejected": true,
-    "zero_id_rejected": true,
-    "positive_id_accepted": true
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4317",
+  "generated_at": "2026-02-18T19:20:44.269987+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2511,
+    "plan": 3343,
+    "implement": 2148,
+    "verify": 2676,
+    "finalize": 428
   }
 }
