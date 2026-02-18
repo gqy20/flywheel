@@ -113,3 +113,30 @@ def test_app_rename_raises_for_empty_text(tmp_path) -> None:
 
     # Verify original text unchanged
     assert app.list()[0].text == "original"
+
+
+def test_cli_rename_sanitizes_control_characters(tmp_path, capsys) -> None:
+    """Verify rename command sanitizes control characters in output."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original"])
+    run_command(args)
+    capsys.readouterr()  # Clear output
+
+    # Rename with control characters
+    args = parser.parse_args(["--db", db, "rename", "1", "Task\n\r\tWith\x00Controls"])
+    result = run_command(args)
+    assert result == 0
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representations
+    assert "\\n" in captured.out
+    assert "\\r" in captured.out
+    assert "\\t" in captured.out
+    assert "\\x00" in captured.out
+    # Output should NOT contain actual control characters
+    assert "\n" not in captured.out.strip()
+    assert "\r" not in captured.out
+    assert "\x00" not in captured.out
