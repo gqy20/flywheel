@@ -1,0 +1,21 @@
+{
+  "issue_number": 4230,
+  "candidate": 1,
+  "run_id": "22137909823",
+  "status": "ready_for_review",
+  "created_at": "2026-02-18T12:00:00Z",
+  "branch": "claude/issue-4230-candidate-1-22137909823",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "tests_added": 3,
+    "tests_passed": 115
+  },
+  "validation": {
+    "lint_passed": true,
+    "tests_passed": true,
+    "coverage": "92%"
+  }
+}
