@@ -1,43 +1,23 @@
 {
-  "issue_number": 4148,
-  "candidate_number": 1,
+  "issue": 4148,
+  "candidate": 1,
   "run_id": "22130954233",
-  "created_at": "2026-02-18T06:00:00Z",
-  "status": "implemented",
-  "implementation_summary": {
-    "title": "Add priority field to Todo for task prioritization",
-    "description": "Added priority field (0-3) to Todo dataclass with validation, serialization support, and set_priority() method",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_4148_priority_field.py"
-    ],
-    "tests_added": 14,
-    "tests_passed": 14
-  },
-  "acceptance_criteria": {
-    "todo_accepts_optional_priority_with_default_2": true,
-    "invalid_priority_raises_valueerror_with_clear_message": true,
-    "to_dict_includes_priority_in_output": true,
-    "from_dict_reads_priority_with_default_2_backward_compatibility": true
-  },
-  "test_coverage": {
-    "default_priority": true,
-    "explicit_priority": true,
-    "priority_validation_range": true,
-    "priority_validation_type": true,
-    "to_dict_serialization": true,
-    "from_dict_deserialization": true,
-    "from_dict_missing_priority_default": true,
-    "set_priority_method": true,
-    "set_priority_updates_timestamp": true
-  },
-  "commands_executed": [
-    "uv run pytest tests/test_issue_4148_priority_field.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_4148_priority_field.py",
-    "uv run pytest tests/ -k 'todo' -v"
+  "branch": "claude/issue-4148-candidate-1-22130954233",
+  "pr_number": 4178,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4178",
+  "generated_at": "2026-02-18T08:17:13.355308+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks_limitations": [
-    "Existing stored todos without priority field will default to 2 when loaded",
-    "No CLI support for priority field yet (out of scope for this issue)"
-  ]
+  "stage_response_sizes": {
+    "triage": 1656,
+    "plan": 4000,
+    "implement": 778,
+    "verify": 1976,
+    "finalize": 1395
+  }
 }
