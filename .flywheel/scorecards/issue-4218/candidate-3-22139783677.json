@@ -1,0 +1,22 @@
+{
+  "issue_number": 4218,
+  "candidate_number": 3,
+  "run_id": "22139783677",
+  "triage_summary": {
+    "root_cause": "Todo class only supports mutable in-place modification methods (mark_done, rename, etc.) without a copy_with pattern for immutable updates",
+    "implementation": "Added copy_with(**changes) method using dataclasses.replace() with text validation matching rename() behavior",
+    "risk_points": [
+      "Text validation must strip whitespace and reject empty strings",
+      "updated_at must be set explicitly on the copy"
+    ]
+  },
+  "files_changed": [
+    "src/flywheel/todo.py"
+  ],
+  "tests_passed": [
+    "tests/test_issue_4218_copy_with.py (8 tests)",
+    "All existing tests (112 tests)"
+  ],
+  "linter_status": "passed",
+  "branch_name": "claude/issue-4218-candidate-3-22139783677"
+}
