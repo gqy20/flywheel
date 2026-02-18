@@ -158,3 +158,49 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command_exposed(tmp_path, capsys) -> None:
+    """Issue #4342: Todo.rename() should be exposed via CLI."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename the todo
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "new text" in captured.out
+    assert "#1" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_command_rejects_empty_text(tmp_path, capsys) -> None:
+    """Issue #4342: CLI rename command should reject empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Try to rename with empty text - should fail
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "empty" in captured.err.lower()
+
+    # Original should be unchanged
+    args = parser.parse_args(["--db", db, "list"])
+    run_command(args)
+    out = capsys.readouterr().out
+    assert "original" in out
