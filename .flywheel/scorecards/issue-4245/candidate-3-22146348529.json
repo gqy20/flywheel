@@ -1,0 +1,22 @@
+{
+  "issue_number": 4245,
+  "candidate": 3,
+  "run_id": "22146348529",
+  "approach": "Add edit subcommand to CLI that exposes Todo.rename method",
+  "changes": [
+    {
+      "file": "src/flywheel/cli.py",
+      "change_type": "modified",
+      "description": "Added edit method to TodoApp class and edit subparser/handler"
+    },
+    {
+      "file": "tests/test_issue_4245_cli_edit_command.py",
+      "change_type": "added",
+      "description": "Regression tests for CLI edit command"
+    }
+  ],
+  "tests_passed": 7,
+  "tests_total": 7,
+  "risks": [],
+  "limitations": []
+}
