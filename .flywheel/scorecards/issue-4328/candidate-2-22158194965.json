@@ -1,0 +1,33 @@
+{
+  "issue_number": 4328,
+  "candidate_number": 2,
+  "run_id": "22158194965",
+  "branch": "claude/issue-4328-candidate-2-22158194965",
+  "status": "implemented",
+  "created_at": "2026-02-18T21:56:00Z",
+  "fix_summary": {
+    "root_cause": "Todo.from_dict used `data.get('created_at') or ''` which converted any falsy value (0, False, '') to empty string, triggering __post_init__ to generate new timestamps",
+    "solution": "Changed to only convert None to empty string while preserving other falsy values as their string representations",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_4328_falsy_timestamp_preservation.py"
+    ]
+  },
+  "tests": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "test_file": "tests/test_issue_4328_falsy_timestamp_preservation.py"
+  },
+  "linter": {
+    "status": "passed",
+    "errors": 0
+  },
+  "acceptance_criteria": {
+    "preserves_explicit_timestamp": true,
+    "generates_when_missing": true,
+    "generates_when_none": true,
+    "preserves_zero_value": true,
+    "preserves_false_value": true
+  }
+}
