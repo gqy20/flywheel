@@ -1,14 +1,23 @@
 {
-  "issue_number": 4217,
-  "candidate_number": 3,
+  "issue": 4217,
+  "candidate": 3,
   "run_id": "22137909823",
   "branch": "claude/issue-4217-candidate-3-22137909823",
-  "status": "verified",
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo dataclass to support comparison operations. __eq__ compares only business fields (id, text, done), ignoring timestamps. __hash__ uses id for hashing to enable set/dict operations.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4217_todo_eq_hash.py"
+  "pr_number": 4238,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4238",
+  "generated_at": "2026-02-18T12:12:20.266213+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": true,
-  "lint_passed": true
+  "stage_response_sizes": {
+    "triage": 3772,
+    "plan": 1807,
+    "implement": 1833,
+    "verify": 2378,
+    "finalize": 899
+  }
 }
