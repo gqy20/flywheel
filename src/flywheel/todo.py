@@ -10,6 +10,12 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+PRIORITY_LOW = 0
+PRIORITY_MEDIUM = 1
+PRIORITY_HIGH = 2
+PRIORITY_VALUES = (PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH)
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -17,6 +23,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = PRIORITY_LOW
     created_at: str = ""
     updated_at: str = ""
 
@@ -52,6 +59,23 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, priority: int) -> None:
+        """Set the priority of the todo item.
+
+        Args:
+            priority: Priority level (0=low, 1=medium, 2=high).
+
+        Raises:
+            ValueError: If priority is not 0, 1, or 2.
+        """
+        if priority not in PRIORITY_VALUES:
+            raise ValueError(
+                f"Invalid priority value: {priority!r}. "
+                f"Priority must be one of {PRIORITY_VALUES} (0=low, 1=medium, 2=high)."
+            )
+        self.priority = priority
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +117,26 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is an integer in valid range
+        raw_priority = data.get("priority", PRIORITY_LOW)
+        try:
+            priority = int(raw_priority)
+        except (ValueError, TypeError) as e:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be an integer."
+            ) from e
+        if priority not in PRIORITY_VALUES:
+            raise ValueError(
+                f"Invalid priority value: {priority!r}. "
+                f"Priority must be one of {PRIORITY_VALUES} (0=low, 1=medium, 2=high)."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )

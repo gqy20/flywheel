@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from .todo import Todo
+from .todo import PRIORITY_HIGH, PRIORITY_LOW, PRIORITY_MEDIUM, Todo
+
+# Priority indicators: 0=low, 1=medium, 2=high
+PRIORITY_ICONS = {
+    PRIORITY_LOW: "○",  # Empty circle for low
+    PRIORITY_MEDIUM: "◐",  # Half-filled circle for medium
+    PRIORITY_HIGH: "●",  # Filled circle for high
+}
 
 
 def _sanitize_text(text: str) -> str:
@@ -44,8 +51,9 @@ class TodoFormatter:
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
+        priority_icon = PRIORITY_ICONS.get(todo.priority, "○")
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        return f"[{status}] {priority_icon} {todo.id:>3} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

@@ -18,8 +18,8 @@ def test_format_todo_escapes_newline_in_text() -> None:
     assert "\\n" in result
     # Should be single line (no actual newline character)
     assert "\n" not in result
-    # Should show both parts on same line
-    assert result == "[ ]   1 Buy milk\\n[ ] FAKE_TODO"
+    # Should show both parts on same line (with priority icon for default priority 0)
+    assert result == "[ ] ○   1 Buy milk\\n[ ] FAKE_TODO"
 
 
 def test_format_todo_escapes_carriage_return_in_text() -> None:
@@ -77,7 +77,8 @@ def test_format_todo_normal_text_unchanged() -> None:
     """Normal todo text without control characters should be unchanged."""
     todo = Todo(id=1, text="Buy groceries")
     result = TodoFormatter.format_todo(todo)
-    assert result == "[ ]   1 Buy groceries"
+    # Format now includes priority icon (○ for default priority 0)
+    assert result == "[ ] ○   1 Buy groceries"
 
 
 def test_format_todo_with_unicode() -> None:
