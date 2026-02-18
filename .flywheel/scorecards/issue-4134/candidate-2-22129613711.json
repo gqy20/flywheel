@@ -1,39 +1,23 @@
 {
-  "issue_number": 4134,
-  "candidate_number": 2,
+  "issue": 4134,
+  "candidate": 2,
   "run_id": "22129613711",
   "branch": "claude/issue-4134-candidate-2-22129613711",
-  "created_at": "2026-02-18T04:00:00Z",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "src/flywheel/cli.py",
-      "src/flywheel/formatter.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "changes_summary": "Added due_date field to Todo dataclass, is_overdue() method, CLI --due flag support, and formatter overdue indicator",
-    "tests_added": 12,
-    "tests_passed": 124
-  },
-  "acceptance_criteria": {
-    "todo_dataclass_includes_due_date_field": true,
-    "is_overdue_method_returns_correct_boolean": true,
-    "cli_supports_due_flag_on_add_command": true,
-    "formatter_shows_overdue_status_visually": true
-  },
-  "test_coverage": {
-    "test_todo_has_due_date_field": "pass",
-    "test_todo_due_date_defaults_to_empty": "pass",
-    "test_todo_is_overdue_with_past_date": "pass",
-    "test_todo_is_overdue_with_future_date": "pass",
-    "test_todo_is_overdue_with_empty_date": "pass",
-    "test_todo_is_overdue_completed_task": "pass",
-    "test_todo_from_dict_with_due_date": "pass",
-    "test_todo_from_dict_without_due_date": "pass",
-    "test_todo_to_dict_includes_due_date": "pass",
-    "test_cli_add_with_due_option": "pass",
-    "test_storage_roundtrip_with_due_date": "pass",
-    "test_formatter_shows_overdue_status": "pass"
+  "pr_number": 4170,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4170",
+  "generated_at": "2026-02-18T07:29:57.267208+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2259,
+    "plan": 4000,
+    "implement": 2939,
+    "verify": 2947,
+    "finalize": 4000
   }
 }
