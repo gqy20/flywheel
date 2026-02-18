@@ -119,3 +119,43 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4200 - non-dict array elements should raise clear ValueError
+def test_storage_load_handles_non_dict_array_elements(tmp_path) -> None:
+    """JSON array with non-dict elements should raise clear ValueError, not TypeError."""
+    db = tmp_path / "non_dict_array.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but elements are integers, not dicts
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|object|non-dict"):
+        storage.load()
+
+
+def test_storage_load_handles_null_array_element(tmp_path) -> None:
+    """JSON array with null element should raise clear ValueError, not TypeError."""
+    db = tmp_path / "null_element.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but contains null
+    db.write_text("[null]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|object|null"):
+        storage.load()
+
+
+def test_storage_load_handles_string_array_element(tmp_path) -> None:
+    """JSON array with string elements should raise clear ValueError, not TypeError."""
+    db = tmp_path / "string_element.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but elements are strings, not dicts
+    db.write_text('["not a todo"]', encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|object"):
+        storage.load()
