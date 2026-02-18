@@ -119,3 +119,36 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
             assert not (file_mode & stat.S_IXUSR), f"Owner execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXGRP), f"Group execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXOTH), f"Other execute bit set on {temp_file}"
+
+
+def test_final_file_has_restricted_permissions(tmp_path) -> None:
+    """Issue #4368: Final file should have 0o600 permissions after save().
+
+    The temp file is created with 0o600, but we need to verify the final
+    file also has restrictive permissions after os.replace().
+
+    Security requirement: Other users should not be able to read the todo database.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    storage.save([Todo(id=1, text="secret todo item")])
+
+    # Verify final file has exactly 0o600 permissions
+    assert db.exists(), "Final database file should exist"
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # The mode should be EXACTLY 0o600 (rw-------)
+    assert file_mode == 0o600, (
+        f"Final file has incorrect permissions: {oct(file_mode)} "
+        f"(expected 0o600). File: {db}"
+    )
+
+    # Verify no execute bit is set
+    assert not (file_mode & stat.S_IXUSR), "Owner execute bit set on final file"
+
+    # Verify group and others have no permissions (defense-in-depth check)
+    assert file_mode & 0o077 == 0, (
+        f"Final file has overly permissive mode: {oct(file_mode)}"
+    )
