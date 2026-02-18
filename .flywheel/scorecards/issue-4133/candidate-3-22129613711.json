@@ -26,5 +26,21 @@
   },
   "lint_results": {
     "ruff": "All checks passed"
+  },
+  "verification": {
+    "status": "passed",
+    "pytest_command": "uv run pytest tests/test_issue_4133_priority_field.py -v && uv run pytest -v",
+    "ruff_command": "uv run ruff check src/flywheel/ tests/",
+    "targeted_tests": {
+      "total": 9,
+      "passed": 9,
+      "failed": 0
+    },
+    "full_test_suite": {
+      "total": 121,
+      "passed": 121,
+      "failed": 0
+    },
+    "verified_at": "2026-02-18"
   }
 }
