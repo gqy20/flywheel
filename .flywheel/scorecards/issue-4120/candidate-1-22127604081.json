@@ -1,15 +1,23 @@
 {
-  "issue_number": 4120,
+  "issue": 4120,
   "candidate": 1,
   "run_id": "22127604081",
   "branch": "claude/issue-4120-candidate-1-22127604081",
-  "status": "implemented",
-  "tests_added": 3,
-  "tests_passed": true,
-  "ruff_passed": true,
-  "implementation_summary": "Added toggle_done() method to Todo class that inverts the done status and updates the updated_at timestamp.",
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4120_toggle_done.py"
-  ]
+  "pr_number": 4153,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4153",
+  "generated_at": "2026-02-18T05:58:57.326749+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2049,
+    "plan": 2021,
+    "implement": 1782,
+    "verify": 2747,
+    "finalize": 1424
+  }
 }
