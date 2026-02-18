@@ -33,6 +33,29 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Two todos are equal if they have the same id."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __lt__(self, other: object) -> bool:
+        """Compare todos for sorting.
+
+        Sorting order:
+        1. Pending (not done) items come first
+        2. Within same done status, sort by created_at ascending
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+
+        # Pending items come before done items
+        if self.done != other.done:
+            return not self.done
+
+        # Same done status: sort by created_at ascending
+        return self.created_at < other.created_at
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
