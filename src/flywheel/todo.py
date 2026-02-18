@@ -54,6 +54,16 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def __hash__(self) -> int:
+        """Hash based on id field for use in sets and as dict keys."""
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        """Equality based on id field for set/dict operations."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
     def to_dict(self) -> dict:
         return asdict(self)
 
