@@ -158,3 +158,72 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestTodoDueDate:
+    """Tests for Todo due_at field and is_overdue property - Issue #4106."""
+
+    def test_todo_with_due_date_creates_correctly(self) -> None:
+        """Todo should accept an optional due_at field."""
+        due_date = "2024-01-15T12:00:00+00:00"
+        todo = Todo(id=1, text="task with deadline", due_at=due_date)
+        assert todo.due_at == due_date
+
+    def test_todo_without_due_date_defaults_to_none(self) -> None:
+        """Todo without due_at should have due_at as None."""
+        todo = Todo(id=1, text="task without deadline")
+        assert todo.due_at is None
+
+    def test_is_overdue_returns_true_for_past_dates(self) -> None:
+        """is_overdue should return True when due_at is in the past."""
+        # Use a past date
+        past_date = "2020-01-01T00:00:00+00:00"
+        todo = Todo(id=1, text="overdue task", due_at=past_date)
+        assert todo.is_overdue is True
+
+    def test_is_overdue_returns_false_for_future_dates(self) -> None:
+        """is_overdue should return False when due_at is in the future."""
+        # Use a future date
+        future_date = "2099-12-31T23:59:59+00:00"
+        todo = Todo(id=1, text="future task", due_at=future_date)
+        assert todo.is_overdue is False
+
+    def test_is_overdue_returns_false_when_due_at_is_none(self) -> None:
+        """is_overdue should return False when no due date is set."""
+        todo = Todo(id=1, text="task without deadline")
+        assert todo.is_overdue is False
+
+    def test_to_dict_includes_due_at(self) -> None:
+        """to_dict should include due_at field."""
+        due_date = "2024-06-15T10:30:00+00:00"
+        todo = Todo(id=1, text="task", due_at=due_date)
+        result = todo.to_dict()
+        assert result["due_at"] == due_date
+
+    def test_from_dict_handles_due_at_correctly(self) -> None:
+        """from_dict should load due_at field."""
+        data = {"id": 1, "text": "task", "due_at": "2024-07-20T14:00:00+00:00"}
+        todo = Todo.from_dict(data)
+        assert todo.due_at == "2024-07-20T14:00:00+00:00"
+
+    def test_from_dict_backward_compatible_without_due_at(self) -> None:
+        """from_dict should handle todos without due_at field (backward compat)."""
+        data = {"id": 1, "text": "old task"}
+        todo = Todo.from_dict(data)
+        assert todo.due_at is None
+
+    def test_storage_roundtrip_with_due_at(self, tmp_path) -> None:
+        """Storage should correctly save and load todos with due_at."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        todos = [
+            Todo(id=1, text="task with due date", due_at="2024-03-01T00:00:00+00:00"),
+            Todo(id=2, text="task without due date"),
+        ]
+        storage.save(todos)
+
+        loaded = storage.load()
+        assert len(loaded) == 2
+        assert loaded[0].due_at == "2024-03-01T00:00:00+00:00"
+        assert loaded[1].due_at is None
