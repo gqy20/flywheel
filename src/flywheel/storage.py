@@ -51,7 +51,20 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    WARNING: Concurrent writes from multiple processes are NOT supported.
+
+    Operations like load() followed by save() form a read-modify-write pattern
+    which is vulnerable to race conditions. If two processes load the same data,
+    modify it, and save, one process's changes will be lost.
+
+    For multi-process access, you must implement external file locking or use
+    a database that supports concurrent access (e.g., SQLite).
+
+    The atomic save() only guarantees that a single save operation won't corrupt
+    the file - it does NOT guarantee atomicity across load-modify-save sequences.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")

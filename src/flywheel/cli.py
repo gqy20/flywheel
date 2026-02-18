@@ -11,7 +11,16 @@ from .todo import Todo
 
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application.
+
+    WARNING: This class is NOT safe for concurrent use across multiple processes.
+
+    Methods like add(), mark_done(), mark_undone(), and remove() perform
+    load-modify-save operations which can lose data if multiple processes
+    access the same database file concurrently.
+
+    For single-process use only. See TodoStorage class documentation for details.
+    """
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
