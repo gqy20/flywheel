@@ -158,3 +158,73 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_edit_updates_text_via_app(tmp_path) -> None:
+    """Feature #4343: TodoApp.edit() should update todo text and timestamp."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    # Add a todo
+    added = app.add("original text")
+    original_updated_at = added.updated_at
+
+    # Edit the todo
+    edited = app.edit(added.id, "new text")
+    assert edited.text == "new text"
+    assert edited.updated_at >= original_updated_at
+
+    # Verify persistence
+    loaded = app.list()
+    assert loaded[0].text == "new text"
+
+
+def test_todo_edit_returns_error_for_nonexistent_id(tmp_path) -> None:
+    """Feature #4343: TodoApp.edit() should raise error for non-existent id."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    with pytest.raises(ValueError, match="not found"):
+        app.edit(999, "new text")
+
+
+def test_todo_edit_returns_error_for_empty_text(tmp_path) -> None:
+    """Feature #4343: TodoApp.edit() should raise error for empty text."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    added = app.add("original text")
+
+    with pytest.raises(ValueError, match="cannot be empty"):
+        app.edit(added.id, "")
+
+
+def test_cli_edit_command_flow(tmp_path, capsys) -> None:
+    """Feature #4343: CLI edit command should update todo text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Edit the todo
+    args = parser.parse_args(["--db", db, "edit", "1", "updated task"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Edited #1" in captured.out
+    assert "updated task" in captured.out
+
+    # Verify change persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "updated task" in out
+    assert "original task" not in out
+
+
+def test_cli_edit_returns_error_for_nonexistent_id(tmp_path, capsys) -> None:
+    """Feature #4343: CLI edit command should return error for non-existent id."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "edit", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err

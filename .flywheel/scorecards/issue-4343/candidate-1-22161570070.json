@@ -1,0 +1,18 @@
+{
+  "issue_number": 4343,
+  "candidate": 1,
+  "run_id": "22161570070",
+  "branch": "claude/issue-4343-candidate-1-22161570070",
+  "created_at": "2026-02-18T21:00:00Z",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tests_added": 5,
+    "tests_passed": 115,
+    "linter_status": "passed"
+  },
+  "summary": "Add CLI edit command to modify existing todo text via TodoApp.edit() method"
+}
