@@ -158,3 +158,63 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command_exposed(tmp_path, capsys) -> None:
+    """Issue #4342: Todo.rename() should be exposed through CLI."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename should be available as a command
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+
+    # Clear previous output
+    capsys.readouterr()
+
+    # Verify the rename worked
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_rejects_empty_text(tmp_path, capsys) -> None:
+    """Issue #4342: CLI rename command should reject empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Empty text should fail
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "cannot be empty" in captured.out or "cannot be empty" in captured.err
+
+
+def test_app_rename_updates_todo(tmp_path) -> None:
+    """Issue #4342: TodoApp.rename() should update todo text and timestamp."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    added = app.add("original")
+    original_updated_at = added.updated_at
+
+    # Small delay to ensure timestamp changes
+    import time
+    time.sleep(0.01)
+
+    renamed = app.rename(1, "renamed")
+    assert renamed.text == "renamed"
+    assert renamed.updated_at > original_updated_at
+
+    # Verify persistence
+    todos = app.list()
+    assert todos[0].text == "renamed"

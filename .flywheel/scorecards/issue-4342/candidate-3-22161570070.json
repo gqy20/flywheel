@@ -1,0 +1,25 @@
+{
+  "issue_number": 4342,
+  "candidate": 3,
+  "run_id": "22161570070",
+  "status": "implemented",
+  "approach": "Add CLI rename subcommand to expose existing Todo.rename() method",
+  "changes": {
+    "source_files": [
+      "src/flywheel/cli.py"
+    ],
+    "test_files": [
+      "tests/test_minimal_framework.py"
+    ],
+    "lines_added": 38,
+    "lines_removed": 0
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "verification": {
+    "test_command": "uv run pytest tests/test_minimal_framework.py -v",
+    "lint_command": "uv run ruff check src/flywheel/cli.py tests/test_minimal_framework.py",
+    "test_count": 13,
+    "tests_passed_count": 13
+  }
+}
