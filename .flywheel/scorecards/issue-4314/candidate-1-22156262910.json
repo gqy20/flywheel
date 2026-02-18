@@ -1,24 +1,23 @@
 {
-  "issue_number": 4314,
-  "issue_title": "[Bug] Todo.from_dict silently truncates float IDs to int via int() conversion",
-  "candidate_number": 1,
+  "issue": 4314,
+  "candidate": 1,
   "run_id": "22156262910",
-  "branch_name": "claude/issue-4314-candidate-1-22156262910",
-  "created_at": "2026-02-18T20:52:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py"
-    ]
-  },
-  "test_results": {
-    "passed": 16,
-    "failed": 0,
-    "total": 16
-  },
-  "approach": "Explicitly reject float IDs before int() conversion to prevent silent truncation",
-  "risks": "None - this is a stricter validation that rejects previously invalid data"
+  "branch": "claude/issue-4314-candidate-1-22156262910",
+  "pr_number": 4351,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4351",
+  "generated_at": "2026-02-18T21:02:23.866468+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2471,
+    "plan": 2900,
+    "implement": 1892,
+    "verify": 1590,
+    "finalize": 165
+  }
 }
