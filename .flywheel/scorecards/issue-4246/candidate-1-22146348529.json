@@ -18,6 +18,13 @@
   "tests_passed": 118,
   "tests_added": 6,
   "ruff_check": "passed",
+  "ruff_format": "passed",
+  "verification_commands": [
+    "uv run pytest tests/test_issue_4246_todo_comparison.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_4246_todo_comparison.py",
+    "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4246_todo_comparison.py",
+    "uv run pytest tests/ -v (full suite - 118 tests passed)"
+  ],
   "verification_targets": [
     "sorted([todo1, todo2]) works without TypeError",
     "Incomplete todos come before completed ones",
@@ -28,5 +35,5 @@
     "Low risk: Adding __lt__ is backwards-compatible",
     "Edge case of same timestamps handled with id tiebreaker"
   ],
-  "status": "ready_for_review"
+  "status": "verified"
 }
