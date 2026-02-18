@@ -55,9 +55,15 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._file_not_found_cached: bool = False
 
     def load(self) -> list[Todo]:
+        # Check cache for "file not found" case to avoid repeated filesystem checks
+        if self._file_not_found_cached:
+            return []
+
         if not self.path.exists():
+            self._file_not_found_cached = True
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -91,6 +97,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Invalidate the "file not found" cache since we're creating the file
+        self._file_not_found_cached = False
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
