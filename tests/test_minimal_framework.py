@@ -158,3 +158,23 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_positive_when_all_ids_are_negative() -> None:
+    """Bug #4244: next_id() should return positive ID even when all todos have negative IDs."""
+    storage = TodoStorage(":memory:")
+
+    # When todos list contains only negative IDs, next_id() should return 1
+    todos_with_negative = [Todo(id=-1, text="x"), Todo(id=-5, text="y")]
+    assert storage.next_id(todos_with_negative) == 1
+
+    # When todos list contains max ID 0, next_id() should return 1
+    todos_with_zero = [Todo(id=0, text="zero")]
+    assert storage.next_id(todos_with_zero) == 1
+
+    # When todos list is empty, next_id() should return 1
+    assert storage.next_id([]) == 1
+
+    # Normal case: positive IDs should still work correctly
+    todos_positive = [Todo(id=3, text="positive")]
+    assert storage.next_id(todos_positive) == 4
