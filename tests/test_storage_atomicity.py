@@ -151,6 +151,45 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_condition_in_ensure_parent_directory(tmp_path) -> None:
+    """Regression test for issue #4132: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that when the parent directory is created by another process between
+    the exists() check and mkdir(), the save operation still succeeds without
+    raising FileExistsError.
+
+    The fix uses exist_ok=True in mkdir() to handle concurrent directory creation.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path where parent already exists (simulating another process created it)
+    db_path = tmp_path / "existing_subdir" / "deep" / "db.json"
+    parent = db_path.parent
+
+    # Pre-create the parent directory
+    parent.mkdir(parents=True, exist_ok=True)
+
+    # Mock exists() to return False even though directory exists
+    # This simulates the TOCTOU race: exists() returned False, but directory
+    # was created between the check and the mkdir() call
+    with patch.object(Path, "exists", return_value=False):
+        # With exist_ok=False (the bug), this would raise FileExistsError
+        # With exist_ok=True (the fix), this should succeed
+        _ensure_parent_directory(db_path)
+
+    # Verify parent directory exists
+    assert parent.exists(), "Parent directory should exist after _ensure_parent_directory"
+
+    # Also verify that TodoStorage.save() works correctly
+    storage = TodoStorage(str(db_path))
+    todos = [Todo(id=1, text="test after race condition")]
+    storage.save(todos)  # Should not raise
+
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test after race condition"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
