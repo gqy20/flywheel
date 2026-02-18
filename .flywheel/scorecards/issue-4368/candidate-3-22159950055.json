@@ -1,0 +1,23 @@
+{
+  "issue_number": 4368,
+  "issue_title": "[Security] Final file permissions not set: only temp file gets restrictive mode 0o600, final file inherits umask",
+  "candidate_number": 3,
+  "run_id": "22159950055",
+  "branch_name": "claude/issue-4368-candidate-3-22159950055",
+  "created_at": "2026-02-18T23:00:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_4368_final_file_permissions.py"
+    ]
+  },
+  "summary": "Added explicit os.chmod() call after os.replace() to ensure final file has restrictive 0o600 permissions",
+  "tests_run": [
+    "tests/test_issue_4368_final_file_permissions.py",
+    "tests/test_issue_2027_permissions.py"
+  ],
+  "risks": "Minimal - adds a defensive chmod call that ensures permissions are correct regardless of platform behavior"
+}
