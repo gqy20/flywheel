@@ -119,3 +119,56 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4200 - non-dict array elements should raise clear ValueError
+def test_storage_load_rejects_int_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON array with integer elements."""
+    db = tmp_path / "int_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but elements are integers, not objects
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"expected an object|expected a dict|got int"):
+        storage.load()
+
+
+def test_storage_load_rejects_null_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON array with null elements."""
+    db = tmp_path / "null_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but elements are null, not objects
+    db.write_text("[null]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"expected an object|expected a dict|got NoneType"):
+        storage.load()
+
+
+def test_storage_load_rejects_string_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON array with string elements."""
+    db = tmp_path / "string_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but elements are strings, not objects
+    db.write_text('["task1", "task2"]', encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"expected an object|expected a dict|got str"):
+        storage.load()
+
+
+def test_storage_load_rejects_mixed_invalid_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON array with mixed invalid element types."""
+    db = tmp_path / "mixed_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but first element is an int, not an object
+    db.write_text('[1, {"id": 2, "text": "valid"}]', encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"expected an object|expected a dict|got int"):
+        storage.load()
