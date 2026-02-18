@@ -1,7 +1,9 @@
 {
   "issue_number": 4218,
+  "issue_title": "[Feature] 添加 Todo 实体的 copy/update 方法支持不可变式更新",
   "candidate_number": 3,
   "run_id": "22139783677",
+  "branch": "claude/issue-4218-candidate-3-22139783677",
   "triage_summary": {
     "root_cause": "Todo class only supports mutable in-place modification methods (mark_done, rename, etc.) without a copy_with pattern for immutable updates",
     "implementation": "Added copy_with(**changes) method using dataclasses.replace() with text validation matching rename() behavior",
@@ -10,13 +12,42 @@
       "updated_at must be set explicitly on the copy"
     ]
   },
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_4218_copy_with.py -v",
+      "outcome": "PASSED",
+      "tests_run": 8,
+      "tests_passed": 8,
+      "tests_failed": 0
+    },
+    "pytest_broader": {
+      "command": "uv run pytest tests/ -k 'todo' -v",
+      "outcome": "PASSED",
+      "tests_run": 35,
+      "tests_passed": 35,
+      "tests_failed": 0
+    },
+    "ruff_check_targeted": {
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4218_copy_with.py",
+      "outcome": "All checks passed"
+    },
+    "ruff_check_full": {
+      "command": "uv run ruff check src/flywheel/",
+      "outcome": "All checks passed"
+    }
+  },
   "files_changed": [
-    "src/flywheel/todo.py"
+    "src/flywheel/todo.py",
+    "tests/test_issue_4218_copy_with.py"
   ],
-  "tests_passed": [
-    "tests/test_issue_4218_copy_with.py (8 tests)",
-    "All existing tests (112 tests)"
+  "acceptance_criteria_met": [
+    "todo.copy_with(done=True) returns new Todo instance, original todo.done unchanged",
+    "New instance updated_at is auto-updated to current time",
+    "Supports updating any field (text, done, id, etc.)"
   ],
-  "linter_status": "passed",
-  "branch_name": "claude/issue-4218-candidate-3-22139783677"
+  "commit_hash": "c07896137f587e73c9a7d131b3b23f2b806735ef",
+  "pr_number": 4248,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4248",
+  "timestamp": "2026-02-18T13:16:25Z",
+  "status": "FINALIZED"
 }
