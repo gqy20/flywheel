@@ -1,32 +1,23 @@
 {
-  "issue_number": 4260,
-  "issue_title": "[Enhancement] Add __eq__ method for value-based equality comparison",
-  "candidate_number": 1,
+  "issue": 4260,
+  "candidate": 1,
   "run_id": "22150923071",
-  "branch_name": "claude/issue-4260-candidate-1-22150923071",
-  "created_at": "2026-02-18T18:17:00Z",
-  "implementation": {
-    "approach": "Added __eq__ method to Todo dataclass that compares id, text, and done fields only, excluding timestamps",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 54,
-    "lines_removed": 0
-  },
-  "tests": {
-    "test_file": "tests/test_minimal_framework.py",
-    "test_class": "TestTodoEquality",
-    "test_count": 6,
-    "all_passed": true
-  },
-  "checklist": {
-    "failing_test_first": true,
-    "minimal_fix": true,
-    "tests_pass": true,
-    "lint_pass": true,
-    "conventional_commit": true
-  },
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-4260-candidate-1-22150923071",
+  "pr_number": 4306,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4306",
+  "generated_at": "2026-02-18T18:21:40.871242+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2082,
+    "plan": 2703,
+    "implement": 2626,
+    "verify": 2068,
+    "finalize": 1102
+  }
 }
