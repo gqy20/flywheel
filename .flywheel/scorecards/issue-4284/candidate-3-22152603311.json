@@ -1,0 +1,17 @@
+{
+  "issue_number": 4284,
+  "candidate_number": 3,
+  "run_id": "22152603311",
+  "created_at": "2026-02-18T17:09:00Z",
+  "fix_summary": "Add validation in Todo.from_dict to ensure id >= 1, rejecting negative and zero values",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4284_todo_id_validation.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": 115,
+  "linting_passed": true,
+  "approach": "Validate id >= 1 in from_dict method after type conversion, raising ValueError with clear message",
+  "risks": "None - this is a strict validation that aligns with the expected behavior documented in the issue"
+}
