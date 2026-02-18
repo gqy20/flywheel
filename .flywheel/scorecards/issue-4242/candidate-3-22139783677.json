@@ -4,8 +4,9 @@
   "candidate": 3,
   "run_id": "22139783677",
   "branch": "claude/issue-4242-candidate-3-22139783677",
-  "status": "ready",
+  "status": "verified",
   "created_at": "2026-02-18T13:00:00Z",
+  "verified_at": "2026-02-18T13:15:00Z",
   "tests_passed": true,
   "linter_passed": true,
   "files_changed": [
@@ -16,6 +17,14 @@
   "test_coverage": {
     "new_tests": 6,
     "all_tests_passed": 118
+  },
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "pytest_outcome": "18 passed in 0.08s",
+    "full_test_command": "uv run pytest",
+    "full_test_outcome": "118 passed in 0.50s",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "ruff_outcome": "All checks passed!"
   },
   "risks": "None - strict validation only rejects invalid data that would have been silently corrupted before."
 }
