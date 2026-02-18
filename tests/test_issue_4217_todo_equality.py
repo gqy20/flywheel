@@ -100,4 +100,4 @@ def test_todo_not_equal_to_non_todo() -> None:
     assert todo != "not a todo"
     assert todo != 1
     assert todo != {"id": 1, "text": "buy milk", "done": False}
-    assert todo != None
+    assert todo is not None
