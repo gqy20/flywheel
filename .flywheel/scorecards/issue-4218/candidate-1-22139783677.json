@@ -1,33 +1,23 @@
 {
-  "issue_number": 4218,
-  "candidate_number": 1,
+  "issue": 4218,
+  "candidate": 1,
   "run_id": "22139783677",
-  "branch_name": "claude/issue-4218-candidate-1-22139783677",
-  "status": "verified",
-  "implementation_summary": "Added copy_with(**changes) method to Todo dataclass that returns a new Todo instance with specified field changes while preserving the original. Uses dataclasses.replace() internally and automatically updates the updated_at timestamp.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4218_copy_with.py"
+  "branch": "claude/issue-4218-candidate-1-22139783677",
+  "pr_number": 4251,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4251",
+  "generated_at": "2026-02-18T13:24:22.635579+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passed": true,
-  "linting_passed": true,
-  "acceptance_criteria_met": [
-    "todo.copy_with(done=True) returns new Todo instance",
-    "Original todo.done remains unchanged",
-    "New instance's updated_at is automatically updated",
-    "Supports updating any field (text, done)"
-  ],
-  "risks_limitations": [
-    "No validation on text field changes (allows empty text via copy_with, consistent with original constructor behavior)"
-  ],
-  "verification_summary": {
-    "pytest_command": "uv run pytest tests/test_issue_4218_copy_with.py -v",
-    "pytest_result": "6 passed in 0.07s",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4218_copy_with.py",
-    "ruff_check_result": "All checks passed!",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4218_copy_with.py",
-    "ruff_format_result": "2 files already formatted",
-    "full_test_suite": "118 passed in 0.76s"
+  "stage_response_sizes": {
+    "triage": 3079,
+    "plan": 3967,
+    "implement": 2085,
+    "verify": 2115,
+    "finalize": 1229
   }
 }
