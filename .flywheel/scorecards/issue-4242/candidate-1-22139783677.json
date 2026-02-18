@@ -1,98 +1,23 @@
 {
-  "issue_number": 4242,
-  "candidate_number": 1,
+  "issue": 4242,
+  "candidate": 1,
   "run_id": "22139783677",
-  "branch_name": "claude/issue-4242-candidate-1-22139783677",
-  "stage": "FINALIZE",
-  "verification_results": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_4242_timestamp_validation.py -v",
-      "result": "PASSED",
-      "test_count": 10,
-      "tests": [
-        "test_todo_from_dict_rejects_int_created_at",
-        "test_todo_from_dict_rejects_int_updated_at",
-        "test_todo_from_dict_rejects_list_created_at",
-        "test_todo_from_dict_rejects_dict_updated_at",
-        "test_todo_from_dict_rejects_float_created_at",
-        "test_todo_from_dict_rejects_bool_created_at",
-        "test_todo_from_dict_accepts_valid_iso_timestamp",
-        "test_todo_from_dict_accepts_none_created_at",
-        "test_todo_from_dict_accepts_empty_string_created_at",
-        "test_todo_from_dict_accepts_omitted_created_at"
-      ]
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ -v",
-      "result": "PASSED",
-      "test_count": 122
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4242_timestamp_validation.py",
-      "result": "PASSED"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4242_timestamp_validation.py",
-      "result": "PASSED"
-    }
-  },
-  "plan": {
-    "summary": "Fix from_dict str() coercion on timestamps to validate types and raise ValueError for non-string types",
-    "tdd_approach": "RED-GREEN-REFACTOR",
-    "files_to_modify": [
-      "tests/test_issue_4242_timestamp_validation.py",
-      "src/flywheel/todo.py"
-    ],
-    "implementation_sequence": [
-      {
-        "step": 1,
-        "phase": "RED",
-        "description": "Add failing regression tests for timestamp validation in from_dict",
-        "file": "tests/test_issue_2000_json_validation.py",
-        "tests": [
-          "test_todo_from_dict_rejects_int_timestamp",
-          "test_todo_from_dict_rejects_list_timestamp",
-          "test_todo_from_dict_rejects_dict_timestamp",
-          "test_todo_from_dict_accepts_valid_iso_string",
-          "test_todo_from_dict_accepts_empty_timestamp"
-        ]
-      },
-      {
-        "step": 2,
-        "phase": "GREEN",
-        "description": "Add timestamp validation helper and update from_dict",
-        "file": "src/flywheel/todo.py",
-        "changes": [
-          "Add _validate_timestamp helper function that validates timestamp is either empty string or a string type",
-          "Update from_dict to use _validate_timestamp for created_at and updated_at fields",
-          "Raise ValueError with clear message for non-string timestamp types"
-        ]
-      },
-      {
-        "step": 3,
-        "phase": "VERIFY",
-        "description": "Run targeted tests and linting",
-        "commands": [
-          "uv run pytest tests/test_issue_2000_json_validation.py -v",
-          "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
-        ]
-      }
-    ],
-    "acceptance_criteria": [
-      "Todo.from_dict raises ValueError when created_at is a non-string type (int, list, dict)",
-      "Todo.from_dict raises ValueError when updated_at is a non-string type (int, list, dict)",
-      "Todo.from_dict accepts empty/None for timestamps (allows them to be set by __post_init__)",
-      "Todo.from_dict accepts valid string timestamps unchanged",
-      "Clear error message indicating the invalid type"
-    ],
-    "risks_limitations": [
-      "Does not validate ISO format correctness (issue mentions optional stricter validation)",
-      "Only validates type, not format - empty strings or any string value will pass"
-    ]
-  },
-  "test_commands": [
-    "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "uv run ruff check src/flywheel/todo.py"
+  "branch": "claude/issue-4242-candidate-1-22139783677",
+  "pr_number": 4247,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4247",
+  "generated_at": "2026-02-18T13:23:53.652729+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "pr_ready": true
+  "stage_response_sizes": {
+    "triage": 2284,
+    "plan": 2780,
+    "implement": 2936,
+    "verify": 2352,
+    "finalize": 811
+  }
 }
