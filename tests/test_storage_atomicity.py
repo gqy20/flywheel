@@ -229,3 +229,79 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_read_modify_write_preserves_all_additions(tmp_path) -> None:
+    """Regression test for issue #4355: Race condition in load-modify-save pattern.
+
+    Tests that when multiple processes perform load-modify-save operations
+    (like add(), mark_done()), all modifications are preserved without data loss.
+
+    The race condition occurs when:
+    1. Process A loads todos []
+    2. Process B loads todos []
+    3. Process A adds todo #1 and saves [todo#1]
+    4. Process B adds todo #1 (same id!) and saves [todo#1] -- overwrites A's todo
+
+    This test verifies that with file locking, all additions are preserved.
+    """
+    import multiprocessing
+    import time
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a unique todo using the add() method."""
+        try:
+            app = TodoApp(db_path=str(db))
+            # Small stagger to increase race condition likelihood
+            time.sleep(0.001 * worker_id)
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, each adding a unique todo
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify that ALL todos were preserved (no data loss from race condition)
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+
+    # The key assertion: we should have exactly num_workers todos
+    # Without file locking, we'd typically lose some due to the race condition
+    assert len(final_todos) == num_workers, (
+        f"Race condition caused data loss! Expected {num_workers} todos, "
+        f"got {len(final_todos)}. This indicates the read-modify-write race "
+        f"condition is not being prevented."
+    )
+
+    # Verify all worker tasks are present (no duplicates, no missing)
+    texts = {todo.text for todo in final_todos}
+    expected_texts = {f"worker-{i}-task" for i in range(num_workers)}
+    assert texts == expected_texts, f"Missing or duplicate todos. Got: {texts}"

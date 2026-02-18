@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,46 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock file suffix for concurrent access protection
+_LOCK_SUFFIX = ".lock"
+
+
+@contextlib.contextmanager
+def _file_lock(lock_path: Path, exclusive: bool = True):
+    """Acquire an exclusive file lock for the given path.
+
+    Uses fcntl.flock (BSD/POSIX flock semantics) for advisory locking.
+    The lock is released automatically when the context manager exits.
+
+    Args:
+        lock_path: Path to the lock file
+        exclusive: If True, acquire exclusive lock; otherwise shared lock
+
+    Note:
+        On systems without fcntl (Windows), this is a no-op and provides
+        no synchronization. Windows users should avoid concurrent access.
+    """
+    lock_file = None
+    try:
+        # Ensure parent directory exists
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Open/create lock file
+        lock_file = open(lock_path, "w")  # noqa: SIM115
+
+        # Try to acquire the lock (non-blocking first, then blocking)
+        lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+        fcntl.flock(lock_file.fileno(), lock_type)
+
+        yield lock_file
+    finally:
+        if lock_file is not None:
+            try:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                lock_file.close()
+            except OSError:
+                pass
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +92,36 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Thread/Process Safety:
+        This class uses file locking (fcntl.flock) to prevent race conditions
+        in the read-modify-write pattern. Use atomic_read_modify_write() for
+        operations that need to load, modify, and save atomically.
+
+    Note:
+        File locking is only fully supported on Unix-like systems (Linux, macOS).
+        Windows users should avoid concurrent multi-process access.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    @property
+    def _lock_path(self) -> Path:
+        """Return the path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + _LOCK_SUFFIX)
+
+    def _acquire_lock(self, exclusive: bool = True):
+        """Acquire a file lock for this storage.
+
+        Args:
+            exclusive: If True, acquire exclusive lock; otherwise shared lock
+
+        Returns:
+            Context manager that holds the lock
+        """
+        return _file_lock(self._lock_path, exclusive=exclusive)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -123,6 +190,29 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def atomic_read_modify_write(self, modifier) -> None:
+        """Atomically perform a load-modify-save operation with file locking.
+
+        This prevents race conditions when multiple processes need to modify
+        the same data concurrently.
+
+        Args:
+            modifier: A callable that takes a list[Todo] and returns the
+                     modified list[Todo] to be saved.
+
+        Example:
+            def add_todo(todos):
+                new_id = max((t.id for t in todos), default=0) + 1
+                todos.append(Todo(id=new_id, text="New task"))
+                return todos
+
+            storage.atomic_read_modify_write(add_todo)
+        """
+        with self._acquire_lock(exclusive=True):
+            todos = self.load()
+            modified_todos = modifier(todos)
+            self.save(modified_todos)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

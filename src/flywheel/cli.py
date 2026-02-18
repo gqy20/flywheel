@@ -27,11 +27,18 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Track the created todo to return it
+        created_todo: Todo | None = None
+
+        def add_modifier(todos: list[Todo]) -> list[Todo]:
+            nonlocal created_todo
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            created_todo = todo
+            return todos
+
+        self.storage.atomic_read_modify_write(add_modifier)
+        return created_todo  # type: ignore[return-value]
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +47,46 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        # Track the found todo to return it
+        found_todo: Todo | None = None
+
+        def mark_done_modifier(todos: list[Todo]) -> list[Todo]:
+            nonlocal found_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    found_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_read_modify_write(mark_done_modifier)
+        return found_todo  # type: ignore[return-value]
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        # Track the found todo to return it
+        found_todo: Todo | None = None
+
+        def mark_undone_modifier(todos: list[Todo]) -> list[Todo]:
+            nonlocal found_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    found_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_read_modify_write(mark_undone_modifier)
+        return found_todo  # type: ignore[return-value]
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        def remove_modifier(todos: list[Todo]) -> list[Todo]:
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_read_modify_write(remove_modifier)
 
 
 def build_parser() -> argparse.ArgumentParser:
