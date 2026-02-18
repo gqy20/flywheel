@@ -1,0 +1,23 @@
+{
+  "issue_number": 4230,
+  "candidate_number": 3,
+  "run_id": "22137909823",
+  "branch": "claude/issue-4230-candidate-3-22137909823",
+  "status": "implemented",
+  "summary": "Fix from_dict silently truncating float IDs by validating that float values are integer-like before conversion",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Add validation to reject float IDs with non-zero decimals before int conversion"
+    },
+    {
+      "file": "tests/test_issue_2000_json_validation.py",
+      "change_type": "modified",
+      "description": "Add regression tests for float ID validation"
+    }
+  ],
+  "tests_added": 3,
+  "tests_passed": 15,
+  "linting_passed": true
+}
