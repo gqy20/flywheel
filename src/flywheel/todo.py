@@ -54,6 +54,48 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy_with(self, **kwargs) -> Todo:
+        """Create a copy of this Todo with specified fields updated.
+
+        Returns a new Todo instance with the specified fields updated.
+        Unspecified fields retain their original values.
+        The updated_at timestamp is automatically set to the current time.
+
+        Args:
+            **kwargs: Fields to update in the copy (e.g., text='new', done=True)
+
+        Returns:
+            A new Todo instance with the specified updates.
+
+        Raises:
+            ValueError: If text is provided and is empty or whitespace-only.
+
+        Example:
+            >>> todo = Todo(id=1, text="original", done=False)
+            >>> copy = todo.copy_with(text="updated", done=True)
+            >>> todo.text  # original unchanged
+            'original'
+            >>> copy.text
+            'updated'
+        """
+        # Validate text if provided
+        if "text" in kwargs:
+            text = kwargs["text"]
+            if isinstance(text, str):
+                text = text.strip()
+                if not text:
+                    raise ValueError("Todo text cannot be empty")
+                kwargs["text"] = text
+
+        # Always update the updated_at timestamp
+        kwargs["updated_at"] = _utc_now_iso()
+
+        # Create a copy of current values and update with kwargs
+        current = asdict(self)
+        current.update(kwargs)
+
+        return Todo(**current)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
