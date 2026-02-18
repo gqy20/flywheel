@@ -1,15 +1,23 @@
 {
-  "issue_number": 4258,
-  "candidate_number": 1,
+  "issue": 4258,
+  "candidate": 1,
   "run_id": "22148864911",
   "branch": "claude/issue-4258-candidate-1-22148864911",
-  "status": "implemented",
-  "tests_added": 3,
-  "tests_passed": 15,
-  "ruff_check": "passed",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 4290,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4290",
+  "generated_at": "2026-02-18T17:30:26.136585+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation_summary": "Added validation in Todo.from_dict to reject float values with fractional parts for the 'id' field. Floats that are whole numbers (like 1.0) are still accepted and converted to int."
+  "stage_response_sizes": {
+    "triage": 2348,
+    "plan": 3006,
+    "implement": 1987,
+    "verify": 1673,
+    "finalize": 1037
+  }
 }
