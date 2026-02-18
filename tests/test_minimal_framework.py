@@ -158,3 +158,40 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_empty_list_returns_1() -> None:
+    """Bug #4201: next_id([]) should return 1."""
+    storage = TodoStorage()
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_all_negative_ids_returns_positive() -> None:
+    """Bug #4201: next_id() with all negative IDs should return positive integer >= 1."""
+    storage = TodoStorage()
+
+    # When all IDs are negative, the result should still be >= 1
+    todos_negative = [Todo(id=-5, text="negative"), Todo(id=-3, text="also negative")]
+    result = storage.next_id(todos_negative)
+    assert result >= 1, f"Expected positive integer >= 1, got {result}"
+
+
+def test_next_id_with_max_negative_one_returns_positive() -> None:
+    """Bug #4201: next_id() with max ID of -1 should return 1 (not 0)."""
+    storage = TodoStorage()
+
+    # Edge case: max ID is -1, so -1 + 1 = 0, but should return 1
+    todos = [Todo(id=-2, text="a"), Todo(id=-1, text="b")]
+    result = storage.next_id(todos)
+    assert result >= 1, f"Expected positive integer >= 1, got {result}"
+
+
+def test_next_id_normal_positive_ids_increments_correctly() -> None:
+    """Verify normal positive IDs still work correctly."""
+    storage = TodoStorage()
+
+    # Normal case: max ID is 5, should return 6
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 6
