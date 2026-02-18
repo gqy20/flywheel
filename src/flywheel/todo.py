@@ -93,10 +93,15 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Use explicit None check instead of falsy check to preserve truthy values
+        # like empty strings that should trigger __post_init__ timestamp generation
+        created_at_raw = data.get("created_at")
+        updated_at_raw = data.get("updated_at")
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(created_at_raw) if created_at_raw is not None else "",
+            updated_at=str(updated_at_raw) if updated_at_raw is not None else "",
         )
