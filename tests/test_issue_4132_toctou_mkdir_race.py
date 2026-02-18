@@ -13,8 +13,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
