@@ -158,3 +158,32 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_id_with_gaps() -> None:
+    """Bug #4188: next_id should return smallest unused ID, not max+1."""
+    storage = TodoStorage(":memory:")  # Path doesn't matter for next_id
+
+    # When todos=[{id:1}, {id:5}], next_id should return 2 (not 6)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    assert storage.next_id(todos) == 2
+
+    # When todos=[{id:3}, {id:1}], next_id should return 2
+    todos = [Todo(id=3, text="c"), Todo(id=1, text="d")]
+    assert storage.next_id(todos) == 2
+
+    # When todos=[{id:1}, {id:2}, {id:3}], next_id should return 4
+    todos = [Todo(id=1, text="e"), Todo(id=2, text="f"), Todo(id=3, text="g")]
+    assert storage.next_id(todos) == 4
+
+
+def test_next_id_returns_1_when_empty_or_large_gap() -> None:
+    """Bug #4188: next_id should return 1 for empty list or when ID 1 is free."""
+    storage = TodoStorage(":memory:")
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Large ID starting point should return 1 (smallest unused)
+    todos = [Todo(id=1000000, text="large")]
+    assert storage.next_id(todos) == 1
