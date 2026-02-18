@@ -1,0 +1,15 @@
+{
+  "issue_number": 4300,
+  "candidate_number": 2,
+  "run_id": "22154762913",
+  "branch": "claude/issue-4300-candidate-2-22154762913",
+  "status": "ready_for_review",
+  "summary": "Fix validation in Todo.from_dict() to reject negative IDs",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": 115,
+  "ruff_check": "passed",
+  "implementation_notes": "Added validation after int conversion to check todo_id >= 0, raising ValueError with clear message for negative IDs"
+}
