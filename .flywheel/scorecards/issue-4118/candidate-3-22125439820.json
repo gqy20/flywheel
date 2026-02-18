@@ -1,0 +1,22 @@
+{
+  "issue_number": 4118,
+  "candidate": 3,
+  "run_id": "22125439820",
+  "summary": "Add 'rename' CLI command to expose Todo.rename() method",
+  "changes": {
+    "source_files": ["src/flywheel/cli.py"],
+    "test_files": ["tests/test_minimal_framework.py"],
+    "lines_added": 62,
+    "lines_removed": 0
+  },
+  "tests": {
+    "added": 3,
+    "passed": 13,
+    "failed": 0
+  },
+  "quality_checks": {
+    "ruff": "passed",
+    "coverage": "81%"
+  },
+  "approach": "Minimal implementation following existing patterns in cli.py for add/done/rm commands"
+}
