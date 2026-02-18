@@ -158,3 +158,50 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_rename_accepts_text_at_max_length() -> None:
+    """Issue #4259: Todo.rename() should accept text at exactly MAX_TEXT_LENGTH."""
+    todo = Todo(id=1, text="original")
+
+    # Text at exactly MAX_TEXT_LENGTH should be accepted
+    max_length = 10000
+    max_text = "x" * max_length
+    todo.rename(max_text)
+    assert todo.text == max_text
+
+
+def test_todo_rename_rejects_text_exceeding_max_length() -> None:
+    """Issue #4259: Todo.rename() should reject text longer than MAX_TEXT_LENGTH."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # Text exceeding MAX_TEXT_LENGTH should raise ValueError
+    max_length = 10000
+    too_long_text = "x" * (max_length + 1)
+    with pytest.raises(ValueError, match="Todo text cannot exceed 10000 characters"):
+        todo.rename(too_long_text)
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
+
+
+def test_todo_from_dict_accepts_text_at_max_length() -> None:
+    """Issue #4259: Todo.from_dict() should accept text at exactly MAX_TEXT_LENGTH."""
+    max_length = 10000
+    max_text = "y" * max_length
+
+    # Text at exactly MAX_TEXT_LENGTH should be accepted
+    todo = Todo.from_dict({"id": 1, "text": max_text})
+    assert todo.text == max_text
+
+
+def test_todo_from_dict_rejects_text_exceeding_max_length() -> None:
+    """Issue #4259: Todo.from_dict() should reject text longer than MAX_TEXT_LENGTH."""
+    max_length = 10000
+    too_long_text = "z" * (max_length + 1)
+
+    # Text exceeding MAX_TEXT_LENGTH should raise ValueError
+    with pytest.raises(ValueError, match="Todo text cannot exceed 10000 characters"):
+        Todo.from_dict({"id": 1, "text": too_long_text})
