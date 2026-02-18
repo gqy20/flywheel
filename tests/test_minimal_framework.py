@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_ignores_negative_and_zero_ids() -> None:
+    """Bug #4216: next_id should ignore non-positive IDs when computing max.
+
+    If todos contain negative or zero IDs (from corrupted data), next_id
+    should ignore them and return the max positive ID + 1, or 1 if no
+    positive IDs exist.
+    """
+    storage = TodoStorage()
+
+    # Test 1: next_id returns 1 for empty list
+    assert storage.next_id([]) == 1
+
+    # Test 2: next_id with mixed positive/negative/zero IDs - expect max(positive) + 1
+    todos_mixed = [
+        Todo(id=5, text="positive"),
+        Todo(id=-3, text="negative"),
+        Todo(id=0, text="zero"),
+    ]
+    assert storage.next_id(todos_mixed) == 6
+
+    # Test 3: next_id with only negative IDs - expect 1
+    todos_negative = [Todo(id=-5, text="neg1"), Todo(id=-1, text="neg2")]
+    assert storage.next_id(todos_negative) == 1
+
+    # Test 4: next_id with only zero ID - expect 1
+    todos_zero = [Todo(id=0, text="zero")]
+    assert storage.next_id(todos_zero) == 1
+
+    # Test 5: next_id with only positive IDs - expect max + 1
+    todos_positive = [Todo(id=3, text="a"), Todo(id=7, text="b")]
+    assert storage.next_id(todos_positive) == 8
