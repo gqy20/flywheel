@@ -1,0 +1,29 @@
+{
+  "issue_number": 4256,
+  "candidate_number": 3,
+  "run_id": "22148864911",
+  "branch": "claude/issue-4256-candidate-3-22148864911",
+  "created_at": "2026-02-18T15:30:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_4256_empty_text_validation.py"],
+    "lines_added": 121,
+    "lines_removed": 0
+  },
+  "tests": {
+    "total": 129,
+    "passed": 129,
+    "failed": 0
+  },
+  "lint": {
+    "status": "passed"
+  },
+  "validation_criteria": [
+    {"criterion": "Todo(id=1, text='') raises ValueError", "status": "passed"},
+    {"criterion": "Todo(id=1, text=' ') raises ValueError", "status": "passed"},
+    {"criterion": "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError", "status": "passed"},
+    {"criterion": "Todo.from_dict({'id': 1, 'text': ' '}) raises ValueError", "status": "passed"},
+    {"criterion": "Valid text with leading/trailing whitespace is preserved", "status": "passed"}
+  ]
+}
