@@ -158,3 +158,56 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestTodoEquality:
+    """Tests for Todo.__eq__ value-based equality comparison (Issue #4260)."""
+
+    def test_equal_todos_compare_equal(self) -> None:
+        """Todos with same id, text, done should be equal."""
+        todo1 = Todo(id=1, text="a")
+        todo2 = Todo(id=1, text="a")
+        assert todo1 == todo2
+
+    def test_equal_todos_with_done_true(self) -> None:
+        """Todos with same id, text, done=True should be equal."""
+        todo1 = Todo(id=1, text="a", done=True)
+        todo2 = Todo(id=1, text="a", done=True)
+        assert todo1 == todo2
+
+    def test_different_id_todos_compare_unequal(self) -> None:
+        """Todos with different id should not be equal."""
+        todo1 = Todo(id=1, text="a")
+        todo2 = Todo(id=2, text="a")
+        assert todo1 != todo2
+
+    def test_different_text_todos_compare_unequal(self) -> None:
+        """Todos with different text should not be equal."""
+        todo1 = Todo(id=1, text="a")
+        todo2 = Todo(id=1, text="b")
+        assert todo1 != todo2
+
+    def test_different_done_todos_compare_unequal(self) -> None:
+        """Todos with different done status should not be equal."""
+        todo1 = Todo(id=1, text="a", done=False)
+        todo2 = Todo(id=1, text="a", done=True)
+        assert todo1 != todo2
+
+    def test_comparison_with_non_todo_returns_false(self) -> None:
+        """Comparison with non-Todo should return False (not raise)."""
+        todo = Todo(id=1, text="a")
+        assert todo != "not a todo"
+        assert todo != 1
+        assert (todo == None) is False  # noqa: E711
+        assert todo != {"id": 1, "text": "a"}
+
+    def test_equality_ignores_timestamps(self) -> None:
+        """Equality should not depend on timestamps."""
+        import time
+
+        todo1 = Todo(id=1, text="a")
+        time.sleep(0.01)  # Ensure different timestamp
+        todo2 = Todo(id=1, text="a")
+        # Timestamps will differ, but todos should be equal
+        assert todo1.created_at != todo2.created_at
+        assert todo1 == todo2
