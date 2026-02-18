@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_finds_smallest_available_id_with_gaps() -> None:
+    """Bug #4188: next_id should return smallest available ID, not max+1."""
+    storage = TodoStorage("/dev/null")
+
+    # When there are gaps, should fill the smallest hole
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    assert storage.next_id(todos) == 2
+
+    # When IDs are out of order
+    todos = [Todo(id=3, text="c"), Todo(id=1, text="a")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_returns_1_when_smallest_id_is_large() -> None:
+    """Bug #4188: next_id should return 1 if no smaller IDs exist."""
+    storage = TodoStorage("/dev/null")
+
+    # When smallest existing ID is large, should return 1
+    todos = [Todo(id=1000000, text="big")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_continues_after_sequential_ids() -> None:
+    """Bug #4188: next_id should still work correctly with sequential IDs."""
+    storage = TodoStorage("/dev/null")
+
+    # Sequential IDs should continue the sequence
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #4188: next_id should return 1 for empty list."""
+    storage = TodoStorage("/dev/null")
+
+    assert storage.next_id([]) == 1
