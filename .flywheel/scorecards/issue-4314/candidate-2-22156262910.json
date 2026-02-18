@@ -1,21 +1,23 @@
 {
-  "issue_number": 4314,
-  "candidate_number": 2,
+  "issue": 4314,
+  "candidate": 2,
   "run_id": "22156262910",
   "branch": "claude/issue-4314-candidate-2-22156262910",
-  "created_at": "2026-02-18T20:55:00Z",
-  "status": "ready",
-  "test_results": {
-    "total": 113,
-    "passed": 113,
-    "failed": 0
-  },
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 4352,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4352",
+  "generated_at": "2026-02-18T21:04:14.550947+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "approach": "Explicitly reject non-integer float IDs with a clear ValueError, while still accepting integer-valued floats like 2.0 for backward compatibility",
-  "risks": [
-    "Breaking change for clients relying on float ID truncation (unlikely intentional behavior)"
-  ]
+  "stage_response_sizes": {
+    "triage": 2100,
+    "plan": 2525,
+    "implement": 3034,
+    "verify": 2099,
+    "finalize": 1062
+  }
 }
