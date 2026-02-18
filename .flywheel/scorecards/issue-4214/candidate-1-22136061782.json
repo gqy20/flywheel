@@ -1,0 +1,28 @@
+{
+  "issue_number": 4214,
+  "candidate_number": 1,
+  "run_id": "22136061782",
+  "branch_name": "claude/issue-4214-candidate-1-22136061782",
+  "status": "plan_complete",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_2000_json_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "approach": "Add validation in Todo.from_dict to ensure 'id' is a positive integer after int conversion",
+    "tdd_sequence": [
+      "RED: Add test_todo_from_dict_rejects_negative_id",
+      "RED: Add test_todo_from_dict_rejects_zero_id",
+      "GREEN: Add validation: if todo_id <= 0: raise ValueError"
+    ]
+  },
+  "tests_added": [
+    "test_todo_from_dict_rejects_negative_id",
+    "test_todo_from_dict_rejects_zero_id"
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
+  ],
+  "created_at": "2026-02-18T10:55:00Z"
+}
