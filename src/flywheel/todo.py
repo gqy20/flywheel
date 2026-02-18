@@ -93,10 +93,28 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'created_at' and 'updated_at' are strings (or missing/empty)
+        # Reject: int, float, dict, list, or other non-string types
+        created_at = data.get("created_at")
+        if created_at is not None and not isinstance(created_at, str):
+            raise ValueError(
+                f"Invalid value for 'created_at': {created_at!r}. "
+                "'created_at' must be a string."
+            )
+        created_at = created_at or ""
+
+        updated_at = data.get("updated_at")
+        if updated_at is not None and not isinstance(updated_at, str):
+            raise ValueError(
+                f"Invalid value for 'updated_at': {updated_at!r}. "
+                "'updated_at' must be a string."
+            )
+        updated_at = updated_at or ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
