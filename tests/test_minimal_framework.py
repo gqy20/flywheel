@@ -158,3 +158,62 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_unique_id_with_duplicates(tmp_path) -> None:
+    """Bug #4145: next_id() should return a unique ID even with duplicate IDs.
+
+    When the storage contains duplicate IDs (e.g., due to data corruption or
+    manual editing), next_id() should still return an ID that doesn't collide
+    with any existing ID.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with duplicate IDs (simulating data corruption)
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=1, text="duplicate of first"),
+        Todo(id=2, text="second"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 3, not a duplicate of 1 or 2
+    new_id = storage.next_id(loaded)
+    assert new_id == 3
+    # Verify the new ID doesn't exist in the set of existing IDs
+    existing_ids = {todo.id for todo in loaded}
+    assert new_id not in existing_ids
+
+
+def test_next_id_fills_gaps_in_id_sequence(tmp_path) -> None:
+    """Bug #4145: next_id() should fill gaps in ID sequences.
+
+    When IDs have gaps (e.g., after deletion), next_id() should return
+    the first available positive integer that isn't used.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs
+    todos = [
+        Todo(id=5, text="fifth"),
+        Todo(id=10, text="tenth"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 1, the first available positive integer
+    new_id = storage.next_id(loaded)
+    assert new_id == 1
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #4145: next_id() should return 1 for an empty list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty storage
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 1
