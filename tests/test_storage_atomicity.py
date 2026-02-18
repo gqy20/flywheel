@@ -229,3 +229,36 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_works_without_fchmod_for_windows_compatibility(tmp_path) -> None:
+    """Regression test for issue #4202: save() should work on Windows.
+
+    On Windows, os.fchmod does not exist. The save() method should gracefully
+    skip the permission setting step when os.fchmod is unavailable.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test on windows")]
+
+    # Simulate Windows environment where os.fchmod does not exist
+    import os
+
+    original_fchmod = getattr(os, "fchmod", None)
+    try:
+        # Remove fchmod to simulate Windows
+        if hasattr(os, "fchmod"):
+            delattr(os, "fchmod")
+
+        # This should NOT raise AttributeError
+        storage.save(todos)
+
+        # Verify the save worked correctly
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test on windows"
+    finally:
+        # Restore fchmod if it existed
+        if original_fchmod is not None:
+            os.fchmod = original_fchmod
