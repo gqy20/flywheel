@@ -1,0 +1,21 @@
+{
+  "issue_number": 4242,
+  "issue_title": "[Bug] from_dict str() coercion on timestamps may silently corrupt data",
+  "candidate": 3,
+  "run_id": "22139783677",
+  "branch": "claude/issue-4242-candidate-3-22139783677",
+  "status": "ready",
+  "created_at": "2026-02-18T13:00:00Z",
+  "tests_passed": true,
+  "linter_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Fixed from_dict str() coercion on timestamps by validating that created_at and updated_at are strings (or empty/None) before assignment, raising ValueError for invalid types.",
+  "test_coverage": {
+    "new_tests": 6,
+    "all_tests_passed": 118
+  },
+  "risks": "None - strict validation only rejects invalid data that would have been silently corrupted before."
+}

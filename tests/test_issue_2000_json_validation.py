@@ -119,3 +119,54 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4242 - validate timestamp fields are strings or empty
+def test_todo_from_dict_rejects_int_created_at() -> None:
+    """Todo.from_dict should reject integer for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": 123456789})
+
+
+def test_todo_from_dict_rejects_list_created_at() -> None:
+    """Todo.from_dict should reject list for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": []})
+
+
+def test_todo_from_dict_rejects_dict_created_at() -> None:
+    """Todo.from_dict should reject dict for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": {}})
+
+
+def test_todo_from_dict_rejects_int_updated_at() -> None:
+    """Todo.from_dict should reject integer for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": 987654321})
+
+
+def test_todo_from_dict_accepts_valid_iso_string_timestamps() -> None:
+    """Todo.from_dict should accept valid ISO format strings for timestamps."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "task",
+        "created_at": "2024-01-15T10:30:00+00:00",
+        "updated_at": "2024-01-16T14:45:00+00:00",
+    })
+    assert todo.created_at == "2024-01-15T10:30:00+00:00"
+    assert todo.updated_at == "2024-01-16T14:45:00+00:00"
+
+
+def test_todo_from_dict_accepts_empty_timestamps() -> None:
+    """Todo.from_dict should accept None or empty string for timestamps."""
+    # None values are treated as empty
+    todo_none = Todo.from_dict({"id": 1, "text": "task", "created_at": None, "updated_at": None})
+    # __post_init__ will set timestamps since they're empty
+    assert todo_none.created_at != ""
+    assert todo_none.updated_at != ""
+
+    # Empty string values
+    todo_empty = Todo.from_dict({"id": 2, "text": "task", "created_at": "", "updated_at": ""})
+    assert todo_empty.created_at != ""
+    assert todo_empty.updated_at != ""
