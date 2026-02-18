@@ -1,27 +1,23 @@
 {
-  "issue_number": 4299,
-  "candidate_number": 2,
+  "issue": 4299,
+  "candidate": 2,
   "run_id": "22154762913",
   "branch": "claude/issue-4299-candidate-2-22154762913",
-  "status": "implemented",
-  "created_at": "2026-02-18T18:10:00Z",
-  "summary": "Fixed from_dict() to validate empty and whitespace-only text strings",
-  "tests_added": 3,
-  "tests_passed": 115,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 4331,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4331",
+  "generated_at": "2026-02-18T20:15:09.576755+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "approach": {
-    "description": "Added text validation in from_dict() method to strip whitespace and reject empty strings, consistent with rename() and CLI add() methods",
-    "changes": [
-      "Strip whitespace from text field after string validation",
-      "Raise ValueError with 'cannot be empty' message for empty/whitespace-only text",
-      "Store stripped text in the Todo object"
-    ]
-  },
-  "risks": {
-    "breaking_change": false,
-    "description": "This is a validation enhancement that rejects previously accepted invalid data. Data that was already valid will continue to work."
+  "stage_response_sizes": {
+    "triage": 2854,
+    "plan": 3475,
+    "implement": 2151,
+    "verify": 3207,
+    "finalize": 1148
   }
 }
