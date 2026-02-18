@@ -66,11 +66,25 @@ class Todo:
             raise ValueError("Missing required field 'text' in todo data")
 
         # Validate 'id' is an integer (or can be converted to one)
+        raw_id = data["id"]
+
+        # Reject bool explicitly (bool is subclass of int in Python)
+        if isinstance(raw_id, bool):
+            raise ValueError(
+                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer, not bool."
+            )
+
+        # Reject float with fractional part (e.g., 1.9 -> should not truncate to 1)
+        if isinstance(raw_id, float) and not raw_id.is_integer():
+            raise ValueError(
+                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer, not float."
+            )
+
         try:
-            todo_id = int(data["id"])
+            todo_id = int(raw_id)
         except (ValueError, TypeError) as e:
             raise ValueError(
-                f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
+                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer."
             ) from e
 
         # Validate 'text' is a string
