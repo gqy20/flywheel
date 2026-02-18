@@ -1,0 +1,21 @@
+{
+  "issue_number": 4246,
+  "candidate": 3,
+  "run_id": "22146348529",
+  "status": "implemented",
+  "summary": "Add __lt__ method to Todo class for sorting support",
+  "tests_passed": 118,
+  "tests_added": 6,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4246_todo_comparison.py"
+  ],
+  "implementation_details": {
+    "approach": "Added __lt__ method to Todo dataclass that sorts undone todos before done todos, with secondary sort by created_at timestamp",
+    "lines_changed": 12
+  },
+  "verification": {
+    "pytest": "passed",
+    "ruff": "passed"
+  }
+}

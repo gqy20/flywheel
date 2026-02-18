@@ -39,6 +39,21 @@ class Todo:
         if not self.updated_at:
             self.updated_at = self.created_at
 
+    def __lt__(self, other: Todo) -> bool:
+        """Compare todos for sorting.
+
+        Sorting order:
+        1. Undone todos come before done todos
+        2. Within same status, earlier created_at comes first
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        # Undone (done=False) comes before done (done=True)
+        if self.done != other.done:
+            return not self.done
+        # Same done status: compare by created_at
+        return self.created_at < other.created_at
+
     def mark_done(self) -> None:
         self.done = True
         self.updated_at = _utc_now_iso()
