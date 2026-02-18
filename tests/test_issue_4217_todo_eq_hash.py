@@ -21,8 +21,20 @@ def test_todo_eq_same_business_fields() -> None:
 
 def test_todo_eq_ignores_timestamps() -> None:
     """Equality should ignore created_at and updated_at differences."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00+00:00", updated_at="2024-01-01T00:00:00+00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-12-31T23:59:59+00:00", updated_at="2024-12-31T23:59:59+00:00")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00+00:00",
+        updated_at="2024-01-01T00:00:00+00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-12-31T23:59:59+00:00",
+        updated_at="2024-12-31T23:59:59+00:00",
+    )
     assert todo1 == todo2
 
 
