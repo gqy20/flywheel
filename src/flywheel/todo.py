@@ -20,6 +20,23 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Two Todo objects are equal if they have the same id.
+
+        This allows for semantic equality where two todos with the same id
+        are considered the same todo, regardless of other field values.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash based on id for set/dict operations.
+
+        This is consistent with __eq__: todos with the same id hash the same.
+        """
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
