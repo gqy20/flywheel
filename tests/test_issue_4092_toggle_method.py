@@ -2,15 +2,12 @@
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
 def test_toggle_changes_done_from_false_to_true() -> None:
     """toggle() should change done=False to done=True."""
     todo = Todo(id=1, text="test", done=False)
-    original_updated_at = todo.updated_at
 
     todo.toggle()
 
@@ -20,7 +17,6 @@ def test_toggle_changes_done_from_false_to_true() -> None:
 def test_toggle_changes_done_from_true_to_false() -> None:
     """toggle() should change done=True to done=False."""
     todo = Todo(id=1, text="test", done=True)
-    original_updated_at = todo.updated_at
 
     todo.toggle()
 
