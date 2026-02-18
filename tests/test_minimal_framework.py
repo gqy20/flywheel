@@ -158,3 +158,23 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_positive_when_todos_have_negative_ids() -> None:
+    """Bug #4340: next_id should return >= 1 even when existing IDs are negative."""
+    storage = TodoStorage(":memory:")
+
+    # When todos have negative IDs, next_id should return >= 1
+    todos = [Todo(id=-5, text="negative id")]
+    next_id = storage.next_id(todos)
+    assert next_id >= 1, f"Expected next_id >= 1, got {next_id}"
+
+
+def test_next_id_returns_positive_when_todos_have_zero_id() -> None:
+    """Bug #4340: next_id should return >= 1 even when existing ID is zero."""
+    storage = TodoStorage(":memory:")
+
+    # When todos have ID 0, next_id should return >= 1
+    todos = [Todo(id=0, text="zero id")]
+    next_id = storage.next_id(todos)
+    assert next_id >= 1, f"Expected next_id >= 1, got {next_id}"
