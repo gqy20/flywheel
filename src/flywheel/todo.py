@@ -54,6 +54,37 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy_with(
+        self,
+        *,
+        id: int | None = None,
+        text: str | None = None,
+        done: bool | None = None,
+        created_at: str | None = None,
+    ) -> Todo:
+        """Return a new Todo instance with specified fields updated.
+
+        This method provides an immutable-style update pattern, creating a new
+        Todo instance while preserving the original object unchanged.
+
+        Args:
+            id: New id value (optional, defaults to current value)
+            text: New text value (optional, defaults to current value)
+            done: New done status (optional, defaults to current value)
+            created_at: New created_at timestamp (optional, defaults to current value)
+
+        Returns:
+            A new Todo instance with specified fields updated and updated_at set
+            to the current time.
+        """
+        return Todo(
+            id=id if id is not None else self.id,
+            text=text if text is not None else self.text,
+            done=done if done is not None else self.done,
+            created_at=created_at if created_at is not None else self.created_at,
+            updated_at=_utc_now_iso(),
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 

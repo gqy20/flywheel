@@ -158,3 +158,66 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_copy_with_modifies_text_and_original_unchanged() -> None:
+    """Issue #4162: copy_with should return new Todo with modified text, original unchanged."""
+    todo = Todo(id=1, text="original", done=False)
+    original_updated_at = todo.updated_at
+
+    # Call copy_with to modify text
+    new_todo = todo.copy_with(text="new text")
+
+    # Original todo should remain unchanged
+    assert todo.text == "original"
+    assert todo.done is False
+    assert todo.updated_at == original_updated_at
+
+    # New todo should have the new text
+    assert new_todo.text == "new text"
+    assert new_todo.id == 1  # id preserved
+    assert new_todo.done is False  # done preserved
+    assert new_todo.updated_at > original_updated_at  # updated_at updated
+
+
+def test_todo_copy_with_modifies_multiple_fields() -> None:
+    """Issue #4162: copy_with should allow modifying multiple fields at once."""
+    todo = Todo(id=1, text="original", done=False)
+    original_updated_at = todo.updated_at
+
+    # Modify both text and done
+    new_todo = todo.copy_with(text="modified", done=True)
+
+    # Original unchanged
+    assert todo.text == "original"
+    assert todo.done is False
+
+    # New has both changes
+    assert new_todo.text == "modified"
+    assert new_todo.done is True
+    assert new_todo.updated_at > original_updated_at
+
+
+def test_todo_copy_with_no_args_updates_only_timestamp() -> None:
+    """Issue #4162: copy_with with no args returns copy with updated_at refreshed."""
+    import time
+
+    todo = Todo(id=1, text="test", done=True, created_at="2024-01-01T00:00:00+00:00")
+    original_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp difference
+    time.sleep(0.01)
+
+    new_todo = todo.copy_with()
+
+    # All field values preserved
+    assert new_todo.id == todo.id
+    assert new_todo.text == todo.text
+    assert new_todo.done == todo.done
+    assert new_todo.created_at == todo.created_at
+
+    # But updated_at should be newer
+    assert new_todo.updated_at > original_updated_at
+
+    # Original unchanged
+    assert todo.updated_at == original_updated_at
