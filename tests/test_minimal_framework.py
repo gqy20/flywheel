@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_negative_id_returns_positive() -> None:
+    """Bug #4609: next_id should return positive ID when storage has negative IDs."""
+    storage = TodoStorage("/tmp/test.json")
+    # When all IDs are negative, next_id should return 1
+    todos = [Todo(id=-5, text="x")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_non_contiguous_ids_returns_next() -> None:
+    """Bug #4609: next_id should return max + 1 for non-contiguous IDs."""
+    storage = TodoStorage("/tmp/test.json")
+    # When IDs are non-contiguous, next_id should return max + 1
+    todos = [Todo(id=1, text="x"), Todo(id=100, text="y")]
+    assert storage.next_id(todos) == 101
+
+
+def test_next_id_with_mixed_positive_negative_ids() -> None:
+    """Bug #4609: next_id should ignore negative IDs and return max positive + 1."""
+    storage = TodoStorage("/tmp/test.json")
+    # Mixed positive and negative IDs - should return max positive + 1
+    todos = [Todo(id=-10, text="a"), Todo(id=5, text="b"), Todo(id=-3, text="c")]
+    assert storage.next_id(todos) == 6
+
+
+def test_next_id_with_all_negative_ids_returns_1() -> None:
+    """Bug #4609: next_id should return 1 when all IDs are negative."""
+    storage = TodoStorage("/tmp/test.json")
+    # Multiple negative IDs - should return 1
+    todos = [Todo(id=-1, text="a"), Todo(id=-2, text="b"), Todo(id=-100, text="c")]
+    assert storage.next_id(todos) == 1
