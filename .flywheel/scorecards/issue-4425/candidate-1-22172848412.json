@@ -1,0 +1,16 @@
+{
+  "issue_number": 4425,
+  "candidate_number": 1,
+  "run_id": "22172848412",
+  "status": "ready",
+  "created_at": "2026-02-19T06:00:00Z",
+  "tests_added": 6,
+  "tests_passed": 118,
+  "tests_failed": 0,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_4425_todo_construction_text_validation.py"
+  ],
+  "implementation_notes": "Added text validation in __post_init__ to strip whitespace and reject empty/whitespace-only text, consistent with rename() method behavior."
+}
