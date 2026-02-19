@@ -1,0 +1,21 @@
+{
+  "issue_number": 4452,
+  "candidate_number": 1,
+  "run_id": "22178085145",
+  "branch_name": "claude/issue-4452-candidate-1-22178085145",
+  "commit_sha": "3bb5c96",
+  "created_at": "2026-02-19T08:05:00Z",
+  "status": "implemented",
+  "tests_added": 5,
+  "tests_passed": 15,
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "fix_summary": "Fixed next_id() to filter for positive IDs only, ensuring it always returns a value >= 1",
+  "acceptance_criteria_met": [
+    "When todos contains only negative IDs, next_id() returns 1",
+    "When todos contains [id=1, id=-5, id=0], next_id() returns 2",
+    "next_id() never returns a value <= 0"
+  ]
+}
