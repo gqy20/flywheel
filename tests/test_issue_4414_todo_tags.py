@@ -121,9 +121,7 @@ class TestCliTagFilter:
         assert "Work task" not in captured.out
         assert "Personal task" not in captured.out
 
-    def test_cli_list_tag_filter_combines_with_pending(
-        self, tmp_path, capsys
-    ) -> None:
+    def test_cli_list_tag_filter_combines_with_pending(self, tmp_path, capsys) -> None:
         """--tag should combine with --pending filter."""
         db = tmp_path / "test.json"
         storage = TodoStorage(str(db))
@@ -136,9 +134,7 @@ class TestCliTagFilter:
         storage.save(todos)
 
         parser = build_parser()
-        args = parser.parse_args(
-            ["--db", str(db), "list", "--pending", "--tag", "work"]
-        )
+        args = parser.parse_args(["--db", str(db), "list", "--pending", "--tag", "work"])
         result = run_command(args)
 
         assert result == 0

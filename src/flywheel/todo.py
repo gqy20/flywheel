@@ -99,11 +99,7 @@ class Todo:
 
         # Parse tags field - accept list or tuple, default to empty tuple
         raw_tags = data.get("tags", ())
-        tags = (
-            tuple(str(tag) for tag in raw_tags)
-            if isinstance(raw_tags, (list, tuple))
-            else ()
-        )
+        tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, (list, tuple)) else ()
 
         return cls(
             id=todo_id,
