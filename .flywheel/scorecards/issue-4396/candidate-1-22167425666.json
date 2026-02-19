@@ -1,0 +1,33 @@
+{
+  "issue_number": 4396,
+  "issue_title": "[Bug] Todo.from_dict accepts negative id values without validation",
+  "candidate_number": 1,
+  "run_id": "22167425666",
+  "branch": "claude/issue-4396-candidate-1-22167425666",
+  "status": "implemented",
+  "created_at": "2026-02-19T01:20:00Z",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "lines_added": 19,
+    "lines_removed": 0
+  },
+  "tests": {
+    "added": [
+      "test_todo_from_dict_rejects_negative_id",
+      "test_todo_from_dict_rejects_negative_large_id",
+      "test_todo_from_dict_accepts_zero_id",
+      "test_todo_from_dict_accepts_positive_id"
+    ],
+    "passed": 116,
+    "failed": 0
+  },
+  "checklist": {
+    "test_file_changed": true,
+    "source_file_changed": true,
+    "tests_pass": true,
+    "ruff_check_pass": true
+  }
+}
