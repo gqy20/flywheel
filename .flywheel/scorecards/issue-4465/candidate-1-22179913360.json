@@ -1,0 +1,29 @@
+{
+  "issue_number": 4465,
+  "candidate_number": 1,
+  "run_id": "22179913360",
+  "branch_name": "claude/issue-4465-candidate-1-22179913360",
+  "created_at": "2026-02-19T09:15:00Z",
+  "triage_summary": {
+    "root_cause": "CLI missing rename command while Todo model has rename() method",
+    "affected_files": ["src/flywheel/cli.py"],
+    "risk_level": "low",
+    "change_scope": "feature addition following existing patterns"
+  },
+  "changes": {
+    "source_files": ["src/flywheel/cli.py"],
+    "test_files": ["tests/test_minimal_framework.py"],
+    "lines_added": 45,
+    "lines_modified": 0
+  },
+  "verification": {
+    "tests_added": 2,
+    "tests_passed": 12,
+    "ruff_check": "passed"
+  },
+  "acceptance_criteria_met": [
+    "python -m flywheel.cli rename 1 \"new text\" outputs 'Renamed #1: new text'",
+    "Missing ID returns 'not found' error",
+    "Empty text returns validation error from model layer"
+  ]
+}
