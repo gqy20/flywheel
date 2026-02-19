@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id_cache: dict[int, int] = {}  # cache by id(todos) -> max_id
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +126,18 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID for a new todo.
+
+        Uses a cache to avoid O(n) traversal on repeated calls with the same list.
+        The cache is keyed by id(todos) to detect list identity changes.
+        """
+        if not todos:
+            return 1
+
+        list_id = id(todos)
+        if list_id in self._max_id_cache:
+            return self._max_id_cache[list_id] + 1
+
+        max_id = max((todo.id for todo in todos), default=0)
+        self._max_id_cache[list_id] = max_id
+        return max_id + 1
