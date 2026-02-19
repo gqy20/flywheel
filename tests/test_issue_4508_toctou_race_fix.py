@@ -166,3 +166,52 @@ def test_existing_parent_directory_is_fine(tmp_path) -> None:
     # Parent should still exist and be a directory
     assert db_path.parent.exists()
     assert db_path.parent.is_dir()
+
+
+def test_no_toctou_pattern_exists_followed_by_is_dir() -> None:
+    """Issue #4508: Verify no TOCTOU pattern 'exists() and not is_dir()' in source code.
+
+    The fix should eliminate the TOCTOU race by using is_dir() directly instead of
+    the pattern 'part.exists() and not part.is_dir()' which creates a race window
+    between the two system calls.
+    """
+    import ast
+    import inspect
+
+    source = inspect.getsource(_ensure_parent_directory)
+    tree = ast.parse(source)
+
+    class TOCTOUChecker(ast.NodeVisitor):
+        def __init__(self):
+            self.has_toctou_pattern = False
+            self.toctou_locations = []
+
+        def visit_BoolOp(self, node):
+            """Check for 'exists() and not is_dir()' pattern."""
+            if isinstance(node.op, ast.And):
+                for i, value in enumerate(node.values):
+                    # Check for call to .exists()
+                    if isinstance(value, ast.Call):
+                        if isinstance(value.func, ast.Attribute):
+                            if value.func.attr == "exists":
+                                # Check if another value is "not .is_dir()"
+                                for other_value in node.values:
+                                    if isinstance(other_value, ast.UnaryOp):
+                                        if isinstance(other_value.op, ast.Not):
+                                            if isinstance(other_value.operand, ast.Call):
+                                                if isinstance(
+                                                    other_value.operand.func, ast.Attribute
+                                                ):
+                                                    if other_value.operand.func.attr == "is_dir":
+                                                        self.has_toctou_pattern = True
+                                                        self.toctou_locations.append(node.lineno)
+            self.generic_visit(node)
+
+    checker = TOCTOUChecker()
+    checker.visit(tree)
+
+    assert not checker.has_toctou_pattern, (
+        f"TOCTOU race condition pattern found at lines {checker.toctou_locations}: "
+        "'exists() and not is_dir()' creates a race window between two system calls. "
+        "Use 'not is_dir()' directly instead, since is_dir() returns False for non-existent paths."
+    )

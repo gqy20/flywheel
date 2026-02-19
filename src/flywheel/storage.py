@@ -40,8 +40,10 @@ def _ensure_parent_directory(file_path: Path) -> None:
     except (FileExistsError, NotADirectoryError) as e:
         # A file exists where we need a directory - find which parent component is a file
         # This provides a clear error message for file-as-directory confusion
+        # Use is_dir() directly (not exists() then is_dir()) to avoid TOCTOU race condition
+        # is_dir() returns False for non-existent paths, so this is safe without the exists() check
         for part in list(file_path.parents):  # Only check parents, not file_path itself
-            if part.exists() and not part.is_dir():
+            if not part.is_dir():
                 raise ValueError(
                     f"Path error: '{part}' exists as a file, not a directory. "
                     f"Cannot use '{file_path}' as database path."
