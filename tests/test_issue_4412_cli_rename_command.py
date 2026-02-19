@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.cli import TodoApp, build_parser, run_command
 
 
