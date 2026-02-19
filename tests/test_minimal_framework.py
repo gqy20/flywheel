@@ -158,3 +158,47 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_to_dict_from_dict_round_trip_invariance() -> None:
+    """Issue #4439: Verify Todo.to_dict() -> Todo.from_dict() produces equivalent object."""
+    # Test case 1: Basic todo with done=False (default)
+    original = Todo(id=1, text="buy groceries")
+    serialized = original.to_dict()
+    restored = Todo.from_dict(serialized)
+
+    assert restored.id == original.id
+    assert restored.text == original.text
+    assert restored.done == original.done
+    assert restored.created_at == original.created_at
+    assert restored.updated_at == original.updated_at
+
+    # Test case 2: Todo with done=True
+    done_todo = Todo(id=2, text="completed task", done=True)
+    done_todo.mark_done()  # This sets done=True and updates timestamps
+    serialized_done = done_todo.to_dict()
+    restored_done = Todo.from_dict(serialized_done)
+
+    assert restored_done.id == done_todo.id
+    assert restored_done.text == done_todo.text
+    assert restored_done.done is True
+    assert restored_done.done == done_todo.done
+    assert restored_done.created_at == done_todo.created_at
+    assert restored_done.updated_at == done_todo.updated_at
+
+    # Test case 3: Todo with non-empty timestamps
+    timestamped_todo = Todo(
+        id=3,
+        text="timestamped item",
+        done=True,
+        created_at="2024-01-15T10:30:00+00:00",
+        updated_at="2024-01-16T14:45:00+00:00",
+    )
+    serialized_ts = timestamped_todo.to_dict()
+    restored_ts = Todo.from_dict(serialized_ts)
+
+    assert restored_ts.id == timestamped_todo.id
+    assert restored_ts.text == timestamped_todo.text
+    assert restored_ts.done == timestamped_todo.done
+    assert restored_ts.created_at == timestamped_todo.created_at
+    assert restored_ts.updated_at == timestamped_todo.updated_at

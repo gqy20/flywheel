@@ -1,0 +1,21 @@
+{
+  "issue_number": 4439,
+  "candidate_number": 3,
+  "run_id": "22174182807",
+  "branch": "claude/issue-4439-candidate-3-22174182807",
+  "stage": "IMPLEMENT",
+  "changes": {
+    "test_files": ["tests/test_minimal_framework.py"],
+    "source_files": []
+  },
+  "test_summary": {
+    "tests_added": 1,
+    "tests_passed": 11,
+    "coverage_improvement": "65% -> 78% in todo.py"
+  },
+  "verification": {
+    "pytest_passed": true,
+    "ruff_passed": true
+  },
+  "created_at": "2026-02-19T07:02:00Z"
+}
