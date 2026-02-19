@@ -1,37 +1,23 @@
 {
-  "issue_number": 4538,
+  "issue": 4538,
   "candidate": 3,
   "run_id": "22193036270",
   "branch": "claude/issue-4538-candidate-3-22193036270",
-  "status": "verified",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_4538_todo_copy.py tests/test_issue_2087_todo_repr.py tests/test_issue_2000_json_validation.py -v",
-      "result": "passed",
-      "tests_run": 29,
-      "tests_passed": 29,
-      "tests_failed": 0
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4538_todo_copy.py",
-      "result": "passed"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4538_todo_copy.py",
-      "result": "passed"
-    }
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_4538_todo_copy.py"],
-    "lines_added": 31,
-    "lines_changed": 0
-  },
-  "acceptance_criteria": {
-    "copy_returns_different_object": true,
-    "copy_with_text_override": true,
-    "copy_preserves_created_at": true,
-    "copy_updates_updated_at": true
-  },
-  "created_at": "2026-02-19T15:50:00Z"
+  "pr_number": 4583,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4583",
+  "generated_at": "2026-02-19T18:56:29.333894+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2856,
+    "plan": 3250,
+    "implement": 331,
+    "verify": 2406,
+    "finalize": 1178
+  }
 }
