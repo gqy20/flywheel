@@ -105,3 +105,49 @@ def test_next_id_with_multiple_gaps(tmp_path: Path) -> None:
 
     loaded = storage.load()
     assert storage.next_id(loaded) == 4
+
+
+def test_load_rejects_duplicate_ids(tmp_path: Path) -> None:
+    """Bug #4398: load() should detect duplicate IDs and raise ValueError.
+
+    When JSON file contains duplicate IDs (e.g., from manual editing),
+    load() should raise a clear ValueError rather than silently loading
+    corrupted data.
+    """
+    db = tmp_path / "todo.json"
+    db.write_text(
+        """[
+        {"id": 1, "text": "first", "done": false},
+        {"id": 2, "text": "second", "done": false},
+        {"id": 1, "text": "duplicate", "done": true}
+    ]""",
+        encoding="utf-8",
+    )
+
+    storage = TodoStorage(str(db))
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for duplicate IDs")
+    except ValueError as e:
+        assert "duplicate" in str(e).lower()
+        assert "id" in str(e).lower()
+
+
+def test_load_rejects_duplicate_ids_with_negative(tmp_path: Path) -> None:
+    """Bug #4398: load() should detect duplicate IDs including edge cases."""
+    db = tmp_path / "todo.json"
+    # Edge case: duplicate negative IDs
+    db.write_text(
+        """[
+        {"id": -1, "text": "negative one", "done": false},
+        {"id": -1, "text": "also negative one", "done": false}
+    ]""",
+        encoding="utf-8",
+    )
+
+    storage = TodoStorage(str(db))
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for duplicate IDs")
+    except ValueError as e:
+        assert "duplicate" in str(e).lower()
