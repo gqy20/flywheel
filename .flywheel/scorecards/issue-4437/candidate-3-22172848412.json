@@ -2,39 +2,22 @@
   "issue": 4437,
   "candidate": 3,
   "run_id": "22172848412",
-  "stage": "finalize",
-  "status": "completed",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest -v",
-      "result": "passed",
-      "tests_run": 114,
-      "tests_passed": 114,
-      "tests_failed": 0
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py",
-      "result": "passed"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py",
-      "result": "passed",
-      "files_reformatted": 2
-    }
-  },
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py",
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "acceptance_criteria": {
-    "negative_id_rejected": "Todo.from_dict({'id': -1, 'text': 'x'}) raises ValueError - VERIFIED",
-    "zero_id_rejected": "Todo.from_dict({'id': 0, 'text': 'x'}) raises ValueError - VERIFIED",
-    "positive_id_accepted": "Todo.from_dict({'id': 1, 'text': 'x'}) succeeds - VERIFIED"
-  },
-  "summary": "All verification checks passed. The fix adds validation in from_dict to reject negative or zero IDs. A downstream test (test_concurrent_save_from_multiple_processes) was also updated to use positive IDs."
+  "branch": "claude/issue-4437-candidate-3-22172848412",
+  "pr_number": 4460,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4460",
+  "generated_at": "2026-02-19T08:24:25.073826+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2164,
+    "plan": 2798,
+    "implement": 2863,
+    "verify": 3431,
+    "finalize": 1044
+  }
 }
