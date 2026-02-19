@@ -4,7 +4,7 @@
   "candidate_number": 1,
   "run_id": "22171475600",
   "branch_name": "claude/issue-4414-candidate-1-22171475600",
-  "created_at": "2026-02-19T04:00:00Z",
+  "created_at": "2026-02-19T07:20:00Z",
   "scorecard_version": "1.0",
   "implementation": {
     "files_modified": [
@@ -14,16 +14,16 @@
     "files_added": [
       "tests/test_issue_4414_tags_support.py"
     ],
-    "lines_added": 110,
+    "lines_added": 130,
     "lines_removed": 5,
-    "approach": "Add tags field to Todo dataclass with tuple[str, ...] type, update from_dict to accept list/tuple formats, update to_dict to serialize as list for JSON, add tag filtering to TodoApp.list"
+    "approach": "Add tags field to Todo dataclass with tuple[str, ...] type, update from_dict to accept list/tuple formats, update to_dict to serialize as list for JSON, add --tag CLI argument to list command with filtering support"
   },
   "test_coverage": {
-    "tests_added": 14,
-    "tests_passed": 14,
+    "tests_added": 16,
+    "tests_passed": 16,
     "tests_failed": 0,
-    "regression_tests_passed": 121,
-    "coverage_percentage": 92
+    "regression_tests_passed": 128,
+    "coverage_percentage": 93
   },
   "acceptance_criteria": {
     "todo_tags_field_optional": true,
@@ -40,7 +40,6 @@
     "backward_compatible": true
   },
   "risks_and_limitations": [
-    "CLI argument --tag not yet exposed in argparse (only TodoApp methods support tags)",
     "Tags are not displayed in formatted output (minimal change approach)"
   ]
 }

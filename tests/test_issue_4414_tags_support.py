@@ -148,3 +148,44 @@ class TestAddTodoWithTags:
 
         todo = app.add("simple task")
         assert todo.tags == ()
+
+
+class TestCLIListTagArgument:
+    """Tests for CLI list --tag argument."""
+
+    def test_cli_list_accepts_tag_argument(self, tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+        """CLI list command should accept --tag argument and filter correctly."""
+        from flywheel.cli import main
+
+        db_path = str(tmp_path / ".todo.json")
+        app = TodoApp(db_path=db_path)
+
+        # Add todos with different tags
+        app.add("work task", tags=("work",))
+        app.add("personal task", tags=("personal",))
+        app.add("urgent work", tags=("work", "urgent"))
+
+        # Run CLI with --tag work
+        exit_code = main(["--db", db_path, "list", "--tag", "work"])
+        assert exit_code == 0
+
+        # Check output only contains work-tagged todos
+        captured = capsys.readouterr()
+        assert "work task" in captured.out
+        assert "urgent work" in captured.out
+        assert "personal task" not in captured.out
+
+    def test_cli_list_tag_no_match_returns_empty(self, tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+        """CLI list --tag with no matches should show no todos."""
+        from flywheel.cli import main
+
+        db_path = str(tmp_path / ".todo.json")
+        app = TodoApp(db_path=db_path)
+        app.add("work task", tags=("work",))
+
+        exit_code = main(["--db", db_path, "list", "--tag", "personal"])
+        assert exit_code == 0
+
+        captured = capsys.readouterr()
+        # Should have no todo entries (just empty list output)
+        assert "work task" not in captured.out
