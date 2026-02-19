@@ -54,6 +54,27 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, **overrides: str | int | bool) -> Todo:
+        """Return a new Todo with specified fields overridden.
+
+        This enables immutable-style programming patterns where modifications
+        return new instances instead of mutating the original.
+
+        Args:
+            **overrides: Fields to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified fields overridden.
+            The updated_at timestamp is automatically refreshed unless
+            explicitly provided in overrides.
+        """
+        data = self.to_dict()
+        # If updated_at is not explicitly provided, refresh it
+        if "updated_at" not in overrides:
+            overrides["updated_at"] = _utc_now_iso()
+        data.update(overrides)
+        return Todo.from_dict(data)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
