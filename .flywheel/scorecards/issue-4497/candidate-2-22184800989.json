@@ -1,51 +1,23 @@
 {
-  "issue_number": 4497,
-  "candidate_number": 2,
+  "issue": 4497,
+  "candidate": 2,
   "run_id": "22184800989",
   "branch": "claude/issue-4497-candidate-2-22184800989",
-  "status": "verified",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_4497_todo_edit.py tests/test_minimal_framework.py tests/test_issue_2087_todo_repr.py -v",
-      "result": "passed",
-      "tests_run": 32,
-      "tests_passed": 32
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4497_todo_edit.py",
-      "result": "passed"
-    },
-    "full_suite": {
-      "command": "uv run pytest tests/ -v",
-      "result": "passed",
-      "tests_run": 126,
-      "tests_passed": 126
-    }
-  },
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_4497_todo_edit.py"
-    ]
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "todo.edit(text='new text') only updates text and updated_at",
-      "status": "passed"
-    },
-    {
-      "criterion": "todo.edit(done=True) only updates done and updated_at",
-      "status": "passed"
-    },
-    {
-      "criterion": "todo.edit(text='x', done=True) updates both fields and updated_at",
-      "status": "passed"
-    },
-    {
-      "criterion": "All args None does not update any field or updated_at",
-      "status": "passed"
-    }
-  ]
+  "pr_number": 4529,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4529",
+  "generated_at": "2026-02-19T15:00:21.168015+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2489,
+    "plan": 2812,
+    "implement": 267,
+    "verify": 2330,
+    "finalize": 0
+  }
 }
