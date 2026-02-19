@@ -31,7 +31,7 @@ def test_todo_equality_with_non_todo() -> None:
     assert todo != 1, "Todo should not equal an int with same id value"
     assert todo != "Todo", "Todo should not equal a string"
     assert todo != {"id": 1}, "Todo should not equal a dict"
-    assert todo != None, "Todo should not equal None"
+    assert todo is not None, "Todo should not equal None"
 
 
 def test_todo_hash_consistent() -> None:
