@@ -1,31 +1,23 @@
 {
-  "issue_number": 4371,
-  "candidate_number": 2,
+  "issue": 4371,
+  "candidate": 2,
   "run_id": "22164118552",
-  "stage": "FINALIZE",
-  "status": "completed",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_minimal_framework.py"],
-    "lines_added": 46
-  },
-  "tests": {
-    "added": 5,
-    "passing": true,
-    "verification_commands": [
-      "uv run pytest tests/test_minimal_framework.py -v -k \"test_todo_equality\"",
-      "uv run pytest tests/test_minimal_framework.py -v"
-    ]
-  },
-  "lint": {
-    "ruff_check": "passed",
-    "ruff_format": "passed"
-  },
-  "verification_summary": {
-    "pytest_targeted": "5/5 tests passed",
-    "pytest_full": "15/15 tests passed",
-    "ruff_check": "All checks passed",
-    "ruff_format": "2 files already formatted"
-  },
-  "pr_url": "https://github.com/gqy20/flywheel/pull/4408"
+  "branch": "claude/issue-4371-candidate-2-22164118552",
+  "pr_number": 4408,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4408",
+  "generated_at": "2026-02-19T01:33:08.368586+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2170,
+    "plan": 3139,
+    "implement": 1396,
+    "verify": 2163,
+    "finalize": 688
+  }
 }
