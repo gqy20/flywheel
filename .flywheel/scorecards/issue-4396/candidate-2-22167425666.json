@@ -1,0 +1,14 @@
+{
+  "issue_number": 4396,
+  "candidate_number": 2,
+  "run_id": "22167425666",
+  "branch": "claude/issue-4396-candidate-2-22167425666",
+  "status": "implemented",
+  "tests_added": 4,
+  "tests_passed": 116,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "implementation_summary": "Added validation in Todo.from_dict to reject negative id values with clear error message"
+}
