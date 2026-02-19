@@ -158,3 +158,34 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_all_zero_ids() -> None:
+    """Bug #4560: next_id should return unique ID regardless of existing ID values.
+
+    When todos list has items but all IDs are 0 (edge case), next_id should
+    still return a unique ID that doesn't conflict with expected ID range (>=1).
+    """
+    storage = TodoStorage("/tmp/zero_id_test.json")
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Normal case: max ID > 0 should return max + 1
+    normal_todos = [Todo(id=5, text="normal todo")]
+    assert storage.next_id(normal_todos) == 6
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Bug #4560: Todo IDs must be >= 1 to prevent next_id conflicts."""
+    # id=0 should be rejected
+    with pytest.raises(ValueError, match="'id' must be >= 1"):
+        Todo.from_dict({"id": 0, "text": "zero id todo"})
+
+    # Negative id should also be rejected
+    with pytest.raises(ValueError, match="'id' must be >= 1"):
+        Todo.from_dict({"id": -1, "text": "negative id todo"})
+
+    # Valid id=1 should work
+    todo = Todo.from_dict({"id": 1, "text": "valid todo"})
+    assert todo.id == 1
