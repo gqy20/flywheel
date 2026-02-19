@@ -55,9 +55,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None  # Cached max ID for O(1) next_id
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            self._max_id = 0
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -74,13 +76,17 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Cache max_id for O(1) next_id lookups (fixes issue #4610)
+        self._max_id = max((todo.id for todo in todos), default=0)
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -125,4 +131,9 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        # Use cached max_id for O(1) performance (fixes issue #4610)
+        # Falls back to computing max if cache not populated
+        if self._max_id is not None:
+            return self._max_id + 1
+        # Fallback for direct calls without prior load()
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

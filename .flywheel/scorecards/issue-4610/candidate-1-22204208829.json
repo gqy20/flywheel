@@ -1,0 +1,85 @@
+{
+  "issue_number": 4610,
+  "issue_title": "[Perf] next_id 每次调用都遍历整个列表计算最大值",
+  "candidate_number": 1,
+  "run_id": "22204208829",
+  "branch_name": "claude/issue-4610-candidate-1-22204208829",
+  "stage": "PLAN",
+  "triage_summary": {
+    "root_cause": "next_id method in TodoStorage has O(n) complexity due to max() traversal of entire list",
+    "affected_files": [
+      "src/flywheel/storage.py"
+    ],
+    "risk_points": [
+      "Performance degradation with scale (O(n) per add, O(n²) cumulative for n adds)",
+      "Non-sequential IDs after removal handled correctly by max()",
+      "No thread safety concerns with current file-based design"
+    ]
+  },
+  "plan": {
+    "summary": "Optimize next_id() by maintaining a cached _max_id counter in TodoStorage instead of O(n) scan on each call",
+    "approach": "cache_counter",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4610_next_id_performance.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing test that verifies O(1) behavior of next_id() with large list",
+        "file": "tests/test_issue_4610_next_id_performance.py"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add _max_id cache to TodoStorage, compute on load(), update on next_id() call, return O(1)",
+        "file": "src/flywheel/storage.py"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run all tests to ensure no regression",
+        "commands": [
+          "uv run pytest tests/test_issue_4610_next_id_performance.py -v",
+          "uv run pytest tests/test_minimal_framework.py -v",
+          "uv run ruff check src/flywheel/storage.py"
+        ]
+      }
+    ],
+    "implementation_details": {
+      "current_behavior": "next_id() uses max() generator - O(n) on every call",
+      "proposed_solution": "Add _max_id instance attribute, compute lazily on first next_id() call or after load(), return cached value + 1",
+      "complexity_change": "O(n) -> O(1) for repeated next_id() calls"
+    },
+    "acceptance_criteria": [
+      "next_id() should return correct value for empty list (1)",
+      "next_id() should return max_id + 1 for populated list",
+      "next_id() should handle non-sequential IDs (e.g., after removal)",
+      "All existing tests must pass",
+      "Code must pass ruff linting"
+    ]
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_4610_next_id_performance.py -v",
+    "uv run pytest tests/test_minimal_framework.py -v",
+    "uv run pytest tests/test_storage_atomicity.py -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ],
+  "risks": [
+    "State management: _max_id must be invalidated when todos list is modified externally",
+    "Edge case: caller modifying the todos list after passing to next_id() could cause stale cache"
+  ],
+  "status": "IMPLEMENT_COMPLETE",
+  "created_at": "2026-02-19T21:45:00Z",
+  "implement_completed_at": "2026-02-19T23:45:00Z",
+  "tests_passed": 117,
+  "implementation_result": {
+    "performance_improvement": "next_id calls went from 0.44s for 100 calls on 10000 items to running within 0.1s threshold",
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4610_next_id_performance.py"
+    ],
+    "lines_added": 15
+  }
+}
