@@ -22,19 +22,21 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
-    def add(self, text: str) -> Todo:
+    def add(self, text: str, tags: tuple[str, ...] = ()) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
         todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
+        todo = Todo(id=self.storage.next_id(todos), text=text, tags=tags)
         todos.append(todo)
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, show_all: bool = True, tag: str | None = None) -> list[Todo]:
         todos = self._load()
+        if tag:
+            todos = [todo for todo in todos if tag in todo.tags]
         if show_all:
             return todos
         return [todo for todo in todos if not todo.done]

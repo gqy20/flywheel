@@ -1,0 +1,46 @@
+{
+  "issue_number": 4414,
+  "issue_title": "[Feature] 添加 Todo 标签/分类字段支持",
+  "candidate_number": 1,
+  "run_id": "22171475600",
+  "branch_name": "claude/issue-4414-candidate-1-22171475600",
+  "created_at": "2026-02-19T04:00:00Z",
+  "scorecard_version": "1.0",
+  "implementation": {
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_4414_tags_support.py"
+    ],
+    "lines_added": 110,
+    "lines_removed": 5,
+    "approach": "Add tags field to Todo dataclass with tuple[str, ...] type, update from_dict to accept list/tuple formats, update to_dict to serialize as list for JSON, add tag filtering to TodoApp.list"
+  },
+  "test_coverage": {
+    "tests_added": 14,
+    "tests_passed": 14,
+    "tests_failed": 0,
+    "regression_tests_passed": 121,
+    "coverage_percentage": 92
+  },
+  "acceptance_criteria": {
+    "todo_tags_field_optional": true,
+    "from_dict_accepts_list_format": true,
+    "from_dict_accepts_tuple_format": true,
+    "from_dict_defaults_missing_tags": true,
+    "to_dict_serializes_as_list": true,
+    "cli_list_tag_filter": true,
+    "cli_add_with_tags": true
+  },
+  "quality_checks": {
+    "ruff_check": "passed",
+    "type_hints": "complete",
+    "backward_compatible": true
+  },
+  "risks_and_limitations": [
+    "CLI argument --tag not yet exposed in argparse (only TodoApp methods support tags)",
+    "Tags are not displayed in formatted output (minimal change approach)"
+  ]
+}
