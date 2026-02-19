@@ -55,13 +55,17 @@ def _parse_candidate_branch(branch: str) -> tuple[int, int, int] | None:
     return (int(match.group("issue")), int(match.group("candidate")), int(match.group("run")))
 
 
-def _list_open_issue_candidate_prs(repo: str, issue_number: str, token: str) -> list[dict[str, Any]]:
+def _list_open_issue_candidate_prs(
+    repo: str, issue_number: str, token: str
+) -> list[dict[str, Any]]:
     issue_int = int(issue_number)
     page = 1
     per_page = 100
     selected: list[dict[str, Any]] = []
     while True:
-        url = f"https://api.github.com/repos/{repo}/pulls?state=open&per_page={per_page}&page={page}"
+        url = (
+            f"https://api.github.com/repos/{repo}/pulls?state=open&per_page={per_page}&page={page}"
+        )
         payload = _api_get(url, token)
         if not isinstance(payload, list) or not payload:
             break
@@ -206,7 +210,9 @@ def main() -> int:
     # Fallback to cross-run candidates for this issue to avoid stale backlog when
     # current run cannot provide >=2 eligible candidates.
     if len(candidate_pool) < 2:
-        for pr in _pick_latest_per_candidate(_list_open_issue_candidate_prs(repo, issue_number, token)):
+        for pr in _pick_latest_per_candidate(
+            _list_open_issue_candidate_prs(repo, issue_number, token)
+        ):
             number = pr.get("number")
             if not isinstance(number, int):
                 continue
