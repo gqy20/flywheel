@@ -158,3 +158,26 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
+    """Security: Deeply nested JSON should be rejected to prevent stack overflow.
+
+    Issue #4424: Malicious nested structures (10000+ levels) can cause RecursionError.
+    We limit nesting depth to protect against DoS attacks.
+    """
+    db = tmp_path / "deep.json"
+    storage = TodoStorage(str(db))
+
+    # Create a JSON list with deeply nested structure (10000 levels triggers RecursionError)
+    # Wrap in a list to pass the "must be a JSON list" check, but the nested depth
+    # inside the todo data should still trigger depth protection
+    depth = 10000
+    nested_value = '{"a": ' * depth + '"x"' + '}' * depth
+    # Create a valid todo list structure with the deeply nested value
+    deep_json = f'[{{"id": 1, "text": "test", "metadata": {nested_value}}}]'
+    db.write_text(deep_json, encoding="utf-8")
+
+    # Should raise ValueError for deeply nested JSON (not RecursionError or crash)
+    with pytest.raises(ValueError, match=r"depth|nested|nesting"):
+        storage.load()

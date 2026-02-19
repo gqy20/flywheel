@@ -77,6 +77,11 @@ class TodoStorage:
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
+        except RecursionError as e:
+            raise ValueError(
+                f"JSON in '{self.path}' has excessive nesting depth. "
+                f"This protects against stack overflow attacks."
+            ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
