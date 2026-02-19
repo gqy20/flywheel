@@ -119,3 +119,29 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4495 - reject float id with non-zero decimal part
+def test_todo_from_dict_rejects_float_id_with_decimal() -> None:
+    """Todo.from_dict should reject float ids like 1.5 that would lose precision."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|float.*id"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_float_id() -> None:
+    """Todo.from_dict should reject negative float ids like -1.5."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|float.*id"):
+        Todo.from_dict({"id": -1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_equal_to_int() -> None:
+    """Todo.from_dict should reject float ids like 1.0 for strict type consistency."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|float.*id"):
+        Todo.from_dict({"id": 1.0, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept proper integer ids."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
+    assert isinstance(todo.id, int)
