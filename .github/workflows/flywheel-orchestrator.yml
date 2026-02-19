@@ -484,8 +484,9 @@ jobs:
           done
 
           if [ "$merged_count" -eq 0 ]; then
-            echo "No eligible winner merged; skip scorecard validation."
-            exit 0
+            echo "No eligible winner merged from eligible set: $ELIGIBLE_CSV"
+            echo "Failing merge job to prevent false-positive success without real merge."
+            exit 1
           fi
           if [ "$merged_count" -gt 1 ]; then
             echo "Unexpected: multiple merged winners among eligible candidates."
