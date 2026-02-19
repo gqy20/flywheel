@@ -3,7 +3,7 @@
   "title": "[Feature] 添加 Todo 标签/分类字段支持",
   "candidate": 2,
   "run_id": "22171475600",
-  "stage": "implemented",
+  "stage": "finalized",
   "plan": {
     "summary": "Add tags field support to Todo model and CLI filtering",
     "files_to_touch": [
