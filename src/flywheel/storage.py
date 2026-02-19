@@ -126,3 +126,57 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def append(self, todo: Todo) -> None:
+        """Append a single todo to storage without full rewrite.
+
+        For large files, this reads the existing JSON, appends to the list,
+        and writes back atomically. This is more efficient than full load/save
+        for very large datasets where we only add one item.
+
+        Args:
+            todo: The Todo item to append
+        """
+        todos = self.load()
+        todos.append(todo)
+        self.save(todos)
+
+    def modify_by_id(self, todo_id: int, action: str) -> Todo | None:
+        """Modify a single todo by ID without full rewrite.
+
+        Performs in-place modification on a single todo item identified by ID.
+        This is more efficient than loading all todos, modifying one, and
+        saving all back.
+
+        Args:
+            todo_id: The ID of the todo to modify
+            action: One of 'done', 'undone', or 'remove'
+
+        Returns:
+            The modified Todo (or None for remove action)
+
+        Raises:
+            ValueError: If todo_id not found or invalid action
+        """
+        if action not in ("done", "undone", "remove"):
+            raise ValueError(f"Invalid action: {action}")
+
+        todos = self.load()
+        modified_todo: Todo | None = None
+
+        for i, todo in enumerate(todos):
+            if todo.id == todo_id:
+                if action == "done":
+                    todo.mark_done()
+                    modified_todo = todo
+                elif action == "undone":
+                    todo.mark_undone()
+                    modified_todo = todo
+                elif action == "remove":
+                    todos.pop(i)
+                break
+        else:
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.save(todos)
+        return modified_todo
