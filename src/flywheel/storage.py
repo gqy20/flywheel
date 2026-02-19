@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,32 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@contextlib.contextmanager
+def _file_lock(lock_path: Path):
+    """Context manager for exclusive file locking.
+
+    Uses fcntl.flock for POSIX-compliant advisory locking.
+    Creates the lock file if it doesn't exist.
+
+    Args:
+        lock_path: Path to the lock file (will be created if needed)
+
+    Yields:
+        The file descriptor of the locked file
+    """
+    # Ensure parent directory exists for lock file
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Open/create lock file and acquire exclusive lock
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)  # Blocking exclusive lock
+        yield lock_fd
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)  # Release lock
+        os.close(lock_fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +82,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +154,30 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a new todo atomically with file locking.
+
+        This method performs the load-calculate-save sequence under an exclusive
+        file lock to prevent race conditions in concurrent scenarios.
+
+        Args:
+            text: The text content of the todo
+
+        Returns:
+            The newly created Todo with a unique ID
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        # Acquire exclusive lock for the entire load-calculate-save sequence
+        with _file_lock(self._lock_path):
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
