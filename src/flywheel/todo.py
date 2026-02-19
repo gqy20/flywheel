@@ -54,6 +54,36 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, **overrides) -> Todo:
+        """Return a new Todo with specified fields overridden.
+
+        This enables immutable-style updates where modifications return new
+        instances instead of mutating the original. Useful for undo/redo
+        features and functional programming patterns.
+
+        Args:
+            **overrides: Fields to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified fields updated.
+            The updated_at timestamp is automatically refreshed unless
+            explicitly overridden.
+
+        Example:
+            >>> original = Todo(id=1, text="buy milk", done=False)
+            >>> modified = original.copy(text="buy bread", done=True)
+            >>> original.text  # Original unchanged
+            'buy milk'
+            >>> modified.text
+            'buy bread'
+        """
+        data = self.to_dict()
+        data.update(overrides)
+        # Always update the updated_at timestamp unless explicitly provided
+        if "updated_at" not in overrides:
+            data["updated_at"] = _utc_now_iso()
+        return Todo.from_dict(data)
+
     def to_dict(self) -> dict:
         return asdict(self)
 
