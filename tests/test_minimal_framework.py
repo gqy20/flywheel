@@ -158,3 +158,36 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_by_value() -> None:
+    """Issue #4371: Todo instances with same id, text, done should compare equal."""
+    # Two Todo instances with identical id, text, done compare equal
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert todo1 == todo2
+
+    # Two Todo instances with different done field compare unequal
+    todo_done = Todo(id=1, text="a", done=True)
+    todo_undone = Todo(id=1, text="a", done=False)
+    assert todo_done != todo_undone
+
+    # Two Todo instances with different text compare unequal
+    todo_a = Todo(id=1, text="a")
+    todo_b = Todo(id=1, text="b")
+    assert todo_a != todo_b
+
+    # Two Todo instances with different id compare unequal
+    todo_id1 = Todo(id=1, text="a")
+    todo_id2 = Todo(id=2, text="a")
+    assert todo_id1 != todo_id2
+
+
+def test_todo_equality_with_non_todo() -> None:
+    """Issue #4371: Comparing Todo to non-Todo should return NotImplemented/False."""
+    todo = Todo(id=1, text="a")
+    # Comparing Todo to non-Todo returns False (not NotImplemented when using ==)
+    assert todo != "not a todo"
+    assert todo != 1
+    assert todo != None
+    assert todo != {"id": 1, "text": "a"}
