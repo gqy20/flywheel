@@ -1,57 +1,23 @@
 {
-  "issue": {
-    "number": 4497,
-    "title": "[Enhancement] 添加 Todo.edit() 方法支持部分更新",
-    "url": "https://github.com/gqy20/flywheel/issues/4497"
-  },
-  "candidate": {
-    "number": 3,
-    "run_id": "22184800989",
-    "branch": "claude/issue-4497-candidate-3-22184800989"
-  },
-  "implementation": {
-    "approach": "Added Todo.edit() method with optional text and done parameters for partial updates",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_4497_todo_edit.py"
-    ],
-    "key_changes": [
-      "Added edit(text: str | None = None, done: bool | None = None) method to Todo class",
-      "Method only updates fields that are not None",
-      "Method updates updated_at only if at least one field is changed",
-      "Text validation matches rename() behavior (strip whitespace, reject empty)"
-    ]
-  },
-  "testing": {
-    "test_file": "tests/test_issue_4497_todo_edit.py",
-    "test_count": 9,
-    "all_passed": true,
-    "coverage": [
-      "test_todo_edit_updates_text_only",
-      "test_todo_edit_updates_done_only",
-      "test_todo_edit_updates_both_fields",
-      "test_todo_edit_no_args_no_change",
-      "test_todo_edit_strips_text_whitespace",
-      "test_todo_edit_rejects_empty_text",
-      "test_todo_edit_rejects_whitespace_only_text",
-      "test_todo_edit_can_set_done_to_false",
-      "test_todo_edit_text_none_done_none_no_change"
-    ]
-  },
-  "validation": {
-    "acceptance_criteria_met": [
-      "todo.edit(text='new text') updates text and updated_at",
-      "todo.edit(done=True) updates done and updated_at",
-      "todo.edit(text='x', done=True) updates both and updated_at",
-      "todo.edit() with all args None does not update any field or updated_at"
-    ],
-    "lint_passed": true,
-    "regression_tests_passed": true
-  },
-  "score": {
-    "completeness": 100,
-    "test_coverage": 100,
-    "code_quality": 100,
-    "total": 100
+  "issue": 4497,
+  "candidate": 3,
+  "run_id": "22184800989",
+  "branch": "claude/issue-4497-candidate-3-22184800989",
+  "pr_number": 4532,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4532",
+  "generated_at": "2026-02-19T15:07:22.736510+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2366,
+    "plan": 4000,
+    "implement": 2020,
+    "verify": 375,
+    "finalize": 718
   }
 }
