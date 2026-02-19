@@ -1,43 +1,23 @@
 {
-  "issue_number": 4412,
-  "issue_title": "[Bug] CLI does not expose Todo.rename() functionality - todo.py has a rename method bu",
-  "candidate_number": 1,
+  "issue": 4412,
+  "candidate": 1,
   "run_id": "22171475600",
   "branch": "claude/issue-4412-candidate-1-22171475600",
-  "summary": "Added CLI 'rename' subcommand to expose Todo.rename() functionality to users.",
-  "changes": [
-    {
-      "file": "src/flywheel/cli.py",
-      "change_type": "modified",
-      "description": "Added TodoApp.rename() method, 'rename' subcommand to build_parser(), and rename handler in run_command()"
-    },
-    {
-      "file": "tests/test_issue_4412_cli_rename.py",
-      "change_type": "added",
-      "description": "New test file with 5 tests for CLI rename functionality"
-    }
+  "pr_number": 4446,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4446",
+  "generated_at": "2026-02-19T07:22:58.207214+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_issue_4412_cli_rename.py - 5 tests passed",
-    "tests/test_minimal_framework.py - 10 tests passed"
-  ],
-  "checks_passed": [
-    "ruff check src/flywheel/cli.py",
-    "ruff check tests/test_issue_4412_cli_rename.py"
-  ],
-  "acceptance_criteria_met": [
-    "CLI has a 'rename' subcommand that accepts id and new text",
-    "rename command calls TodoApp.rename() to update todo text",
-    "Error handling for non-existent todo id returns exit code 1"
-  ],
-  "risks_limitations": [
-    "No special handling for multiline text - follows existing patterns"
-  ],
-  "test_plan": [
-    "test_cli_rename_command_updates_existing_todo_text",
-    "test_cli_rename_returns_error_for_nonexistent_todo_id",
-    "test_cli_rename_rejects_empty_text",
-    "test_app_rename_method",
-    "test_app_rename_raises_for_nonexistent_id"
-  ]
+  "stage_response_sizes": {
+    "triage": 2530,
+    "plan": 3806,
+    "implement": 2352,
+    "verify": 2572,
+    "finalize": 1629
+  }
 }
