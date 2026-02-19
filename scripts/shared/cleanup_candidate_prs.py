@@ -118,7 +118,7 @@ def main() -> None:
     parser.add_argument("--keep-per-issue", type=int, default=1)
     parser.add_argument("--min-age-hours", type=int, default=12)
     parser.add_argument("--close-singleton-after-hours", type=int, default=72)
-    parser.add_argument("--limit", type=int, default=200)
+    parser.add_argument("--limit", type=int, default=1000)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
