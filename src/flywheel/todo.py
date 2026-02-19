@@ -95,7 +95,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=data["text"].strip(),
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
