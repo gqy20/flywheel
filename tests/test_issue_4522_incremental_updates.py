@@ -9,10 +9,7 @@ import json
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
-from flywheel.storage import TodoStorage
 
 
 class TestIncrementalUpdates:
@@ -60,7 +57,6 @@ class TestIncrementalUpdates:
     def test_performance_with_large_dataset(self, tmp_path: Path) -> None:
         """Issue #4522: Operations should be reasonably fast with large datasets."""
         db_path = tmp_path / "large.json"
-        storage = TodoStorage(str(db_path))
 
         # Create a large initial dataset (1000 todos)
         large_todos = [
@@ -117,7 +113,7 @@ class TestIncrementalUpdates:
 
         # Remove middle one
         todos = app.list()
-        remove_id = [t.id for t in todos if t.text == "remove this"][0]
+        remove_id = next(t.id for t in todos if t.text == "remove this")
         app.remove(remove_id)
 
         # Verify consistency
@@ -144,5 +140,5 @@ class TestIncrementalUpdates:
         assert len(todos) == 2
         assert {t.text for t in todos} == {"task 1", "task 3"}
         # task 1 should be undone (we marked done then undone)
-        task1 = [t for t in todos if t.text == "task 1"][0]
+        task1 = next(t for t in todos if t.text == "task 1")
         assert task1.done is False
