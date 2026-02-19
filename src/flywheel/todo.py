@@ -79,6 +79,13 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate 'text' is not empty or whitespace-only (consistent with rename())
+        text = data["text"].strip()
+        if not text:
+            raise ValueError(
+                "Missing required non-empty field 'text' in todo data"
+            )
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
@@ -95,7 +102,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=text,
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
