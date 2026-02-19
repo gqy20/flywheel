@@ -57,6 +57,30 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **overrides) -> Todo:
+        """Create a new Todo instance with optional field overrides.
+
+        This method returns a new Todo instance with the same attributes,
+        except for any fields specified in overrides. The created_at timestamp
+        is preserved, while updated_at is set to the current time.
+
+        Args:
+            **overrides: Field names and values to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified overrides.
+
+        Example:
+            >>> todo = Todo(id=1, text="original", done=False)
+            >>> copied = todo.copy(text="modified", done=True)
+        """
+        data = self.to_dict()
+        data.update(overrides)
+        # Preserve created_at but update updated_at
+        data["created_at"] = self.created_at
+        data["updated_at"] = _utc_now_iso()
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
