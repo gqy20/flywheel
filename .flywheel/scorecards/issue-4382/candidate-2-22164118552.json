@@ -29,7 +29,8 @@
   },
   "validation": {
     "ruff_check": "passed",
-    "pytest": "passed (14 tests including existing todo tests)"
+    "ruff_format": "passed",
+    "pytest": "passed (118 tests total, 6 new tests for issue #4382)"
   },
   "acceptance_criteria": {
     "constructor_rejects_negative_id": true,
