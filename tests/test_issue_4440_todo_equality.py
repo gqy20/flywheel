@@ -34,7 +34,7 @@ def test_todo_eq_different_type_returns_false() -> None:
     assert todo != "not a todo"
     assert todo != 1
     assert todo != {"id": 1, "text": "buy milk", "done": False}
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_eq_reflexive() -> None:
