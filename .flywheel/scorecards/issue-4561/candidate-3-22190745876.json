@@ -1,0 +1,33 @@
+{
+  "issue": 4561,
+  "title": "[Perf] O(n) ID generation scans entire list on every add()",
+  "candidate": 3,
+  "run_id": "22190745876",
+  "branch": "claude/issue-4561-candidate-3-22190745876",
+  "created_at": "2026-02-19T18:00:00Z",
+  "status": "verified",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_issue_4561_oid_generation.py -v",
+      "result": "5 passed"
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py",
+      "result": "All checks passed!"
+    },
+    "full_test_suite": {
+      "command": "uv run pytest tests/ -v",
+      "result": "117 passed"
+    }
+  },
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_4561_oid_generation.py"
+    ]
+  },
+  "summary": "Implements O(1) ID generation by caching max_id in TodoStorage. The first call to next_id() performs O(n) scan, subsequent calls use cached value and increment.",
+  "approach": "Add _max_id_cache field to TodoStorage. On first next_id() call, scan for max and cache it. Subsequent calls return cached value + 1 and increment cache."
+}
