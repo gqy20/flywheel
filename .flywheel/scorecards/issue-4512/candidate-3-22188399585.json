@@ -1,0 +1,27 @@
+{
+  "issue_number": 4512,
+  "candidate_number": 3,
+  "run_id": "22188399585",
+  "branch": "claude/issue-4512-candidate-3-22188399585",
+  "created_at": "2026-02-19T13:00:00Z",
+  "status": "implemented",
+  "tests": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_4512_todo_copy.py"
+    ],
+    "lines_added": 72,
+    "lines_removed": 1
+  },
+  "acceptance_criteria": {
+    "copy_returns_new_instance": true,
+    "copy_with_field_override": true,
+    "copy_updates_timestamp": true,
+    "original_not_modified": true
+  }
+}
