@@ -8,6 +8,8 @@ These tests verify value-based equality comparison for Todo objects:
 
 from __future__ import annotations
 
+import contextlib
+
 from flywheel.todo import Todo
 
 
@@ -41,8 +43,20 @@ def test_todo_eq_different_done_not_equal() -> None:
 
 def test_todo_eq_ignores_timestamps() -> None:
     """Equality should ignore created_at and updated_at timestamps."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01T00:00:00", updated_at="2024-01-01T00:00:00")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-12-31T23:59:59", updated_at="2024-12-31T23:59:59")
+    todo1 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-01-01T00:00:00",
+        updated_at="2024-01-01T00:00:00",
+    )
+    todo2 = Todo(
+        id=1,
+        text="buy milk",
+        done=False,
+        created_at="2024-12-31T23:59:59",
+        updated_at="2024-12-31T23:59:59",
+    )
     assert todo1 == todo2
 
 
@@ -52,7 +66,7 @@ def test_todo_eq_non_todo_returns_not_implemented() -> None:
     assert todo != "not a todo"
     assert todo != 1
     assert todo != {"id": 1, "text": "buy milk", "done": False}
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_eq_symmetry() -> None:
@@ -76,8 +90,5 @@ def test_todo_eq_consistency_with_hash() -> None:
     # Note: dataclasses with eq=True but no frozen=True are not hashable by default
     # This test documents the current behavior - if hashing is needed, frozen=True
     # would need to be added or a custom __hash__ implemented
-    try:
+    with contextlib.suppress(TypeError):
         assert hash(todo1) == hash(todo2)
-    except TypeError:
-        # Expected if dataclass is not frozen and eq=True
-        pass
