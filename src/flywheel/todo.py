@@ -20,6 +20,22 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id and text for equality.
+
+        Issue #4537: Enable Todo comparison and deduplication.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id and self.text == other.text
+
+    def __hash__(self) -> int:
+        """Hash based on id for set/dict usage.
+
+        Issue #4537: Enable Todo objects to be used in sets and as dict keys.
+        """
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 

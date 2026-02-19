@@ -158,3 +158,80 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Issue #4537: __eq__ and __hash__ tests
+
+
+def test_todo_eq_same_id_and_text_returns_true() -> None:
+    """Issue #4537: Todos with same id and text should be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert todo1 == todo2
+
+
+def test_todo_eq_different_id_returns_false() -> None:
+    """Issue #4537: Todos with different id should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    assert todo1 != todo2
+
+
+def test_todo_eq_different_text_returns_false() -> None:
+    """Issue #4537: Todos with different text should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+    assert todo1 != todo2
+
+
+def test_todo_eq_non_todo_returns_not_implemented() -> None:
+    """Issue #4537: Comparing Todo with non-Todo should return False."""
+    todo = Todo(id=1, text="a")
+    assert todo != "not a todo"
+    assert todo != 1
+    assert todo != None
+
+
+def test_todo_hash_consistent_for_same_id() -> None:
+    """Issue #4537: Todos with same id should have same hash."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert hash(todo1) == hash(todo2)
+
+
+def test_todo_hash_different_for_different_id() -> None:
+    """Issue #4537: Todos with different id should have different hash."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    # Different ids should typically have different hashes (not guaranteed but expected)
+    assert hash(todo1) != hash(todo2)
+
+
+def test_todo_can_be_added_to_set() -> None:
+    """Issue #4537: Todo objects should be addable to a set."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="b")
+    todo_set = {todo1, todo2}
+    assert len(todo_set) == 2
+    assert todo1 in todo_set
+    assert todo2 in todo_set
+
+
+def test_todo_set_deduplication_by_id() -> None:
+    """Issue #4537: Set should deduplicate Todos by id (since hash is based on id)."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")  # Same id, same text
+    todo_set = {todo1, todo2}
+    # Since hash is based on id only, and eq compares id AND text,
+    # these are different objects with same hash but not equal
+    # In a set, they will be treated as duplicates only if hash AND eq match
+    assert todo1 == todo2  # Equal (same id and text)
+    assert hash(todo1) == hash(todo2)  # Same hash
+    assert len(todo_set) == 1  # Deduplicated
+
+
+def test_todo_in_list_assertion() -> None:
+    """Issue #4537: Support 'todo in todos' style assertions in tests."""
+    todo = Todo(id=1, text="demo")
+    todos = [Todo(id=1, text="demo"), Todo(id=2, text="other")]
+    assert todo in todos

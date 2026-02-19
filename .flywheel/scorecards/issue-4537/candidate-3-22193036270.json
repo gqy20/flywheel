@@ -1,0 +1,30 @@
+{
+  "issue": 4537,
+  "candidate": 3,
+  "run_id": "22193036270",
+  "branch": "claude/issue-4537-candidate-3-22193036270",
+  "status": "implemented",
+  "summary": "Added __eq__ and __hash__ methods to Todo class to enable object comparison and deduplication",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_minimal_framework.py"]
+  },
+  "tests_added": 9,
+  "tests_passed": 19,
+  "lint_status": "passed",
+  "acceptance_criteria": {
+    "eq_same_id_and_text": true,
+    "eq_different_id": true,
+    "hash_consistent_for_same_id": true,
+    "todo_can_be_added_to_set": true
+  },
+  "implementation_notes": [
+    "__eq__ compares by id AND text for equality",
+    "__hash__ is based only on id to enable set deduplication",
+    "Returns NotImplemented for non-Todo comparisons (Python best practice)"
+  ],
+  "risks": [
+    "Hash collision possible for different ids (extremely unlikely with Python's hash)",
+    "Todo objects with same id but different text will have same hash but not be equal (works correctly in sets)"
+  ]
+}
