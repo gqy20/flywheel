@@ -189,22 +189,24 @@ def test_no_toctou_pattern_exists_followed_by_is_dir() -> None:
         def visit_BoolOp(self, node):
             """Check for 'exists() and not is_dir()' pattern."""
             if isinstance(node.op, ast.And):
-                for i, value in enumerate(node.values):
+                for value in node.values:
                     # Check for call to .exists()
-                    if isinstance(value, ast.Call):
-                        if isinstance(value.func, ast.Attribute):
-                            if value.func.attr == "exists":
-                                # Check if another value is "not .is_dir()"
-                                for other_value in node.values:
-                                    if isinstance(other_value, ast.UnaryOp):
-                                        if isinstance(other_value.op, ast.Not):
-                                            if isinstance(other_value.operand, ast.Call):
-                                                if isinstance(
-                                                    other_value.operand.func, ast.Attribute
-                                                ):
-                                                    if other_value.operand.func.attr == "is_dir":
-                                                        self.has_toctou_pattern = True
-                                                        self.toctou_locations.append(node.lineno)
+                    if (
+                        isinstance(value, ast.Call)
+                        and isinstance(value.func, ast.Attribute)
+                        and value.func.attr == "exists"
+                    ):
+                        # Check if another value is "not .is_dir()"
+                        for other_value in node.values:
+                            if (
+                                isinstance(other_value, ast.UnaryOp)
+                                and isinstance(other_value.op, ast.Not)
+                                and isinstance(other_value.operand, ast.Call)
+                                and isinstance(other_value.operand.func, ast.Attribute)
+                                and other_value.operand.func.attr == "is_dir"
+                            ):
+                                self.has_toctou_pattern = True
+                                self.toctou_locations.append(node.lineno)
             self.generic_visit(node)
 
     checker = TOCTOUChecker()
