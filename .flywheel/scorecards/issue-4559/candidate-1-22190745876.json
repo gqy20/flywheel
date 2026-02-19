@@ -1,29 +1,23 @@
 {
-  "issue_number": 4559,
-  "issue_title": "[Bug] Race condition: next_id can produce duplicate IDs in concurrent process scenario",
-  "candidate_id": 1,
+  "issue": 4559,
+  "candidate": 1,
   "run_id": "22190745876",
-  "branch_name": "claude/issue-4559-candidate-1-22190745876",
-  "created_at": "2026-02-19T17:45:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "summary": "Fixed race condition in next_id by adding exclusive file locking using fcntl.flock. The add() method in cli.py now wraps the load-calculate-save sequence in an exclusive lock, preventing concurrent processes from calculating the same next_id.",
-  "tests_run": [
-    "tests/test_storage_atomicity.py::test_concurrent_add_produces_unique_ids"
+  "branch": "claude/issue-4559-candidate-1-22190745876",
+  "pr_number": 4566,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4566",
+  "generated_at": "2026-02-19T18:04:52.951528+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": true,
-  "linting_passed": true,
-  "risks_and_limitations": [
-    "File locking uses fcntl.flock which is Unix-specific (works on Linux/macOS but not Windows)",
-    "Lock files (.json.lock) are created alongside the database file and are not cleaned up automatically",
-    "Lock acquisition is blocking - if a process crashes while holding the lock, the lock is automatically released by the OS"
-  ]
+  "stage_response_sizes": {
+    "triage": 3282,
+    "plan": 2985,
+    "implement": 3072,
+    "verify": 2108,
+    "finalize": 1921
+  }
 }
