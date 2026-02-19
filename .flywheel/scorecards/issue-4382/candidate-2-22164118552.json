@@ -1,41 +1,23 @@
 {
-  "issue_number": 4382,
-  "issue_title": "[Bug] Todo constructor allows negative IDs without validation, leading to inconsistent",
-  "candidate_number": 2,
+  "issue": 4382,
+  "candidate": 2,
   "run_id": "22164118552",
-  "branch_name": "claude/issue-4382-candidate-2-22164118552",
-  "created_at": "2026-02-19T00:00:00Z",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_4382_negative_id_validation.py"
-    ],
-    "lines_added": 54,
-    "lines_removed": 0,
-    "approach": "Add validation in __post_init__ to reject negative IDs with descriptive error message"
-  },
-  "tests": {
-    "test_file": "tests/test_issue_4382_negative_id_validation.py",
-    "test_count": 6,
-    "tests_passed": 6,
-    "coverage_areas": [
-      "constructor rejects negative ID",
-      "from_dict rejects negative ID",
-      "constructor accepts zero ID (edge case)",
-      "from_dict accepts zero ID (edge case)",
-      "constructor accepts positive ID",
-      "from_dict accepts positive ID"
-    ]
-  },
-  "validation": {
-    "ruff_check": "passed",
-    "ruff_format": "passed",
-    "pytest": "passed (118 tests total, 6 new tests for issue #4382)"
-  },
-  "acceptance_criteria": {
-    "constructor_rejects_negative_id": true,
-    "from_dict_rejects_negative_id": true,
-    "existing_tests_pass": true,
-    "edge_case_zero_id_accepted": true
+  "branch": "claude/issue-4382-candidate-2-22164118552",
+  "pr_number": 4407,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4407",
+  "generated_at": "2026-02-19T01:32:11.222990+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2030,
+    "plan": 3183,
+    "implement": 2637,
+    "verify": 2128,
+    "finalize": 933
   }
 }
