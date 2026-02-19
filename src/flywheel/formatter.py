@@ -4,6 +4,22 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Pre-computed escape table for control characters (0x00-0x1f, 0x7f-0x9f).
+# Indexed by character code. None means pass through unchanged.
+# This avoids f-string formatting overhead in the hot path (issue #4523).
+_ESCAPE_TABLE: list[str | None] = [None] * 256
+# Common control characters with readable escapes
+_ESCAPE_TABLE[ord("\\")] = "\\\\"
+_ESCAPE_TABLE[ord("\n")] = "\\n"
+_ESCAPE_TABLE[ord("\r")] = "\\r"
+_ESCAPE_TABLE[ord("\t")] = "\\t"
+# Other control characters: \\xNN format
+for code in range(0x00, 0x20):
+    if _ESCAPE_TABLE[code] is None:
+        _ESCAPE_TABLE[code] = f"\\x{code:02x}"
+for code in range(0x7F, 0xA0):
+    _ESCAPE_TABLE[code] = f"\\x{code:02x}"
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -11,30 +27,19 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Uses a single-pass approach with pre-computed escape table for
+    better performance on large strings (issue #4523).
     """
-    # First: Escape backslash to prevent collision with escape sequences
-    # This MUST be done before any other escaping to prevent ambiguity
-    # between literal backslash-escape text and sanitized control characters.
-    text = text.replace("\\", "\\\\")
-
-    # Common control characters - replace with readable escapes
-    replacements = [
-        ("\n", "\\n"),
-        ("\r", "\\r"),
-        ("\t", "\\t"),
-    ]
-    for char, escaped in replacements:
-        text = text.replace(char, escaped)
-
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
-        else:
-            result.append(char)
+        if code < 256:
+            escaped = _ESCAPE_TABLE[code]
+            if escaped is not None:
+                result.append(escaped)
+                continue
+        result.append(char)
     return "".join(result)
 
 
