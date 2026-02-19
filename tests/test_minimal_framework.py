@@ -189,7 +189,7 @@ def test_todo_eq_non_todo_returns_not_implemented() -> None:
     todo = Todo(id=1, text="a")
     assert todo != "not a todo"
     assert todo != 1
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_hash_consistent_for_same_id() -> None:
