@@ -1,36 +1,23 @@
 {
-  "issue_number": 4371,
-  "candidate_number": 3,
+  "issue": 4371,
+  "candidate": 3,
   "run_id": "22164118552",
-  "created_at": "2026-02-19T01:25:00Z",
-  "status": "verified",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 33,
-    "lines_removed": 1,
-    "approach": "Added custom __eq__ method that compares Todo instances by id, text, and done fields only, excluding timestamps"
-  },
-  "tests": {
-    "test_files_changed": ["tests/test_minimal_framework.py"],
-    "tests_added": 2,
-    "tests_passed": 12,
-    "tests_failed": 0
-  },
-  "quality_checks": {
-    "ruff": "passed",
-    "pytest": "passed (12 tests in test_minimal_framework.py, 30 tests total in todo-related tests)"
-  },
-  "verification": {
-    "commands_executed": [
-      "uv run pytest tests/test_minimal_framework.py -v --tb=short",
-      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
-    ],
-    "fixes_applied": [
-      "Changed 'assert todo != None' to 'assert todo is not None' to fix E711 ruff error"
-    ],
-    "final_status": "all checks passed"
+  "branch": "claude/issue-4371-candidate-3-22164118552",
+  "pr_number": 4402,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4402",
+  "generated_at": "2026-02-19T01:29:29.874663+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2009,
+    "plan": 4000,
+    "implement": 2123,
+    "verify": 2739,
+    "finalize": 757
   }
 }
