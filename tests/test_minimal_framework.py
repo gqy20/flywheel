@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_to_dict_from_dict_roundtrip_invariance() -> None:
+    """Issue #4439: to_dict() followed by from_dict() should produce equivalent object."""
+    # Test with all fields populated
+    original = Todo(id=1, text="test todo", done=True)
+    original.created_at = "2024-01-15T10:30:00+00:00"
+    original.updated_at = "2024-01-15T12:45:00+00:00"
+
+    # Round-trip through to_dict -> from_dict
+    data = original.to_dict()
+    reconstructed = Todo.from_dict(data)
+
+    # Assert all fields match
+    assert reconstructed.id == original.id
+    assert reconstructed.text == original.text
+    assert reconstructed.done == original.done
+    assert reconstructed.created_at == original.created_at
+    assert reconstructed.updated_at == original.updated_at
+
+
+def test_todo_to_dict_from_dict_roundtrip_default_values() -> None:
+    """Issue #4439: Round-trip should work with default values (done=False)."""
+    original = Todo(id=42, text="pending todo")
+
+    # Round-trip through to_dict -> from_dict
+    data = original.to_dict()
+    reconstructed = Todo.from_dict(data)
+
+    # Assert all fields match
+    assert reconstructed.id == original.id
+    assert reconstructed.text == original.text
+    assert reconstructed.done == original.done  # Should be False
+    assert reconstructed.created_at == original.created_at
+    assert reconstructed.updated_at == original.updated_at
