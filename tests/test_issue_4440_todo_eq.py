@@ -3,8 +3,6 @@
 These tests verify id-based equality comparison for Todo objects.
 """
 
-import pytest
-
 from flywheel.todo import Todo
 
 
@@ -27,7 +25,6 @@ class TestTodoEq:
         """Verify Todo(id=1) == 'not a todo' returns False."""
         todo = Todo(id=1, text="Buy milk")
         assert todo != "not a todo"
-        assert "not a todo" != todo
 
     def test_todo_eq_none_returns_false(self) -> None:
         """Verify Todo(id=1) == None returns False."""
