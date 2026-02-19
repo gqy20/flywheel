@@ -125,4 +125,7 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        # Only consider positive IDs; ignore zero and negative values
+        # This prevents returning non-positive IDs when data contains invalid values
+        max_id = max((t.id for t in todos if t.id > 0), default=0)
+        return max_id + 1 if max_id > 0 else 1
