@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -50,11 +51,44 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+class _FileLock:
+    """Context manager for exclusive file locking using fcntl.flock."""
+
+    def __init__(self, lock_path: Path) -> None:
+        self._lock_path = lock_path
+        self._lock_file = None
+
+    def __enter__(self) -> _FileLock:
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        self._lock_file = open(self._lock_path, "w")
+        fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._lock_file is not None:
+            # Release lock and close file
+            fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
+            self._lock_file.close()
+            self._lock_file = None
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _with_lock(self):
+        """Context manager for exclusive file locking.
+
+        Uses fcntl.flock for cross-process synchronization to prevent
+        race conditions when reading and writing todos.
+        """
+        return _FileLock(self._lock_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +160,22 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a todo atomically with file locking to prevent race conditions.
+
+        This method performs load/next_id/save under an exclusive lock to ensure
+        that concurrent processes cannot produce duplicate IDs.
+
+        Args:
+            text: The text content of the todo item.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._with_lock():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
