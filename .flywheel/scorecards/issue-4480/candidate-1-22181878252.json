@@ -1,0 +1,14 @@
+{
+  "issue_number": 4480,
+  "candidate_id": 1,
+  "run_id": "22181878252",
+  "status": "implemented",
+  "implementation_summary": "Added 'rename' subcommand to expose Todo.rename() method via CLI",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": 2,
+  "tests_passed": true,
+  "linter_passed": true
+}
