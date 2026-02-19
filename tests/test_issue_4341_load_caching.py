@@ -10,8 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from flywheel.storage import TodoStorage
 
 
@@ -41,7 +39,6 @@ def test_load_caches_missing_file_result(tmp_path: Path) -> None:
 
         # Second call - should use cache, not check filesystem again
         result2 = storage.load()
-        second_call_count = exists_call_count
 
         # Third call - should still use cache
         result3 = storage.load()
@@ -92,8 +89,6 @@ def test_load_after_external_file_creation(tmp_path: Path) -> None:
     the cache should not prevent reading the actual content.
     """
     import json
-
-    from flywheel.todo import Todo
 
     db = tmp_path / "external.json"
     storage = TodoStorage(str(db))
