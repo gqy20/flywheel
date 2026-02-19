@@ -20,6 +20,16 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id (entity semantics).
+
+        Two Todo objects are equal if they have the same id, regardless of other fields.
+        This enables set operations, deduplication, and more expressive assertions.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
