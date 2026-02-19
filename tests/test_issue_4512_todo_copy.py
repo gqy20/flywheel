@@ -69,9 +69,7 @@ def test_todo_copy_with_id_override() -> None:
 def test_todo_copy_updates_timestamp() -> None:
     """copy() should automatically update updated_at timestamp."""
     original = Todo(id=1, text="buy milk", done=False)
-    original_timestamp = original.updated_at
 
-    # Small delay to ensure timestamp differs (though unlikely in same second)
     copied = original.copy()
 
     # updated_at should be set (may or may not differ based on timing)
