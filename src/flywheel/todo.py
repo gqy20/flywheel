@@ -54,6 +54,33 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def edit(self, text: str | None = None, done: bool | None = None) -> None:
+        """Partially update todo fields.
+
+        Only updates fields that are not None. Updates updated_at only if
+        at least one field is changed.
+
+        Args:
+            text: New text for the todo (will be stripped, cannot be empty).
+            done: New done status.
+
+        Raises:
+            ValueError: If text is provided but empty after stripping.
+        """
+        if text is None and done is None:
+            return
+
+        if text is not None:
+            text = text.strip()
+            if not text:
+                raise ValueError("Todo text cannot be empty")
+            self.text = text
+
+        if done is not None:
+            self.done = done
+
+        self.updated_at = _utc_now_iso()
+
     def to_dict(self) -> dict:
         return asdict(self)
 
