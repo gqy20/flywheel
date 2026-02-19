@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_empty_list_returns_1() -> None:
+    """Bug #4452: next_id should return 1 for an empty list."""
+    storage = TodoStorage(":memory:")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_with_only_negative_ids_returns_1() -> None:
+    """Bug #4452: next_id should return 1 when all todos have negative IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=-5, text="a"), Todo(id=-1, text="b")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_mixed_positive_and_negative_ids() -> None:
+    """Bug #4452: next_id should use max positive ID and ignore negative/zero IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=1, text="a"), Todo(id=-5, text="b"), Todo(id=0, text="c")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_with_zero_id_only() -> None:
+    """Bug #4452: next_id should return 1 when only ID is 0."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=0, text="a")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_never_returns_non_positive() -> None:
+    """Bug #4452: next_id should never return a value <= 0."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=-10, text="a"), Todo(id=-5, text="b")]
+    result = storage.next_id(todos)
+    assert result > 0
