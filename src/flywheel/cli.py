@@ -33,11 +33,13 @@ class TodoApp:
         self._save(todos)
         return todo
 
-    def list(self, show_all: bool = True) -> list[Todo]:
+    def list(self, show_all: bool = True, tag: str | None = None) -> list[Todo]:
         todos = self._load()
-        if show_all:
-            return todos
-        return [todo for todo in todos if not todo.done]
+        if not show_all:
+            todos = [todo for todo in todos if not todo.done]
+        if tag:
+            todos = [todo for todo in todos if tag in todo.tags]
+        return todos
 
     def mark_done(self, todo_id: int) -> Todo:
         todos = self._load()
@@ -78,6 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
+    p_list.add_argument("--tag", help="Filter todos by tag")
 
     p_done = sub.add_parser("done", help="Mark todo done")
     p_done.add_argument("id", type=int)
@@ -101,7 +104,8 @@ def run_command(args: argparse.Namespace) -> int:
             return 0
 
         if args.command == "list":
-            todos = app.list(show_all=not args.pending)
+            tag_filter = getattr(args, "tag", None)
+            todos = app.list(show_all=not args.pending, tag=tag_filter)
             print(TodoFormatter.format_list(todos))
             return 0
 

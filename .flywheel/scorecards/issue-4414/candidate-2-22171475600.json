@@ -1,0 +1,88 @@
+{
+  "issue": 4414,
+  "title": "[Feature] 添加 Todo 标签/分类字段支持",
+  "candidate": 2,
+  "run_id": "22171475600",
+  "stage": "implemented",
+  "plan": {
+    "summary": "Add tags field support to Todo model and CLI filtering",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_4414_todo_tags.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Add failing tests for tags field in Todo model",
+        "tests": [
+          "test_todo_with_tags_creates_successfully",
+          "test_todo_default_tags_empty_tuple",
+          "test_from_dict_accepts_list_tags",
+          "test_from_dict_accepts_tuple_tags",
+          "test_to_dict_includes_tags"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add tags field to Todo dataclass and update from_dict/to_dict",
+        "changes": [
+          "Add tags: tuple[str, ...] = () field to Todo dataclass",
+          "Update from_dict to accept list or tuple format for tags",
+          "to_dict already handles via asdict()"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "RED",
+        "description": "Add failing tests for CLI --tag filtering",
+        "tests": [
+          "test_list_with_tag_filter",
+          "test_list_with_tag_filter_no_match",
+          "test_cli_list_tag_argument"
+        ]
+      },
+      {
+        "step": 4,
+        "phase": "GREEN",
+        "description": "Add --tag parameter to CLI list command and filtering logic",
+        "changes": [
+          "Add --tag argument to list subparser in build_parser",
+          "Add tag filtering in TodoApp.list method",
+          "Update run_command to pass tag filter"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_4414_todo_tags.py -v",
+      "uv run ruff check src/flywheel/todo.py src/flywheel/cli.py",
+      "uv run pytest tests/ -v --tb=short"
+    ]
+  },
+  "acceptance_criteria": [
+    "Todo supports optional tags field (default empty tuple)",
+    "from_dict accepts list or tuple format for tags",
+    "CLI list supports --tag filter parameter"
+  ],
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_4414_todo_tags.py"
+    ],
+    "changes_summary": [
+      "Added tags: tuple[str, ...] = () field to Todo dataclass",
+      "Updated Todo.from_dict() to accept list or tuple format for tags",
+      "Added --tag filter parameter to CLI list command",
+      "Added 14 regression tests for tags functionality"
+    ],
+    "tests_added": 14,
+    "tests_passed": 126
+  },
+  "risks": [
+    "Storage files from previous versions will load with empty tags (backward compatible)",
+    "to_dict outputs tags as tuple which may differ from input list format"
+  ]
+}
