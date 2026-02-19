@@ -1,0 +1,36 @@
+{
+  "issue_number": 4495,
+  "candidate_number": 1,
+  "run_id": "22181878252",
+  "stage": "FINALIZE",
+  "triage_summary": {
+    "root_cause": "In src/flywheel/todo.py:69-70, the code uses int(data[\"id\"]) which silently truncates floats with decimal parts. Python's int(1.5) returns 1 without any error, causing data loss and potential collision (1.5 and 1 both map to id 1).",
+    "risk_points": [
+      "Data collision: Multiple distinct float IDs (1.5, 1.9, 1.0) could all map to the same integer ID (1)",
+      "Data loss: Non-zero decimal parts are silently discarded",
+      "Comment mismatch: Line 68 says 'Validate id is an integer' but the implementation doesn't enforce this - it silently coerces"
+    ],
+    "verification_targets": [
+      "Todo.from_dict({'id': 1.5, 'text': 'task'}) should raise ValueError",
+      "Todo.from_dict({'id': 1.0, 'text': 'task'}) should succeed (float representing whole number)",
+      "Todo.from_dict({'id': 1, 'text': 'task'}) should continue to succeed (unchanged behavior)"
+    ],
+    "proposed_fix_location": "src/flywheel/todo.py:68-74",
+    "proposed_fix_strategy": "Before int() conversion, check if the value is a float with non-zero decimal part. If isinstance(data['id'], float) and not data['id'].is_integer(), raise ValueError with clear message.",
+    "test_file": "tests/test_issue_2000_json_validation.py (extend existing from_dict tests)",
+    "related_code": [
+      "src/flywheel/todo.py:69-74 - int() conversion silently truncates",
+      "src/flywheel/storage.py:127 - next_id() always generates int, confirming ids should be integers"
+    ]
+  },
+  "implementation_summary": {
+    "tests_added": [
+      "test_todo_from_dict_rejects_float_id_with_decimal",
+      "test_todo_from_dict_rejects_negative_float_id",
+      "test_todo_from_dict_rejects_float_id_equal_to_int",
+      "test_todo_from_dict_accepts_integer_id"
+    ],
+    "source_changes": "src/flywheel/todo.py:68-74 - Added isinstance(raw_id, float) check that raises ValueError with clear message",
+    "commit": "f81b20f fix(todo): reject float id in from_dict to prevent silent truncation"
+  }
+}
