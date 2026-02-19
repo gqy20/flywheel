@@ -93,6 +93,14 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields are strings when present
+        for field in ("created_at", "updated_at"):
+            if field in data and not isinstance(data[field], str):
+                raise ValueError(
+                    f"Invalid value for '{field}': {data[field]!r}. "
+                    f"'{field}' must be a string."
+                )
+
         return cls(
             id=todo_id,
             text=data["text"],
