@@ -8,8 +8,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
