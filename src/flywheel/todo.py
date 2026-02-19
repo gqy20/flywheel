@@ -93,10 +93,19 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle timestamps: convert None/missing to empty string to trigger __post_init__
+        # Explicit empty string also triggers __post_init__ to generate new timestamp
+        created_at = data.get("created_at", "")
+        if created_at is None:
+            created_at = ""
+        updated_at = data.get("updated_at", "")
+        if updated_at is None:
+            updated_at = ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(created_at),
+            updated_at=str(updated_at),
         )
