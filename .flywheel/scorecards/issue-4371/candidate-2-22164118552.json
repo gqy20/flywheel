@@ -2,7 +2,7 @@
   "issue_number": 4371,
   "candidate_number": 2,
   "run_id": "22164118552",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "status": "completed",
   "changes": {
     "source_files": ["src/flywheel/todo.py"],
@@ -11,9 +11,20 @@
   },
   "tests": {
     "added": 5,
-    "passing": true
+    "passing": true,
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v -k \"test_todo_equality\"",
+      "uv run pytest tests/test_minimal_framework.py -v"
+    ]
   },
   "lint": {
-    "ruff": "passed"
+    "ruff_check": "passed",
+    "ruff_format": "passed"
+  },
+  "verification_summary": {
+    "pytest_targeted": "5/5 tests passed",
+    "pytest_full": "15/15 tests passed",
+    "ruff_check": "All checks passed",
+    "ruff_format": "2 files already formatted"
   }
 }
