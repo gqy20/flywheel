@@ -119,3 +119,50 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4585 - validate timestamp fields are strings when present
+def test_todo_from_dict_rejects_none_created_at() -> None:
+    """Todo.from_dict should reject None for 'created_at' field to avoid string 'None'."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": None})
+
+
+def test_todo_from_dict_rejects_int_created_at() -> None:
+    """Todo.from_dict should reject integer for 'created_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": 12345})
+
+
+def test_todo_from_dict_rejects_none_updated_at() -> None:
+    """Todo.from_dict should reject None for 'updated_at' field to avoid string 'None'."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": None})
+
+
+def test_todo_from_dict_rejects_int_updated_at() -> None:
+    """Todo.from_dict should reject integer for 'updated_at' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*string"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": 12345})
+
+
+def test_todo_from_dict_accepts_empty_string_created_at() -> None:
+    """Todo.from_dict should accept empty string for 'created_at' (triggers __post_init__)."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": ""})
+    # Empty string triggers __post_init__ which sets created_at to current time
+    assert todo.created_at != ""
+    assert "T" in todo.created_at  # ISO format contains 'T'
+
+
+def test_todo_from_dict_accepts_valid_timestamp_string() -> None:
+    """Todo.from_dict should accept valid ISO timestamp string."""
+    todo = Todo.from_dict(
+        {
+            "id": 1,
+            "text": "task",
+            "created_at": "2024-01-01T00:00:00Z",
+            "updated_at": "2024-01-02T00:00:00Z",
+        }
+    )
+    assert todo.created_at == "2024-01-01T00:00:00Z"
+    assert todo.updated_at == "2024-01-02T00:00:00Z"
