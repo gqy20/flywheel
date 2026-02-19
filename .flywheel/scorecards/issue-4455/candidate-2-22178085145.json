@@ -1,0 +1,22 @@
+{
+  "issue_number": 4455,
+  "issue_title": "[Feature] Add copy/clone method for immutable-style updates",
+  "candidate_number": 2,
+  "run_id": "22178085145",
+  "branch": "claude/issue-4455-candidate-2-22178085145",
+  "status": "implemented",
+  "test_file": "tests/test_issue_4455_copy_method.py",
+  "source_files": ["src/flywheel/todo.py"],
+  "tests_added": 10,
+  "tests_passed": 10,
+  "all_tests_passed": true,
+  "ruff_checks_passed": true,
+  "summary": "Added copy(**kwargs) method to Todo class that returns a new Todo with specified fields overridden. Enables functional-style programming patterns where modifications return new instances instead of mutating. The updated_at timestamp is automatically refreshed on copy unless explicitly overridden.",
+  "acceptance_criteria": {
+    "copy_returns_distinct_object": true,
+    "copy_with_text_override": true,
+    "original_unchanged": true,
+    "handles_all_fields": true,
+    "updates_updated_at": true
+  }
+}
