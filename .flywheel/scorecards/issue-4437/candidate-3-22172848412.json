@@ -1,13 +1,40 @@
 {
-  "issue_number": 4437,
+  "issue": 4437,
   "candidate": 3,
   "run_id": "22172848412",
-  "status": "implemented",
-  "created_at": "2026-02-19T07:05:00Z",
-  "tests_added": 2,
-  "tests_passed": 14,
-  "source_files_changed": 1,
-  "test_files_changed": 1,
-  "summary": "Add validation in Todo.from_dict to reject negative or zero IDs",
-  "approach": "TDD with minimal fix - added validation check after integer conversion"
+  "stage": "finalize",
+  "status": "completed",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest -v",
+      "result": "passed",
+      "tests_run": 114,
+      "tests_passed": 114,
+      "tests_failed": 0
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py",
+      "result": "passed"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py",
+      "result": "passed",
+      "files_reformatted": 2
+    }
+  },
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py",
+      "tests/test_storage_atomicity.py"
+    ]
+  },
+  "acceptance_criteria": {
+    "negative_id_rejected": "Todo.from_dict({'id': -1, 'text': 'x'}) raises ValueError - VERIFIED",
+    "zero_id_rejected": "Todo.from_dict({'id': 0, 'text': 'x'}) raises ValueError - VERIFIED",
+    "positive_id_accepted": "Todo.from_dict({'id': 1, 'text': 'x'}) succeeds - VERIFIED"
+  },
+  "summary": "All verification checks passed. The fix adds validation in from_dict to reject negative or zero IDs. A downstream test (test_concurrent_save_from_multiple_processes) was also updated to use positive IDs."
 }
