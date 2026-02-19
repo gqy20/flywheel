@@ -1,34 +1,23 @@
 {
-  "issue_number": 4455,
-  "issue_title": "[Feature] Add copy/clone method for immutable-style updates",
-  "candidate_number": 1,
+  "issue": 4455,
+  "candidate": 1,
   "run_id": "22178085145",
   "branch": "claude/issue-4455-candidate-1-22178085145",
-  "created_at": "2026-02-19T08:10:00Z",
-  "scorecard": {
-    "tests_added": 9,
-    "tests_passed": 9,
-    "tests_failed": 0,
-    "linting_errors": 0,
-    "files_changed": 2,
-    "implementation_minimal": true,
-    "follows_conventions": true
-  },
-  "acceptance_criteria_met": {
-    "copy_returns_distinct_object": true,
-    "copy_with_overrides_updates_fields": true,
-    "original_unchanged_after_copy": true,
-    "timestamps_handled_correctly": true
-  },
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_4455_todo_copy.py"
-    ]
-  },
-  "summary": "Added copy() method to Todo class that returns a new Todo with specified fields overridden. Enables immutable-style programming patterns for functional-style updates.",
-  "risks": "Minimal - the copy() method leverages existing to_dict() and from_dict() methods, maintaining consistency with the existing codebase.",
-  "limitations": "None identified - implementation is minimal and follows the suggested approach from the issue."
+  "pr_number": 4488,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4488",
+  "generated_at": "2026-02-19T11:12:55.100283+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2641,
+    "plan": 3607,
+    "implement": 1867,
+    "verify": 1702,
+    "finalize": 1667
+  }
 }
