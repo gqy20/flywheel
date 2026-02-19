@@ -25,6 +25,11 @@ on:
         required: false
         default: "72"
         type: string
+      scan_limit:
+        description: "How many open PRs to scan for candidate hygiene"
+        required: false
+        default: "1000"
+        type: string
 
 permissions:
   contents: read
@@ -44,6 +49,7 @@ jobs:
       KEEP_PER_ISSUE: ${{ inputs.keep_per_issue || '1' }}
       MIN_AGE_HOURS: ${{ inputs.min_age_hours || '12' }}
       CLOSE_SINGLETON_AFTER_HOURS: ${{ inputs.close_singleton_after_hours || '72' }}
+      SCAN_LIMIT: ${{ inputs.scan_limit || '1000' }}
       DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && (inputs.dry_run && 'true' || 'false') || 'false' }}
       GH_PAGER: cat
       PAGER: cat
@@ -59,7 +65,8 @@ jobs:
           cmd=(python scripts/shared/cleanup_candidate_prs.py \
             --keep-per-issue "$KEEP_PER_ISSUE" \
             --min-age-hours "$MIN_AGE_HOURS" \
-            --close-singleton-after-hours "$CLOSE_SINGLETON_AFTER_HOURS")
+            --close-singleton-after-hours "$CLOSE_SINGLETON_AFTER_HOURS" \
+            --limit "$SCAN_LIMIT")
 
           if [[ "$DRY_RUN" == "true" ]]; then
             cmd+=(--dry-run)

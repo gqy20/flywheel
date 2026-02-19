@@ -25,6 +25,7 @@ Run `uv run python scripts/check_docs_sync.py --generate` after workflow changes
 | `dry_run` | `false` | `True` | `boolean` | Only report close candidates without closing PRs |
 | `keep_per_issue` | `false` | `1` | `string` | How many newest candidate PRs to keep per issue |
 | `min_age_hours` | `false` | `12` | `string` | Only close duplicates older than this age (hours) |
+| `scan_limit` | `false` | `1000` | `string` | How many open PRs to scan for candidate hygiene |
 
 ## `ci-failure-auto-fix.yml`
 
