@@ -2,23 +2,22 @@
   "issue": 4468,
   "candidate": 3,
   "run_id": "22179913360",
-  "status": "verified",
-  "created_at": "2026-02-19T12:10:00Z",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/4503",
+  "branch": "claude/issue-4468-candidate-3-22179913360",
   "pr_number": 4503,
-  "tests_added": 7,
-  "tests_passed": true,
-  "lint_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4468_todo_eq_hash.py"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4503",
+  "generated_at": "2026-02-19T12:19:46.019350+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_4468_todo_eq_hash.py -v",
-    "pytest_result": "7 passed",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4468_todo_eq_hash.py",
-    "ruff_result": "All checks passed",
-    "full_test_suite": "uv run pytest tests/ -v",
-    "full_suite_result": "119 passed"
+  "stage_response_sizes": {
+    "triage": 2346,
+    "plan": 4000,
+    "implement": 2609,
+    "verify": 2352,
+    "finalize": 1301
   }
 }
