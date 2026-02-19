@@ -1,0 +1,72 @@
+{
+  "issue_number": 4426,
+  "candidate": 3,
+  "run_id": "22172848412",
+  "branch": "claude/issue-4426-candidate-3-22172848412",
+  "timestamp": "2026-02-19T16:17:00Z",
+  "summary": {
+    "title": "[Bug] from_dict() does not strip text before assignment, inconsistent with CLI.add() a",
+    "root_cause": "from_dict() in todo.py was passing raw data['text'] without stripping whitespace, unlike CLI.add() and rename() which both call text.strip()",
+    "fix_approach": "Add text stripping in from_dict() consistent with CLI.add() and rename() methods"
+  },
+  "changes": {
+    "source_files": [
+      {
+        "path": "src/flywheel/todo.py",
+        "change_type": "modified",
+        "lines_changed": 6,
+        "description": "Strip text before assignment in from_dict(), raise ValueError if stripped text is empty"
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/test_issue_4426_from_dict_strip.py",
+        "change_type": "added",
+        "lines_added": 77,
+        "test_count": 9,
+        "description": "Regression tests for from_dict() text stripping behavior"
+      }
+    ]
+  },
+  "tests": {
+    "passed": 116,
+    "failed": 0,
+    "total": 116,
+    "new_tests": 9,
+    "regression_tests_passed": true
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "all_existing_tests_pass": true,
+    "test_coverage_impact": "92% (from 26% to 92% on todo.py)"
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Todo.from_dict({'id': 1, 'text': '  hello  '}) produces todo.text == 'hello'",
+      "status": "passed",
+      "test": "test_from_dict_strips_leading_trailing_whitespace"
+    },
+    {
+      "criterion": "Roundtrip save/load preserves stripped text",
+      "status": "passed",
+      "test": "test_save_load_preserves_stripped_text"
+    },
+    {
+      "criterion": "Existing tests pass",
+      "status": "passed",
+      "test": "116 tests passed"
+    }
+  ],
+  "risks": {
+    "breaking_changes": false,
+    "behavior_change": true,
+    "description": "from_dict() now strips whitespace from text. This is a bug fix that aligns behavior with CLI.add() and rename(). Users relying on whitespace preservation in from_dict() will see different behavior."
+  },
+  "score": {
+    "correctness": 10,
+    "minimal_changes": 10,
+    "test_coverage": 10,
+    "code_quality": 10,
+    "total": 40
+  }
+}
