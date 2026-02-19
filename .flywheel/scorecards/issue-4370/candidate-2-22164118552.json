@@ -1,0 +1,11 @@
+{
+  "issue_number": 4370,
+  "candidate_number": 2,
+  "run_id": "22164118552",
+  "branch_name": "claude/issue-4370-candidate-2-22164118552",
+  "status": "implemented",
+  "summary": "Fix silent float/bool to int conversion in Todo.from_dict",
+  "tests_added": 4,
+  "tests_passed": 116,
+  "lint_status": "passed"
+}
