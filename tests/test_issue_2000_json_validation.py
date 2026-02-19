@@ -119,3 +119,16 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4370 - validate 'id' is actually an int, not float-like or bool
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float values for 'id' to prevent precision loss."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
+        Todo.from_dict({"id": 1.9, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject bool values for 'id' (bool is subclass of int)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
+        Todo.from_dict({"id": True, "text": "task"})

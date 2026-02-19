@@ -1,0 +1,21 @@
+{
+  "issue_number": 4370,
+  "candidate_number": 1,
+  "run_id": "22164118552",
+  "branch": "claude/issue-4370-candidate-1-22164118552",
+  "status": "implemented",
+  "tests_added": 2,
+  "tests_passed": 114,
+  "tests_failed": 0,
+  "lint_status": "passed",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Fixed from_dict silently converting float-like id to int by adding explicit type validation that rejects bool and non-int types before conversion.",
+  "acceptance_criteria_met": [
+    "Todo.from_dict({'id': 1.9, 'text': 'x'}) raises ValueError",
+    "Todo.from_dict({'id': True, 'text': 'x'}) raises ValueError",
+    "Existing tests for string 'id' rejection still pass"
+  ]
+}
