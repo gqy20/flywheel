@@ -1,18 +1,23 @@
 {
-  "issue_number": 4439,
-  "candidate_number": 1,
+  "issue": 4439,
+  "candidate": 1,
   "run_id": "22174182807",
   "branch": "claude/issue-4439-candidate-1-22174182807",
-  "created_at": "2026-02-19T07:12:00Z",
-  "status": "ready_for_review",
-  "summary": "Added test cases for to_dict/from_dict round-trip invariance in Todo class",
-  "files_changed": ["tests/test_minimal_framework.py"],
-  "tests_added": 2,
-  "score": {
-    "test_coverage": 5,
-    "code_quality": 5,
-    "minimal_changes": 5,
-    "documentation": 5,
-    "total": 20
+  "pr_number": 4470,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4470",
+  "generated_at": "2026-02-19T09:16:03.886723+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1886,
+    "plan": 2267,
+    "implement": 2359,
+    "verify": 1567,
+    "finalize": 673
   }
 }
