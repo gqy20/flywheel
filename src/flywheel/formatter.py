@@ -31,7 +31,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
@@ -44,8 +44,14 @@ class TodoFormatter:
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
+        # Priority indicator: ! for high (1), - for low (3), space for medium (2)
+        priority_indicator = "!"
+        if todo.priority == 3:
+            priority_indicator = "-"
+        elif todo.priority == 2:
+            priority_indicator = " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        return f"[{status}] {priority_indicator} {todo.id:>3} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:

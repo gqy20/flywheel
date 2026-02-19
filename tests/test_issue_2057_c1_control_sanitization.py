@@ -40,7 +40,8 @@ class TestC1ControlSanitization:
 
         todo = Todo(id=1, text="Buy milk\x9f", done=False)
         result = TodoFormatter.format_todo(todo)
-        assert result == r"[ ]   1 Buy milk\x9f"
+        # Format: [status] priority id text
+        assert result == r"[ ]     1 Buy milk\x9f"
 
     def test_unicode_text_passes_through_unchanged(self):
         """Test that valid Unicode text is not affected by sanitization."""

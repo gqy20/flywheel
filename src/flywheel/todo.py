@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    priority: int = 2  # 1=high, 2=medium, 3=low
     created_at: str = ""
     updated_at: str = ""
 
@@ -93,10 +94,21 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is an integer in range 1-3
+        raw_priority = data.get("priority", 2)
+        if isinstance(raw_priority, int) and 1 <= raw_priority <= 3:
+            priority = raw_priority
+        else:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be an integer in range 1-3 (1=high, 2=medium, 3=low)."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            priority=priority,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
