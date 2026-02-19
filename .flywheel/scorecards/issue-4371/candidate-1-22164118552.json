@@ -1,51 +1,23 @@
 {
-  "issue_number": 4371,
-  "candidate_number": 1,
+  "issue": 4371,
+  "candidate": 1,
   "run_id": "22164118552",
-  "branch_name": "claude/issue-4371-candidate-1-22164118552",
+  "branch": "claude/issue-4371-candidate-1-22164118552",
+  "pr_number": 4401,
   "pr_url": "https://github.com/gqy20/flywheel/pull/4401",
-  "status": "verified",
-  "implementation": {
-    "approach": "Add custom __eq__ method to Todo class that compares only essential fields (id, text, done) while ignoring timestamps",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_4371_todo_equality.py"
-    ],
-    "lines_added": 104,
-    "lines_removed": 0
-  },
-  "tests": {
-    "new_tests": 9,
-    "all_tests_passed": true,
-    "total_tests_run": 121,
-    "regressions": false
-  },
-  "lint": {
-    "ruff_check": "passed",
-    "ruff_format": "passed"
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_4371_todo_equality.py -v",
-    "pytest_result": "9 passed",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_4371_todo_equality.py",
-    "ruff_check_result": "All checks passed",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_4371_todo_equality.py",
-    "ruff_format_result": "2 files already formatted",
-    "full_test_suite": "uv run pytest tests/ -v --tb=short",
-    "full_test_suite_result": "121 passed"
-  },
-  "commits": [
-    {
-      "sha": "3bfdd23",
-      "message": "feat(todo): add __eq__ method for value-based equality comparison (#4371)"
-    },
-    {
-      "sha": "e722e63",
-      "message": "chore: add scorecard for issue-4371 candidate-1"
-    },
-    {
-      "sha": "db12a0b",
-      "message": "fix: apply ruff lint and format fixes for test file"
-    }
-  ]
+  "generated_at": "2026-02-19T01:31:10.952761+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2485,
+    "plan": 3463,
+    "implement": 2250,
+    "verify": 2596,
+    "finalize": 1059
+  }
 }
