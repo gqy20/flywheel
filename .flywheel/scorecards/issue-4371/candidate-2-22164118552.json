@@ -26,5 +26,6 @@
     "pytest_full": "15/15 tests passed",
     "ruff_check": "All checks passed",
     "ruff_format": "2 files already formatted"
-  }
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4408"
 }
