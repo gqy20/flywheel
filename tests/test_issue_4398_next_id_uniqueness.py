@@ -7,7 +7,6 @@ import json
 import pytest
 
 from flywheel.storage import TodoStorage
-from flywheel.todo import Todo
 
 
 class TestNextIdUniqueness:
@@ -91,5 +90,5 @@ class TestLoadDuplicateIdDetection:
         db.write_text(json.dumps(todos_data), encoding="utf-8")
 
         # load() should raise ValueError for duplicate IDs
-        with pytest.raises(ValueError, match="[Dd]uplicate.*[Ii][Dd]"):
+        with pytest.raises(ValueError, match=r"[Dd]uplicate.*[Ii][Dd]"):
             storage.load()
