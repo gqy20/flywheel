@@ -1,0 +1,19 @@
+{
+  "issue_number": 4371,
+  "candidate_number": 2,
+  "run_id": "22164118552",
+  "stage": "IMPLEMENT",
+  "status": "completed",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_minimal_framework.py"],
+    "lines_added": 46
+  },
+  "tests": {
+    "added": 5,
+    "passing": true
+  },
+  "lint": {
+    "ruff": "passed"
+  }
+}
