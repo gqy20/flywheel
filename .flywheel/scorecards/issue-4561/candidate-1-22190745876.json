@@ -1,0 +1,25 @@
+{
+  "issue": 4561,
+  "title": "[Perf] O(n) ID generation scans entire list on every add()",
+  "candidate": 1,
+  "run_id": "22190745876",
+  "branch": "claude/issue-4561-candidate-1-22190745876",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_issue_4561_next_id_performance.py -v",
+      "result": "passed",
+      "tests_run": 4,
+      "tests_passed": 4,
+      "tests_failed": 0
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_4561_next_id_performance.py",
+      "result": "passed"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4561_next_id_performance.py"
+  ],
+  "fix_summary": "Added _max_id_cache field to TodoStorage class. The cache is computed lazily on first next_id() call and updated when todos are loaded from storage. This changes next_id() from O(n) to O(1) complexity."
+}
