@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code Action
-        uses: anthropics/claude-code-action@v1.0.30
+        uses: anthropics/claude-code-action@v1.0.54
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 1
 
       - name: Run Claude Code Action (Manual Prompt)
-        uses: anthropics/claude-code-action@v1.0.30
+        uses: anthropics/claude-code-action@v1.0.54
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
