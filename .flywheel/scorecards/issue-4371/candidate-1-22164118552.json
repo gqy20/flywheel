@@ -1,0 +1,31 @@
+{
+  "issue_number": 4371,
+  "candidate_number": 1,
+  "run_id": "22164118552",
+  "branch_name": "claude/issue-4371-candidate-1-22164118552",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4401",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Add custom __eq__ method to Todo class that compares only essential fields (id, text, done) while ignoring timestamps",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_4371_todo_equality.py"
+    ],
+    "lines_added": 93,
+    "lines_removed": 0
+  },
+  "tests": {
+    "new_tests": 9,
+    "all_tests_passed": true,
+    "total_tests_run": 121,
+    "regressions": false
+  },
+  "lint": {
+    "ruff_check": "passed",
+    "ruff_format": "not_run"
+  },
+  "commit": {
+    "sha": "3bfdd23",
+    "message": "feat(todo): add __eq__ method for value-based equality comparison (#4371)"
+  }
+}
