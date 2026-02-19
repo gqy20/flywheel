@@ -1,17 +1,23 @@
 {
-  "issue_number": 4466,
-  "candidate_number": 1,
+  "issue": 4466,
+  "candidate": 1,
   "run_id": "22179913360",
   "branch": "claude/issue-4466-candidate-1-22179913360",
-  "commit_sha": "b0fb0b0",
-  "summary": "Validates that 'id' is a positive integer (>=1) in Todo.from_dict",
-  "tests_added": 3,
-  "tests_passed": 115,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py",
-    "tests/test_storage_atomicity.py"
+  "pr_number": 4505,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4505",
+  "generated_at": "2026-02-19T12:16:10.073827+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": "Minimal - validates positive IDs which aligns with storage.next_id() behavior",
-  "status": "ready"
+  "stage_response_sizes": {
+    "triage": 2164,
+    "plan": 2149,
+    "implement": 3511,
+    "verify": 2931,
+    "finalize": 768
+  }
 }
