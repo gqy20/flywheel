@@ -158,3 +158,26 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_when_all_ids_are_negative() -> None:
+    """Bug #4609: next_id should return 1 when all existing IDs are negative."""
+    storage = TodoStorage(":memory:")  # Path doesn't matter for this test
+    todos = [Todo(id=-5, text="negative id")]
+    # When all IDs are negative, next_id should return 1, not -4
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_returns_next_when_ids_are_non_contiguous() -> None:
+    """Bug #4609: next_id should return max+1 for non-contiguous IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=1, text="first"), Todo(id=100, text="hundredth")]
+    # Should return 101, the next ID after the maximum
+    assert storage.next_id(todos) == 101
+
+
+def test_next_id_returns_1_when_todos_is_empty() -> None:
+    """Bug #4609: next_id should return 1 when there are no todos."""
+    storage = TodoStorage(":memory:")
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
