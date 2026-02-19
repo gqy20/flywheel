@@ -93,10 +93,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Timestamps: missing keys get empty string (triggers __post_init__ generation).
+        # Explicit None is rejected to prevent silent timestamp regeneration.
+        # Valid string values are preserved as-is.
+        created_at = data.get("created_at")
+        updated_at = data.get("updated_at")
+        if "created_at" in data and created_at is None:
+            raise ValueError(
+                "Invalid value for 'created_at': None. "
+                "Use empty string '' to trigger auto-generation, or provide a valid timestamp."
+            )
+        if "updated_at" in data and updated_at is None:
+            raise ValueError(
+                "Invalid value for 'updated_at': None. "
+                "Use empty string '' to trigger auto-generation, or provide a valid timestamp."
+            )
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(created_at or ""),
+            updated_at=str(updated_at or ""),
         )
