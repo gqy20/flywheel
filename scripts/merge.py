@@ -56,6 +56,30 @@ def _required_repo() -> str:
     return repo
 
 
+def _parse_eligible_prs(eligible_csv: str) -> list[int]:
+    values: list[int] = []
+    for raw in eligible_csv.split(","):
+        value = raw.strip()
+        if not value:
+            continue
+        values.append(int(value))
+    return values
+
+
+def _merged_eligible_prs(eligible_prs: list[int]) -> list[int]:
+    merged: list[int] = []
+    for pr_number in eligible_prs:
+        result = run_gh_command(
+            ["pr", "view", str(pr_number), "--json", "mergedAt", "--jq", ".mergedAt // empty"],
+            check=False,
+        )
+        if result.returncode != 0:
+            continue
+        if (result.stdout or "").strip():
+            merged.append(pr_number)
+    return merged
+
+
 def _scorecard_path(issue_number: str, candidate_id: str, run_id: str) -> str:
     return f".flywheel/scorecards/issue-{issue_number}/candidate-{candidate_id}-{run_id}.json"
 
@@ -172,6 +196,119 @@ def _filter_candidates_for_arbitration(
     return filtered
 
 
+def _extract_scorecard_payload(body: str) -> dict[str, Any] | None:
+    lines = body.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != "<!-- arbiter-scorecard -->":
+            continue
+        if index + 1 >= len(lines):
+            return None
+        payload_line = lines[index + 1].strip()
+        if not payload_line:
+            return None
+        try:
+            parsed = json.loads(payload_line)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(parsed, dict):
+            return parsed
+        return None
+    return None
+
+
+def _resolve_winner_from_scorecards(issue_number: str, eligible_prs: list[int]) -> int | None:
+    issue_int = int(issue_number)
+    winner: int | None = None
+    winner_created_at = ""
+    for pr_number in eligible_prs:
+        result = run_gh_command(
+            ["pr", "view", str(pr_number), "--json", "comments"],
+            check=False,
+        )
+        if result.returncode != 0:
+            continue
+        payload = json.loads(result.stdout or "{}")
+        comments = payload.get("comments", [])
+        if not isinstance(comments, list):
+            continue
+        for comment in comments:
+            if not isinstance(comment, dict):
+                continue
+            body = comment.get("body")
+            created_at = str(comment.get("createdAt", ""))
+            if not isinstance(body, str):
+                continue
+            parsed = _extract_scorecard_payload(body)
+            if not isinstance(parsed, dict):
+                continue
+            parsed_issue = parsed.get("issue")
+            parsed_winner = parsed.get("winner_pr")
+            if parsed_issue != issue_int:
+                continue
+            if not isinstance(parsed_winner, int):
+                continue
+            if parsed_winner not in eligible_prs:
+                continue
+            if created_at >= winner_created_at:
+                winner_created_at = created_at
+                winner = parsed_winner
+    return winner
+
+
+def _close_non_winners(issue_number: str, winner_pr: int, eligible_prs: list[int]) -> None:
+    for pr_number in eligible_prs:
+        if pr_number == winner_pr:
+            continue
+        run_gh_command(
+            [
+                "pr",
+                "comment",
+                str(pr_number),
+                "--body",
+                (
+                    f"Auto merge maintenance: winner for issue #{issue_number} is #{winner_pr}. "
+                    "Closing non-winner candidate to reduce backlog."
+                ),
+            ],
+            check=False,
+        )
+        run_gh_command(["pr", "close", str(pr_number)], check=False)
+
+
+def _ensure_merged_winner(issue_number: str, eligible_prs: list[int]) -> None:
+    merged = _merged_eligible_prs(eligible_prs)
+    if len(merged) == 1:
+        logger.info("Winner already merged by arbiter: #%s", merged[0])
+        return
+    if len(merged) > 1:
+        raise RuntimeError(f"Multiple merged PRs found in eligible set: {merged}")
+
+    winner = _resolve_winner_from_scorecards(issue_number=issue_number, eligible_prs=eligible_prs)
+    if winner is None:
+        raise RuntimeError(
+            "Arbiter did not merge a winner and no valid scorecard winner was found in eligible PRs"
+        )
+
+    logger.warning(
+        "Arbiter did not merge winner; applying deterministic fallback merge for PR #%s", winner
+    )
+    merge_result = run_gh_command(
+        ["pr", "merge", str(winner), "--squash", "--delete-branch"],
+        check=False,
+    )
+    if merge_result.returncode != 0:
+        raise RuntimeError(
+            f"Fallback merge failed for PR #{winner}: {merge_result.stderr.strip() or merge_result.stdout.strip()}"
+        )
+
+    _close_non_winners(issue_number=issue_number, winner_pr=winner, eligible_prs=eligible_prs)
+    merged_after = _merged_eligible_prs(eligible_prs)
+    if merged_after != [winner]:
+        raise RuntimeError(
+            f"Fallback merge post-check failed; expected only winner #{winner}, got merged={merged_after}"
+        )
+
+
 def build_prompt(issue_number: str, eligible_csv: str, candidates_json: str) -> str:
     return f"""
 You are the dedicated merge arbiter for auto-fix candidates.
@@ -211,6 +348,7 @@ Constraints:
 def main() -> int:
     issue_number = _required_env("ISSUE_NUMBER")
     eligible_csv = _required_env("ELIGIBLE_CSV")
+    eligible_prs = _parse_eligible_prs(eligible_csv)
     repo = _required_repo()
     require_scorecard = _parse_bool(os.environ.get("CLAUDE_REQUIRE_SCORECARD"), default=False)
 
@@ -261,6 +399,7 @@ def main() -> int:
     )
 
     logger.info("Merge arbiter completed issue=%s response_chars=%s", issue_number, len(response))
+    _ensure_merged_winner(issue_number=issue_number, eligible_prs=eligible_prs)
     return 0
 
 
