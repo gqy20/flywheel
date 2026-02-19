@@ -3,11 +3,12 @@
   "candidate_number": 1,
   "run_id": "22164118552",
   "branch": "claude/issue-4370-candidate-1-22164118552",
-  "status": "implemented",
+  "status": "verified",
   "tests_added": 2,
   "tests_passed": 114,
   "tests_failed": 0,
   "lint_status": "passed",
+  "format_status": "passed",
   "files_changed": [
     "src/flywheel/todo.py",
     "tests/test_issue_2000_json_validation.py"
@@ -17,5 +18,17 @@
     "Todo.from_dict({'id': 1.9, 'text': 'x'}) raises ValueError",
     "Todo.from_dict({'id': True, 'text': 'x'}) raises ValueError",
     "Existing tests for string 'id' rejection still pass"
-  ]
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "uv run pytest -q",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
+  ],
+  "verification_outcomes": {
+    "targeted_tests": "14 passed",
+    "full_tests": "114 passed",
+    "ruff_check": "All checks passed",
+    "ruff_format": "2 files already formatted"
+  }
 }
