@@ -1,24 +1,23 @@
 {
-  "issue_number": 4383,
+  "issue": 4383,
   "candidate": 1,
   "run_id": "22167425666",
-  "status": "implemented",
-  "approach": "Add text validation in Todo.__post_init__ to reject empty/whitespace-only text at construction time",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_minimal_framework.py"
-    ]
-  },
-  "tests_passed": 117,
-  "lint_passed": true,
-  "validation_criteria": {
-    "empty_string_raises_valueerror": true,
-    "whitespace_only_raises_valueerror": true,
-    "valid_text_succeeds": true,
-    "from_dict_empty_raises": true
-  },
-  "risks": "None - validation is consistent with existing rename() behavior and error message"
+  "branch": "claude/issue-4383-candidate-1-22167425666",
+  "pr_number": 4417,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4417",
+  "generated_at": "2026-02-19T04:08:44.034280+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3264,
+    "plan": 3278,
+    "implement": 2074,
+    "verify": 2064,
+    "finalize": 934
+  }
 }
