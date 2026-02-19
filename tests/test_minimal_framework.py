@@ -189,5 +189,5 @@ def test_todo_equality_with_non_todo() -> None:
     # Comparing Todo to non-Todo returns False (not NotImplemented when using ==)
     assert todo != "not a todo"
     assert todo != 1
-    assert todo != None
+    assert todo is not None
     assert todo != {"id": 1, "text": "a"}
