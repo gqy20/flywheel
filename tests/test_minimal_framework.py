@@ -158,3 +158,40 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_negative_ids_returns_positive() -> None:
+    """Bug #4452: next_id() should return positive IDs even when todos have negative IDs."""
+    storage = TodoStorage()
+    todos = [Todo(id=-5, text="negative")]
+    # When all IDs are negative, next_id should return 1
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_zero_and_positive_ids_ignores_zero() -> None:
+    """Bug #4452: next_id() should ignore zero IDs and use positive IDs."""
+    storage = TodoStorage()
+    todos = [Todo(id=0, text="zero"), Todo(id=1, text="one")]
+    # Should use max positive ID (1) + 1 = 2, not 0 + 1 = 1
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_with_mixed_negative_zero_positive_uses_positive() -> None:
+    """Bug #4452: next_id() should only consider positive IDs."""
+    storage = TodoStorage()
+    todos = [Todo(id=-5, text="negative"), Todo(id=0, text="zero"), Todo(id=1, text="one")]
+    # Should use max positive ID (1) + 1 = 2
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_never_returns_zero_or_negative() -> None:
+    """Bug #4452: next_id() should never return 0 or negative values."""
+    storage = TodoStorage()
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Only negative IDs should return 1
+    assert storage.next_id([Todo(id=-100, text="negative")]) == 1
+
+    # Only zero should return 1
+    assert storage.next_id([Todo(id=0, text="zero")]) == 1
