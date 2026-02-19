@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "22179913360",
   "branch_name": "claude/issue-4468-candidate-2-22179913360",
-  "stage": "PLAN",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Add __eq__ and __hash__ methods to Todo dataclass to enable equality comparison based on id field and allow Todo objects to be used in sets/dicts",
     "files_to_touch": [
