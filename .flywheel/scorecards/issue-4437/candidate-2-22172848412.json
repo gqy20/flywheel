@@ -3,16 +3,21 @@
   "candidate": 2,
   "run_id": "22172848412",
   "branch": "claude/issue-4437-candidate-2-22172848412",
-  "summary": "Add validation in Todo.from_dict to reject negative or zero IDs",
-  "tests_added": 3,
-  "tests_fixed": 1,
-  "tests_passed": 115,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py",
-    "tests/test_storage_atomicity.py"
+  "pr_number": 4458,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4458",
+  "generated_at": "2026-02-19T08:23:31.438271+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "approach": "Added validation check `if todo_id <= 0` after the int conversion to raise ValueError with clear message for non-positive IDs. Also fixed test_storage_atomicity.py which was using id=0 in concurrent test.",
-  "risks": "Minimal - only adds validation, no behavior change for valid positive IDs",
-  "created_at": "2026-02-19T07:02:00Z"
+  "stage_response_sizes": {
+    "triage": 2562,
+    "plan": 2353,
+    "implement": 2112,
+    "verify": 2886,
+    "finalize": 1369
+  }
 }
