@@ -1,23 +1,23 @@
 {
-  "issue_number": 4411,
-  "candidate_number": 1,
+  "issue": 4411,
+  "candidate": 1,
   "run_id": "22169515804",
-  "created_at": "2026-02-19T04:00:00Z",
-  "scorecard": {
-    "tests_pass": true,
-    "ruff_check_pass": true,
-    "minimal_scope": true,
-    "follows_conventions": true,
-    "has_regression_test": true
-  },
-  "summary": "Add validation in Todo.__post_init__ and Todo.from_dict to ensure id > 0",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4411_todo_id_validation.py"
+  "branch": "claude/issue-4411-candidate-1-22169515804",
+  "pr_number": 4429,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4429",
+  "generated_at": "2026-02-19T05:55:51.632576+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_run": [
-    "tests/test_issue_4411_todo_id_validation.py",
-    "tests/test_issue_2087_todo_repr.py",
-    "tests/test_issue_1924_format_todo_sanitization.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 2537,
+    "plan": 2664,
+    "implement": 1705,
+    "verify": 2403,
+    "finalize": 1423
+  }
 }
