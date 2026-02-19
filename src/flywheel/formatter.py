@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from .todo import Todo
 
 
@@ -41,11 +43,15 @@ def _sanitize_text(text: str) -> str:
 class TodoFormatter:
     """Render todos in simple text tables."""
 
-    @staticmethod
-    def format_todo(todo: Todo) -> str:
+    # Priority indicators: 1=high (!), 2=medium (-), 3=low (.)
+    PRIORITY_MARKERS: ClassVar[dict[int, str]] = {1: "!", 2: "-", 3: "."}
+
+    @classmethod
+    def format_todo(cls, todo: Todo) -> str:
         status = "x" if todo.done else " "
+        priority_marker = cls.PRIORITY_MARKERS.get(todo.priority, "-")
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        return f"[{status}] {todo.id:>3} {priority_marker} {safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
