@@ -125,4 +125,19 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Return the next available ID for a new todo.
+
+        The returned ID is max(existing_ids) + 1, or 1 if the list is empty.
+        This function correctly handles duplicate IDs in the todo list by
+        considering the maximum ID value regardless of duplicates.
+
+        Note: This does NOT fill gaps in the ID sequence. For example,
+        if todos have IDs [1, 3], the next ID will be 4, not 2.
+
+        Args:
+            todos: List of existing Todo objects.
+
+        Returns:
+            The next available positive integer ID.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
