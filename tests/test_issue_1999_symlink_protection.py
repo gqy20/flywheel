@@ -192,6 +192,33 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
     # The important thing is that the file content is valid and complete
 
 
+def test_final_file_has_restrictive_permissions(tmp_path) -> None:
+    """Issue #4678: Final db file should have mode 0o600 (owner read/write only).
+
+    Security: After os.replace(), the final file should maintain restrictive
+    permissions to prevent other users from reading the todo database.
+
+    Before fix: Final file inherits system umask permissions
+    After fix: Final file should have 0o600 permissions (rw-------)
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save a todo
+    todos = [Todo(id=1, text="secret todo")]
+    storage.save(todos)
+
+    # Verify final file has restrictive permissions
+    file_stat = os.stat(db)
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # Final file must have 0o600 (rw-------) permissions
+    assert file_mode == 0o600, (
+        f"Final file should have 0o600 permissions, got {oct(file_mode)}. "
+        f"Security: Other users should not be able to read the todo database."
+    )
+
+
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
     """Issue #1999: Temp file should be cleaned up if save fails."""
     db = tmp_path / "todo.json"
