@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,12 +57,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, debug: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self.debug = debug
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            if self.debug:
+                _logger.debug("load: file not found, returning empty list (path=%s)", self.path)
             return []
+
+        start_time = time.perf_counter()
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -73,14 +82,41 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            if self.debug:
+                _logger.debug(
+                    "load: failed to parse JSON (path=%s, size=%d bytes, duration=%.2fms, error=%s)",
+                    self.path,
+                    file_size,
+                    duration_ms,
+                    e.msg,
+                )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            if self.debug:
+                _logger.debug(
+                    "load: invalid format, not a list (path=%s, type=%s)",
+                    self.path,
+                    type(raw).__name__,
+                )
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
+        if self.debug:
+            _logger.debug(
+                "load: success (path=%s, size=%d bytes, todos=%d, duration=%.2fms)",
+                self.path,
+                file_size,
+                len(todos),
+                duration_ms,
+            )
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,11 +127,14 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+        content_size = len(content.encode("utf-8"))
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -118,7 +157,26 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            if self.debug:
+                _logger.debug(
+                    "save: success (path=%s, todos=%d, size=%d bytes, duration=%.2fms)",
+                    self.path,
+                    len(todos),
+                    content_size,
+                    duration_ms,
+                )
+        except OSError as e:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+            if self.debug:
+                _logger.debug(
+                    "save: failed (path=%s, temp_path=%s, duration=%.2fms, error=%s)",
+                    self.path,
+                    temp_path,
+                    duration_ms,
+                    e,
+                )
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
