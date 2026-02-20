@@ -11,11 +11,7 @@ This test suite verifies that:
 from __future__ import annotations
 
 import json
-import os
-import stat
 from pathlib import Path
-
-import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
