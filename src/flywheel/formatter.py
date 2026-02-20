@@ -33,7 +33,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
