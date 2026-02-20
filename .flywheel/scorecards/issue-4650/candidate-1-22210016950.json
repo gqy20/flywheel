@@ -1,0 +1,19 @@
+{
+  "issue_number": 4650,
+  "candidate_number": 1,
+  "run_id": "22210016950",
+  "branch": "claude/issue-4650-candidate-1-22210016950",
+  "created_at": "2026-02-20T03:50:00Z",
+  "status": "implemented",
+  "tests_passed": true,
+  "linter_passed": true,
+  "summary": "Fixed symlink race vulnerability in load() by replacing Path.stat() with os.lstat() and adding explicit symlink detection and rejection.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4650_symlink_load_protection.py"
+  ],
+  "risks": [
+    "Existing users with symlinked todo files will get an error after upgrade",
+    "This is an intentional breaking change for security reasons"
+  ]
+}
