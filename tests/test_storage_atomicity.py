@@ -229,3 +229,107 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
+    """Regression test for issue #4652: Race condition in ID generation.
+
+    Tests that multiple processes adding todos concurrently do not produce
+    duplicate IDs. Each process loads the current state, calculates next_id,
+    and saves - this is a classic race condition window that can cause ID
+    collisions if not properly protected.
+
+    The fix uses file locking to ensure the load->modify->save cycle is atomic.
+    """
+    import multiprocessing
+    import time
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+    sync_file = tmp_path / "sync.txt"
+
+    def add_worker(worker_id: int, num_adds: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds multiple todos using TodoApp.add()."""
+        try:
+            # Wait for all workers to be ready by checking sync file
+            while not sync_file.exists():
+                time.sleep(0.001)
+
+            app = TodoApp(db_path=str(db))
+            added_ids = []
+            for i in range(num_adds):
+                # Each add does: load -> calculate next_id -> append -> save
+                # With file locking, this should be serialized and safe
+                todo = app.add(f"worker-{worker_id}-task-{i}")
+                added_ids.append(todo.id)
+                # Tiny delay to increase interleaving
+                time.sleep(0.0001)
+            result_queue.put(("success", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that each add multiple todos
+    num_workers = 4
+    adds_per_worker = 3
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, adds_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Give all workers a moment to initialize, then release them simultaneously
+    time.sleep(0.2)
+    sync_file.touch()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Collect all IDs assigned by workers
+    all_assigned_ids = []
+    for status, worker_id, ids in successes:
+        all_assigned_ids.extend(ids)
+
+    # CRITICAL: Check for duplicate IDs - this is the actual bug being tested
+    # With proper file locking, each add operation should see the latest state
+    # and generate unique IDs
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    final_ids = [todo.id for todo in final_todos]
+
+    # All IDs in the final file should be unique
+    unique_final_ids = set(final_ids)
+    assert len(final_ids) == len(unique_final_ids), (
+        f"Duplicate IDs in final file! Got {len(final_ids)} todos but only "
+        f"{len(unique_final_ids)} unique IDs. IDs: {final_ids}"
+    )
+
+    # With proper locking, we should have all todos (num_workers * adds_per_worker)
+    # because operations are serialized, not overwritten
+    expected_total = num_workers * adds_per_worker
+    assert len(final_todos) == expected_total, (
+        f"Expected {expected_total} todos (all workers serialized), got {len(final_todos)}. "
+        f"This suggests last-writer-wins instead of proper locking."
+    )
+
+    # All assigned IDs should be unique across workers
+    unique_assigned_ids = set(all_assigned_ids)
+    assert len(all_assigned_ids) == len(unique_assigned_ids), (
+        f"Workers assigned duplicate IDs! Total assigned: {len(all_assigned_ids)}, "
+        f"unique: {len(unique_assigned_ids)}. IDs: {all_assigned_ids}"
+    )

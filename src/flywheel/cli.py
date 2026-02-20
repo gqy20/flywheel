@@ -27,10 +27,12 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        # Use file locking to prevent race conditions in ID generation
+        with self.storage.locked():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:

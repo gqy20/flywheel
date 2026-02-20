@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,53 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _get_lock_path(self) -> Path:
+        """Get the path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive lock for this storage.
+
+        Returns the file descriptor of the lock file. Caller is responsible
+        for closing the fd when done.
+        """
+        lock_path = self._get_lock_path()
+        # Ensure parent directory exists
+        _ensure_parent_directory(lock_path)
+
+        # Open/create lock file
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            # Block until we get exclusive lock
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the lock and close the file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def locked(self):
+        """Context manager that holds an exclusive lock for atomic operations.
+
+        Usage:
+            with storage.locked():
+                todos = storage.load()
+                # modify todos...
+                storage.save(todos)
+
+        This prevents race conditions where multiple processes read the same
+        state, calculate the same next_id, and overwrite each other's data.
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
