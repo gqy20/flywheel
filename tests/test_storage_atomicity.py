@@ -151,6 +151,56 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_leak_on_fdopen_failure(tmp_path) -> None:
+    """Regression test for issue #4637: File descriptor leak on fdopen failure.
+
+    When os.fdopen fails after mkstemp succeeds, the file descriptor from
+    mkstemp should be properly closed to avoid resource leaks.
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track the fd returned by mkstemp
+    captured_fd = None
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        nonlocal captured_fd
+        fd, path = original_mkstemp(*args, **kwargs)
+        captured_fd = fd
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure (e.g., invalid mode, encoding error)
+        raise OSError("Simulated fdopen failure")
+
+    todos = [Todo(id=1, text="test")]
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save(todos)
+
+    # Verify that the fd was closed even though fdopen failed
+    # On Unix, checking if fd is valid: os.fstat raises OSError with EBADF for invalid fd
+    assert captured_fd is not None, "mkstemp should have been called"
+    try:
+        os.fstat(captured_fd)
+        # If we reach here, the fd is still open (leaked!)
+        pytest.fail(
+            f"File descriptor {captured_fd} was leaked - it should have been closed "
+            "when fdopen failed"
+        )
+    except OSError as e:
+        # Expected: fd should be invalid (closed)
+        assert e.errno == 9, f"Expected EBADF (9), got errno {e.errno}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
