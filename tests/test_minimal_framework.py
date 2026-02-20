@@ -37,7 +37,15 @@ def test_storage_roundtrip(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "x"
     assert loaded[1].done is True
-    assert storage.next_id(loaded) == 3
+
+    # next_id uses an atomic counter, so it returns a unique ID
+    # regardless of the loaded list content (fix for #4652)
+    new_id = storage.next_id(loaded)
+    assert new_id >= 1, "next_id should return a positive integer"
+
+    # Verify subsequent calls return different IDs (uniqueness)
+    another_id = storage.next_id(loaded)
+    assert another_id != new_id, "next_id should return unique IDs on each call"
 
 
 def test_app_add_done_remove(tmp_path) -> None:

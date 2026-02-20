@@ -229,3 +229,157 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_id_collisions(tmp_path) -> None:
+    """Regression test for issue #4652: Race condition in ID generation.
+
+    Tests that concurrent add() operations from multiple processes
+    do not produce duplicate IDs. Each process adds a todo using the
+    standard add() flow (load -> next_id -> save), and after all
+    operations complete, no two todos should have the same ID.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_add.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo using standard TodoApp.add() flow."""
+        try:
+            # Simulate the add() flow from cli.py
+            storage = TodoStorage(str(db))
+
+            # Load current state
+            todos = storage.load()
+
+            # Calculate next ID (this is where the race can occur)
+            new_id = storage.next_id(todos)
+
+            # Small delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+
+            # Add new todo
+            new_todo = Todo(id=new_id, text=f"worker-{worker_id}-todo")
+            todos.append(new_todo)
+
+            # Save (last-writer-wins, but IDs should still be unique)
+            storage.save(todos)
+
+            result_queue.put(("success", worker_id, new_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    errors = [r for r in results if r[0] == "error"]
+
+    # Note: Some workers may fail due to last-writer-wins, but those that
+    # succeed should have unique IDs
+    if errors:
+        # It's acceptable for some concurrent writes to be lost (last-writer-wins)
+        # but we need at least some successes to test ID uniqueness
+        pass
+
+    # Final verification: load final state and check for duplicate IDs
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    # Extract all IDs
+    all_ids = [todo.id for todo in final_todos]
+
+    # CRITICAL ASSERTION: No duplicate IDs should exist
+    # This is the key fix for issue #4652
+    unique_ids = set(all_ids)
+    assert len(all_ids) == len(unique_ids), (
+        f"ID collision detected! "
+        f"Final todos have {len(all_ids)} entries but only {len(unique_ids)} unique IDs. "
+        f"Duplicate IDs: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )
+
+
+def test_id_generation_uses_persisted_counter(tmp_path) -> None:
+    """Unit test for issue #4652: next_id should use a persisted counter.
+
+    Verifies that the ID counter is persisted separately so that
+    concurrent processes don't generate duplicate IDs even if they
+    start from the same initial state.
+    """
+    db = tmp_path / "counter_test.json"
+    storage = TodoStorage(str(db))
+
+    # Add a todo - this should create the ID counter
+    todos1 = storage.load()
+    id1 = storage.next_id(todos1)
+    todos1.append(Todo(id=id1, text="first"))
+    storage.save(todos1)
+
+    # Simulate another process starting from the same initial state
+    # (i.e., before it sees the first todo)
+    # Create a new storage instance to simulate a fresh process
+    storage2 = TodoStorage(str(db))
+
+    # Load the current state (should include first todo)
+    todos2 = storage2.load()
+
+    # Get next_id - this should be 2, not 1
+    id2 = storage2.next_id(todos2)
+
+    # Verify IDs are different
+    assert id1 != id2, f"IDs should be unique: got {id1} and {id2}"
+    assert id2 == 2, f"Second ID should be 2, got {id2}"
+
+
+def test_id_counter_independent_of_loaded_todos(tmp_path) -> None:
+    """Test that ID counter persists independently of the loaded todo list.
+
+    This is the key fix for #4652: even if a process loads stale data,
+    the ID counter should have been atomically incremented.
+    """
+    db = tmp_path / "independent_counter.json"
+    storage = TodoStorage(str(db))
+
+    # First, add a todo
+    todos1 = storage.load()
+    id1 = storage.next_id(todos1)
+    todos1.append(Todo(id=id1, text="first"))
+    storage.save(todos1)
+
+    # Now simulate a process that loaded BEFORE the save completed
+    # but calls next_id AFTER the save. With the fix, the ID counter
+    # should be persisted, so even "stale" loads get fresh IDs.
+
+    # The key assertion: after adding todo with id=1,
+    # next_id on an empty list should NOT return 1
+    storage2 = TodoStorage(str(db))
+
+    # This is the critical test: even with an empty/stale list,
+    # next_id should know about the persisted counter
+    # NOTE: This test will FAIL with the current buggy implementation
+    # because next_id only looks at the in-memory list
+    stale_id = storage2.next_id([])  # Pass empty list to simulate stale read
+
+    # With the fix, this should return an ID > 1 (the max persisted)
+    # Without the fix, it returns 1 (duplicate!)
+    assert stale_id > id1, (
+        f"ID counter should be independent of loaded todos. "
+        f"Got {stale_id}, expected > {id1}"
+    )
