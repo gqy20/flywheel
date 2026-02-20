@@ -15,6 +15,55 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+def _atomic_counter_increment(counter_path: Path) -> int:
+    """Atomically increment and return a counter value.
+
+    Uses file locking to ensure atomic increment across multiple processes.
+    Creates the counter file if it doesn't exist.
+
+    Args:
+        counter_path: Path to the counter file
+
+    Returns:
+        The new counter value after increment
+    """
+    import fcntl
+
+    # Ensure parent directory exists
+    counter_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Open/create the counter file
+    fd = os.open(
+        str(counter_path),
+        os.O_CREAT | os.O_RDWR,
+        stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+    )
+
+    try:
+        # Acquire exclusive lock (blocks until acquired)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+
+        # Read current value (default to 0)
+        try:
+            current_value = int(os.read(fd, 100).decode().strip())
+        except (ValueError, OSError):
+            current_value = 0
+
+        # Increment
+        new_value = current_value + 1
+
+        # Write new value (truncate and rewrite)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.ftruncate(fd, 0)
+        os.write(fd, str(new_value).encode())
+
+        return new_value
+    finally:
+        # Release lock and close file
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -55,6 +104,8 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Counter file for atomic ID generation (fix for #4652)
+        self._counter_path = self.path.with_suffix(".id_counter")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +176,19 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Generate the next unique ID atomically.
+
+        Uses a separate counter file with file locking to ensure that
+        concurrent processes always get unique IDs, even if they load
+        the same initial state.
+
+        The counter file is atomically incremented, guaranteeing unique
+        IDs regardless of the in-memory todo list state.
+
+        Args:
+            todos: Current list of todos (for backward compatibility, not used)
+
+        Returns:
+            A unique ID for the new todo
+        """
+        return _atomic_counter_increment(self._counter_path)
