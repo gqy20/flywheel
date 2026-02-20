@@ -9,10 +9,6 @@ Issue: #4681
 from __future__ import annotations
 
 import logging
-import os
-import time
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -155,7 +151,7 @@ def test_storage_load_nonexistent_file_logs_when_enabled(tmp_path, debug_env, lo
 
     # Should still log the load attempt (even for non-existent file)
     messages = log_capture.get_messages()
-    load_logs = [m for m in messages if "load" in m.lower()]
+    _ = [m for m in messages if "load" in m.lower()]
     # Could log that file doesn't exist or just return empty
     # The key is that the operation was logged
 
