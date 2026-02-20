@@ -1,14 +1,23 @@
 {
-  "issue_number": 4776,
+  "issue": 4776,
   "candidate": 3,
   "run_id": "22231923086",
   "branch": "claude/issue-4776-candidate-3-22231923086",
-  "status": "implemented",
-  "tests_passed": true,
-  "lint_passed": true,
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_storage_atomicity.py"]
-  },
-  "summary": "Fix file descriptor leak when os.fdopen() raises an exception. The fix wraps fdopen() in a try/except block and closes the raw fd on failure before re-raising the exception."
+  "pr_number": 4782,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4782",
+  "generated_at": "2026-02-20T17:24:56.500778+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2995,
+    "plan": 2613,
+    "implement": 2545,
+    "verify": 4000,
+    "finalize": 1803
+  }
 }
