@@ -12,6 +12,8 @@ def _sanitize_text(text: str) -> str:
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
     """
+    if not isinstance(text, str):
+        raise TypeError(f"Expected str, got {type(text).__name__}")
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
     # between literal backslash-escape text and sanitized control characters.
