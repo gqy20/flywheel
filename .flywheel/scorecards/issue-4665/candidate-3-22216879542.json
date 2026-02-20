@@ -1,0 +1,32 @@
+{
+  "issue_number": 4665,
+  "candidate_number": 3,
+  "run_id": "22216879542",
+  "branch": "claude/issue-4665-candidate-3-22216879542",
+  "status": "implemented",
+  "summary": "Fixed load() to include item index in error messages when Todo.from_dict fails validation",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "lines_changed": 12
+  },
+  "test_results": {
+    "total_tests": 115,
+    "passed": 115,
+    "failed": 0
+  },
+  "lint_results": {
+    "status": "passed",
+    "errors": 0,
+    "warnings": 0
+  },
+  "acceptance_criteria_met": [
+    "Error message includes item index when validation fails",
+    "Error message format: 'Invalid todo at index N: <original error>'",
+    "All existing tests continue to pass"
+  ],
+  "risks": "None - minimal change that only adds context to error messages",
+  "implementation_notes": "Replaced list comprehension with explicit for loop using enumerate to capture item index, wrapping ValueError with context-preserving re-raise"
+}

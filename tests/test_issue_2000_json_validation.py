@@ -119,3 +119,52 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4665 - load() should include item index in error messages
+def test_storage_load_error_includes_item_index_missing_id(tmp_path) -> None:
+    """When an item in the array fails validation, error should include item index."""
+    db = tmp_path / "multiple_items.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON with malformed item at index 2
+    db.write_text(
+        '[{"id": 1, "text": "valid"}, {"id": 2, "text": "valid"}, {"text": "missing id"}]',
+        encoding="utf-8",
+    )
+
+    # Error message should mention index 2
+    with pytest.raises(ValueError, match=r"index 2|item 2|item #2"):
+        storage.load()
+
+
+def test_storage_load_error_includes_item_index_missing_text(tmp_path) -> None:
+    """When an item in the array fails validation, error should include item index."""
+    db = tmp_path / "multiple_items.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON with malformed item at index 3
+    db.write_text(
+        '[{"id": 1, "text": "a"}, {"id": 2, "text": "b"}, {"id": 3, "text": "c"}, {"id": 4}]',
+        encoding="utf-8",
+    )
+
+    # Error message should mention index 3
+    with pytest.raises(ValueError, match=r"index 3|item 3|item #3"):
+        storage.load()
+
+
+def test_storage_load_error_includes_item_index_wrong_type(tmp_path) -> None:
+    """When an item in the array has wrong type, error should include item index."""
+    db = tmp_path / "multiple_items.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON with wrong type at index 1
+    db.write_text(
+        '[{"id": 1, "text": "valid"}, {"id": "not-an-int", "text": "invalid"}]',
+        encoding="utf-8",
+    )
+
+    # Error message should mention index 1
+    with pytest.raises(ValueError, match=r"index 1|item 1|item #1"):
+        storage.load()
