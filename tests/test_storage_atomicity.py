@@ -151,6 +151,56 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_concurrent_directory_creation_race(tmp_path) -> None:
+    """Regression test for issue #4624: TOCTOU race in _ensure_parent_directory.
+
+    Tests that multiple processes saving to a NEW path (where parent directory
+    doesn't exist yet) do not fail with FileExistsError due to the race between
+    exists() check and mkdir() with exist_ok=False.
+    """
+    import multiprocessing
+
+    # Use a path where parent directory doesn't exist yet
+    # This triggers the race condition in _ensure_parent_directory
+    db = tmp_path / "new_subdir" / "nested" / "concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves to a path with non-existent parent directories."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently to trigger the race
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed - no FileExistsError from directory creation
+    assert len(errors) == 0, f"Workers encountered errors (possible race): {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
