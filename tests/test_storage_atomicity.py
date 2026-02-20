@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,67 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_closed_on_write_failure_non_oserror(tmp_path) -> None:
+    """Regression test for issue #4680: File descriptor leak when write fails.
+
+    If f.write() raises a non-OSError exception (e.g., RuntimeError),
+    the file descriptor should still be closed and temp file cleaned up.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Get original file content
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track if fd was closed
+    fd_closed = []
+    original_fdopen = os.fdopen
+
+    class MockFileWrapper:
+        """File wrapper that tracks close and raises on write."""
+
+        def __init__(self, file_obj, fd):
+            self._file = file_obj
+            self._fd = fd
+
+        def write(self, content):
+            raise RuntimeError("Simulated write failure")
+
+        def close(self):
+            fd_closed.append(self._fd)
+            self._file.close()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+    def mock_fdopen(fd, *args, **kwargs):
+        real_file = original_fdopen(fd, *args, **kwargs)
+        return MockFileWrapper(real_file, fd)
+
+    with (
+        patch("flywheel.storage.os.fdopen", mock_fdopen),
+        pytest.raises(RuntimeError, match="Simulated write failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Verify fd was closed despite the exception
+    assert len(fd_closed) == 1, "File descriptor should have been closed"
+
+    # Verify temp file was cleaned up
+    temp_files = list(tmp_path.glob(".*.json.*.tmp"))
+    assert len(temp_files) == 0, f"Temp files should be cleaned up, found: {temp_files}"
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
