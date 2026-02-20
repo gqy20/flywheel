@@ -23,7 +23,7 @@ def test_storage_load_handles_malformed_json(tmp_path) -> None:
     db.write_text('[{"id": 1, "text": "task1"}', encoding="utf-8")
 
     # Should raise ValueError with clear message, not JSONDecodeError
-    with pytest.raises(ValueError, match=r"invalid json|malformed|parse error"):
+    with pytest.raises(ValueError, match=r"(?i)invalid json|malformed|parse error"):
         storage.load()
 
 
