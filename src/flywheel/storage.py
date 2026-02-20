@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -90,7 +89,20 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Security: Rejects save operations when destination path is a symlink
+        to prevent symlink redirection attacks (issue #4832).
         """
+        # Security check: reject if destination is a symlink
+        # This prevents symlink attacks where an attacker redirects writes
+        # to attacker-controlled files
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Cannot save to symlink path '{self.path}'. "
+                f"This protects against symlink redirection attacks. "
+                f"Use a regular file path instead."
+            )
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 

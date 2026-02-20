@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,50 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_rejects_symlink_destination(tmp_path) -> None:
+    """Security test: save() must detect and reject when destination path is a symlink.
+
+    Regression test for issue #4832: os.replace follows symlinks, allowing an
+    attacker to redirect writes to attacker-controlled files via symlink.
+
+    Attack scenario:
+    1. Attacker creates symlink: db.json -> /etc/passwd or other sensitive file
+    2. User attempts save() operation
+    3. Without protection, os.replace would follow the symlink and overwrite the target
+
+    This test ensures save() raises ValueError when the destination is a symlink,
+    preventing the attack.
+    """
+    # Create a target file that should never be modified
+    target_file = tmp_path / "target.txt"
+    target_content = "SENSITIVE DATA - DO NOT MODIFY"
+    target_file.write_text(target_content, encoding="utf-8")
+
+    # Create a symlink pointing to the target file
+    symlink_path = tmp_path / "todo.json"
+    symlink_path.symlink_to(target_file)
+
+    # Verify the symlink is correctly set up
+    assert symlink_path.is_symlink(), "Test setup: symlink should exist"
+    assert symlink_path.resolve() == target_file, "Test setup: symlink should point to target"
+
+    # Attempt to save to the symlink path
+    storage = TodoStorage(str(symlink_path))
+    todos = [Todo(id=1, text="malicious todo")]
+
+    # save() MUST raise ValueError when destination is a symlink
+    with pytest.raises(ValueError, match=r"[Ss]ymlink"):
+        storage.save(todos)
+
+    # Verify the target file was NOT modified (attack was blocked)
+    assert target_file.read_text(encoding="utf-8") == target_content, (
+        "SECURITY FAILURE: Target file was modified! Symlink attack not blocked."
+    )
+
+    # Verify the symlink still exists (we rejected the operation, not followed it)
+    assert symlink_path.is_symlink(), "Symlink should still exist after rejected save"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +264,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
