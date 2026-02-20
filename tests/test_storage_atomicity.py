@@ -151,6 +151,115 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_in_directory_creation(tmp_path) -> None:
+    """Regression test for issue #4664: TOCTOU race in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the TOCTOU race condition where
+    another process creates the directory between our exists() check and mkdir().
+
+    Before fix: exist_ok=False would raise FileExistsError
+    After fix: exist_ok=True succeeds even if directory now exists
+    """
+    from unittest.mock import patch
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Path in a non-existent subdirectory
+    subdir = tmp_path / "new_subdir"
+    file_path = subdir / "todo.json"
+
+    # Track the original mkdir method
+    original_mkdir = type(subdir).mkdir
+    mkdir_calls = []
+
+    def race_mkdir(self, *args, **kwargs):
+        """Mock mkdir that simulates another process creating the dir first."""
+        mkdir_calls.append((args, kwargs))
+
+        # Simulate: another process creates directory between our exists() check and mkdir()
+        if kwargs.get("exist_ok") is False and not self.exists():
+            # Create the directory before our mkdir call
+            original_mkdir(self, parents=True, exist_ok=True)
+            # Now our mkdir call will fail with FileExistsError if exist_ok=False
+            # but succeed if exist_ok=True
+
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(type(subdir), "mkdir", race_mkdir):
+        # With the fix (exist_ok=True), this should NOT raise FileExistsError
+        _ensure_parent_directory(file_path)
+
+    # Verify the directory was created
+    assert subdir.exists(), "Parent directory should exist"
+    assert len(mkdir_calls) == 1, "mkdir should have been called once"
+
+
+def test_concurrent_directory_creation_no_race(tmp_path) -> None:
+    """Regression test for issue #4664: Concurrent saves to new path should not race.
+
+    Tests that multiple threads saving to the same NEW path (requiring directory
+    creation) do not fail with FileExistsError due to TOCTOU race condition.
+    """
+    import threading
+
+    # Use a path in a subdirectory that doesn't exist yet
+    subdir = tmp_path / "new_subdir"
+    db = subdir / "todo.json"
+
+    errors = []
+    success_count = 0
+    lock = threading.Lock()
+
+    def save_worker(worker_id: int) -> None:
+        """Worker that saves todos, triggering directory creation."""
+        nonlocal success_count
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            with lock:
+                success_count += 1
+        except FileExistsError as e:
+            # This is the bug we're testing for - should NOT happen
+            errors.append(f"Worker {worker_id} got FileExistsError: {e}")
+        except Exception as e:
+            errors.append(f"Worker {worker_id} got unexpected error: {e}")
+
+    # Create multiple threads that all try to save at the same time
+    num_threads = 20
+    threads = []
+
+    # Use a barrier to maximize race condition likelihood
+    barrier = threading.Barrier(num_threads)
+
+    def barrier_save_worker(worker_id: int) -> None:
+        barrier.wait()  # All threads wait here until ready
+        save_worker(worker_id)
+
+    for i in range(num_threads):
+        t = threading.Thread(target=barrier_save_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads at once
+    for t in threads:
+        t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join(timeout=10)
+
+    # Verify no FileExistsError occurred
+    assert len(errors) == 0, f"Race condition detected - errors: {errors}"
+
+    # At least some threads should have succeeded
+    assert success_count > 0, "No threads succeeded in saving"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) >= 1, "Should have at least one todo saved"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
