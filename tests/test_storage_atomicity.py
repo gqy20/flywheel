@@ -7,11 +7,13 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -55,6 +57,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +96,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +119,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +222,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +231,70 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_generates_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4623: TOCTOU race condition in next_id/save.
+
+    Tests that concurrent add operations produce unique todo IDs.
+    The race condition occurs when:
+    1. Thread A loads todos and computes next_id
+    2. Thread B loads todos and computes same next_id
+    3. Both threads save with duplicate IDs
+
+    This test verifies that the fix (threading lock) prevents duplicate IDs.
+    """
+    db = tmp_path / "race_test.json"
+    app = TodoApp(db_path=str(db))
+
+    num_threads = 10
+    results: list[int] = []
+    errors: list[str] = []
+    results_lock = threading.Lock()
+
+    def add_todo_worker(worker_id: int) -> None:
+        """Worker that adds a todo and records the generated ID."""
+        try:
+            # Add a small delay to increase race condition likelihood
+            import time
+
+            time.sleep(0.001 * (worker_id % 3))
+            todo = app.add(f"task from thread {worker_id}")
+            with results_lock:
+                results.append(todo.id)
+        except Exception as e:
+            with results_lock:
+                errors.append(f"Thread {worker_id}: {e}")
+
+    # Launch all threads concurrently
+    threads = []
+    for i in range(num_threads):
+        t = threading.Thread(target=add_todo_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads as close together as possible
+    for t in threads:
+        t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join(timeout=10)
+
+    # Verify no errors occurred
+    assert len(errors) == 0, f"Threads encountered errors: {errors}"
+
+    # Verify all IDs are unique (the key assertion for issue #4623)
+    assert len(results) == num_threads, f"Expected {num_threads} results, got {len(results)}"
+    unique_ids = set(results)
+    assert len(unique_ids) == num_threads, (
+        f"Duplicate IDs detected! Expected {num_threads} unique IDs, "
+        f"but got {len(unique_ids)} unique IDs. IDs: {sorted(results)}"
+    )
+
+    # Verify final storage has all todos with unique IDs
+    final_todos = app.list()
+    assert len(final_todos) == num_threads
+    final_ids = [t.id for t in final_todos]
+    assert len(set(final_ids)) == num_threads, (
+        f"Storage contains duplicate IDs: {sorted(final_ids)}"
+    )

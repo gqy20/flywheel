@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import threading
 from pathlib import Path
 
 from .todo import Todo
@@ -55,6 +56,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock = threading.Lock()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +76,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +127,22 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a new todo with a unique ID.
+
+        This method prevents TOCTOU race conditions by holding a lock
+        during the entire load -> compute ID -> save sequence.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._lock:
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
