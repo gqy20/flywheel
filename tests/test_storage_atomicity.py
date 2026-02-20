@@ -229,3 +229,74 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_directory_creation_no_race(tmp_path) -> None:
+    """Regression test for issue #4624: TOCTOU race in _ensure_parent_directory.
+
+    Tests that multiple processes saving to a NEW subdirectory path concurrently
+    do not fail with FileExistsError. The bug was:
+    - Multiple processes check `if not parent.exists()` simultaneously
+    - Both see the parent doesn't exist
+    - Both try to create with `mkdir(exist_ok=False)`
+    - Second process gets FileExistsError
+
+    The fix makes mkdir use exist_ok=True, making directory creation idempotent.
+    """
+    import multiprocessing
+
+    # Use a NEW subdirectory path - this is what triggers the race condition
+    # because multiple processes need to create the parent directory
+    db = tmp_path / "new_subdir" / "concurrent.json"
+
+    def save_worker(
+        worker_id: int,
+        result_queue: multiprocessing.Queue,
+        start_barrier: multiprocessing.Barrier,
+    ) -> None:
+        """Worker that saves to a path requiring new directory creation."""
+        try:
+            # Wait for all workers to be ready - maximizes race condition
+            start_barrier.wait()
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all need to create the parent directory
+    num_workers = 10  # More workers to increase race likelihood
+    processes = []
+    result_queue = multiprocessing.Queue()
+    start_barrier = multiprocessing.Barrier(num_workers)
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(
+            target=save_worker, args=(i, result_queue, start_barrier)
+        )
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should succeed without FileExistsError
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # Before the fix, errors would contain FileExistsError entries
+    assert len(errors) == 0, f"Workers encountered errors (expected no race): {errors}"
+    assert len(successes) == num_workers
+
+    # Verify file was created in the new subdirectory
+    assert db.exists(), "Database file should have been created"
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list)
