@@ -229,3 +229,50 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_fd_closed_on_fdopen_failure(tmp_path) -> None:
+    """Regression test for issue #4637: File descriptor leak on exception in save().
+
+    When os.fdopen() fails after tempfile.mkstemp() succeeds, the file descriptor
+    from mkstemp should be properly closed to avoid leaking file descriptors.
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track the fd returned by mkstemp
+    leaked_fds = []
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure - this is the scenario that causes FD leak
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save(todos)
+
+    # Verify that the fd was properly closed even after fdopen failed
+    for fd in leaked_fds:
+        # A closed fd should raise OSError when we try to use it
+        # EBADF (9) means "Bad file descriptor" - i.e., it was closed
+        try:
+            os.fstat(fd)
+            # If we get here, the fd is still open - this is the bug
+            pytest.fail(f"File descriptor {fd} was leaked (still open after exception)")
+        except OSError as e:
+            # Expected: fd should be closed, so fstat should fail with EBADF
+            assert e.errno == 9, f"Expected EBADF (9), got errno {e.errno}"
