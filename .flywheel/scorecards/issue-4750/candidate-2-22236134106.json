@@ -1,40 +1,23 @@
 {
-  "issue_number": 4750,
-  "issue_title": "[Test] test_issue_2000_json_validation.py:26 的正则不匹配实际错误消息",
-  "candidate_number": 2,
+  "issue": 4750,
+  "candidate": 2,
   "run_id": "22236134106",
   "branch": "claude/issue-4750-candidate-2-22236134106",
-  "triage": {
-    "root_cause": "Test regex r\"invalid json|malformed|parse error\" is case-sensitive and cannot match actual error message \"Invalid JSON\". Test passed only due to false positive from filename 'malformed.json' matching the 'malformed' pattern.",
-    "risk_points": [
-      "Test reliability issue - passes accidentally due to filename coincidence",
-      "Case sensitivity mismatch between regex and actual error message"
-    ],
-    "verification_targets": [
-      "Regex fails to match 'Invalid JSON' without (?i) flag",
-      "Test passes with 'db.json' filename only when using case-insensitive regex"
-    ]
-  },
-  "fix": {
-    "approach": "Made regex case-insensitive using (?i) prefix and changed filename to 'db.json' to eliminate false positive",
-    "files_changed": [
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "tests_run": [
-      "pytest tests/test_issue_2000_json_validation.py -v"
-    ],
-    "linter_checks": [
-      "ruff check tests/test_issue_2000_json_validation.py"
-    ]
-  },
-  "risks": {
-    "breaking_changes": false,
-    "limitations": []
-  },
-  "scorecard": {
-    "correctness": 5,
-    "minimal_scope": 5,
-    "test_coverage": 5,
-    "code_quality": 5
+  "pr_number": 4795,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4795",
+  "generated_at": "2026-02-20T19:12:21.562724+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3218,
+    "implement": 2848,
+    "verify": 1471,
+    "finalize": 1278
   }
 }
