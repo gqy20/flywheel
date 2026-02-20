@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,6 +61,7 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            logger.debug("load: file '%s' does not exist, returning empty list (0 todos)", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -73,14 +77,19 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            logger.error("load: JSON parse error in '%s': %s at line %d, column %d", self.path, e.msg, e.lineno, e.colno)
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            logger.warning("load: invalid format in '%s' - expected list, got %s", self.path, type(raw).__name__)
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug("load: loaded %d todos from '%s'", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,7 +127,9 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+            logger.debug("save: saved %d todos to '%s'", len(todos), self.path)
+        except OSError as e:
+            logger.error("save: failed to write to '%s': %s", self.path, e)
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
