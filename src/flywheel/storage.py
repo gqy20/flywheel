@@ -57,11 +57,15 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        # Use single stat() call to eliminate TOCTOU race condition between
+        # exists() check and stat() call. If file doesn't exist, return [].
+        try:
+            file_stat = self.path.stat()
+        except FileNotFoundError:
             return []
 
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)

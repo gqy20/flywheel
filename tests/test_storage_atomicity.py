@@ -229,3 +229,77 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_load_handles_file_deleted_after_exists_check(tmp_path) -> None:
+    """Regression test for issue #4651: TOCTOU race condition in load().
+
+    If a file is deleted between exists() and stat() calls, load() should
+    gracefully return an empty list instead of raising FileNotFoundError.
+
+    This simulates the race condition where:
+    1. exists() returns True (file exists)
+    2. File is deleted by another process
+    3. stat() raises FileNotFoundError
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file so exists() returns True
+    db.write_text('[]', encoding="utf-8")
+
+    # Mock stat() to raise FileNotFoundError to simulate the race condition
+    def stat_raising_file_not_found(*args, **kwargs):
+        raise FileNotFoundError(f"Simulated race: {db} was deleted after exists() check")
+
+    with patch.object(Path, "stat", stat_raising_file_not_found):
+        # Before fix: This would raise FileNotFoundError
+        # After fix: This should return an empty list
+        result = storage.load()
+
+    # Should gracefully return empty list, not raise
+    assert result == []
+
+
+def test_load_handles_file_deleted_during_size_check(tmp_path) -> None:
+    """Regression test for issue #4651: Race between stat() and read_text().
+
+    If a file is deleted between stat() (size check) and read_text(), the
+    FileNotFoundError should be allowed to propagate (as it's an unexpected
+    state after passing the size check), not swallowed.
+
+    However, the fix should ensure that the initial file non-existence is
+    handled atomically via a single stat() call.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a valid file
+    db.write_text('[]', encoding="utf-8")
+
+    # The fix should use stat() to check existence, then use the same stat
+    # for size. If read_text() fails with FileNotFoundError, it's a genuine
+    # race that should be surfaced.
+    # This test verifies that the fix properly handles the atomic check.
+
+    # Simulate: exists() passes, stat() for size passes, then file deleted
+    call_count = [0]
+
+    def mock_stat(self, *args, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            # First call (for existence/size check in the fixed version)
+            return original_stat(self)
+        # Second call shouldn't happen in fixed version
+        raise FileNotFoundError("Should not reach here if fix is correct")
+
+    original_stat = Path.stat
+
+    with patch.object(Path, "stat", mock_stat):
+        # In the fixed version, only one stat() call should be made
+        # and it handles both existence and size check
+        result = storage.load()
+
+    assert result == []
+    # The fix should use exactly one stat() call (atomic check)
+    assert call_count[0] == 1, "Fixed version should use single stat() call"
