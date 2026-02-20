@@ -24,7 +24,17 @@
   "verification": {
     "lint_passed": true,
     "existing_tests_passed": true,
-    "new_tests_passed": true
+    "new_tests_passed": true,
+    "commands_run": [
+      "uv run pytest tests/test_issue_4681_storage_logging.py -v",
+      "uv run ruff check tests/test_issue_4681_storage_logging.py src/flywheel/storage.py",
+      "uv run pytest tests/ -q --tb=no"
+    ],
+    "results": {
+      "new_tests": "6 passed in 0.06s",
+      "ruff": "All checks passed!",
+      "full_suite": "118 passed in 0.48s (92% coverage)"
+    }
   },
   "risks": [
     "Logger configuration must be done by the application (user must set up logging handlers to see output)",
