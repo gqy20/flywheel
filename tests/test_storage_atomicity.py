@@ -229,3 +229,66 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_calls_fsync_for_persistence(tmp_path) -> None:
+    """Test that save() calls fsync to ensure data is persisted to disk.
+
+    This is critical for data durability in crash/power failure scenarios.
+    Without fsync, data may remain in OS cache and be lost on system crash.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track fsync calls
+    fsync_calls = []
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        # Don't actually call fsync in tests
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called before atomic rename
+    assert len(fsync_calls) >= 1, "fsync should be called to ensure data persistence"
+
+
+def test_save_sync_false_skips_fsync(tmp_path) -> None:
+    """Test that save(sync=False) skips fsync for performance-critical paths."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track fsync calls
+    fsync_calls = []
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos, sync=False)
+
+    # Verify fsync was NOT called when sync=False
+    assert len(fsync_calls) == 0, "fsync should not be called when sync=False"
+
+
+def test_save_sync_default_is_true(tmp_path) -> None:
+    """Test that save() defaults to sync=True for safety."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    fsync_called = []
+
+    def tracking_fsync(fd):
+        fsync_called.append(True)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)  # No sync parameter - should default to True
+
+    assert len(fsync_called) >= 1, "fsync should be called by default (sync=True)"

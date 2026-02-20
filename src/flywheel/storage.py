@@ -82,7 +82,7 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, sync: bool = True) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,6 +90,12 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of Todo objects to save.
+            sync: If True (default), call fsync before rename to ensure data is
+                persisted to disk. Set to False for performance-critical paths
+                where durability is less important than speed.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -115,6 +121,12 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                if sync:
+                    # Ensure data is flushed to OS buffer
+                    f.flush()
+                    # fsync ensures data is written to physical disk
+                    # This is critical for durability in crash/power failure scenarios
+                    os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
