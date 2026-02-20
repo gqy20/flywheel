@@ -229,3 +229,65 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_next_id_uniqueness(tmp_path) -> None:
+    """Regression test for issue #4636: Race condition in next_id().
+
+    Tests that multiple processes calling add operations concurrently
+    should not produce duplicate IDs. Uses atomic_add with file locking
+    to ensure unique IDs in concurrent scenarios.
+    """
+    import multiprocessing
+
+    db = tmp_path / "concurrent_ids.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo with unique text, reporting the assigned ID."""
+        try:
+            storage = TodoStorage(str(db))
+            # Use atomic_add which performs load -> next_id -> save with locking
+            added = storage.atomic_add(Todo(id=0, text=f"worker-{worker_id}"))
+            result_queue.put(("success", worker_id, added.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Synchronize start to maximize race condition likelihood
+    start_barrier = multiprocessing.Barrier(num_workers)
+
+    def synced_add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        start_barrier.wait()
+        add_worker(worker_id, result_queue)
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=synced_add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Check for duplicate IDs - this is the core bug we're testing for
+    ids_assigned = [r[2] for r in successes]
+    unique_ids = set(ids_assigned)
+    assert len(unique_ids) == len(
+        ids_assigned
+    ), f"Duplicate IDs detected! Assigned: {sorted(ids_assigned)}, Unique: {sorted(unique_ids)}"
