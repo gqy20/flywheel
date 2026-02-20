@@ -88,8 +88,12 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
-        Security: Uses tempfile.mkstemp to create unpredictable temp file names
-        and sets restrictive permissions (0o600) to protect against symlink attacks.
+        Security:
+        - Uses tempfile.mkstemp to create unpredictable temp file names
+        - Sets restrictive permissions (0o600) on temp file before write
+        - Explicitly sets final file permissions (0o600) after atomic rename
+          to ensure security regardless of pre-existing file permissions
+        - This protects against symlink attacks and accidental permission leaks
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -118,6 +122,13 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Explicitly set final file permissions to 0o600 for security
+            # While os.replace preserves temp file permissions, this explicit call:
+            # 1. Documents the security intent clearly
+            # 2. Ensures correct permissions even if temp file permissions were wrong
+            # 3. Fixes any pre-existing file that had overly permissive settings
+            os.chmod(self.path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
