@@ -1,0 +1,37 @@
+{
+  "issue_number": 4682,
+  "issue_title": "[Feature] Add backup file before overwrite",
+  "candidate_number": 3,
+  "run_id": "22224069898",
+  "branch": "claude/issue-4682-candidate-3-22224069898",
+  "status": "implemented",
+  "scorecard": {
+    "tests_added": 7,
+    "tests_passing": true,
+    "implementation_complete": true,
+    "acceptance_criteria_met": [
+      "FLYWHEEL_BACKUP=1 creates .bak file before save",
+      "Backup file preserves previous valid data",
+      "Backup is opt-in via environment variable"
+    ],
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_backup.py"
+    ],
+    "commit_sha": "c3a79e90d5e6c63de2792c14fbc54b957ecd4e1f"
+  },
+  "verification": {
+    "pytest_results": "7 passed",
+    "ruff_check": "passed",
+    "test_coverage": {
+      "backup_created_when_enabled": "PASSED",
+      "no_backup_created_when_disabled": "PASSED",
+      "backup_preserves_previous_valid_data": "PASSED",
+      "backup_on_empty_save": "PASSED",
+      "backup_with_unicode_content": "PASSED",
+      "backup_file_permissions": "PASSED",
+      "backup_only_created_on_successful_save": "PASSED"
+    }
+  },
+  "created_at": "2026-02-20T13:33:00Z"
+}
