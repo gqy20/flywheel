@@ -1,0 +1,28 @@
+{
+  "issue_number": 4804,
+  "candidate_number": 1,
+  "run_id": "22238076915",
+  "branch_name": "claude/issue-4804-candidate-1-22238076915",
+  "created_at": "2026-02-20T20:00:00Z",
+  "fix_summary": "Fix TOCTOU race condition in load() by using single read-then-check pattern",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4804_toctou_protection.py"
+  ],
+  "tests_added": 3,
+  "verification_commands": [
+    "uv run pytest tests/test_issue_4804_toctou_protection.py -v",
+    "uv run pytest tests/test_minimal_framework.py::test_storage_load_rejects_oversized_json tests/test_minimal_framework.py::test_storage_load_accepts_normal_sized_json -v",
+    "uv run ruff check src/flywheel/storage.py",
+    "uv run ruff format --check src/flywheel/storage.py"
+  ],
+  "risks": [
+    "Slight memory usage increase: content is fully loaded into memory before size check. However, this is mitigated by the 10MB limit which prevents excessive memory usage."
+  ],
+  "acceptance_criteria_met": [
+    "Eliminated stat vs read TOCTOU race window",
+    "Oversized files still correctly rejected",
+    "Normal files still correctly loaded",
+    "No performance regression for typical usage"
+  ]
+}
