@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,48 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_closed_on_fdopen_failure(tmp_path) -> None:
+    """Regression test for issue #4776: File descriptor leak on os.fdopen() failure.
+
+    If os.fdopen() raises an exception (e.g., OSError), the raw file descriptor
+    from mkstemp should be closed to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track if fd was closed
+    closed_fds = set()
+    original_os_close = os.close
+
+    def tracking_close(fd: int) -> None:
+        closed_fds.add(fd)
+        original_os_close(fd)
+
+    original_fdopen = os.fdopen
+    created_fds = []
+
+    # Create a wrapper that tracks created fds and simulates fdopen failure
+    def failing_fdopen(fd: int, *args, **kwargs):
+        # Record that this fd was created
+        created_fds.append(fd)
+        # Simulate fdopen failure before it can take ownership
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch("os.fdopen", failing_fdopen),
+        patch("os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that the fd was closed when fdopen failed
+    assert len(created_fds) == 1, "Expected exactly one fd to be created"
+    assert created_fds[0] in closed_fds, (
+        f"File descriptor {created_fds[0]} was not closed on fdopen failure. "
+        f"Closed fds: {closed_fds}"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
