@@ -7,11 +7,13 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import multiprocessing
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -229,3 +231,80 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4679: ID collision in concurrent writes.
+
+    Tests that multiple processes calling TodoApp.add() concurrently
+    generate unique IDs even when starting from the same state.
+
+    The race condition occurs because:
+    1. Process A loads todos (empty), computes next_id=1
+    2. Process B loads todos (empty), computes next_id=1
+    3. Process A saves todo with id=1
+    4. Process B saves todo with id=1 (collision!)
+
+    The fix uses file locking (fcntl.flock) around load-compute-save
+    operations to make them atomic.
+    """
+    db = tmp_path / "concurrent_ids.json"
+
+    def add_worker(worker_id: int, num_adds: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds todos and reports IDs generated."""
+        try:
+            app = TodoApp(db_path=str(db))
+            ids_generated = []
+            for i in range(num_adds):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                ids_generated.append(todo.id)
+            result_queue.put(("success", worker_id, ids_generated))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, each adding multiple todos
+    num_workers = 10
+    todos_per_worker = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, todos_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # Log errors for debugging
+    if errors:
+        error_msgs = [f"Worker {r[1]}: {r[2]}" for r in errors]
+        print(f"Worker errors: {error_msgs}")
+
+    # Collect all IDs generated
+    all_ids = []
+    for r in successes:
+        all_ids.extend(r[2])
+
+    # Verify all IDs are unique (no collisions)
+    unique_ids = set(all_ids)
+    assert len(unique_ids) == len(all_ids), (
+        f"ID collision detected! Generated {len(all_ids)} IDs but only {len(unique_ids)} are unique. "
+        f"Duplicate IDs: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )
+
+    # Verify we got the expected number of IDs
+    expected_ids = num_workers * todos_per_worker
+    assert len(all_ids) == expected_ids, (
+        f"Expected {expected_ids} IDs but got {len(all_ids)}"
+    )

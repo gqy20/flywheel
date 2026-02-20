@@ -1,0 +1,36 @@
+{
+  "issue_number": 4679,
+  "candidate": 2,
+  "run_id": "22216879542",
+  "created_at": "2026-02-20T08:00:00Z",
+  "approach": "file-locking",
+  "summary": "Fix race condition in concurrent todo additions by adding file locking using fcntl.flock around load-compute-save operations",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "description": "Add _lock_file() context manager using fcntl.flock for exclusive locking; Add add_todo_atomic() method that wraps add operation with locking"
+    },
+    {
+      "file": "src/flywheel/cli.py",
+      "description": "Update TodoApp.add() to use storage.add_todo_atomic() for thread-safe additions"
+    },
+    {
+      "file": "tests/test_storage_atomicity.py",
+      "description": "Add test_concurrent_add_unique_ids() regression test for issue #4679"
+    }
+  ],
+  "tests_run": [
+    "tests/test_storage_atomicity.py::test_concurrent_add_unique_ids",
+    "tests/test_storage_atomicity.py (all 7 tests)",
+    "tests/ (all 113 tests)"
+  ],
+  "risks": [
+    "fcntl.flock is Unix-only; this approach won't work on Windows (would need msvcrt.locking or portalocker)",
+    "Blocking lock could cause deadlock if process crashes while holding lock (lock is released by OS when fd is closed)",
+    "Lock file (.json.lock) is created alongside data file and not cleaned up (harmless but visible)"
+  ],
+  "limitations": [
+    "Only protects add_todo_atomic() method; other operations (mark_done, remove) are not yet protected",
+    "Uses separate lock file which doubles file count"
+  ]
+}
