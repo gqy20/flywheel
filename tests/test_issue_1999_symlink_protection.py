@@ -115,6 +115,9 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
 
     Before fix: Temp file name is always .todo.json.tmp (predictable)
     After fix: Temp file name should vary between saves
+
+    Note: With the backup feature (Issue #4766), each save after the first creates
+    two temp files: one for backup and one for the main save. So 3 saves = 5 temp files.
     """
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
@@ -140,9 +143,10 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
     finally:
         tempfile.mkstemp = original
 
-    # All temp file names should be different (unpredictable/random component)
-    assert len(temp_file_names) == 3, "Should have created 3 temp files"
-    assert len(set(temp_file_names)) == 3, f"Temp file names should be unique, got: {temp_file_names}"
+    # With backup feature: 3 saves = 1 + 2 + 2 = 5 temp files
+    # (first save: no backup, subsequent saves: backup + main)
+    assert len(temp_file_names) == 5, f"Should have created 5 temp files, got {len(temp_file_names)}"
+    assert len(set(temp_file_names)) == 5, f"Temp file names should be unique, got: {temp_file_names}"
 
     # Names should not be the simple predictable pattern
     for name in temp_file_names:

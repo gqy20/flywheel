@@ -28,8 +28,13 @@ def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     # Mock os.replace to track if it was called
     with patch("flywheel.storage.os.replace") as mock_replace:
         storage.save(todos)
-        # Verify atomic replace was used
-        mock_replace.assert_called_once()
+        # Verify atomic replace was used (called twice: once for backup, once for main file)
+        assert mock_replace.call_count == 2
+        # Verify it was called with the backup path and main path
+        calls = mock_replace.call_args_list
+        target_paths = [call[0][1] for call in calls]
+        assert storage.backup_path in target_paths
+        assert storage.path in target_paths
 
     # Verify file content is still valid
     loaded = storage.load()
