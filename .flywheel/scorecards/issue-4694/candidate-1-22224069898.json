@@ -1,14 +1,23 @@
 {
-  "issue_number": 4694,
+  "issue": 4694,
   "candidate": 1,
   "run_id": "22224069898",
   "branch": "claude/issue-4694-candidate-1-22224069898",
-  "status": "implemented",
-  "summary": "Add explicit type validation to _sanitize_text function",
-  "changes": {
-    "source_files": ["src/flywheel/formatter.py"],
-    "test_files": ["tests/test_issue_4694_sanitize_text_type_validation.py"]
-  },
-  "tests_passed": true,
-  "linting_passed": true
+  "pr_number": 4742,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4742",
+  "generated_at": "2026-02-20T13:22:11.643716+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2663,
+    "plan": 3183,
+    "implement": 2522,
+    "verify": 2570,
+    "finalize": 2013
+  }
 }
