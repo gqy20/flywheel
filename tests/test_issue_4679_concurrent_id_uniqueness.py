@@ -15,10 +15,7 @@ The fix uses file locking to make the load-compute-save sequence atomic.
 from __future__ import annotations
 
 import multiprocessing
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
@@ -85,7 +82,7 @@ def test_concurrent_add_generates_unique_ids(tmp_path: Path) -> None:
     successes = [r for r in results if r[0] == "success"]
     assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
 
-    for _, worker_id, ids in successes:
+    for _, _worker_id, ids in successes:
         all_ids.extend(ids)
 
     # Verify all IDs are unique (no collisions)
@@ -164,7 +161,7 @@ def test_high_concurrency_id_uniqueness(tmp_path: Path) -> None:
     all_ids = []
     successes = [r for r in results if r[0] == "success"]
 
-    for _, worker_id, ids in successes:
+    for _, _worker_id, ids in successes:
         all_ids.extend(ids)
 
     # All generated IDs must be unique
