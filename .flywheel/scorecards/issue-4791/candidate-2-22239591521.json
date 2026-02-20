@@ -1,0 +1,18 @@
+{
+  "issue_number": 4791,
+  "candidate": 2,
+  "run_id": "22239591521",
+  "status": "completed",
+  "test_first": true,
+  "tests_added": 1,
+  "tests_passed": 117,
+  "lint_passed": true,
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_4791_next_id_negative.py"]
+  },
+  "summary": "Fixed next_id() to handle negative todo IDs by ensuring the result is always at least 1.",
+  "implementation_approach": "Added max(..., 0) wrapper to clamp negative max values to 0 before adding 1.",
+  "risks": "None identified. The fix is minimal and only affects the edge case of negative IDs.",
+  "limitations": "Does not validate or prevent negative IDs from being stored; only ensures next_id returns valid positive integers."
+}
