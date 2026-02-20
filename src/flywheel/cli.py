@@ -66,6 +66,16 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def restore(self) -> list[Todo]:
+        """Restore todos from backup file.
+
+        Returns:
+            List of restored Todo objects.
+        """
+        todos = self.storage.restore()
+        self._save(todos)  # Save restored todos as current state
+        return todos
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
@@ -87,6 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
+
+    sub.add_parser("restore", help="Restore todos from backup")
 
     return parser
 
@@ -118,6 +130,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "restore":
+            todos = app.restore()
+            print(f"Restored {len(todos)} todo(s)")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")

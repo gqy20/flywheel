@@ -1,0 +1,55 @@
+{
+  "issue_number": 4766,
+  "candidate_number": 3,
+  "run_id": "22239591521",
+  "branch": "claude/issue-4766-candidate-3-22239591521",
+  "created_at": "2026-02-20T16:15:00Z",
+  "status": "implemented",
+  "scorecard": {
+    "test_coverage": {
+      "score": 5,
+      "notes": "9 new tests covering all acceptance criteria: backup creation, atomic backup, single backup retention, restore from backup, CLI restore subcommand, error handling for missing backup"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Follows existing patterns (atomic write-to-temp + rename), proper error handling, clean code structure"
+    },
+    "minimal_changes": {
+      "score": 5,
+      "notes": "Minimal changes: added _create_backup(), backup_path property, restore() method to storage.py; added restore() to TodoApp; added 'restore' subcommand to CLI"
+    },
+    "acceptance_criteria": {
+      "score": 5,
+      "notes": "All criteria met: save() creates .bak file with previous content, backup is atomic, restore command recovers from backup"
+    },
+    "tests_passed": {
+      "score": 5,
+      "notes": "All 121 tests pass including 9 new tests and 2 updated tests for backup behavior"
+    },
+    "linting": {
+      "score": 5,
+      "notes": "ruff check passes with no errors"
+    }
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_1999_symlink_protection.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "files_added": [
+      "tests/test_issue_4766_automatic_backup.py"
+    ]
+  },
+  "implementation_details": {
+    "approach": "Before each save(), backup the existing file to .json.bak using the same atomic pattern (temp file + rename). Added restore() method to load from backup and save as current state. Added 'restore' CLI subcommand.",
+    "key_functions": [
+      "TodoStorage._create_backup() - creates atomic backup before save",
+      "TodoStorage.backup_path - property for backup file path",
+      "TodoStorage.restore() - restores todos from backup file",
+      "TodoApp.restore() - app-level restore method",
+      "CLI 'restore' subcommand"
+    ]
+  }
+}

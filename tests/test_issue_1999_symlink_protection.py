@@ -141,8 +141,10 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
         tempfile.mkstemp = original
 
     # All temp file names should be different (unpredictable/random component)
-    assert len(temp_file_names) == 3, "Should have created 3 temp files"
-    assert len(set(temp_file_names)) == 3, f"Temp file names should be unique, got: {temp_file_names}"
+    # Note: Each save now creates 2 temp files (backup + main) except first save (no backup)
+    # So: 1 + 2 + 2 = 5 temp files
+    assert len(temp_file_names) == 5, "Should have created 5 temp files (backup + main for each save after first)"
+    assert len(set(temp_file_names)) == 5, f"Temp file names should be unique, got: {temp_file_names}"
 
     # Names should not be the simple predictable pattern
     for name in temp_file_names:
