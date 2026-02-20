@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage, _MAX_JSON_SIZE_BYTES
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 from flywheel.todo import Todo
 
 
@@ -144,9 +144,11 @@ class TestTOCTOUFix:
 
         # With the fix, the large content should be rejected
         # because we check len(content) after reading
-        with patch.object(Path, "read_text", attacking_read_text):
-            with pytest.raises(ValueError, match="(?i)too large|size"):
-                storage.load()
+        with (
+            patch.object(Path, "read_text", attacking_read_text),
+            pytest.raises(ValueError, match=r"(?i)too large|size"),
+        ):
+            storage.load()
 
     def test_empty_file_handled_correctly(self, tmp_path) -> None:
         """Verify empty file is handled correctly without stat()."""
