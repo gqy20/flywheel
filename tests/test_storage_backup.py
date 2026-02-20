@@ -6,8 +6,6 @@ before overwriting existing data, allowing recovery from mistakes or corruption.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
