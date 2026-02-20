@@ -48,9 +48,7 @@ def test_load_uses_single_stat_call_not_exists_plus_stat(tmp_path) -> None:
         called_methods.append("stat")
         return original_stat(self, *args, **kwargs)
 
-    with patch.object(Path, "exists", tracking_exists), patch.object(
-        Path, "stat", tracking_stat
-    ):
+    with patch.object(Path, "exists", tracking_exists), patch.object(Path, "stat", tracking_stat):
         loaded = storage.load()
 
     # After the fix, load() should NOT call exists() separately
@@ -154,9 +152,7 @@ def test_load_no_race_window_between_check_and_use(tmp_path) -> None:
         call_sequence.append("stat")
         return original_stat(self, *args, **kwargs)
 
-    with patch.object(Path, "exists", tracking_exists), patch.object(
-        Path, "stat", tracking_stat
-    ):
+    with patch.object(Path, "exists", tracking_exists), patch.object(Path, "stat", tracking_stat):
         storage.load()
 
     # The sequence should be: stat (possibly multiple times internally)
