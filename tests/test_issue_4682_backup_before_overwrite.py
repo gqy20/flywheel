@@ -89,7 +89,7 @@ class TestBackupBeforeOverwrite:
                 # After subsequent saves, backup contains previous state
                 backup_content = json.loads(backup_file.read_text(encoding="utf-8"))
                 assert len(backup_content) == i  # Previous save had i items
-                assert backup_content[0]["text"] == f"save-{i-1}-todo-0"
+                assert backup_content[0]["text"] == f"save-{i - 1}-todo-0"
 
     def test_backup_with_custom_db_path(self, tmp_path: Path, monkeypatch) -> None:
         """Test that backup file naming works with custom database paths."""
@@ -111,9 +111,7 @@ class TestBackupBeforeOverwrite:
         backup_content = json.loads(backup_file.read_text(encoding="utf-8"))
         assert backup_content[0]["text"] == "initial"
 
-    def test_backup_works_with_atomic_write_failure(
-        self, tmp_path: Path, monkeypatch
-    ) -> None:
+    def test_backup_works_with_atomic_write_failure(self, tmp_path: Path, monkeypatch) -> None:
         """Test that backup is created BEFORE write, so it's preserved on write failure."""
         monkeypatch.setenv("FLYWHEEL_BACKUP", "1")
 
