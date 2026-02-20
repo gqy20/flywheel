@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,34 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file path is derived from the database path
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive advisory lock on the database file.
+
+        Returns the file descriptor of the lock file. Caller must close it.
+        Uses fcntl.flock for cross-process synchronization.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        # Use O_CREAT | O_RDWR to create if doesn't exist
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)  # Blocking exclusive lock
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the lock and close the lock file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +155,37 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Atomically add a todo with file locking to prevent ID collisions.
+
+        This method handles the load-compute-save sequence within an exclusive
+        file lock, ensuring that concurrent processes do not generate duplicate IDs.
+
+        The lock is advisory (fcntl.flock) and uses a separate lock file
+        (<db_path>.lock) to coordinate access across processes.
+
+        Args:
+            todo: The todo to add (without ID - it will be assigned atomically).
+
+        Returns:
+            The todo with its assigned ID.
+        """
+        lock_fd = self._acquire_lock()
+        try:
+            # Load current state
+            todos = self.load()
+
+            # Compute next ID based on current state
+            new_id = self.next_id(todos)
+
+            # Assign ID to the new todo
+            todo.id = new_id
+
+            # Add and save
+            todos.append(todo)
+            self.save(todos)
+
+            return todo
+        finally:
+            self._release_lock(lock_fd)
