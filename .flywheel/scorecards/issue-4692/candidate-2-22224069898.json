@@ -1,34 +1,23 @@
 {
-  "issue_number": 4692,
+  "issue": 4692,
   "candidate": 2,
   "run_id": "22224069898",
   "branch": "claude/issue-4692-candidate-2-22224069898",
-  "plan": {
-    "files_to_touch": [
-      "tests/test_minimal_framework.py",
-      "src/flywheel/todo.py"
-    ],
-    "tdd_steps": [
-      {
-        "step": "RED",
-        "description": "Add failing regression tests for from_dict empty/whitespace text"
-      },
-      {
-        "step": "GREEN",
-        "description": "Add text.strip() validation in from_dict method"
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
-    ]
-  },
-  "status": "implemented",
-  "created_at": "2026-02-20T09:00:00Z",
-  "implemented_at": "2026-02-20T09:05:00Z",
-  "commit_sha": "628f572f118345ff8d7f311e55052240fdadc967",
-  "tests_passed": true,
-  "linting_passed": true,
+  "pr_number": 4740,
   "pr_url": "https://github.com/gqy20/flywheel/pull/4740",
-  "finalized_at": "2026-02-20T09:10:00Z"
+  "generated_at": "2026-02-20T13:33:40.090124+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2905,
+    "plan": 3420,
+    "implement": 2222,
+    "verify": 1707,
+    "finalize": 1501
+  }
 }
