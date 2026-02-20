@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import threading
 from pathlib import Path
 
 from .todo import Todo
@@ -53,10 +54,19 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
+    # Class-level lock for thread safety across all instances
+    # Using class-level to handle concurrent access from separate TodoApp instances
+    _lock = threading.Lock()
+
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        with self._lock:
+            return self._load_unlocked()
+
+    def _load_unlocked(self) -> list[Todo]:
+        """Internal load without lock - for use within locked operations."""
         if not self.path.exists():
             return []
 
@@ -74,8 +84,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -91,6 +100,11 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        with self._lock:
+            self._save_unlocked(todos)
+
+    def _save_unlocked(self, todos: list[Todo]) -> None:
+        """Internal save without lock - for use within locked operations."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +140,30 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, todo: Todo) -> Todo:
+        """Atomically add a todo with auto-incremented ID.
+
+        This method is thread-safe and prevents the TOCTOU race condition
+        between load, next_id calculation, and save.
+
+        Args:
+            todo: Todo object to add (id field will be overwritten with auto-ID)
+
+        Returns:
+            The todo with its assigned ID.
+        """
+        with self._lock:
+            todos = self._load_unlocked()
+            todo_id = self.next_id(todos)
+            # Create new todo with the computed ID
+            new_todo = Todo(
+                id=todo_id,
+                text=todo.text,
+                done=todo.done,
+                created_at=todo.created_at,
+                updated_at=todo.updated_at,
+            )
+            todos.append(new_todo)
+            self._save_unlocked(todos)
+            return new_todo

@@ -27,11 +27,9 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use atomic add_todo to prevent TOCTOU race condition (issue #4623)
+        todo = Todo(id=0, text=text)  # id will be set by add_todo
+        return self.storage.add_todo(todo)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
