@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -90,9 +91,21 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: If FLYWHEEL_BACKUP environment variable is set to "1", creates
+        a backup of the existing file before overwriting it. The backup is stored
+        at <filename>.bak (e.g., .todo.json -> .todo.json.bak).
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before overwriting if backup is enabled and file exists
+        backup_enabled = os.environ.get("FLYWHEEL_BACKUP", "").lower() in ("1", "true", "yes")
+        if backup_enabled and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            # If backup fails, continue with save (don't block the operation)
+            with contextlib.suppress(OSError):
+                shutil.copy2(self.path, backup_path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
