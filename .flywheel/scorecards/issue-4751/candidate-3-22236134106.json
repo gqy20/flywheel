@@ -1,0 +1,43 @@
+{
+  "issue_number": 4751,
+  "issue_title": "[Feature] 添加可选 debug 日志功能",
+  "candidate": 3,
+  "run_id": "22236134106",
+  "branch": "claude/issue-4751-candidate-3-22236134106",
+  "status": "ready",
+  "created_at": "2026-02-20T15:00:00Z",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4751_debug_logging.py"
+    ],
+    "lines_added": 120,
+    "lines_removed": 5
+  },
+  "acceptance_criteria": {
+    "debug_parameter": "TodoStorage supports debug=True parameter",
+    "debug_logging": "debug=True logs load/save operations",
+    "log_content": "Logs include file path, operation type, duration, and error info",
+    "default_false": "debug defaults to False when not specified"
+  },
+  "tests": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0,
+    "coverage": {
+      "storage.py": "69%"
+    }
+  },
+  "implementation_notes": {
+    "approach": "Added debug: bool = False parameter to __init__. When enabled, uses Python's logging module to record load/save operations with file path, size, duration, and temp file info.",
+    "key_changes": [
+      "Added logging module import and _logger",
+      "Added time import for duration tracking",
+      "Added debug parameter to __init__",
+      "Added debug logging in load() for file not found, JSON errors, and successful loads",
+      "Added debug logging in save() for temp file creation, successful saves, and errors"
+    ],
+    "risks": "Minimal - new parameter defaults to False, so existing code is unaffected",
+    "limitations": "Debug logging requires proper log handler configuration at application level"
+  }
+}
