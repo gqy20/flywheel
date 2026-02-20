@@ -184,7 +184,6 @@ def test_fd_leak_when_fdopen_fails(tmp_path) -> None:
         return fd, path
 
     # Mock os.fdopen to raise an exception, simulating failure
-    original_fdopen = os.fdopen
     call_count = [0]
 
     def failing_fdopen(fd, *args, **kwargs):
