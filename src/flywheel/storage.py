@@ -57,11 +57,28 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        # Security: Check if path is a symlink and reject it
+        # Using lstat() to avoid following symlinks (TOCTOU protection)
+        try:
+            file_stat = self.path.lstat()
+        except FileNotFoundError:
             return []
 
+        # Security: Reject symlinks to prevent symlink attacks
+        if stat.S_ISLNK(file_stat.st_mode):
+            raise ValueError(
+                f"Security error: '{self.path}' is a symbolic link. "
+                f"Symbolic links are not allowed for security reasons."
+            )
+
+        # Security: Also verify the path is a regular file
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise ValueError(
+                f"Invalid storage: '{self.path}' is not a regular file."
+            )
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
