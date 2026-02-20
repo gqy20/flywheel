@@ -229,3 +229,68 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4679: Race condition causing ID collision.
+
+    Tests that multiple processes adding todos concurrently must generate
+    unique IDs. Without proper locking, two processes could load the same
+    todos, compute the same next_id, and then one overwrites the other
+    resulting in duplicate IDs.
+
+    This test creates 10 concurrent processes, each adding 10 todos,
+    and verifies all 100 IDs are unique.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "unique_ids.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds 10 todos and returns all assigned IDs."""
+        try:
+            app = TodoApp(db_path=str(db))
+            ids = []
+            for i in range(10):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                ids.append(todo.id)
+            result_queue.put(("success", worker_id, ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run 10 workers concurrently, each adding 10 todos
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect all IDs
+    all_ids: list[int] = []
+    errors = []
+    while not result_queue.empty():
+        result = result_queue.get()
+        if result[0] == "success":
+            all_ids.extend(result[2])
+        else:
+            errors.append(result)
+
+    # Verify no errors occurred
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+
+    # Verify all 100 IDs are unique (no collisions)
+    assert len(all_ids) == 100, f"Expected 100 IDs, got {len(all_ids)}"
+    unique_ids = set(all_ids)
+    assert len(unique_ids) == 100, (
+        f"ID collision detected! {len(all_ids) - len(unique_ids)} duplicate IDs found. "
+        f"Duplicates: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )

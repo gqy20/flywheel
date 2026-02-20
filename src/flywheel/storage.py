@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,39 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire exclusive advisory lock on lock file.
+
+        Creates lock file if it doesn't exist. Returns file descriptor
+        that should be closed to release lock.
+        """
+        _ensure_parent_directory(self._lock_path)
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the exclusive lock by closing the file descriptor."""
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+    @contextlib.contextmanager
+    def locked(self) -> None:
+        """Context manager providing exclusive lock for atomic operations.
+
+        Usage:
+            with storage.locked():
+                todos = storage.load()
+                # ... modify todos ...
+                storage.save(todos)
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
