@@ -151,6 +151,31 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_exists_returns_false_before_save(tmp_path) -> None:
+    """Test that exists() returns False when file has not been saved yet."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # File does not exist yet
+    assert storage.exists() is False
+
+
+def test_exists_returns_true_after_save(tmp_path) -> None:
+    """Test that exists() returns True after saving."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Initially file does not exist
+    assert storage.exists() is False
+
+    # Save creates the file
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Now file should exist
+    assert storage.exists() is True
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

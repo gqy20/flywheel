@@ -126,3 +126,11 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def exists(self) -> bool:
+        """Check if the storage file exists.
+
+        Returns:
+            True if the storage file exists, False otherwise.
+        """
+        return self.path.exists()
