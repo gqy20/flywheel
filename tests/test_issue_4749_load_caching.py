@@ -143,7 +143,9 @@ def test_load_returns_copy_of_cached_data(tmp_path: Path) -> None:
 
     # Get second load - should still have original data
     result2 = storage.load()
-    assert result2[0].text == "original", "Cache should not be affected by mutation of returned data"
+    assert result2[0].text == "original", (
+        "Cache should not be affected by mutation of returned data"
+    )
 
 
 def test_load_empty_file_caching(tmp_path: Path) -> None:
