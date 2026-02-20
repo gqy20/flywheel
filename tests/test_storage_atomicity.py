@@ -302,7 +302,7 @@ def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
 
     # Collect all IDs assigned by workers
     all_assigned_ids = []
-    for status, worker_id, ids in successes:
+    for _status, _worker_id, ids in successes:
         all_assigned_ids.extend(ids)
 
     # CRITICAL: Check for duplicate IDs - this is the actual bug being tested
