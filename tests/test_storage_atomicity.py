@@ -6,6 +6,7 @@ preventing data corruption if the process crashes during write.
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -229,3 +230,90 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_descriptor_not_leaked_on_write_failure(tmp_path) -> None:
+    """Regression test for issue #4680: File descriptor leak when write fails.
+
+    When os.fdopen fails to write (e.g., due to RuntimeError, not OSError),
+    the file descriptor should still be properly closed and the temp file
+    should be cleaned up.
+
+    This test verifies that:
+    1. No file descriptors are leaked after save() fails
+    2. The temp file is cleaned up even for non-OSError exceptions
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Track which file descriptors were open before
+    fd_before = set(os.listdir("/proc/self/fd"))
+
+    # Simulate write failure by making f.write() raise RuntimeError (not OSError)
+    original_fdopen = os.fdopen
+
+    class FailingFileProxy:
+        """Proxy that fails on write."""
+
+        def __init__(self, real_file, fd):
+            self._real_file = real_file
+            self._fd = fd
+
+        def write(self, content):
+            # Close the fd properly to simulate the issue - the fd is still
+            # owned by real_file but we're simulating a failure during write
+            raise RuntimeError("Simulated write failure")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            # Try to close the real file to clean up
+            with contextlib.suppress(Exception):
+                self._real_file.close()
+            return False
+
+    def failing_fdopen(fd, *args, **kwargs):
+        real_file = original_fdopen(fd, *args, **kwargs)
+        return FailingFileProxy(real_file, fd)
+
+    with (
+        patch("os.fdopen", failing_fdopen),
+        pytest.raises(RuntimeError, match="Simulated write failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Track which file descriptors are open after
+    fd_after = set(os.listdir("/proc/self/fd"))
+
+    # Check if any new fds were leaked (excluding any that might have been
+    # created by the test framework itself)
+    new_fds = fd_after - fd_before
+    # Filter out any fds that might be from test infrastructure
+    # The key is that no temp file fds should remain open
+    leaked_fds = []
+    for fd_str in new_fds:
+        try:
+            link = os.readlink(f"/proc/self/fd/{fd_str}")
+            # Check if it's a temp file related to our storage
+            if ".json." in link or ".tmp" in link:
+                leaked_fds.append((fd_str, link))
+        except (OSError, FileNotFoundError):
+            pass
+
+    assert len(leaked_fds) == 0, f"File descriptors leaked: {leaked_fds}"
+
+    # Verify the temp file was cleaned up
+    temp_files = list(tmp_path.glob(".*.tmp"))
+    assert len(temp_files) == 0, f"Temp files not cleaned up: {temp_files}"
+
+    # Verify original file is unchanged
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original"
