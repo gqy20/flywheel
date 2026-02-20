@@ -119,3 +119,33 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4665 - error messages should include item index
+def test_storage_load_error_includes_item_index(tmp_path) -> None:
+    """When an item fails validation, error message should include the item index."""
+    db = tmp_path / "malformed_item.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with multiple items where item at index 2 is malformed (missing 'text')
+    db.write_text(
+        '[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2"}, {"id": 3}]',
+        encoding="utf-8",
+    )
+
+    # Error message should include "index 2" to identify the problematic item
+    with pytest.raises(ValueError, match=r"index 2"):
+        storage.load()
+
+
+def test_storage_load_error_includes_original_message(tmp_path) -> None:
+    """Error message should include the original validation error details."""
+    db = tmp_path / "malformed_item.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON where item at index 0 has wrong id type
+    db.write_text('[{"id": "bad", "text": "task"}]', encoding="utf-8")
+
+    # Error should mention index 0 AND the original issue (invalid id type)
+    with pytest.raises(ValueError, match=r"index 0.*invalid.*'id'|index 0.*'id'.*integer"):
+        storage.load()
