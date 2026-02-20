@@ -1,24 +1,23 @@
 {
-  "issue_number": 4664,
-  "candidate_number": 1,
-  "run_id": 22216879542,
-  "scorecard_version": "1.0",
-  "timestamp": "2026-02-20T07:00:00Z",
-  "assessment": {
-    "tests_added": 1,
-    "tests_passed": true,
-    "linting_passed": true,
-    "coverage_maintained": true,
-    "security_preserved": true
-  },
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_4664_toctou_race.py"]
-  },
-  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by changing exist_ok=False to exist_ok=True. The file-as-directory validation above still catches path confusion attacks.",
-  "acceptance_criteria": {
-    "concurrent_processes_no_fileexistserror": true,
-    "file_as_directory_rejection_still_works": true,
-    "existing_tests_pass": true
+  "issue": 4664,
+  "candidate": 1,
+  "run_id": "22216879542",
+  "branch": "claude/issue-4664-candidate-1-22216879542",
+  "pr_number": 4700,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4700",
+  "generated_at": "2026-02-20T09:23:29.364173+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2184,
+    "plan": 3667,
+    "implement": 2425,
+    "verify": 2024,
+    "finalize": 1435
   }
 }
