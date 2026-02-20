@@ -229,3 +229,68 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4777: Race condition in next_id().
+
+    Tests that concurrent add operations produce unique IDs even when
+    starting from the same initial state. The race condition occurs when:
+    1. Process A loads todos (empty), computes next_id = 1
+    2. Process B loads todos (empty), computes next_id = 1 (same!)
+    3. Both save, resulting in duplicate IDs
+
+    The fix ensures next_id() reloads the file to get the freshest state.
+    """
+    import multiprocessing
+
+    db = tmp_path / "unique_ids.json"
+    db_str = str(db)
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo and returns its ID."""
+        try:
+            from flywheel.cli import TodoApp
+
+            app = TodoApp(db_str)
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, all starting from empty file
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should have succeeded
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # All IDs should be unique (no collisions)
+    ids = [r[2] for r in successes]
+    assert len(ids) == len(set(ids)), f"Duplicate IDs detected: {ids}"
+
+    # Verify file contains unique IDs
+    storage = TodoStorage(db_str)
+    loaded = storage.load()
+    loaded_ids = [t.id for t in loaded]
+    # Some may have been overwritten due to last-writer-wins, but surviving IDs must be unique
+    assert len(loaded_ids) == len(set(loaded_ids)), f"Duplicate IDs in file: {loaded_ids}"
