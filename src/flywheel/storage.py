@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -55,6 +58,27 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_file = None
+
+    @contextmanager
+    def _acquire_lock(self) -> Generator[None]:
+        """Acquire an exclusive file lock for atomic operations.
+
+        This is used to prevent race conditions when multiple processes
+        try to modify the todo file concurrently.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file to avoid issues with the data file itself
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +149,33 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Compute the next unique ID for a new todo.
+
+        Note: This method does NOT use locking. For concurrent-safe operations,
+        use add_todo() instead which handles locking for the entire operation.
+
+        The passed-in todos parameter is used for backwards compatibility but
+        should not be relied upon for concurrent scenarios.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a new todo atomically with proper locking.
+
+        This method is safe for concurrent access - it acquires a lock,
+        loads the current state, computes a unique ID, and saves the new todo
+        all while holding the lock.
+
+        This fixes issue #4777: race condition in next_id() under concurrent access.
+        """
+        with self._acquire_lock():
+            # Load current state while holding the lock
+            todos = self.load()
+            # Compute unique ID from current state
+            new_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+            # Create and add the new todo
+            new_todo = Todo(id=new_id, text=text)
+            todos.append(new_todo)
+            # Save while still holding the lock
+            self.save(todos)
+            return new_todo
