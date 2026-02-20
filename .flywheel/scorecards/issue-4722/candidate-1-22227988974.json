@@ -1,32 +1,23 @@
 {
-  "issue_number": 4722,
-  "issue_title": "[Bug] Potential symlink attack vector - final target file permissions are not explicit",
-  "candidate_number": 1,
+  "issue": 4722,
+  "candidate": 1,
   "run_id": "22227988974",
   "branch": "claude/issue-4722-candidate-1-22227988974",
-  "triage_summary": {
-    "root_cause": "Final file permissions after os.replace() were implicit and untested, though functionally correct (os.replace preserves source permissions)",
-    "risk_level": "low",
-    "approach": "Add regression tests to verify final file permissions and update docstring to document the behavior explicitly"
-  },
-  "changes": {
-    "test_files_added": ["tests/test_issue_4722_final_file_permissions.py"],
-    "source_files_modified": ["src/flywheel/storage.py"],
-    "lines_changed": 15
-  },
-  "tests": {
-    "added": 4,
-    "passing": 4,
-    "coverage_focus": "Final file permissions verification"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_issue_4722_final_file_permissions.py -v",
-    "uv run ruff check src/flywheel/storage.py tests/test_issue_4722_final_file_permissions.py"
+  "pr_number": 4753,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4753",
+  "generated_at": "2026-02-20T15:31:33.269511+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": {
-    "final_file_secure_permissions": true,
-    "permission_behavior_documented": true,
-    "test_verifies_final_permissions": true,
-    "test_verifies_pre_existing_file_perms_updated": true
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2985,
+    "implement": 4000,
+    "verify": 4000,
+    "finalize": 825
   }
 }
