@@ -28,5 +28,7 @@
   "implemented_at": "2026-02-20T09:05:00Z",
   "commit_sha": "628f572f118345ff8d7f311e55052240fdadc967",
   "tests_passed": true,
-  "linting_passed": true
+  "linting_passed": true,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4740",
+  "finalized_at": "2026-02-20T09:10:00Z"
 }
