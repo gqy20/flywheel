@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -88,8 +87,13 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
-        Security: Uses tempfile.mkstemp to create unpredictable temp file names
-        and sets restrictive permissions (0o600) to protect against symlink attacks.
+        Security:
+            - Uses tempfile.mkstemp to create unpredictable temp file names
+            - Sets restrictive permissions (0o600) on temp file to protect against
+              symlink attacks and unauthorized reading
+            - Final file retains 0o600 permissions via os.replace() which preserves
+              source file permissions (pre-existing files with loose permissions are
+              updated to restrictive 0o600 on save)
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
