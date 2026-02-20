@@ -151,6 +151,71 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4777: Race condition in next_id() leads to duplicate IDs.
+
+    Tests that two concurrent add() operations with same initial state produce
+    different IDs even under concurrent access. The race condition occurs when:
+    1. Process A loads empty list, computes next_id = 1
+    2. Process B loads empty list, computes next_id = 1 (same!)
+    3. Both save todos with id=1 - collision!
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo using TodoApp.add()."""
+        try:
+            app = TodoApp(db_path=str(db))
+            todo = app.add(f"task-{worker_id}")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run 2 workers concurrently (use barrier-like timing to maximize race)
+    num_workers = 2
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+
+    # Start both processes as close together as possible
+    for p in processes:
+        p.start()
+
+    # Wait for completion
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify IDs are unique - this is the core assertion for the bug
+    ids = [r[2] for r in successes]
+    assert len(ids) == len(set(ids)), f"Duplicate IDs detected: {ids}. This indicates race condition in next_id()"
+
+    # Final verification: file should contain 2 todos with unique IDs
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) == 2, f"Expected 2 todos, got {len(final_todos)}"
+    final_ids = [t.id for t in final_todos]
+    assert len(final_ids) == len(set(final_ids)), f"Final todos have duplicate IDs: {final_ids}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
