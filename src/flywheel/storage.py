@@ -55,10 +55,17 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
+
+        # Check if cache is valid (file unchanged)
+        current_mtime = self.path.stat().st_mtime
+        if self._cache is not None and self._cache_mtime == current_mtime:
+            return self._cache
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +87,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+        # Update cache
+        self._cache = result
+        self._cache_mtime = current_mtime
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -123,6 +135,10 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Update cache after successful save
+        self._cache = list(todos)  # Copy to avoid external mutation
+        self._cache_mtime = self.path.stat().st_mtime
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
