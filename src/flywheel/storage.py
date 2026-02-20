@@ -57,11 +57,13 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        try:
+            # Security: Check file size before loading to prevent DoS
+            file_size = self.path.stat().st_size
+        except FileNotFoundError:
+            # File doesn't exist - return empty list
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
@@ -72,10 +74,12 @@ class TodoStorage:
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            # File was deleted between stat() and read_text() - return empty list
+            return []
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
