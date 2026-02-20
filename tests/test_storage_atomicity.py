@@ -16,6 +16,25 @@ from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
 
+def test_exists_returns_false_before_save(tmp_path) -> None:
+    """Test that exists() returns False when storage file does not exist."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    assert storage.exists() is False
+
+
+def test_exists_returns_true_after_save(tmp_path) -> None:
+    """Test that exists() returns True after saving todos."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    assert storage.exists() is True
+
+
 def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     """Test that save uses atomic os.replace instead of non-atomic write_text."""
     db = tmp_path / "todo.json"
