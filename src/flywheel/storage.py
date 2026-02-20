@@ -82,17 +82,28 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, backup: bool = True) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Args:
+            todos: List of Todo objects to save.
+            backup: If True (default), create a .bak backup file before overwriting
+                    an existing file. Set to False to disable backup.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if it exists and backup is enabled
+        if backup and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            import shutil
+            shutil.copy2(self.path, backup_path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
