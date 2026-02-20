@@ -1,0 +1,27 @@
+{
+  "issue_number": 4777,
+  "candidate_number": 2,
+  "run_id": "22231923086",
+  "branch": "claude/issue-4777-candidate-2-22231923086",
+  "commit_sha": "2d7b8fb",
+  "summary": "Fixed race condition in next_id() by adding file-level locking using fcntl.flock. The atomic_add() method ensures load-compute-save sequence is atomic, preventing duplicate IDs under concurrent access.",
+  "tests_run": [
+    "tests/test_storage_atomicity.py::test_concurrent_add_produces_unique_ids",
+    "tests/test_storage_atomicity.py (all 7 tests)",
+    "Full test suite (113 tests)"
+  ],
+  "risks": [
+    "File locking uses fcntl.flock which is Unix-specific; may not work on Windows",
+    "Lock file (.todo.json.lock) is created alongside the database file",
+    "Performance impact under high concurrency due to serialized access"
+  ],
+  "limitations": [
+    "Only fixes the add() operation; other operations (mark_done, remove) still have potential race conditions but don't cause ID collisions",
+    "If process crashes while holding lock, lock is automatically released by OS"
+  ],
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "src/flywheel/cli.py",
+    "tests/test_storage_atomicity.py"
+  ]
+}
