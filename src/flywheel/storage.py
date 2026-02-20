@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -74,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +125,55 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Get the next unique ID atomically.
+
+        Uses a separate counter file with file locking to ensure ID uniqueness
+        even under concurrent access. The counter file is co-located with the
+        main database file.
+
+        Args:
+            todos: Current list of todos (used to initialize counter if needed).
+
+        Returns:
+            A unique ID that can be used for a new todo.
+        """
+        # Counter file path is derived from main database path
+        counter_path = self.path.with_suffix(self.path.suffix + ".idcounter")
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(counter_path)
+
+        # Open/create counter file with exclusive lock
+        fd = os.open(
+            str(counter_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            # Exclusive lock to ensure atomic increment
+            fcntl.flock(fd, fcntl.LOCK_EX)
+
+            # Read current counter value
+            try:
+                content = os.read(fd, 32).decode("utf-8").strip()
+                current_max = int(content) if content else 0
+            except (ValueError, OSError):
+                current_max = 0
+
+            # Also check actual max ID in the todos list (in case counter is missing/stale)
+            todos_max = max((todo.id for todo in todos), default=0) if todos else 0
+
+            # Use the higher of counter or actual max to handle edge cases
+            effective_max = max(current_max, todos_max)
+            next_id_value = effective_max + 1
+
+            # Write new counter value (truncate and rewrite)
+            os.lseek(fd, 0, os.SEEK_SET)
+            os.ftruncate(fd, 0)
+            os.write(fd, str(next_id_value).encode("utf-8"))
+
+            return next_id_value
+        finally:
+            # Lock is automatically released when file is closed
+            os.close(fd)
