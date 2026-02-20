@@ -1,0 +1,33 @@
+{
+  "issue_number": 4776,
+  "issue_title": "[Security] File descriptor fd may leak if os.fdopen() raises an exception",
+  "candidate_number": 1,
+  "run_id": "22231923086",
+  "branch_name": "claude/issue-4776-candidate-1-22231923086",
+  "created_at": "2026-02-20T17:08:00Z",
+  "stage": "IMPLEMENT",
+  "status": "implemented",
+  "root_cause": "At storage.py:116, os.fdopen(fd, ...) transfers ownership of fd to the file object. If fdopen() raises an exception (e.g., OSError on invalid fd, or TypeError on wrong args), the raw fd is never closed because the 'with' block never begins. The existing except OSError block at line 121 only handles errors during write/rename, not fdopen() failure.",
+  "fix_summary": {
+    "problem": "If os.fdopen() raises an exception before the with block is entered, the raw file descriptor from tempfile.mkstemp() could leak because os.fdopen() takes ownership of the fd but may fail before successfully wrapping it.",
+    "solution": "Wrap the os.fdopen() call in a try/except block. If fdopen fails, explicitly close the raw fd using os.close() before re-raising the exception.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4776_fd_leak.py"
+    ],
+    "lines_changed": 8
+  },
+  "tests": {
+    "test_file": "tests/test_issue_4776_fd_leak.py",
+    "test_count": 2,
+    "all_passed": true,
+    "commands_run": [
+      "uv run pytest tests/test_issue_4776_fd_leak.py -v",
+      "uv run pytest tests/test_storage_atomicity.py tests/test_issue_1999_symlink_protection.py tests/test_issue_2027_permissions.py tests/test_issue_4776_fd_leak.py -v"
+    ]
+  },
+  "risks_and_limitations": [
+    "The fix adds a small amount of code complexity but is isolated to the error path",
+    "The test relies on /proc/self/fd which is Linux-specific, but the behavior being tested (fd being closed) is platform-independent"
+  ]
+}
