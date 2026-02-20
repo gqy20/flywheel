@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -82,7 +83,7 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,9 +91,18 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of Todo objects to save.
+            backup: If True, creates a backup of the existing file before overwriting.
+                   The backup file has the same name with ".bak" suffix and 0600 permissions.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if requested and file exists
+        if backup and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +133,25 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> Path:
+        """Create a backup of the current file.
+
+        Creates a backup file with ".bak" suffix and 0600 permissions.
+        If a backup already exists, it will be overwritten.
+
+        Returns:
+            Path to the backup file.
+        """
+        backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+
+        # Use shutil.copy2 to preserve metadata, then set explicit permissions
+        shutil.copy2(self.path, backup_path)
+
+        # Set restrictive permissions on backup (owner read/write only)
+        os.chmod(backup_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+
+        return backup_path
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
