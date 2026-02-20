@@ -151,6 +151,69 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_not_leaked_on_fchmod_failure(tmp_path) -> None:
+    """Regression test for issue #4680: FD leak when os.fchmod fails.
+
+    If os.fchmod(fd, ...) raises an exception that is not OSError, the fd
+    will leak because:
+    1. mkstemp returns an fd
+    2. fchmod is called on that fd
+    3. If fchmod fails with non-OSError, the except OSError doesn't catch it
+    4. The fd is never passed to fdopen, so the context manager doesn't close it
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Get baseline open fd count
+    fd_dir = Path("/proc/self/fd")
+    if not fd_dir.exists():
+        pytest.skip("/proc/self/fd not available on this platform")
+
+    # Track the opened fd
+    opened_fds = []
+    fds_closed_by_fix = []
+
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        opened_fds.append(fd)
+        return fd, path
+
+    def failing_fchmod(fd, mode):
+        """Simulate fchmod failing with a non-OSError exception."""
+        # In the bug scenario, this RuntimeError is not caught by `except OSError`
+        # so the fd leaks. With the fix, any exception should close the fd.
+        raise RuntimeError("Simulated fchmod failure")
+
+    # Mock os.close to track if the fix properly closes the fd
+    original_close = os.close
+
+    def tracking_close(fd):
+        if fd in opened_fds:
+            fds_closed_by_fix.append(fd)
+        return original_close(fd)
+
+    with (
+        patch("flywheel.storage.tempfile.mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(RuntimeError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # The critical check: verify the fd was actually closed
+    # With the bug, the fd would NOT be closed because RuntimeError is not caught
+    assert len(fds_closed_by_fix) > 0, (
+        f"File descriptor was leaked! Opened fds: {opened_fds}, "
+        f"closed fds: {fds_closed_by_fix}. "
+        "The exception handler should close the fd on ANY exception, not just OSError."
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

@@ -118,7 +118,11 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except Exception:
+            # Close fd if it's still open (e.g., if exception occurred before fdopen)
+            # fdopen takes ownership of fd, so only close if exception happened before that
+            with contextlib.suppress(OSError):
+                os.close(fd)
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
