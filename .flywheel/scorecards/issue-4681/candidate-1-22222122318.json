@@ -1,0 +1,44 @@
+{
+  "issue_number": 4681,
+  "issue_title": "[Enhancement] Add optional logging for storage operations",
+  "candidate_number": 1,
+  "run_id": "22222122318",
+  "branch_name": "claude/issue-4681-candidate-1-22222122318",
+  "created_at": "2026-02-20T08:00:00Z",
+  "scorecard": {
+    "test_coverage": {
+      "score": 1.0,
+      "rationale": "7 comprehensive tests covering all acceptance criteria: logging enabled/disabled states, path/count inclusion, empty file handling, timing info"
+    },
+    "minimal_change": {
+      "score": 1.0,
+      "rationale": "Minimal changes to storage.py: added logging module import, helper function, and debug logging in load/save methods. No breaking changes."
+    },
+    "acceptance_criteria": {
+      "score": 1.0,
+      "rationale": "All acceptance criteria met: FLYWHEEL_DEBUG=1 enables logging, logs include file path, operation type, record count, and timing"
+    },
+    "code_quality": {
+      "score": 1.0,
+      "rationale": "Code follows project conventions, passes ruff linter, uses consistent formatting with existing code"
+    },
+    "risk_assessment": {
+      "score": 1.0,
+      "rationale": "Low risk: logging is optional (opt-in via env var), no changes to core functionality, all existing tests still pass"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4681_optional_logging.py"
+  ],
+  "tests_passed": [
+    "test_no_logging_by_default",
+    "test_logging_enabled_with_flywheel_debug",
+    "test_save_log_includes_path_and_count",
+    "test_load_log_includes_path_and_count",
+    "test_load_empty_file_logs_zero_records",
+    "test_timing_info_included_in_logs",
+    "test_logging_disabled_when_flywheel_debug_is_zero"
+  ],
+  "summary": "Implemented optional logging for storage operations via FLYWHEEL_DEBUG=1 environment variable. Logs include file path, operation type (load/save), record count, and elapsed time in milliseconds."
+}
