@@ -8,9 +8,6 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -37,9 +34,7 @@ def test_load_uses_cache_when_file_unchanged(tmp_path: Path) -> None:
     second_load = storage.load()
 
     # Verify that the cache is being used - same object reference
-    assert second_load is first_load, (
-        "load() should return cached list object when file unchanged"
-    )
+    assert second_load is first_load, "load() should return cached list object when file unchanged"
 
     # Data should be identical
     assert len(second_load) == 1
