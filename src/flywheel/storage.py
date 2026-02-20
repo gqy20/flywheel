@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -90,12 +94,28 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: Creates a .bak backup of existing file before overwriting.
+        Backup failure is logged but does not block the main save operation.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file before overwriting
+        # Backup failure is non-blocking - just log a warning
+        backup_path = Path(str(self.path) + ".bak")
+        if self.path.exists():
+            try:
+                shutil.copy2(self.path, backup_path)
+            except OSError as e:
+                logger.warning(
+                    "Failed to create backup file '%s': %s. Save will continue.",
+                    backup_path,
+                    e,
+                )
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
