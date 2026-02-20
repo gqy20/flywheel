@@ -1,0 +1,53 @@
+{
+  "issue_number": 4623,
+  "candidate_number": 3,
+  "run_id": "22206726340",
+  "branch": "claude/issue-4623-candidate-3-22206726340",
+  "created_at": "2026-02-20T00:00:00Z",
+  "status": "implemented",
+  "summary": {
+    "title": "Fix TOCTOU race condition in next_id/save",
+    "description": "Add threading.Lock to protect load -> next_id -> save sequence from concurrent access"
+  },
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ],
+    "test_files": [
+      "tests/test_race_condition_next_id.py"
+    ],
+    "lines_added": 164,
+    "lines_removed": 6
+  },
+  "implementation": {
+    "approach": "threading.Lock",
+    "key_changes": [
+      "Added threading.Lock in TodoStorage.__init__",
+      "Created _load_unlocked() and _save_unlocked() internal methods",
+      "Added atomic_add() method that holds lock across entire load->id->save operation",
+      "Updated TodoApp.add() to delegate to storage.atomic_add()"
+    ]
+  },
+  "tests": {
+    "regression_tests_added": 3,
+    "test_names": [
+      "test_concurrent_add_produces_unique_ids",
+      "test_concurrent_add_ids_match_file_content",
+      "test_high_concurrency_add_operations"
+    ],
+    "tests_passed": true
+  },
+  "risks": {
+    "scope": "minimal",
+    "breaking_changes": false,
+    "limitations": [
+      "Lock is per-TodoStorage instance; multi-process scenarios still have potential race conditions",
+      "For multi-process safety, file-based locking would be needed"
+    ]
+  },
+  "verification": {
+    "lint_passed": true,
+    "all_related_tests_passed": true
+  }
+}

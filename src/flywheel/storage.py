@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import threading
 from pathlib import Path
 
 from .todo import Todo
@@ -55,8 +56,14 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock = threading.Lock()
 
     def load(self) -> list[Todo]:
+        with self._lock:
+            return self._load_unlocked()
+
+    def _load_unlocked(self) -> list[Todo]:
+        """Internal load without lock - caller must hold _lock."""
         if not self.path.exists():
             return []
 
@@ -91,6 +98,11 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        with self._lock:
+            self._save_unlocked(todos)
+
+    def _save_unlocked(self, todos: list[Todo]) -> None:
+        """Internal save without lock - caller must hold _lock."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +138,22 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a new todo with auto-generated unique ID.
+
+        This method addresses the TOCTOU race condition (issue #4623) by
+        performing load -> next_id -> save within a single lock acquisition.
+
+        Args:
+            text: The todo text content.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._lock:
+            todos = self._load_unlocked()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self._save_unlocked(todos)
+            return todo
