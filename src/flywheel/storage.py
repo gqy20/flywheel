@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+# Configure module-level logger
+_logger = logging.getLogger("flywheel.storage")
+
+
+def _is_debug_enabled() -> bool:
+    """Check if debug logging is enabled via environment variable."""
+    return os.environ.get("FLYWHEEL_DEBUG", "").strip() in ("1", "true", "yes")
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,11 +63,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, debug: bool | None = None) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            debug: Enable debug logging. If None, uses FLYWHEEL_DEBUG env var.
+        """
         self.path = Path(path or ".todo.json")
+        self._debug = debug if debug is not None else _is_debug_enabled()
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter() if self._debug else 0.0
+
         if not self.path.exists():
+            if self._debug:
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                _logger.debug(
+                    "load: path=%s, exists=False, records=0, elapsed=%.2fms",
+                    self.path,
+                    elapsed_ms,
+                )
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +106,19 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+
+        if self._debug:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.debug(
+                "load: path=%s, exists=True, records=%d, elapsed=%.2fms",
+                self.path,
+                len(result),
+                elapsed_ms,
+            )
+
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +129,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter() if self._debug else 0.0
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +163,15 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        if self._debug:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.debug(
+                "save: path=%s, records=%d, elapsed=%.2fms",
+                self.path,
+                len(todos),
+                elapsed_ms,
+            )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
