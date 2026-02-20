@@ -229,3 +229,55 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_rejects_symlink_path(tmp_path) -> None:
+    """Security regression test: save() must reject when destination is a symlink.
+
+    Issue #4832: os.replace follows symlinks at destination, allowing symlink attacks.
+    If self.path is a symlink pointing to an attacker-controlled file, os.replace
+    would write to the symlink target instead of replacing the symlink itself.
+
+    This test verifies that save() detects and rejects symlink paths with a clear error.
+    """
+    # Create a "target" file that an attacker wants to overwrite
+    target_file = tmp_path / "attacker_target.txt"
+    target_file.write_text("SECRET DATA", encoding="utf-8")
+
+    # Create a symlink: db.json -> attacker_target.txt
+    symlink_db = tmp_path / "db.json"
+    symlink_db.symlink_to(target_file)
+
+    # Verify setup: symlink exists and points to target
+    assert symlink_db.is_symlink()
+    assert symlink_db.resolve() == target_file
+    assert target_file.read_text() == "SECRET DATA"
+
+    # Try to save - should raise ValueError for symlink path
+    storage = TodoStorage(str(symlink_db))
+    todos = [Todo(id=1, text="malicious data")]
+
+    with pytest.raises(ValueError, match="symlink"):
+        storage.save(todos)
+
+    # Verify attacker's target file was NOT modified
+    assert target_file.read_text() == "SECRET DATA", "Target file should be unchanged"
+
+
+def test_save_rejects_symlink_path_clear_message(tmp_path) -> None:
+    """Verify that symlink rejection includes a clear, actionable error message."""
+    target_file = tmp_path / "target.txt"
+    target_file.write_text("data", encoding="utf-8")
+
+    symlink_db = tmp_path / "db.json"
+    symlink_db.symlink_to(target_file)
+
+    storage = TodoStorage(str(symlink_db))
+
+    with pytest.raises(ValueError) as exc_info:
+        storage.save([Todo(id=1, text="test")])
+
+    error_msg = str(exc_info.value).lower()
+    # Error message should mention symlink and the path
+    assert "symlink" in error_msg
+    assert "db.json" in error_msg.lower() or str(symlink_db) in error_msg
