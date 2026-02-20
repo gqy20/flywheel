@@ -158,3 +158,27 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_exists_returns_false_when_file_not_found(tmp_path) -> None:
+    """Issue #4627: exists() should return False when storage file does not exist."""
+    db = tmp_path / "nonexistent.json"
+    storage = TodoStorage(str(db))
+
+    # File doesn't exist yet
+    assert storage.exists() is False
+
+
+def test_storage_exists_returns_true_when_file_exists(tmp_path) -> None:
+    """Issue #4627: exists() should return True when storage file exists."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Initially doesn't exist
+    assert storage.exists() is False
+
+    # After saving, it should exist
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    assert storage.exists() is True

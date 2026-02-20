@@ -56,6 +56,17 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def exists(self) -> bool:
+        """Check if the storage file exists.
+
+        Returns:
+            True if the storage file exists, False otherwise.
+
+        This is a lightweight alternative to load() when you only need to
+        check if data exists, without parsing the JSON content.
+        """
+        return self.path.exists()
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
