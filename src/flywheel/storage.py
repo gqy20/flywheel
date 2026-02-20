@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._backup_path = self.path.parent / f".{self.path.name}.bak"
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,6 +89,9 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Backup: Creates a .bak file with the previous content before overwriting.
+        Only creates backup if the original file exists.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
@@ -96,6 +100,10 @@ class TodoStorage:
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file before overwriting (atomic)
+        if self.path.exists():
+            self._create_backup()
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -123,6 +131,59 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create atomic backup of the current file.
+
+        Uses write-to-temp + atomic rename to ensure backup is always valid.
+        """
+        # Read current content
+        current_content = self.path.read_text(encoding="utf-8")
+
+        # Write to temp file first for atomicity
+        fd, temp_backup = tempfile.mkstemp(
+            dir=self._backup_path.parent,
+            prefix=".bak-tmp.",
+            suffix="",
+            text=False,
+        )
+        try:
+            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(current_content)
+            # Atomic rename to backup location
+            os.replace(temp_backup, self._backup_path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_backup)
+            raise
+
+    def restore_from_backup(self) -> list[Todo]:
+        """Restore todos from backup file.
+
+        Returns:
+            List of todos restored from backup.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+            ValueError: If backup file contains invalid data.
+        """
+        if not self._backup_path.exists():
+            raise FileNotFoundError(f"No backup file found at {self._backup_path}")
+
+        # Read backup content
+        try:
+            raw = json.loads(self._backup_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in backup file '{self._backup_path}': {e.msg}. "
+                f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError("Backup file must contain a JSON list")
+
+        return [Todo.from_dict(item) for item in raw]
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
