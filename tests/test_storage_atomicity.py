@@ -151,6 +151,69 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_concurrent_directory_creation_race_condition(tmp_path) -> None:
+    """Regression test for issue #4624: Race condition in _ensure_parent_directory.
+
+    Tests that multiple processes creating a database in a new directory
+    concurrently do not fail with FileExistsError due to TOCTOU race
+    between the exists() check and mkdir() with exist_ok=False.
+    """
+    import multiprocessing
+
+    # Use a subdirectory that doesn't exist yet
+    db = tmp_path / "newdir" / "subdir" / "todo.json"
+
+    # Barrier to ensure all workers start at the same time
+    barrier = multiprocessing.Barrier(5)
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves to a path requiring directory creation."""
+        try:
+            # Wait for all workers to be ready
+            barrier.wait(timeout=5)
+
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            result_queue.put(("success", worker_id, None))
+        except FileExistsError as e:
+            # This is the specific bug we're testing for
+            result_queue.put(("file_exists_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Check for FileExistsError - this is the bug we're fixing
+    file_exists_errors = [r for r in results if r[0] == "file_exists_error"]
+    assert len(file_exists_errors) == 0, (
+        f"Workers encountered FileExistsError (issue #4624): {file_exists_errors}"
+    )
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
