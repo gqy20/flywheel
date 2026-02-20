@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,23 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@contextlib.contextmanager
+def _acquire_lock(lock_path: Path):
+    """Acquire an exclusive file lock to prevent concurrent access.
+
+    Uses fcntl.flock for cross-process synchronization. The lock is released
+    when the context manager exits.
+    """
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_WRONLY, 0o644)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +73,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +145,25 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Add a todo atomically with file locking to prevent ID collisions.
+
+        This method loads the current state, computes the next ID, and saves
+        all within an exclusive file lock to ensure that concurrent processes
+        get unique IDs.
+
+        Args:
+            todo: The todo to add (id will be reassigned atomically)
+
+        Returns:
+            The todo with its newly assigned ID.
+        """
+        with _acquire_lock(self._lock_path):
+            todos = self.load()
+            new_id = self.next_id(todos)
+            # Assign the new ID to the todo
+            todo.id = new_id
+            todos.append(todo)
+            self.save(todos)
+            return todo
