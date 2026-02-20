@@ -10,6 +10,18 @@
     "tests/test_issue_4735_toctou_mkdir_race.py"
   ],
   "tests_added": 5,
-  "tests_passed": 117,
-  "linter_passed": true
+  "tests_passed": 17,
+  "linter_passed": true,
+  "verify_stage": {
+    "pytest_commands": [
+      "uv run pytest tests/test_issue_4735_toctou_mkdir_race.py -v",
+      "uv run pytest tests/test_storage_atomicity.py tests/test_issue_1894_security_mkdir_fix.py tests/test_issue_4735_toctou_mkdir_race.py -v"
+    ],
+    "ruff_commands": [
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_4735_toctou_mkdir_race.py"
+    ],
+    "all_tests_passed": true,
+    "all_linter_checks_passed": true,
+    "verified_at": "2026-02-20T16:35:00Z"
+  }
 }

@@ -21,9 +21,7 @@ Acceptance criteria:
 from __future__ import annotations
 
 import multiprocessing
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 
 import pytest
 
