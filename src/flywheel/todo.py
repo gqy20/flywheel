@@ -79,6 +79,10 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate 'text' is not empty (consistent with rename())
+        if not data["text"].strip():
+            raise ValueError("Todo text cannot be empty")
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
@@ -95,7 +99,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=data["text"].strip(),
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
