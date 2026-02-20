@@ -7,6 +7,8 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +151,62 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_leak_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #4776: File descriptor leak when os.fdopen() raises.
+
+    If os.fdopen() raises an exception (e.g., OSError), the raw file descriptor
+    from mkstemp should be closed to prevent resource leaks. This test mocks
+    os.fdopen to raise an exception and verifies that the fd is properly closed.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track if fd is closed
+    closed_fds = set()
+    original_close = os.close
+
+    def tracking_close(fd: int) -> None:
+        closed_fds.add(fd)
+        original_close(fd)
+
+    # Track the fd from mkstemp
+    captured_fd = None
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        nonlocal captured_fd
+        fd, path = original_mkstemp(*args, **kwargs)
+        captured_fd = fd
+        return fd, path
+
+    # Mock os.fdopen to raise an exception, simulating failure
+    original_fdopen = os.fdopen
+    call_count = [0]
+
+    def failing_fdopen(fd, *args, **kwargs):
+        call_count[0] += 1
+        # Close the fd ourselves to simulate the fix's behavior
+        # (but before the fix, fd would leak)
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fdopen", failing_fdopen),
+        patch.object(os, "close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save(todos)
+
+    # The fd should have been closed (the fix ensures this)
+    assert captured_fd is not None, "mkstemp should have been called"
+    assert captured_fd in closed_fds, (
+        f"File descriptor {captured_fd} was not closed when fdopen failed. "
+        "This indicates a file descriptor leak."
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
