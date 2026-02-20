@@ -34,5 +34,5 @@
     "lock_file_orphan": "Lock file may remain if process crashes, but this is harmless as locks are advisory",
     "performance": "File locking serializes concurrent adds, may impact throughput under heavy load"
   },
-  "commit_hash": "5a40ecb"
+  "commit_hash": "3aa28b3"
 }
