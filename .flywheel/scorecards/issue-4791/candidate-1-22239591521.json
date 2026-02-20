@@ -1,23 +1,23 @@
 {
-  "issue_number": 4791,
-  "issue_title": "[Bug] next_id() returns incorrect value (0) when max todo ID is negative",
-  "candidate_number": 1,
+  "issue": 4791,
+  "candidate": 1,
   "run_id": "22239591521",
   "branch": "claude/issue-4791-candidate-1-22239591521",
-  "status": "implemented",
-  "test_results": {
-    "tests_added": 4,
-    "tests_passed": 14,
-    "tests_failed": 0
-  },
-  "lint_results": {
-    "ruff_check": "passed"
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 4824,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4824",
+  "generated_at": "2026-02-20T21:09:09.491442+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Fixed next_id() to ensure it always returns at least 1 even when max todo ID is negative by using max(max(...), 0) + 1 pattern.",
-  "approach": "Minimal one-line fix that wraps the inner max() result with another max(..., 0) to ensure the base is always non-negative.",
-  "risks": "None identified. The fix is minimal and all existing tests pass."
+  "stage_response_sizes": {
+    "triage": 1876,
+    "plan": 3116,
+    "implement": 1676,
+    "verify": 1642,
+    "finalize": 1964
+  }
 }
