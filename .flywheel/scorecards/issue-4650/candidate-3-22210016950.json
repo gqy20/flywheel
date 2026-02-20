@@ -1,0 +1,29 @@
+{
+  "issue_number": 4650,
+  "issue_title": "[Security] Potential symlink race in load(): path.stat() follows symlinks before size check",
+  "candidate_number": 3,
+  "run_id": "22210016950",
+  "branch_name": "claude/issue-4650-candidate-3-22210016950",
+  "created_at": "2026-02-20T04:00:00Z",
+  "status": "implemented",
+  "fix_summary": {
+    "problem": "The load() function used path.stat() which follows symlinks before checking file size. This could allow an attacker to create a symlink pointing to arbitrary system files or large files.",
+    "solution": "Added symlink detection and rejection in load() with clear error message. Used lstat() instead of stat() to avoid following symlinks as defense in depth.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4650_load_symlink_protection.py"
+    ]
+  },
+  "tests": {
+    "test_files_added": ["tests/test_issue_4650_load_symlink_protection.py"],
+    "test_count": 4,
+    "all_passed": true
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed (26 tests)"
+  },
+  "commit_sha": "668c5f7",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4662",
+  "pr_number": 4662
+}
