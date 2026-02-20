@@ -15,8 +15,6 @@ import multiprocessing
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 
@@ -80,7 +78,7 @@ def test_concurrent_add_produces_unique_ids(tmp_path: Path) -> None:
     # Collect all IDs generated
     all_ids = []
     for success in successes:
-        _, worker_id, ids = success
+        _, _worker_id, ids = success
         all_ids.extend(ids)
 
     # THE KEY ASSERTION: All IDs must be unique
