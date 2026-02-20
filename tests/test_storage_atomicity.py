@@ -229,3 +229,94 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_generates_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4679: Race condition in ID generation.
+
+    Tests that multiple processes adding todos concurrently using TodoApp.add()
+    generate unique IDs without collision. The race condition occurs when:
+    1. Process A loads todos (empty, so next_id = 1)
+    2. Process B loads todos (empty, so next_id = 1)
+    3. Process A saves todo with id=1
+    4. Process B saves todo with id=1 (COLLISION!)
+
+    This test uses 10 concurrent processes each adding 10 todos, expecting
+    all 100 IDs to be unique after completion.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_ids.json"
+
+    def add_worker(worker_id: int, num_adds: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds multiple todos and reports IDs."""
+        try:
+            app = TodoApp(db_path=str(db))
+            added_ids = []
+            for i in range(num_adds):
+                try:
+                    todo = app.add(f"worker-{worker_id}-todo-{i}")
+                    added_ids.append(todo.id)
+                except Exception as e:
+                    # Collect exceptions but continue
+                    result_queue.put(("add_error", worker_id, str(e)))
+            result_queue.put(("ids", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, each adding multiple todos
+    num_workers = 10
+    adds_per_worker = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, adds_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    all_ids = []
+    errors = []
+    while not result_queue.empty():
+        result = result_queue.get()
+        if result[0] == "ids":
+            all_ids.extend(result[2])
+        else:
+            errors.append(result)
+
+    # Check for errors
+    if errors:
+        error_msgs = [f"Worker {e[1]}: {e[2]}" for e in errors]
+        pytest.fail(f"Workers encountered errors: {error_msgs}")
+
+    # Verify all IDs are unique (no collisions)
+    unique_ids = set(all_ids)
+    if len(unique_ids) != len(all_ids):
+        # Find which IDs collided
+        from collections import Counter
+
+        id_counts = Counter(all_ids)
+        collisions = {id_: count for id_, count in id_counts.items() if count > 1}
+        pytest.fail(
+            f"ID collision detected! Expected {len(all_ids)} unique IDs, got {len(unique_ids)}. "
+            f"Colliding IDs: {collisions}"
+        )
+
+    # Verify we got the expected total number of IDs
+    expected_total = num_workers * adds_per_worker
+    assert len(all_ids) == expected_total, f"Expected {expected_total} IDs, got {len(all_ids)}"
+
+    # Also verify final file state is consistent
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+    final_ids = [t.id for t in final_todos]
+
+    # All stored IDs should be unique too
+    assert len(set(final_ids)) == len(final_ids), "Stored IDs should be unique"

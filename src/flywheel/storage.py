@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,25 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file for preventing race conditions in concurrent access
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive file lock for thread/process-safe operations."""
+        _ensure_parent_directory(self._lock_path)
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
+    def _release_lock(self) -> None:
+        """Release the exclusive file lock."""
+        if hasattr(self, "_lock_fd"):
+            fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+            os.close(self._lock_fd)
+            delattr(self, "_lock_fd")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +146,31 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Atomically add a todo with lock-protected load-compute-save.
+
+        Prevents race condition where concurrent processes could:
+        1. Both load same state
+        2. Compute same next_id
+        3. Cause ID collision on save
+
+        Uses advisory file locking (fcntl.flock) to ensure only one process
+        can perform the load-compute-save sequence at a time.
+        """
+        self._acquire_lock()
+        try:
+            todos = self.load()
+            # Assign ID atomically within lock
+            todo = Todo(
+                id=self.next_id(todos),
+                text=todo.text,
+                done=todo.done,
+                created_at=todo.created_at,
+                updated_at=todo.updated_at,
+            )
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock()

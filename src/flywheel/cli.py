@@ -27,11 +27,10 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use atomic_add to prevent race condition in concurrent writes
+        # This ensures load-compute-save is protected by file locking
+        todo = Todo(id=0, text=text)  # ID will be assigned atomically
+        return self.storage.atomic_add(todo)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
