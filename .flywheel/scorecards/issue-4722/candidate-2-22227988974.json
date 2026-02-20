@@ -1,0 +1,45 @@
+{
+  "issue_number": 4722,
+  "issue_title": "[Bug] Potential symlink attack vector - final target file permissions are not explicit",
+  "candidate_number": 2,
+  "run_id": "22227988974",
+  "branch_name": "claude/issue-4722-candidate-2-22227988974",
+  "created_at": "2026-02-20T12:00:00Z",
+  "status": "ready_for_review",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_4722_final_file_permissions.py"
+    ]
+  },
+  "implementation_summary": {
+    "problem": "The save() method docstring documented temp file permissions (0o600) but did not explicitly document the final target file permissions after atomic rename.",
+    "solution": "Updated the save() method docstring to explicitly document that os.replace() preserves the temp file's 0o600 permissions, ensuring the final target file also has secure permissions. Added regression tests to verify final file permissions.",
+    "approach": "Documentation fix with defensive regression tests to ensure the security behavior is verified and maintained."
+  },
+  "tests_run": [
+    "uv run pytest tests/test_issue_4722_final_file_permissions.py -v",
+    "uv run pytest tests/test_issue_2027_permissions.py -v",
+    "uv run pytest tests/ -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_4722_final_file_permissions.py"
+  ],
+  "risks_and_limitations": [
+    "The actual file permissions behavior was already correct (os.replace preserves source permissions)",
+    "This fix adds explicit documentation and regression tests to ensure the behavior is documented and verified",
+    "No functional changes to the code logic"
+  ],
+  "acceptance_criteria": [
+    {
+      "criterion": "Final .todo.json file should have secure permissions (0o600 or umask-based)",
+      "status": "verified",
+      "notes": "Verified with test_final_file_has_secure_permissions"
+    },
+    {
+      "criterion": "Document permission behavior in docstring",
+      "status": "completed",
+      "notes": "Updated save() docstring with explicit documentation of final file permissions"
+    }
+  ]
+}
