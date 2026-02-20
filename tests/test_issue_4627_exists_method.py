@@ -6,10 +6,6 @@ to check if the storage file exists without loading and parsing the entire JSON.
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
