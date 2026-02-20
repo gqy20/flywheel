@@ -49,8 +49,9 @@ def test_load_produces_debug_log_with_file_path(tmp_path: Path) -> None:
 
         # Check that log contains file path
         log_messages = handler.get_messages()
-        assert any(str(db) in msg for msg in log_messages), \
+        assert any(str(db) in msg for msg in log_messages), (
             f"Expected log to contain file path, got: {log_messages}"
+        )
     finally:
         logger.removeHandler(handler)
 
@@ -76,12 +77,14 @@ def test_save_produces_debug_log_with_file_path_and_count(tmp_path: Path) -> Non
 
         # Check that log contains file path
         log_messages = handler.get_messages()
-        assert any(str(db) in msg for msg in log_messages), \
+        assert any(str(db) in msg for msg in log_messages), (
             f"Expected log to contain file path, got: {log_messages}"
+        )
 
         # Check that log contains data count
-        assert any("2" in msg for msg in log_messages), \
+        assert any("2" in msg for msg in log_messages), (
             f"Expected log to contain data count, got: {log_messages}"
+        )
     finally:
         logger.removeHandler(handler)
 
@@ -106,8 +109,9 @@ def test_load_empty_file_produces_debug_log(tmp_path: Path) -> None:
 
         log_messages = handler.get_messages()
         # Log should indicate load operation
-        assert any("load" in msg.lower() for msg in log_messages), \
+        assert any("load" in msg.lower() for msg in log_messages), (
             f"Expected log to mention 'load', got: {log_messages}"
+        )
     finally:
         logger.removeHandler(handler)
 
@@ -133,8 +137,9 @@ def test_no_output_at_default_warning_level(tmp_path: Path) -> None:
 
         # Should have no debug logs at WARNING level
         debug_logs = [r for r in handler.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) == 0, \
+        assert len(debug_logs) == 0, (
             f"Expected no DEBUG logs at WARNING level, got: {[r.getMessage() for r in debug_logs]}"
+        )
     finally:
         logger.removeHandler(handler)
 
@@ -147,5 +152,6 @@ def test_logger_name_is_flywheel_storage(tmp_path: Path) -> None:
 
     # Get the logger used by storage module
     logger = logging.getLogger("flywheel.storage")
-    assert logger.name == "flywheel.storage", \
+    assert logger.name == "flywheel.storage", (
         f"Expected logger name 'flywheel.storage', got '{logger.name}'"
+    )
