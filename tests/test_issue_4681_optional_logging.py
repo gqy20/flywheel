@@ -8,11 +8,6 @@ from __future__ import annotations
 
 import logging
 import os
-import time
-from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -33,7 +28,7 @@ class TestOptionalLogging:
             with caplog.at_level(logging.DEBUG):
                 todos = [Todo(id=1, text="test")]
                 storage.save(todos)
-                loaded = storage.load()
+                storage.load()
 
             # Should have no debug log messages from storage
             debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
@@ -56,7 +51,7 @@ class TestOptionalLogging:
             with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
                 todos = [Todo(id=1, text="test todo"), Todo(id=2, text="another")]
                 storage.save(todos)
-                loaded = storage.load()
+                storage.load()
 
             # Should have debug log messages
             assert len(caplog.records) > 0
@@ -122,7 +117,7 @@ class TestOptionalLogging:
             caplog.clear()
 
             with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-                loaded = storage.load()
+                storage.load()
 
             # Find load log
             load_logs = [r for r in caplog.records if "load" in r.getMessage().lower()]
