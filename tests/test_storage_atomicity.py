@@ -151,6 +151,57 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_not_leaked_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #4637: File descriptor leak on exception in save().
+
+    When os.fdopen fails after mkstemp succeeds, the file descriptor from mkstemp
+    should be properly closed to avoid resource leak.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data to preserve
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track opened file descriptors
+    opened_fds = []
+    closed_fds = []
+
+    import os
+
+    def tracking_fdopen(fd, *args, **kwargs):
+        opened_fds.append(fd)
+        # Simulate fdopen failure
+        raise OSError("Simulated fdopen failure")
+
+    # Track os.close calls to verify fd was closed
+    original_close = os.close
+
+    def tracking_close(fd):
+        closed_fds.append(fd)
+        return original_close(fd)
+
+    with (
+        patch("flywheel.storage.os.fdopen", tracking_fdopen),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Verify fdopen was called (meaning fd was created)
+    assert len(opened_fds) == 1, "fdopen should have been called"
+
+    # Verify the fd was properly closed after the failure
+    assert opened_fds[0] in closed_fds, (
+        f"File descriptor {opened_fds[0]} should have been closed to prevent leak"
+    )
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
