@@ -1,0 +1,57 @@
+{
+  "issue_number": 4613,
+  "candidate": 1,
+  "run_id": "22206726340",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add fsync to save() operation for data durability during power failure",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing tests for fsync behavior in test_storage_atomicity.py"
+      },
+      {
+        "step": "GREEN",
+        "description": "Add sync: bool = True parameter to save() and call f.flush() + os.fsync(fd) before os.replace()"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
+    ]
+  },
+  "implementation": {
+    "summary": "Added fsync support to TodoStorage.save() for data persistence",
+    "actual_files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4613_fsync_persistence.py"
+    ],
+    "approach": "Added sync parameter (default True) to save() method. When sync=True, calls f.flush() and os.fsync() after writing content but before atomic rename to ensure data is persisted to disk.",
+    "key_changes": [
+      "save() method now accepts sync parameter (default True)",
+      "f.flush() called to flush Python buffers to OS",
+      "os.fsync() called to ensure data is written to physical disk",
+      "fsync occurs before os.replace() for proper ordering"
+    ],
+    "tests_run": [
+      "tests/test_issue_4613_fsync_persistence.py - All 5 tests PASSED",
+      "tests/test_storage_atomicity.py - All 6 tests PASSED"
+    ],
+    "risks_and_limitations": [
+      "fsync adds I/O overhead; users needing maximum write speed can use sync=False",
+      "fsync only guarantees data durability on the storage device; distributed/remote filesystems may have additional considerations"
+    ],
+    "acceptance_criteria_met": {
+      "save_calls_fsync_before_rename": true,
+      "sync_parameter_controls_fsync": true,
+      "existing_tests_pass": true,
+      "new_tests_added": true
+    }
+  },
+  "created_at": "2026-02-20T00:00:00Z",
+  "implemented_at": "2026-02-20T01:24:00Z"
+}
