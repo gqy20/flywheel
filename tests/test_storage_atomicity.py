@@ -229,3 +229,78 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_generates_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4679: Race condition in ID generation.
+
+    Tests that concurrent processes using TodoApp.add() generate unique IDs
+    even under heavy concurrency. The bug was that next_id() computed IDs
+    from in-memory list without coordination, causing ID collisions when
+    multiple processes called load() -> next_id() -> save() simultaneously.
+    """
+    import multiprocessing
+    import sys
+
+    db = tmp_path / "unique_ids.json"
+
+    def add_worker(
+        worker_id: int,
+        num_adds: int,
+        db_path: str,
+        result_queue: multiprocessing.Queue,
+    ) -> None:
+        """Worker that adds multiple todos using TodoApp.add()."""
+        from flywheel.cli import TodoApp
+
+        try:
+            app = TodoApp(db_path=db_path)
+            added_ids = []
+            for i in range(num_adds):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                added_ids.append(todo.id)
+            result_queue.put(("success", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Use 10 processes each adding 10 todos = 100 total
+    num_workers = 10
+    adds_per_worker = 10
+    total_expected = num_workers * adds_per_worker
+
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(
+            target=add_worker,
+            args=(i, adds_per_worker, str(db), result_queue),
+        )
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect all IDs from successful workers
+    all_ids = []
+    errors = []
+    while not result_queue.empty():
+        result = result_queue.get()
+        if result[0] == "success":
+            all_ids.extend(result[2])
+        else:
+            errors.append(result)
+
+    # No errors should occur
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+
+    # All IDs must be unique - this is the core assertion
+    assert len(all_ids) == total_expected, (
+        f"Expected {total_expected} todos, but got {len(all_ids)}"
+    )
+    assert len(set(all_ids)) == total_expected, (
+        f"ID collision detected! {len(all_ids)} IDs but only {len(set(all_ids))} unique. "
+        f"Duplicates: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )
