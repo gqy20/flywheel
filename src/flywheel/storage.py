@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,33 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file path: same directory, same name with .lock suffix
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire exclusive file lock. Returns file descriptor.
+
+        Uses fcntl.flock for advisory locking on Unix systems.
+        The lock is automatically released when the file descriptor is closed.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(lock_fd)
+            raise
+        return lock_fd
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release file lock and close file descriptor."""
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +154,38 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a new todo atomically with unique ID generation.
+
+        This method acquires an exclusive file lock to prevent race conditions
+        when multiple processes try to add todos concurrently. The lock ensures
+        that load-compute-save is an atomic operation.
+
+        Args:
+            text: The todo text (must not be empty)
+
+        Returns:
+            The newly created Todo with a unique ID
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        lock_fd = self._acquire_lock()
+        try:
+            # Load current state
+            todos = self.load()
+            # Compute unique ID
+            new_id = self.next_id(todos)
+            # Create new todo
+            todo = Todo(id=new_id, text=text)
+            todos.append(todo)
+            # Save atomically
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(lock_fd)
