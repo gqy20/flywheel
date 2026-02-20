@@ -23,6 +23,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    Uses exist_ok=True in mkdir to handle TOCTOU race conditions where another
+    process might create the directory between our checks and mkdir call.
+
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
@@ -39,15 +42,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory with exist_ok=True to handle race conditions
+    # Another process might create the directory between our check and mkdir
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
