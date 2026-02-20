@@ -1,27 +1,23 @@
 {
-  "issue_number": 4752,
-  "issue_title": "[Feature] 添加自动备份功能",
-  "candidate_id": 2,
+  "issue": 4752,
+  "candidate": 2,
   "run_id": "22236134106",
-  "branch_name": "claude/issue-4752-candidate-2-22236134106",
-  "created_at": "2026-02-20T15:00:00Z",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_4752_auto_backup.py"
-    ],
-    "approach": "Added automatic backup functionality to save() method. Creates .bak file before overwriting existing file, with optional backup=False parameter to disable.",
-    "tests_added": 5,
-    "tests_passed": true
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_passed": true,
-    "regression_tests_passed": true
-  },
-  "acceptance_criteria": {
-    "save_creates_backup_if_file_exists": true,
-    "backup_content_matches_original": true,
-    "backup_false_parameter_works": true
+  "branch": "claude/issue-4752-candidate-2-22236134106",
+  "pr_number": 4796,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4796",
+  "generated_at": "2026-02-20T19:10:54.870570+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2419,
+    "plan": 3950,
+    "implement": 1870,
+    "verify": 2611,
+    "finalize": 1863
   }
 }
