@@ -229,3 +229,68 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
+    """Regression test for issue #4636: Race condition in next_id().
+
+    Tests that multiple processes adding todos concurrently do not
+    produce duplicate IDs. The race condition occurs when:
+    1. Process A loads todos: [id=1]
+    2. Process B loads todos: [id=1]
+    3. Process A calculates next_id: 2
+    4. Process B calculates next_id: 2 (duplicate!)
+    5. Both save with id=2
+    """
+    import multiprocessing
+    import time
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo and reports the assigned ID."""
+        try:
+            app = TodoApp(db_path=str(db))
+            # Small staggered delay to maximize race condition
+            time.sleep(0.001 * (worker_id % 3))
+            todo = app.add(f"task from worker {worker_id}")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all try to add at the same time
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers at roughly the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect all assigned IDs
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes"
+
+    # Extract all assigned IDs
+    assigned_ids = [r[2] for r in successes]
+
+    # No IDs should be duplicated - this is the key assertion
+    assert len(assigned_ids) == len(set(assigned_ids)), (
+        f"Duplicate IDs detected! Assigned IDs: {assigned_ids}"
+    )
