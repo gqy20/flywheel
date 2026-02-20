@@ -1,30 +1,23 @@
 {
-  "issue_number": 4736,
-  "candidate_number": 1,
+  "issue": 4736,
+  "candidate": 1,
   "run_id": "22229966507",
-  "branch_name": "claude/issue-4736-candidate-1-22229966507",
-  "approach": "Add duplicate ID validation in load() method",
-  "changes": [
-    {
-      "file": "src/flywheel/storage.py",
-      "change_type": "modified",
-      "description": "Added duplicate ID validation in load() to detect and reject corrupted JSON files"
-    },
-    {
-      "file": "tests/test_issue_4736_duplicate_id_detection.py",
-      "change_type": "added",
-      "description": "Added regression tests for duplicate ID detection"
-    }
+  "branch": "claude/issue-4736-candidate-1-22229966507",
+  "pr_number": 4769,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4769",
+  "generated_at": "2026-02-20T16:36:08.717114+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 5,
-  "tests_passing": 117,
-  "risks": [
-    "Existing corrupted JSON files will now fail to load with a clear error message",
-    "Users may need to manually fix corrupted data files"
-  ],
-  "limitations": [],
-  "acceptance_criteria_met": [
-    "load() raises ValueError when JSON contains duplicate IDs",
-    "Existing tests pass"
-  ]
+  "stage_response_sizes": {
+    "triage": 2593,
+    "plan": 2384,
+    "implement": 2079,
+    "verify": 1313,
+    "finalize": 929
+  }
 }
