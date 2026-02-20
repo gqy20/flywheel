@@ -12,8 +12,6 @@ import json
 import stat
 from pathlib import Path
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
