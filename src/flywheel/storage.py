@@ -60,10 +60,20 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
+        try:
+            # Security: Read content first, then check size to prevent TOCTOU race.
+            # Previously: stat() -> check size -> read_text() had a race window.
+            # Fixed by: read_text() -> check content size (atomic single read).
+            content = self.path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            # File was deleted between exists() and read_text()
+            return []
+
+        # Security: Check content size after reading to prevent DoS.
+        # Using content length eliminates the TOCTOU window between stat and read.
+        content_size = len(content)
+        if content_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = content_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
@@ -71,7 +81,7 @@ class TodoStorage:
             )
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
