@@ -53,8 +53,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = False) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON database file.
+            backup: If True, create .bak backup before each save operation.
+        """
         self.path = Path(path or ".todo.json")
+        self._backup_enabled = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,17 +89,29 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], backup: bool | None = None) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Args:
+            todos: List of todos to save.
+            backup: If True, create a backup before overwriting. If None, uses
+                the instance-level backup setting (default False).
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Determine if backup should be created
+        should_backup = backup if backup is not None else self._backup_enabled
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if requested and file exists
+        if should_backup and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +142,28 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current data file.
+
+        Creates a .bak file with the same content and permissions as the original.
+        The backup file is named with .bak suffix (e.g., .todo.json.bak).
+        """
+        backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+
+        # Read original content
+        original_content = self.path.read_bytes()
+
+        # Create backup file with restrictive permissions
+        fd = os.open(
+            backup_path,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            os.write(fd, original_content)
+        finally:
+            os.close(fd)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
