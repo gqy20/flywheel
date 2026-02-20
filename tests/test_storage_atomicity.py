@@ -169,7 +169,6 @@ def test_fd_closed_on_fdopen_failure(tmp_path) -> None:
         closed_fds.add(fd)
         original_os_close(fd)
 
-    original_fdopen = os.fdopen
     created_fds = []
 
     # Create a wrapper that tracks created fds and simulates fdopen failure
