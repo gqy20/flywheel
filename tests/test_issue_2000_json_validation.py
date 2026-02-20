@@ -16,14 +16,16 @@ from flywheel.todo import Todo
 
 def test_storage_load_handles_malformed_json(tmp_path) -> None:
     """Malformed JSON should produce clear error message instead of raw traceback."""
-    db = tmp_path / "malformed.json"
+    # Use generic filename to avoid false positive from 'malformed' in path matching the regex
+    db = tmp_path / "db.json"
     storage = TodoStorage(str(db))
 
     # Create a file with invalid JSON syntax (truncated/unmatched brackets)
     db.write_text('[{"id": 1, "text": "task1"}', encoding="utf-8")
 
     # Should raise ValueError with clear message, not JSONDecodeError
-    with pytest.raises(ValueError, match=r"invalid json|malformed|parse error"):
+    # Regex uses (?i) for case-insensitive match since actual message is "Invalid JSON"
+    with pytest.raises(ValueError, match=r"(?i)invalid json|malformed|parse error"):
         storage.load()
 
 
