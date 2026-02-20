@@ -74,15 +74,14 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, sync: bool = True) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,6 +89,13 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of Todo objects to save.
+            sync: If True (default), call fsync before rename to ensure data
+                is persisted to disk. This protects against data loss during
+                system crashes or power failures. Set to False for performance-
+                critical cases where crash safety is not required.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -115,6 +121,12 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Ensure data is written to OS buffers
+                f.flush()
+                # fsync ensures data is persisted to disk before atomic rename
+                # This protects against data loss during system crash or power failure
+                if sync:
+                    os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)

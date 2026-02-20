@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,38 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_uses_fsync_by_default(tmp_path) -> None:
+    """Test that save() calls fsync by default to ensure data durability.
+
+    Regression test for issue #4613: Without fsync, data may remain in
+    OS cache during system crash, causing data loss.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    with patch("flywheel.storage.os.fsync") as mock_fsync:
+        storage.save(todos)
+        # fsync should be called by default to ensure data hits disk
+        mock_fsync.assert_called_once()
+
+
+def test_save_sync_false_skips_fsync(tmp_path) -> None:
+    """Test that save(sync=False) skips fsync for performance-critical cases.
+
+    This allows users who don't need crash safety to opt out of the
+    performance overhead of fsync.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    with patch("flywheel.storage.os.fsync") as mock_fsync:
+        storage.save(todos, sync=False)
+        # fsync should NOT be called when sync=False
+        mock_fsync.assert_not_called()
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +252,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
