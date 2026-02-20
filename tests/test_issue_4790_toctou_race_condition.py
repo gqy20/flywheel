@@ -144,9 +144,7 @@ def test_deeply_nested_concurrent_creation(tmp_path) -> None:
     def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
         try:
             # Deeply nested path that doesn't exist
-            db_path = (
-                tmp_path / "deep" / "nested" / f"worker_{worker_id}" / "data" / "todos.json"
-            )
+            db_path = tmp_path / "deep" / "nested" / f"worker_{worker_id}" / "data" / "todos.json"
             storage = TodoStorage(str(db_path))
             todos = [Todo(id=worker_id, text=f"deep-{worker_id}")]
             storage.save(todos)
