@@ -1,0 +1,19 @@
+{
+  "issue_number": 4805,
+  "candidate": 1,
+  "run_id": "22244948128",
+  "timestamp": "2026-02-20T19:50:00Z",
+  "model": "glm-5",
+  "status": "implemented",
+  "summary": "Fixed next_id to return positive IDs when storage contains negative IDs",
+  "changes": {
+    "test_file": "tests/test_issue_4805_next_id_negative.py",
+    "source_file": "src/flywheel/storage.py",
+    "tests_added": 5,
+    "tests_passed": 117
+  },
+  "validation": {
+    "pytest": "passed (117 tests)",
+    "ruff": "passed"
+  }
+}
