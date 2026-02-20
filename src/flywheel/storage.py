@@ -91,12 +91,13 @@ class TodoStorage:
                 e.colno,
             )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
-            logger.warning("Storage at %s is not a JSON list, got %s", self.path, type(raw).__name__)
+            logger.warning(
+                "Storage at %s is not a JSON list, got %s", self.path, type(raw).__name__
+            )
             raise ValueError("Todo storage must be a JSON list")
 
         todos = [Todo.from_dict(item) for item in raw]

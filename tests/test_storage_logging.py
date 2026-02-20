@@ -77,7 +77,11 @@ class TestStorageLogging:
         # May or may not log for empty load - implementation choice
         # Just check that if it logs, it's correct
         for record in debug_logs:
-            if "0" in record.message or "empty" in record.message.lower() or "no file" in record.message.lower():
+            if (
+                "0" in record.message
+                or "empty" in record.message.lower()
+                or "no file" in record.message.lower()
+            ):
                 assert str(db) in record.message or "todo.json" in record.message
 
     def test_load_json_error_logs_warning_or_error(self, tmp_path, caplog):
@@ -93,9 +97,7 @@ class TestStorageLogging:
             storage.load()
 
         # Should have WARNING or ERROR log for parse error
-        warning_or_error_logs = [
-            r for r in caplog.records if r.levelno >= logging.WARNING
-        ]
+        warning_or_error_logs = [r for r in caplog.records if r.levelno >= logging.WARNING]
         assert len(warning_or_error_logs) >= 1, (
             "Expected at least one WARNING/ERROR log for JSON parse error"
         )
