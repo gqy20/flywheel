@@ -34,6 +34,10 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if self.id < 1:
+            raise ValueError(
+                f"id must be a positive integer >= 1, got {self.id!r}"
+            )
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
