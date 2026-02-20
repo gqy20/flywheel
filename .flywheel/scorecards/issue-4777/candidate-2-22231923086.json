@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "22231923086",
   "branch": "claude/issue-4777-candidate-2-22231923086",
-  "commit_sha": "2d7b8fb",
+  "commit_sha": "caabe2d",
   "summary": "Fixed race condition in next_id() by adding file-level locking using fcntl.flock. The atomic_add() method ensures load-compute-save sequence is atomic, preventing duplicate IDs under concurrent access.",
   "tests_run": [
     "tests/test_storage_atomicity.py::test_concurrent_add_produces_unique_ids",
