@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import stat
-from pathlib import Path
 from unittest import mock
 
 from flywheel.storage import TodoStorage
@@ -116,10 +115,7 @@ def test_final_file_permissions_when_replace_preserves_target(tmp_path) -> None:
         the source file's permissions when doing an atomic replace.
         """
         # Get the target's permissions before replace
-        if os.path.exists(dst):
-            target_mode = stat.S_IMODE(os.stat(dst).st_mode)
-        else:
-            target_mode = None
+        target_mode = stat.S_IMODE(os.stat(dst).st_mode) if os.path.exists(dst) else None
 
         # Do the actual replace
         result = original_replace(src, dst)
