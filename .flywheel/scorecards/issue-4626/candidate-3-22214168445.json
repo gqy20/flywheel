@@ -1,0 +1,34 @@
+{
+  "issue_number": 4626,
+  "issue_title": "[Feature] 添加备份功能，在 save 前自动备份现有数据",
+  "candidate_number": 3,
+  "run_id": "22214168445",
+  "branch_name": "claude/issue-4626-candidate-3-22214168445",
+  "status": "implemented",
+  "implementation_summary": "Added automatic backup functionality to TodoStorage.save() method. Before overwriting an existing file, the old file is copied to a .bak file (e.g., .todo.json.bak). The backup operation is non-blocking - if it fails, only a warning is logged and the main save operation continues.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4626_backup.py"
+  ],
+  "tests_added": [
+    "test_first_save_creates_no_backup",
+    "test_overwrite_creates_backup",
+    "test_backup_content_matches_overwritten_data",
+    "test_backup_failure_does_not_block_save"
+  ],
+  "acceptance_criteria": {
+    "backup_before_overwrite": true,
+    "backup_only_when_file_exists": true,
+    "backup_failure_non_blocking": true
+  },
+  "commands_executed": [
+    "uv run pytest tests/test_issue_4626_backup.py -v",
+    "uv run pytest tests/test_storage_atomicity.py -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_4626_backup.py"
+  ],
+  "risks_and_limitations": [
+    "Backup uses shutil.copy2 which preserves file metadata including permissions and timestamps",
+    "Only one backup is kept (.bak file is overwritten each time)",
+    "Backup is created before the atomic rename, so there is a brief window where both original and backup exist"
+  ]
+}
