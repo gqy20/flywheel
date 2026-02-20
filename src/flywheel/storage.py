@@ -57,11 +57,27 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        # Security: Use lstat() to check for symlinks without following them
+        # This prevents symlink attacks and TOCTOU race conditions
+        try:
+            file_stat = os.lstat(self.path)
+        except OSError:
+            # File doesn't exist
             return []
 
+        # Security: Reject symlinks to prevent symlink attacks
+        if stat.S_ISLNK(file_stat.st_mode):
+            raise ValueError(
+                f"Security error: '{self.path}' is a symlink. "
+                f"Loading from symlinks is not allowed to prevent symlink attacks."
+            )
+
+        # Security: Verify it's a regular file (not a device, socket, etc.)
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise ValueError(f"Invalid file type: '{self.path}' is not a regular file.")
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
@@ -74,8 +90,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
