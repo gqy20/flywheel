@@ -1,0 +1,37 @@
+{
+  "issue_number": 4636,
+  "candidate_number": 3,
+  "run_id": "22206726340",
+  "branch": "claude/issue-4636-candidate-3-22206726340",
+  "commit_sha": "0a5d5e2",
+  "status": "ready",
+  "scorecard": {
+    "root_cause_analysis": {
+      "score": 5,
+      "notes": "Correctly identified that race condition occurs during the load-next_id-save sequence when multiple processes access the same database concurrently"
+    },
+    "test_coverage": {
+      "score": 5,
+      "notes": "Added comprehensive test with multiprocessing to verify no duplicate IDs are generated; also includes sequential baseline test"
+    },
+    "minimal_fix": {
+      "score": 5,
+      "notes": "Minimal fix using file locking (fcntl.flock) on a separate lock file; does not change existing behavior for non-concurrent use cases"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Clean implementation using context manager pattern for lock handling; proper error handling and resource cleanup"
+    },
+    "risks_addressed": {
+      "score": 4,
+      "notes": "Fix addresses the race condition; lock file is created in same directory with restrictive permissions"
+    }
+  },
+  "tests_passed": true,
+  "linting_passed": true,
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "src/flywheel/cli.py",
+    "tests/test_issue_4636_race_condition_next_id.py"
+  ]
+}
