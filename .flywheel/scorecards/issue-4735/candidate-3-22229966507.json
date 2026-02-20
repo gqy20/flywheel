@@ -1,0 +1,49 @@
+{
+  "issue_number": 4735,
+  "candidate_number": 3,
+  "run_id": "22229966507",
+  "branch_name": "claude/issue-4735-candidate-3-22229966507",
+  "created_at": "2026-02-20T13:00:00Z",
+  "status": "implementation_complete",
+  "commit_hash": "02240e3",
+  "summary": {
+    "title": "[Bug] Race condition (TOCTOU) between parent directory validation and mkdir in _ensure",
+    "root_cause": "TOCTOU race condition in _ensure_parent_directory: multiple exists() checks followed by mkdir(exist_ok=False) creates race windows where concurrent processes can cause FileExistsError",
+    "fix_approach": "Use exist_ok=True in mkdir() call and remove redundant pre-check to eliminate TOCTOU vulnerability"
+  },
+  "files_changed": [
+    {
+      "path": "src/flywheel/storage.py",
+      "action": "modified",
+      "lines_changed": 12,
+      "description": "Fixed TOCTOU race by using exist_ok=True and removing redundant exists() check"
+    },
+    {
+      "path": "tests/test_issue_4735_toctou_race_fix.py",
+      "action": "created",
+      "lines_changed": 120,
+      "description": "Regression tests for concurrent directory creation race condition"
+    }
+  ],
+  "tests": {
+    "total": 117,
+    "passed": 117,
+    "failed": 0,
+    "new_tests_added": 5
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_4735_toctou_race_fix.py -v",
+    "uv run pytest tests/test_storage_atomicity.py -v",
+    "uv run pytest tests/test_issue_1894_security_mkdir_fix.py -v",
+    "uv run pytest -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ],
+  "acceptance_criteria": {
+    "concurrent_directory_creation_succeeds": true,
+    "file_as_directory_validation_preserved": true,
+    "all_existing_tests_pass": true
+  },
+  "risks_and_limitations": [
+    "The file-as-directory validation still has a small race window, but this is acceptable because it's a configuration error that should be detected at startup, not a concurrent operation issue"
+  ]
+}
