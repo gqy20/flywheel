@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,11 +57,20 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, debug: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self.debug = debug
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter()
         if not self.path.exists():
+            if self.debug:
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                _logger.debug(
+                    "load: path=%s, exists=False, duration=%.3fms",
+                    self.path,
+                    elapsed_ms,
+                )
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +93,18 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if self.debug:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.debug(
+                "load: path=%s, size=%d bytes, count=%d, duration=%.3fms",
+                self.path,
+                file_size,
+                len(todos),
+                elapsed_ms,
+            )
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,11 +115,14 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+        content_size = len(content.encode("utf-8"))
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -118,10 +145,28 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            if self.debug:
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                _logger.debug(
+                    "save: path=%s, size=%d bytes, count=%d, duration=%.3fms",
+                    self.path,
+                    content_size,
+                    len(todos),
+                    elapsed_ms,
+                )
+        except OSError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            if self.debug:
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                _logger.debug(
+                    "save: path=%s, error=%s, duration=%.3fms",
+                    self.path,
+                    e,
+                    elapsed_ms,
+                )
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
