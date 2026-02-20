@@ -1,44 +1,23 @@
 {
-  "issue_number": 4682,
-  "issue_title": "[Feature] Add backup file before overwrite",
-  "candidate_number": 1,
+  "issue": 4682,
+  "candidate": 1,
   "run_id": "22224069898",
-  "branch_name": "claude/issue-4682-candidate-1-22224069898",
+  "branch": "claude/issue-4682-candidate-1-22224069898",
+  "pr_number": 4739,
   "pr_url": "https://github.com/gqy20/flywheel/pull/4739",
-  "created_at": "2026-02-20T08:15:00Z",
-  "triage_summary": {
-    "root_cause": "TodoStorage.save() uses atomic write but does not preserve previous data, leaving no recovery path for user errors",
-    "affected_files": ["src/flywheel/storage.py"],
-    "risk_points": ["Race condition during backup", "First save edge case", "Permissions preservation"],
-    "approach": "Check FLYWHEEL_BACKUP=1 env var and copy existing file to .bak before atomic rename"
-  },
-  "implementation": {
-    "files_changed": ["src/flywheel/storage.py"],
-    "tests_added": ["tests/test_issue_4682_backup_before_overwrite.py"],
-    "lines_added": 158,
-    "lines_removed": 0,
-    "key_changes": [
-      "Added shutil import for file copying",
-      "Added backup_enabled check for FLYWHEEL_BACKUP=1 env var",
-      "Added shutil.copy2 call to create .bak file before atomic rename",
-      "Added comprehensive test suite with 6 test cases"
-    ]
-  },
-  "test_results": {
-    "new_tests_passed": 6,
-    "total_tests_passed": 118,
-    "ruff_check": "passed",
-    "test_command": "uv run pytest tests/ -v"
-  },
-  "acceptance_criteria": {
-    "backup_on_enabled": true,
-    "no_backup_on_disabled": true,
-    "no_backup_on_first_save": true,
-    "backup_contains_previous_data": true
-  },
-  "risks_and_limitations": [
-    "Minimal performance impact: single file copy on each save when enabled",
-    "Disk space: backup file doubles storage (typically negligible)",
-    "First save: no backup created since no previous file exists"
-  ]
+  "generated_at": "2026-02-20T13:35:20.086633+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3251,
+    "plan": 2398,
+    "implement": 2387,
+    "verify": 2116,
+    "finalize": 938
+  }
 }
