@@ -80,7 +80,20 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Validate no duplicate IDs exist (prevents ID collision issues)
+        seen_ids = set()
+        for todo in todos:
+            if todo.id in seen_ids:
+                raise ValueError(
+                    f"Duplicate todo ID {todo.id} found in '{self.path}'. "
+                    "Each todo must have a unique ID."
+                )
+            seen_ids.add(todo.id)
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
