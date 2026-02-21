@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
@@ -22,15 +23,48 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    def _with_lock(self):
+        """Context manager for exclusive file locking.
+
+        Uses fcntl.flock (LOCK_EX) to acquire an exclusive lock on the database
+        file. This ensures atomicity for operations that involve read-modify-write
+        sequences, preventing race conditions when multiple processes access the
+        same database concurrently.
+
+        The lock file is separate from the data file to avoid conflicts with the
+        atomic save operation (which uses temp file + rename).
+        """
+        import contextlib
+        import pathlib
+
+        @contextlib.contextmanager
+        def lock_context():
+            # Use a separate lock file to avoid conflicts with atomic save
+            lock_path = pathlib.Path(str(self.storage.path) + ".lock")
+            # Ensure parent directory exists
+            lock_path.parent.mkdir(parents=True, exist_ok=True)
+            # Create and lock the file using context manager
+            with open(lock_path, "w") as lock_file:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+                try:
+                    yield lock_file
+                finally:
+                    fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+        return lock_context()
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        # Use file locking to prevent race condition in next_id()
+        # Issue #4859: Multiple processes could get the same ID without locking
+        with self._with_lock():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
