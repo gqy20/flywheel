@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,58 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> None:
+        """Context manager for exclusive file locking.
+
+        Acquires an exclusive lock on a separate lock file to prevent
+        race conditions during load-modify-save sequences.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open or create the lock file
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            finally:
+                os.close(lock_fd)
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a todo atomically with file locking.
+
+        This method performs load -> next_id -> save as an atomic operation,
+        preventing race conditions when multiple processes add todos concurrently.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        from .todo import Todo
+
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._exclusive_lock():
+            todos = self.load()
+            new_id = self.next_id(todos)
+            todo = Todo(id=new_id, text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

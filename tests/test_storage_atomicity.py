@@ -229,3 +229,87 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4859: Race condition in next_id().
+
+    Tests that multiple processes adding todos concurrently using the
+    add() flow (load -> next_id -> save) do not produce duplicate IDs.
+
+    Before fix: Two processes could:
+    1. Both load the same todos list
+    2. Both compute the same next_id (max+1)
+    3. Both save, resulting in duplicate IDs
+
+    After fix: File locking ensures only one process can compute and
+    assign IDs at a time, guaranteeing uniqueness.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "concurrent_ids.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds a todo and reports the assigned ID."""
+        try:
+            app = TodoApp(db_path=str(db))
+            # Each worker adds a todo - this involves load -> next_id -> save
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently to maximize race condition likelihood
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers at roughly the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=15)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # Log errors for debugging
+    if errors:
+        print(f"Workers encountered errors: {errors}")
+
+    assert len(successes) == num_workers, (
+        f"Expected {num_workers} successes, got {len(successes)}. "
+        f"Errors: {errors}"
+    )
+
+    # Collect all assigned IDs
+    assigned_ids = [r[2] for r in successes]
+
+    # Critical assertion: All IDs must be unique
+    unique_ids = set(assigned_ids)
+    assert len(unique_ids) == len(assigned_ids), (
+        f"Duplicate IDs detected! "
+        f"Assigned IDs: {assigned_ids}, "
+        f"Unique IDs: {unique_ids}. "
+        f"This indicates a race condition in next_id()."
+    )
+
+    # Verify the final file has unique IDs as well
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    final_ids = [todo.id for todo in final_todos]
+    assert len(set(final_ids)) == len(final_ids), (
+        f"Final file contains duplicate IDs: {final_ids}"
+    )
