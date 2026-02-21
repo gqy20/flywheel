@@ -53,11 +53,57 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, cache_enabled: bool = False) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON storage file.
+            cache_enabled: If True, cache loaded todos in memory and return
+                cached data on subsequent load() calls. Cache is invalidated
+                on save() or when file mtime changes.
+        """
         self.path = Path(path or ".todo.json")
+        self._cache_enabled = cache_enabled
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
+
+    def invalidate_cache(self) -> None:
+        """Clear the in-memory cache.
+
+        This is a no-op when caching is disabled.
+        """
+        self._cache = None
+        self._cache_mtime = None
+
+    def _get_file_mtime(self) -> float | None:
+        """Get file modification time, or None if file doesn't exist."""
+        if self.path.exists():
+            return self.path.stat().st_mtime
+        return None
+
+    def _is_cache_valid(self) -> bool:
+        """Check if cached data is still valid.
+
+        Cache is valid if:
+        1. We have cached data
+        2. File mtime hasn't changed (or both are None for nonexistent file)
+        """
+        if self._cache is None:
+            return False
+
+        current_mtime = self._get_file_mtime()
+        return self._cache_mtime == current_mtime
 
     def load(self) -> list[Todo]:
+        # Return cached data if available and valid
+        if self._cache_enabled and self._is_cache_valid():
+            return self._cache
+
         if not self.path.exists():
+            # Cache empty result for nonexistent files
+            if self._cache_enabled:
+                self._cache = []
+                self._cache_mtime = None  # No file means no mtime
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -74,13 +120,20 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Cache the loaded data
+        if self._cache_enabled:
+            self._cache = todos
+            self._cache_mtime = self._get_file_mtime()
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -123,6 +176,9 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Invalidate cache after save
+        self.invalidate_cache()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
