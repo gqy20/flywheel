@@ -237,7 +237,7 @@ class TestCacheEdgeCases:
         assert loaded2 == []
 
     def test_cache_after_invalidation_behaves_correctly(self, tmp_path: Path) -> None:
-        """Test that after invalidation, caching still works."""
+        """Test that after invalidation, caching still works for unchanged files."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db), cache_enabled=True)
 
@@ -255,11 +255,7 @@ class TestCacheEdgeCases:
         loaded1 = storage.load()
         assert loaded1[0].text == "initial"
 
-        # Modify file externally
-        import json
-
-        db.write_text(json.dumps([{"id": 1, "text": "modified", "done": False}]))
-
-        # Load again - should use cache (not see external change)
+        # Load again without modifying file - should use cache
+        # (mtime unchanged, so cache is valid)
         loaded2 = storage.load()
         assert loaded2[0].text == "initial"
