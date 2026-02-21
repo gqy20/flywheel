@@ -1,0 +1,30 @@
+{
+  "issue_number": 4903,
+  "candidate_number": 3,
+  "run_id": "22254992176",
+  "branch_name": "claude/issue-4903-candidate-3-22254992176",
+  "created_at": "2026-02-21T08:06:34Z",
+  "summary": {
+    "problem": "load() raises uncaught FileNotFoundError in TOCTOU race condition",
+    "root_cause": "File can be deleted between exists() check and stat()/read_text() calls",
+    "solution": "Wrap stat() and read_text() in try-except to catch FileNotFoundError and return empty list"
+  },
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_4903_toctou_race_condition.py"],
+    "lines_changed": 5
+  },
+  "tests": {
+    "added": 3,
+    "passed": 19,
+    "failed": 0
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed"
+  },
+  "risk_assessment": {
+    "level": "low",
+    "reasoning": "Minimal change - only adds exception handling for a rare race condition. Returns empty list consistent with existing behavior when file doesn't exist."
+  }
+}
