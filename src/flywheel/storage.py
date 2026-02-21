@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -50,11 +51,58 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+class _FileLock:
+    """Context manager for exclusive file locking using fcntl.flock.
+
+    Uses a separate lock file to coordinate access between processes.
+    The lock is held for the duration of the context manager.
+    """
+
+    def __init__(self, lock_path: Path) -> None:
+        self.lock_path = lock_path
+        self.lock_file = None
+
+    def __enter__(self) -> _FileLock:
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self.lock_path)
+        # Create/open lock file
+        self.lock_file = open(self.lock_path, "w")
+        # Acquire exclusive lock (blocks until available)
+        fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self.lock_file:
+            # Release lock and close file
+            fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+            self.lock_file.close()
+
+
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Uses file locking to prevent race conditions when multiple processes
+    access the storage concurrently. This ensures that operations like
+    add() produce unique IDs even under concurrent access.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def exclusive_access(self) -> _FileLock:
+        """Context manager for exclusive access to the storage.
+
+        Use this when performing compound operations (load-compute-save)
+        to prevent race conditions with other processes.
+
+        Example:
+            with storage.exclusive_access():
+                todos = storage.load()
+                # ... modify todos ...
+                storage.save(todos)
+        """
+        return _FileLock(self._lock_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
