@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -82,7 +83,7 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], backup: bool = True) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,7 +91,18 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of todos to save.
+            backup: If True, create a backup of existing file before overwriting.
+                    Defaults to True. Backup failures are silently ignored.
         """
+        # Create backup of existing file if it exists and backup is enabled
+        if backup and self.path.exists():
+            backup_path = self.path.with_suffix(".json.bak")
+            # Backup failure should not prevent normal save
+            with contextlib.suppress(OSError):
+                shutil.copy2(self.path, backup_path)
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
