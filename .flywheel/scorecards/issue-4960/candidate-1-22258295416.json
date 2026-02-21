@@ -1,32 +1,23 @@
 {
-  "issue_number": 4960,
-  "candidate_id": 1,
-  "run_id": 22258295416,
+  "issue": 4960,
+  "candidate": 1,
+  "run_id": "22258295416",
   "branch": "claude/issue-4960-candidate-1-22258295416",
-  "created_at": "2026-02-21T14:00:00Z",
-  "status": "verified",
-  "summary": "Added optional logging for load/save operations in TodoStorage",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_4960_storage_logging.py"],
-    "lines_changed": 233
-  },
-  "acceptance_criteria_met": [
-    "Optional logger parameter in TodoStorage constructor (default None)",
-    "load() logs DEBUG message with file path and entry count on success",
-    "save() logs DEBUG message with file path and entry count on success",
-    "Default behavior unchanged (no logging when logger is None)"
+  "pr_number": 4983,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4983",
+  "generated_at": "2026-02-21T15:59:37.227545+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 6,
-  "tests_total": 6,
-  "ruff_status": "passed",
-  "risks": "None - optional feature with default silent mode",
-  "verification": {
-    "pytest_targeted": "uv run pytest tests/test_issue_4960_storage_logging.py -v",
-    "pytest_all": "uv run pytest tests/ -v",
-    "ruff_check": "uv run ruff check src/flywheel/storage.py tests/test_issue_4960_storage_logging.py",
-    "all_tests_passed": 118,
-    "storage_coverage": "90%",
-    "verified_at": "2026-02-21T14:05:00Z"
+  "stage_response_sizes": {
+    "triage": 2379,
+    "plan": 2247,
+    "implement": 1976,
+    "verify": 1768,
+    "finalize": 1265
   }
 }
