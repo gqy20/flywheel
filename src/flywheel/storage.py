@@ -57,30 +57,74 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
-            return []
+        """Load todos from file with TOCTOU protection.
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        Security: Opens file once with O_NOFOLLOW (where available) and uses
+        fstat() on the file descriptor to check size, preventing TOCTOU attacks
+        where an attacker could replace the file with a symlink between the
+        existence check and read operation.
+        """
+        # Try to open with O_NOFOLLOW on systems that support it
+        # This prevents following symlinks
+        try:
+            # O_NOFOLLOW is available on Linux, macOS, BSD
+            # If not available, fall back to regular open
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            fd = os.open(self.path, flags)
+        except FileNotFoundError:
+            return []
+        except OSError as e:
+            # O_NOFOLLOW raises ELOOP for symlinks
+            # Also handle other file-related errors
+            if "symbolic link" in str(e).lower() or e.errno == 40:  # ELOOP on Linux
+                raise ValueError(
+                    f"Security error: '{self.path}' is a symbolic link. "
+                    f"Refusing to load for security reasons."
+                ) from e
+            raise
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            # Security: Use fstat on the file descriptor to get size
+            # This ensures we're checking the size of the same file we opened
+            file_stat = os.fstat(fd)
+            file_size = file_stat.st_size
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            # Check that it's a regular file (not a device, socket, etc.)
+            if not stat.S_ISREG(file_stat.st_mode):
+                raise ValueError(
+                    f"'{self.path}' is not a regular file. "
+                    f"Refusing to load for security reasons."
+                )
+
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            # Read from the same file descriptor we checked
+            with os.fdopen(fd, "r", encoding="utf-8") as f:
+                # fd is now managed by the file object, don't close it separately
+                fd = None
+                content = f.read()
+
+            try:
+                raw = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+
+            if not isinstance(raw, list):
+                raise ValueError("Todo storage must be a JSON list")
+            return [Todo.from_dict(item) for item in raw]
+        finally:
+            # Close fd if it wasn't consumed by fdopen
+            if fd is not None:
+                os.close(fd)
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
