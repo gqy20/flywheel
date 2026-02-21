@@ -48,9 +48,9 @@ def test_load_logs_debug_on_json_decode_error(tmp_path: Path, caplog: pytest.Log
     # Create invalid JSON file
     db.write_text("{invalid json", encoding="utf-8")
 
-    with caplog.at_level(logging.DEBUG, logger="test_storage_logger"):
-        with pytest.raises(ValueError, match="Invalid JSON"):
-            storage.load()
+    with caplog.at_level(logging.DEBUG, logger="test_storage_logger"), \
+         pytest.raises(ValueError, match="Invalid JSON"):
+        storage.load()
 
     # Check that DEBUG log was recorded
     assert any("json decode error" in record.message.lower() for record in caplog.records), \
@@ -72,10 +72,10 @@ def test_save_logs_debug_on_oserror(tmp_path: Path, caplog: pytest.LogCaptureFix
 
     import os as os_module
 
-    with caplog.at_level(logging.DEBUG, logger="test_storage_logger_save"):
-        with patch.object(os_module, "replace", failing_replace):
-            with pytest.raises(OSError, match="Simulated rename failure"):
-                storage.save(todos)
+    with caplog.at_level(logging.DEBUG, logger="test_storage_logger_save"), \
+         patch.object(os_module, "replace", failing_replace), \
+         pytest.raises(OSError, match="Simulated rename failure"):
+        storage.save(todos)
 
     # Check that DEBUG log was recorded
     assert any("oserror" in record.message.lower() for record in caplog.records), \
@@ -108,6 +108,6 @@ def test_save_without_logger_raises_proper_error(tmp_path: Path) -> None:
 
     import tempfile
 
-    with patch.object(tempfile, "mkstemp", failing_mkstemp):
-        with pytest.raises(OSError, match="Simulated write failure"):
-            storage.save(todos)
+    with patch.object(tempfile, "mkstemp", failing_mkstemp), \
+         pytest.raises(OSError, match="Simulated write failure"):
+        storage.save(todos)
