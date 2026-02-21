@@ -2,7 +2,7 @@
   "issue_number": 4902,
   "candidate": 3,
   "run_id": "22252710909",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "triage": {
     "root_cause": "os.fchmod is not available on Windows, causing AttributeError when calling TodoStorage.save()",
     "location": "src/flywheel/storage.py:112",
