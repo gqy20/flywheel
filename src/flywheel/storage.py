@@ -7,9 +7,14 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from .todo import Todo
+
+# Hook callback type signatures
+HookCallback = Callable[[list[Todo]], None]
+PreSaveCallback = Callable[[list[Todo]], list[Todo]]
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -51,14 +56,39 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with optional hook support.
 
-    def __init__(self, path: str | None = None) -> None:
+    Hooks allow callers to execute custom logic before/after save and load
+    operations. This enables use cases like data validation, audit logging,
+    cache invalidation, and notifications.
+
+    Args:
+        path: Path to the JSON storage file.
+        on_pre_save: Optional callback invoked before save. Receives todos
+            and must return (possibly modified) todos list.
+        on_post_save: Optional callback invoked after successful save.
+        on_post_load: Optional callback invoked after successful load.
+    """
+
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        on_pre_save: PreSaveCallback | None = None,
+        on_post_save: HookCallback | None = None,
+        on_post_load: HookCallback | None = None,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self._on_pre_save = on_pre_save
+        self._on_post_save = on_post_save
+        self._on_post_load = on_post_load
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
-            return []
+            todos: list[Todo] = []
+            if self._on_post_load:
+                self._on_post_load(todos)
+            return todos
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +110,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if self._on_post_load:
+            self._on_post_load(todos)
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +129,10 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Call pre_save hook if registered, allowing modification of todos
+        todos_to_save = self._on_pre_save(todos) if self._on_pre_save else todos
+
+        payload = [todo.to_dict() for todo in todos_to_save]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
@@ -123,6 +161,10 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Call post_save hook only after successful save
+        if self._on_post_save:
+            self._on_post_save(todos_to_save)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
