@@ -17,7 +17,12 @@ from pathlib import Path
 from flywheel.cli import TodoApp
 
 
-def _add_todo_worker(worker_id: int, db_path: str, result_queue: multiprocessing.Queue, barrier: multiprocessing.Barrier) -> None:
+def _add_todo_worker(
+    worker_id: int,
+    db_path: str,
+    result_queue: multiprocessing.Queue,
+    barrier: multiprocessing.Barrier,
+) -> None:
     """Worker function that adds a todo and reports the assigned ID.
 
     Uses a barrier to maximize race condition likelihood by having all workers
@@ -63,8 +68,7 @@ def test_concurrent_add_operations_produce_unique_ids() -> None:
 
         for i in range(num_workers):
             p = multiprocessing.Process(
-                target=_add_todo_worker,
-                args=(i, db_path, result_queue, barrier)
+                target=_add_todo_worker, args=(i, db_path, result_queue, barrier)
             )
             processes.append(p)
             p.start()
@@ -82,7 +86,9 @@ def test_concurrent_add_operations_produce_unique_ids() -> None:
         successes = [r for r in results if r[0] == "success"]
         errors = [r for r in results if r[0] == "error"]
         assert len(errors) == 0, f"Workers encountered errors: {errors}"
-        assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+        assert len(successes) == num_workers, (
+            f"Expected {num_workers} successes, got {len(successes)}"
+        )
 
         # Extract the IDs assigned to each worker
         assigned_ids = [r[2] for r in successes]
@@ -151,8 +157,7 @@ def test_concurrent_add_with_preexisting_todos() -> None:
 
         for i in range(num_workers):
             p = multiprocessing.Process(
-                target=_add_todo_worker,
-                args=(i, db_path, result_queue, barrier)
+                target=_add_todo_worker, args=(i, db_path, result_queue, barrier)
             )
             processes.append(p)
             p.start()
