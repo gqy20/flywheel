@@ -1,0 +1,22 @@
+{
+  "issue_number": 4902,
+  "issue_title": "[Bug] os.fchmod not available on Windows causes AttributeError",
+  "candidate_number": 1,
+  "run_id": "22252710909",
+  "branch": "claude/issue-4902-candidate-1-22252710909",
+  "created_at": "2026-02-21T08:10:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_storage_atomicity.py"],
+    "summary": "Added platform check before calling os.fchmod using hasattr() to gracefully handle Windows where fchmod is not available"
+  },
+  "test_results": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7
+  },
+  "lint_results": {
+    "passed": true
+  }
+}
