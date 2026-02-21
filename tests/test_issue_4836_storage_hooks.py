@@ -165,8 +165,6 @@ class TestStorageHooks:
             nonlocal save_called
             save_called = True
 
-        storage = TodoStorage(str(db), on_post_save=on_post_save)
-
         # Make the parent directory a file to cause save to fail
         db.touch()  # Create file
         db_dir = db / "subdir" / "nested.json"
