@@ -1,15 +1,23 @@
 {
-  "issue_number": 4931,
-  "candidate_number": 3,
+  "issue": 4931,
+  "candidate": 3,
   "run_id": "22255784058",
   "branch": "claude/issue-4931-candidate-3-22255784058",
-  "status": "implemented",
-  "approach": "Add ISO 8601 validation using datetime.fromisoformat() in Todo.from_dict",
-  "tests_added": 9,
-  "tests_passed": 9,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_4931_iso8601_validation.py"
+  "pr_number": 4953,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4953",
+  "generated_at": "2026-02-21T12:02:07.127873+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added _validate_iso8601 helper function that validates timestamp strings using Python's built-in datetime.fromisoformat(). The function accepts empty strings (for auto-fill) and valid ISO 8601 timestamps, but raises ValueError for invalid formats like 'not-a-date' or semantically invalid dates like '2024-13-45T99:99:99'."
+  "stage_response_sizes": {
+    "triage": 2091,
+    "plan": 3843,
+    "implement": 2680,
+    "verify": 1998,
+    "finalize": 1101
+  }
 }
