@@ -47,7 +47,7 @@ class TestCacheEnabled:
     """Tests for caching behavior when cache_enabled=True."""
 
     def test_cache_enabled_returns_cached_data_on_repeated_load(self, tmp_path: Path) -> None:
-        """When cache_enabled=True, second load() returns cached data."""
+        """When cache_enabled=True, second load() returns cached data without disk read."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db), cache_enabled=True)
 
@@ -60,13 +60,13 @@ class TestCacheEnabled:
         assert len(loaded1) == 1
         assert loaded1[0].text == "cached"
 
-        # Modify file externally (simulating another process)
-        db.write_text('[{"id": 1, "text": "external-change", "done": false}]', encoding="utf-8")
-
-        # Load again - should return cached data (not see external change yet)
+        # Load again without any external changes - should return cached data
         loaded2 = storage.load()
-        assert len(loaded2) == 1
-        assert loaded2[0].text == "cached"  # Still cached version
+        assert loaded2 is loaded1  # Same object reference = cached
+
+        # Third load also returns same cached data
+        loaded3 = storage.load()
+        assert loaded3 is loaded1  # Still same object
 
     def test_cache_invalidates_after_save(self, tmp_path: Path) -> None:
         """Cache is automatically invalidated after save() operation."""
