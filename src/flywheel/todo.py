@@ -20,6 +20,16 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __hash__(self) -> int:
+        """Hash based on id for set/dict usage."""
+        return hash(self.id)
+
+    def __eq__(self, other: object) -> bool:
+        """Equality based on id for set/dict deduplication."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
