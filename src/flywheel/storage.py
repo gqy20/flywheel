@@ -56,6 +56,14 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def exists(self) -> bool:
+        """Check if the database file exists without loading it.
+
+        Returns:
+            True if the database file exists, False otherwise.
+        """
+        return self.path.exists()
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -74,8 +82,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
