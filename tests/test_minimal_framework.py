@@ -158,3 +158,60 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids(tmp_path) -> None:
+    """Bug #4916: next_id should return the first available positive integer."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs (gap at 2, 3, 4)
+    todos = [Todo(id=1, text="first"), Todo(id=5, text="fifth")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2 (first unused positive integer), not 6
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_ignores_negative_ids(tmp_path) -> None:
+    """Bug #4916: next_id should ignore negative IDs and return positive integer."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with negative IDs (shouldn't happen normally, but handle gracefully)
+    todos = [Todo(id=-5, text="negative"), Todo(id=-1, text="also negative")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 1 (first positive integer), not 0 or negative
+    assert storage.next_id(loaded) == 1
+
+
+def test_next_id_with_mixed_positive_negative_ids(tmp_path) -> None:
+    """Bug #4916: next_id should handle mixed positive/negative IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with mixed IDs
+    todos = [Todo(id=-3, text="negative"), Todo(id=1, text="positive"), Todo(id=4, text="also positive")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2 (first unused positive integer), ignoring negatives
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_never_returns_zero_or_negative(tmp_path) -> None:
+    """Bug #4916: next_id should never return 0 or negative number."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos starting from ID 0
+    todos = [Todo(id=0, text="zero"), Todo(id=1, text="one")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2, not 0 or negative
+    result = storage.next_id(loaded)
+    assert result >= 1
