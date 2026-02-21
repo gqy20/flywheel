@@ -3,7 +3,8 @@
   "candidate": 3,
   "run_id": "22258295416",
   "branch": "claude/issue-4957-candidate-3-22258295416",
-  "status": "implementing",
+  "status": "pr_created",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4978",
   "summary": "Fix from_dict to reject float IDs that lose precision when converted to int",
   "changes": {
     "source_files": ["src/flywheel/todo.py"],
