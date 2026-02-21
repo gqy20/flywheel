@@ -33,12 +33,15 @@ def test_load_logs_debug_when_logger_provided(tmp_path: Path, caplog) -> None:
     assert len(loaded) == 3
 
     # Verify log was captured
-    assert any("load" in record.message.lower() for record in caplog.records), \
+    assert any("load" in record.message.lower() for record in caplog.records), (
         f"Expected 'load' in log messages, got: {[r.message for r in caplog.records]}"
-    assert any(str(db) in record.message for record in caplog.records), \
+    )
+    assert any(str(db) in record.message for record in caplog.records), (
         f"Expected file path in log messages, got: {[r.message for r in caplog.records]}"
-    assert any("3" in record.message for record in caplog.records), \
+    )
+    assert any("3" in record.message for record in caplog.records), (
         f"Expected entry count '3' in log messages, got: {[r.message for r in caplog.records]}"
+    )
 
 
 def test_save_logs_debug_when_logger_provided(tmp_path: Path, caplog) -> None:
@@ -55,12 +58,15 @@ def test_save_logs_debug_when_logger_provided(tmp_path: Path, caplog) -> None:
         storage.save(todos)
 
     # Verify log was captured
-    assert any("save" in record.message.lower() for record in caplog.records), \
+    assert any("save" in record.message.lower() for record in caplog.records), (
         f"Expected 'save' in log messages, got: {[r.message for r in caplog.records]}"
-    assert any(str(db) in record.message for record in caplog.records), \
+    )
+    assert any(str(db) in record.message for record in caplog.records), (
         f"Expected file path in log messages, got: {[r.message for r in caplog.records]}"
-    assert any("2" in record.message for record in caplog.records), \
+    )
+    assert any("2" in record.message for record in caplog.records), (
         f"Expected entry count '2' in log messages, got: {[r.message for r in caplog.records]}"
+    )
 
 
 def test_default_no_logger_is_silent(tmp_path: Path, caplog) -> None:
@@ -76,8 +82,9 @@ def test_default_no_logger_is_silent(tmp_path: Path, caplog) -> None:
         storage.load()
 
     # No log records should be produced
-    assert len(caplog.records) == 0, \
+    assert len(caplog.records) == 0, (
         f"Expected no log records, got: {[r.message for r in caplog.records]}"
+    )
 
 
 def test_logger_none_parameter_is_silent(tmp_path: Path, caplog) -> None:
@@ -92,5 +99,6 @@ def test_logger_none_parameter_is_silent(tmp_path: Path, caplog) -> None:
         storage.load()
 
     # No log records should be produced
-    assert len(caplog.records) == 0, \
+    assert len(caplog.records) == 0, (
         f"Expected no log records, got: {[r.message for r in caplog.records]}"
+    )

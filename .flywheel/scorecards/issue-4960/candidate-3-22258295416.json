@@ -1,0 +1,45 @@
+{
+  "issue_number": 4960,
+  "issue_title": "[Enhancement] 添加 load/save 操作的日志记录",
+  "candidate_number": 3,
+  "run_id": "22258295416",
+  "branch": "claude/issue-4960-candidate-3-22258295416",
+  "commit_sha": "bf8fee5",
+  "created_at": "2026-02-21T14:00:00Z",
+  "status": "ready_for_review",
+  "implementation": {
+    "description": "Added optional logging.Logger parameter to TodoStorage class for debugging file operations",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_logging.py"
+    ],
+    "key_changes": [
+      "Added optional logger parameter to TodoStorage.__init__",
+      "load() logs DEBUG message with file path and entry count when logger provided",
+      "save() logs DEBUG message with file path and entry count when logger provided",
+      "Default behavior unchanged (no logging when logger=None)"
+    ]
+  },
+  "tests": {
+    "files_added": ["tests/test_storage_logging.py"],
+    "test_count": 4,
+    "test_names": [
+      "test_load_logs_debug_when_logger_provided",
+      "test_save_logs_debug_when_logger_provided",
+      "test_default_no_logger_is_silent",
+      "test_logger_none_parameter_is_silent"
+    ],
+    "all_passed": true
+  },
+  "acceptance_criteria": {
+    "optional_logger_parameter": true,
+    "load_success_logging": true,
+    "save_success_logging": true,
+    "default_behavior_unchanged": true
+  },
+  "risks": {
+    "breaking_changes": false,
+    "performance_impact": "None - logging is optional and only evaluated when logger is provided",
+    "limitations": ["Only DEBUG level logging implemented as per issue requirements"]
+  }
+}
