@@ -1,0 +1,23 @@
+{
+  "issue_number": 5029,
+  "candidate": 1,
+  "run_id": "22265175785",
+  "status": "implemented",
+  "summary": "Fix next_id to find first available gap instead of max+1",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_5029_next_id_duplicates.py"
+    ],
+    "source_files": [
+      "src/flywheel/storage.py"
+    ]
+  },
+  "tests_passed": 118,
+  "tests_added": 6,
+  "lint_status": "passed",
+  "approach": "Changed next_id() from max()+1 to finding first available gap using a set-based approach",
+  "risks": [
+    "Minimal performance impact for very large todo lists (O(n) space for set, O(gap) iterations)"
+  ],
+  "limitations": []
+}
