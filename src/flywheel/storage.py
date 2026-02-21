@@ -90,12 +90,17 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Optimization: Uses compact format (no indent) for large lists (>=100 items)
+        to reduce file size by ~30-50%.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        # Use compact format for large lists to reduce file size
+        indent = 2 if len(todos) < 100 else None
+        content = json.dumps(payload, ensure_ascii=False, indent=indent)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
