@@ -119,3 +119,27 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4957 - float ID truncation causes silent ID collision
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float IDs to prevent silent truncation.
+
+    If float IDs like 1.5 were silently truncated to 1 via int(), it could
+    cause ID collisions where 1.5 and 1.0 both become ID 1.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_storage_load_rejects_float_id(tmp_path) -> None:
+    """Storage should reject float IDs in JSON to prevent silent ID collision."""
+    db = tmp_path / "float_id.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON but 'id' is a float which would be truncated
+    db.write_text('[{"id": 1.5, "text": "task"}]', encoding="utf-8")
+
+    # Should raise clear error about float ID
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        storage.load()
