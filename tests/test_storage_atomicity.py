@@ -229,3 +229,76 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #4859: Race condition in next_id().
+
+    Tests that multiple processes calling add() concurrently to the same
+    database file produce todos with unique IDs. Previously, concurrent
+    processes could receive the same ID due to a race condition between
+    load and save operations.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race.json"
+    num_workers = 5
+    num_adds_per_worker = 3
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds multiple todos and reports IDs."""
+        try:
+            app = TodoApp(db_path=str(db))
+            ids = []
+            for i in range(num_adds_per_worker):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                ids.append(todo.id)
+            result_queue.put(("success", worker_id, ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Collect all IDs assigned
+    all_ids = []
+    for success in successes:
+        all_ids.extend(success[2])  # success[2] is the list of IDs
+
+    # Verify all IDs are unique - this is the key assertion for issue #4859
+    expected_count = num_workers * num_adds_per_worker
+    assert len(all_ids) == expected_count, f"Expected {expected_count} IDs, got {len(all_ids)}"
+    unique_ids = set(all_ids)
+    assert len(unique_ids) == len(all_ids), (
+        f"Duplicate IDs detected! Got {len(all_ids)} IDs but only {len(unique_ids)} unique. "
+        f"Duplicates: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )
+
+    # Verify the final file contains valid data
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+    assert len(final_todos) >= 1, "Should have at least one todo after concurrent adds"
