@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,34 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@contextlib.contextmanager
+def _file_lock(file_path: Path):
+    """Context manager for exclusive file locking.
+
+    Uses fcntl.flock for cross-process synchronization. Creates a companion
+    lock file (.{filename}.lock) to avoid locking the data file itself,
+    which could interfere with atomic renames.
+
+    Raises:
+        BlockingIOError: If lock cannot be acquired (should not happen with LOCK_EX).
+        OSError: If lock file cannot be created.
+    """
+    lock_path = file_path.parent / f".{file_path.name}.lock"
+
+    # Ensure parent directory exists for lock file
+    if not file_path.parent.exists():
+        _ensure_parent_directory(file_path)
+
+    # Open/create lock file and acquire exclusive lock
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -74,8 +103,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +154,33 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a todo with proper ID assignment.
+
+        Uses file locking to prevent race conditions when multiple processes
+        add todos concurrently. The lock ensures that the load-compute-save
+        sequence is atomic across processes.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo with a unique ID.
+
+        Raises:
+            ValueError: If text is empty.
+            OSError: If file operations fail.
+        """
+        from .todo import Todo
+
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with _file_lock(self.path):
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
