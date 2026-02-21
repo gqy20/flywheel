@@ -34,10 +34,15 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text is not empty (consistent with rename())
+        stripped_text = self.text.strip()
+        if not stripped_text:
+            raise ValueError("Todo text cannot be empty")
+        object.__setattr__(self, "text", stripped_text)
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
