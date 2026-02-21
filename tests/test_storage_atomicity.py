@@ -151,6 +151,48 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_handles_missing_fchmod_gracefully(tmp_path) -> None:
+    """Regression test for issue #4902: os.fchmod not available on Windows.
+
+    Tests that TodoStorage.save() handles the case where os.fchmod is not
+    available (e.g., on Windows) without raising AttributeError.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test todo")]
+
+    # Mock os to simulate Windows where fchmod doesn't exist
+    import flywheel.storage as storage_module
+
+    # Create a mock os module that doesn't have fchmod
+    class MockOS:
+        """Mock os module without fchmod (like Windows)."""
+        # Copy all attributes from real os
+        def __init__(self, real_os):
+            for attr in dir(real_os):
+                if attr != "fchmod":
+                    setattr(self, attr, getattr(real_os, attr))
+
+        # Explicitly make fchmod unavailable
+        def __getattr__(self, name):
+            if name == "fchmod":
+                raise AttributeError("module 'os' has no attribute 'fchmod'")
+            raise AttributeError(f"module 'os' has no attribute '{name}'")
+
+    original_os = storage_module.os
+    mock_os = MockOS(original_os)
+
+    with patch.object(storage_module, "os", mock_os):
+        # This should not raise AttributeError
+        storage.save(todos)
+
+    # Verify the file was saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test todo"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
