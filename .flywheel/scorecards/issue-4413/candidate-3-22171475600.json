@@ -1,0 +1,28 @@
+{
+  "issue_number": 4413,
+  "issue_title": "[Feature] 添加 Todo 优先级字段支持",
+  "candidate_number": 3,
+  "run_id": "22171475600",
+  "branch_name": "claude/issue-4413-candidate-3-22171475600",
+  "status": "implemented",
+  "implementation_summary": {
+    "description": "Added priority field support to Todo dataclass with CLI integration",
+    "changes": [
+      "src/flywheel/todo.py: Added priority field with default value 2 (medium), validation in from_dict for range 1-3",
+      "src/flywheel/cli.py: Added --priority/-p argument to add command",
+      "src/flywheel/formatter.py: Updated format_todo to display priority symbol (! for high, - for medium, . for low)"
+    ],
+    "test_files": [
+      "tests/test_issue_4413_priority_field.py"
+    ]
+  },
+  "acceptance_criteria_met": [
+    "Todo supports optional priority field (default value 2)",
+    "from_dict validates priority in range 1-3",
+    "CLI add command supports --priority/-p argument",
+    "list output displays priority symbol"
+  ],
+  "tests_passed": 127,
+  "lint_passed": true,
+  "files_changed": 8
+}
