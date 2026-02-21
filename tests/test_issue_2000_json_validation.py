@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4846 - validate 'text' field is not whitespace-only
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only strings for 'text' field."""
+    with pytest.raises(ValueError, match=r"empty|whitespace"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_rejects_tab_newline_text() -> None:
+    """Todo.from_dict should reject tab/newline-only strings for 'text' field."""
+    with pytest.raises(ValueError, match=r"empty|whitespace"):
+        Todo.from_dict({"id": 1, "text": "\t\n"})
+
+
+def test_todo_from_dict_accepts_text_with_surrounding_whitespace() -> None:
+    """Todo.from_dict should accept text with leading/trailing whitespace."""
+    todo = Todo.from_dict({"id": 1, "text": " valid "})
+    assert todo.text == " valid "
