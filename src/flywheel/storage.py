@@ -8,8 +8,12 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, logger: Logger | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self.logger = logger
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -73,6 +78,14 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            if self.logger:
+                self.logger.debug(
+                    "JSON decode error in '%s': %s (line %s, column %s)",
+                    self.path,
+                    e.msg,
+                    e.lineno,
+                    e.colno,
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -118,10 +131,16 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except OSError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            if self.logger:
+                self.logger.debug(
+                    "OSError during save to '%s': %s",
+                    self.path,
+                    e,
+                )
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
