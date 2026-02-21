@@ -1,0 +1,21 @@
+{
+  "issue": 4985,
+  "candidate": 3,
+  "run_id": "22260890560",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_minimal_framework.py",
+      "src/flywheel/storage.py"
+    ],
+    "approach": "Fix next_id() to return smallest available ID by using set-based gap detection",
+    "tests": [
+      "test_next_id_returns_smallest_available_with_gaps",
+      "test_next_id_returns_max_plus_one_when_no_gaps"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py"
+    ]
+  },
+  "status": "plan"
+}
