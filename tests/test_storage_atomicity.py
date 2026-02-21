@@ -151,6 +151,65 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_load_handles_file_deleted_between_exists_and_stat(tmp_path) -> None:
+    """Regression test for issue #4903: TOCTOU race condition in load().
+
+    Tests that FileNotFoundError raised when a file is deleted between
+    the exists() check and the stat() call is handled gracefully.
+
+    The load() method should either return an empty list (treating it as if
+    the file never existed) or raise a clear error, rather than propagating
+    the raw FileNotFoundError.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with some content
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Use a mock to replace the path's stat method
+    # This simulates a race condition where the file is deleted between
+    # the exists() check and the stat() call
+    import os
+
+    def mock_stat(*args, **kwargs):
+        raise FileNotFoundError(f"No such file or directory: '{db}'")
+
+    # Patch os.stat which is what Path.stat() calls internally
+    with patch("os.stat", side_effect=mock_stat):
+        # Should handle FileNotFoundError gracefully and return empty list
+        # (the file was deleted between exists() and stat(), so treat as non-existent)
+        result = storage.load()
+        assert result == [], "load() should return empty list when file disappears during read"
+
+
+def test_load_handles_file_deleted_between_exists_and_read(tmp_path) -> None:
+    """Regression test for issue #4903: TOCTOU race condition in load().
+
+    Tests that FileNotFoundError raised when a file is deleted between
+    the exists() check and the read_text() call is handled gracefully.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with some content
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Use a mock to raise FileNotFoundError when reading the file
+    # This simulates a race condition where the file is deleted between
+    # the exists() check and the read_text() call
+    def mock_read_text_raise(*args, **kwargs):
+        raise FileNotFoundError(f"No such file or directory: '{db}'")
+
+    # Patch Path.read_text in the storage module to simulate file deletion
+    with patch("flywheel.storage.Path.read_text", side_effect=mock_read_text_raise):
+        # Should handle FileNotFoundError gracefully and return empty list
+        result = storage.load()
+        assert result == [], "load() should return empty list when file disappears during read"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
