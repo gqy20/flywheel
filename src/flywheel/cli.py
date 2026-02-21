@@ -6,7 +6,7 @@ import argparse
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
-from .storage import TodoStorage
+from .storage import FileLock, TodoStorage
 from .todo import Todo
 
 
@@ -15,6 +15,8 @@ class TodoApp:
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
+        self._db_path = db_path or ".todo.json"
+        self._lock_path = f"{self._db_path}.lock"
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -22,15 +24,20 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    def _lock(self) -> FileLock:
+        """Get a file lock for this database."""
+        return FileLock(self._lock_path)
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with self._lock():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,30 +47,33 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with self._lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with self._lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with self._lock():
+            todos = self._load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self._save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 

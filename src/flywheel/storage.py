@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,98 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+class LockUnavailableError(TimeoutError):
+    """Raised when a file lock cannot be acquired within the timeout."""
+
+    pass
+
+
+class FileLock:
+    """File-based lock using fcntl.flock for Unix systems.
+
+    Provides exclusive locking to prevent race conditions in concurrent
+    read-modify-write operations.
+
+    Usage:
+        lock = FileLock("/path/to/file.lock")
+        with lock:
+            # Critical section - exclusive access guaranteed
+            perform_read_modify_write()
+    """
+
+    def __init__(self, lock_path: str, timeout_seconds: float = 5.0) -> None:
+        """Initialize the file lock.
+
+        Args:
+            lock_path: Path to the lock file.
+            timeout_seconds: Maximum time to wait for lock acquisition.
+        """
+        self.lock_path = Path(lock_path)
+        self.timeout_seconds = timeout_seconds
+        self._fd: int | None = None
+
+    def acquire(self) -> None:
+        """Acquire an exclusive lock on the lock file.
+
+        Raises:
+            LockUnavailable: If the lock cannot be acquired within timeout.
+        """
+        # Ensure parent directory exists
+        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Open/create the lock file
+        self._fd = os.open(
+            str(self.lock_path),
+            os.O_CREAT | os.O_WRONLY,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            # Use LOCK_EX for exclusive lock, LOCK_NB for non-blocking
+            # We poll with small sleeps to implement timeout
+            import time
+
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(self._fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return  # Lock acquired successfully
+                except (BlockingIOError, OSError):
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= self.timeout_seconds:
+                        raise LockUnavailableError(
+                            f"Could not acquire lock on {self.lock_path} "
+                            f"within {self.timeout_seconds} seconds"
+                        ) from None
+                    time.sleep(0.01)  # Small sleep before retry
+        except Exception:
+            # Close file descriptor on failure
+            if self._fd is not None:
+                os.close(self._fd)
+                self._fd = None
+            raise
+
+    def release(self) -> None:
+        """Release the lock and close the file descriptor."""
+        if self._fd is not None:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                os.close(self._fd)
+            except OSError:
+                pass  # Ignore errors on release
+            finally:
+                self._fd = None
+
+    def __enter__(self) -> FileLock:
+        """Context manager entry - acquires the lock."""
+        self.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Context manager exit - releases the lock."""
+        self.release()
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -74,8 +167,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
