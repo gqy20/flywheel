@@ -57,6 +57,35 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **overrides) -> Todo:
+        """Return a new Todo with specified fields overridden.
+
+        Enables functional-style programming where modifications return
+        new instances instead of mutating the original.
+
+        Args:
+            **overrides: Field names and values to override in the copy.
+
+        Returns:
+            A new Todo instance with the specified fields updated.
+            The updated_at timestamp is automatically refreshed unless
+            explicitly overridden.
+
+        Example:
+            >>> todo = Todo(id=1, text="Buy milk")
+            >>> new_todo = todo.copy(text="Buy bread", done=True)
+            >>> todo.text  # Original unchanged
+            'Buy milk'
+            >>> new_todo.text
+            'Buy bread'
+        """
+        data = self.to_dict()
+        data.update(overrides)
+        # Refresh updated_at unless explicitly overridden
+        if "updated_at" not in overrides:
+            data["updated_at"] = _utc_now_iso()
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
