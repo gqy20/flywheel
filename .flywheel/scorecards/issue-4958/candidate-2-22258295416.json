@@ -1,29 +1,23 @@
 {
-  "issue_number": 4958,
+  "issue": 4958,
   "candidate": 2,
   "run_id": "22258295416",
-  "status": "verified",
-  "approach": "TDD - add failing tests for negative/zero ID validation, then implement minimal fix",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py",
-    "tests/test_storage_atomicity.py"
+  "branch": "claude/issue-4958-candidate-2-22258295416",
+  "pr_number": 4981,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4981",
+  "generated_at": "2026-02-21T15:51:50.687001+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_rejects_zero_id",
-    "test_todo_from_dict_accepts_positive_id"
-  ],
-  "tests_fixed": [
-    "test_concurrent_save_from_multiple_processes"
-  ],
-  "verification": {
-    "pytest": "passed (115 tests)",
-    "ruff": "passed"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "uv run pytest tests/ -v --tb=short",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py"
-  ]
+  "stage_response_sizes": {
+    "triage": 2762,
+    "plan": 2864,
+    "implement": 1529,
+    "verify": 3472,
+    "finalize": 1232
+  }
 }
