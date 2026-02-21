@@ -2,8 +2,45 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+
+# ISO 8601 pattern: supports formats like:
+# - 2024-01-15T10:30:00
+# - 2024-01-15T10:30:00Z
+# - 2024-01-15T10:30:00+00:00
+# - 2024-01-15T10:30:00.123456+00:00
+# - 2024-01-15T10:30:00.123456
+_ISO8601_PATTERN = re.compile(
+    r"^\d{4}-\d{2}-\d{2}"  # Date: YYYY-MM-DD
+    r"T\d{2}:\d{2}:\d{2}"  # Time: THH:MM:SS
+    r"(?:\.\d+)?"  # Optional microseconds
+    r"(?:Z|[+-]\d{2}:\d{2})?$"  # Optional timezone (Z or +HH:MM)
+)
+
+
+def _validate_iso8601(value: str, field_name: str) -> str:
+    """Validate that a string is a valid ISO 8601 timestamp.
+
+    Args:
+        value: The timestamp string to validate.
+        field_name: Name of the field for error messages.
+
+    Returns:
+        The validated timestamp string.
+
+    Raises:
+        ValueError: If the timestamp is not empty and not valid ISO 8601.
+    """
+    if not value:
+        return value
+    if not _ISO8601_PATTERN.match(value):
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"'{field_name}' must be a valid ISO 8601 timestamp."
+        )
+    return value
 
 
 def _utc_now_iso() -> str:
@@ -93,10 +130,14 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields (empty values are allowed)
+        created_at = _validate_iso8601(str(data.get("created_at") or ""), "created_at")
+        updated_at = _validate_iso8601(str(data.get("updated_at") or ""), "updated_at")
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
