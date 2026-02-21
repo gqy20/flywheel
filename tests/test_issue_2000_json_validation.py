@@ -119,3 +119,44 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4931 - validate ISO 8601 timestamps in from_dict
+def test_todo_from_dict_rejects_invalid_created_at_format() -> None:
+    """Todo.from_dict should reject invalid ISO 8601 format for 'created_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*iso|'created_at'.*timestamp"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "not-a-date"})
+
+
+def test_todo_from_dict_rejects_malformed_created_at() -> None:
+    """Todo.from_dict should reject malformed ISO 8601 timestamps for 'created_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*iso|'created_at'.*timestamp"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "2024-13-45T99:99:99"})
+
+
+def test_todo_from_dict_rejects_invalid_updated_at_format() -> None:
+    """Todo.from_dict should reject invalid ISO 8601 format for 'updated_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*iso|'updated_at'.*timestamp"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": "invalid-date"})
+
+
+def test_todo_from_dict_rejects_malformed_updated_at() -> None:
+    """Todo.from_dict should reject malformed ISO 8601 timestamps for 'updated_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*iso|'updated_at'.*timestamp"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": "2024-13-45T99:99:99"})
+
+
+def test_todo_from_dict_accepts_valid_iso8601_timestamps() -> None:
+    """Todo.from_dict should accept valid ISO 8601 timestamps."""
+    valid_iso = "2024-01-15T10:30:00+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": valid_iso, "updated_at": valid_iso})
+    assert todo.created_at == valid_iso
+    assert todo.updated_at == valid_iso
+
+
+def test_todo_from_dict_accepts_utc_iso8601_timestamps() -> None:
+    """Todo.from_dict should accept UTC ISO 8601 timestamps (the format we use)."""
+    valid_utc = "2024-01-15T10:30:00.123456+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": valid_utc, "updated_at": valid_utc})
+    assert todo.created_at == valid_utc
+    assert todo.updated_at == valid_utc
