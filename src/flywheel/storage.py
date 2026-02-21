@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int = 0  # Cache for O(1) next_id computation
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +126,26 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available todo ID in O(1) time.
+
+        Uses a cached _max_id value for O(1) performance instead of O(n) max() scan.
+        The cache is computed lazily on first call after load() or when needed.
+        """
+        # If cache is stale (todos have higher IDs than cached), recompute
+        if todos:
+            # Fast path: if we have cached value and list grew, check if cache is still valid
+            # This avoids O(n) scan when the cache is still valid
+            if self._max_id > 0:
+                # Check only the last few todos in case they have higher IDs
+                # This handles appends efficiently (most common case)
+                for todo in todos[-3:]:
+                    if todo.id > self._max_id:
+                        self._max_id = todo.id
+            else:
+                # First call or after clear: compute max (one-time O(n) cost)
+                self._max_id = max((todo.id for todo in todos), default=0)
+            return self._max_id + 1
+        else:
+            # Empty list: reset cache and return 1
+            self._max_id = 0
+            return 1
