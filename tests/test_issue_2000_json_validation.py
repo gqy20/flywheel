@@ -119,3 +119,18 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4861 - validate 'text' max length
+def test_todo_from_dict_accepts_text_at_max_length() -> None:
+    """Todo.from_dict should accept text at exactly 10000 characters."""
+    max_text = "a" * 10000
+    todo = Todo.from_dict({"id": 1, "text": max_text})
+    assert len(todo.text) == 10000
+
+
+def test_todo_from_dict_rejects_text_exceeding_max_length() -> None:
+    """Todo.from_dict should reject text longer than 10000 characters."""
+    long_text = "a" * 10001
+    with pytest.raises(ValueError, match=r"maximum length|too long|exceed"):
+        Todo.from_dict({"id": 1, "text": long_text})
