@@ -1,28 +1,23 @@
 {
-  "issue_number": 4916,
-  "candidate_number": 1,
+  "issue": 4916,
+  "candidate": 1,
   "run_id": "22254256740",
-  "created_at": "2026-02-21T09:50:00Z",
-  "summary": "Fix next_id to return first unused positive integer instead of max+1",
-  "changes": [
-    {
-      "file": "src/flywheel/storage.py",
-      "change_type": "modified",
-      "description": "Rewrote next_id to find first unused positive integer ID, ignoring negative IDs"
-    },
-    {
-      "file": "tests/test_minimal_framework.py",
-      "change_type": "modified",
-      "description": "Added 4 regression tests for non-contiguous IDs, negative IDs, mixed IDs, and zero/negative prevention"
-    }
+  "branch": "claude/issue-4916-candidate-1-22254256740",
+  "pr_number": 4922,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4922",
+  "generated_at": "2026-02-21T09:56:18.757574+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 14,
-  "tests_added": 4,
-  "risks": [
-    "Behavior change: next_id now returns first available ID instead of max+1. Existing workflows expecting max+1 will see different behavior."
-  ],
-  "verification": {
-    "linter_passed": true,
-    "all_tests_passed": true
+  "stage_response_sizes": {
+    "triage": 2730,
+    "plan": 2227,
+    "implement": 1832,
+    "verify": 2803,
+    "finalize": 910
   }
 }
