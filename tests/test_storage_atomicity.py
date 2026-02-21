@@ -151,6 +151,88 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_closed_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #4944: fd leakage when os.fdopen raises exception.
+
+    If os.fdopen raises an exception after mkstemp succeeds, the raw file
+    descriptor from mkstemp must be closed, otherwise it leaks.
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track the fd that mkstemp creates
+    leaked_fds = []
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure (e.g., encoding error, memory error)
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that the fd was closed after the failure
+    assert len(leaked_fds) == 1, "Expected exactly one fd to be created"
+    leaked_fd = leaked_fds[0]
+
+    # If fd is still open, os.fstat will succeed; if closed, it raises OSError
+    with pytest.raises(OSError):
+        os.fstat(leaked_fd)
+
+
+def test_fd_closed_when_fdopen_fails_with_non_oserror(tmp_path) -> None:
+    """Regression test for issue #4944: fd leakage when os.fdopen raises non-OSError.
+
+    If os.fdopen raises any exception (not just OSError) after mkstemp succeeds,
+    the raw file descriptor from mkstemp must still be closed, otherwise it leaks.
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track the fd that mkstemp creates
+    leaked_fds = []
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    def failing_fdopen_with_runtime_error(fd, *args, **kwargs):
+        # Simulate non-OSError failure (e.g., MemoryError, RuntimeError)
+        raise RuntimeError("Simulated non-OSError fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fdopen", failing_fdopen_with_runtime_error),
+        pytest.raises(RuntimeError, match="Simulated non-OSError fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that the fd was closed after the failure
+    assert len(leaked_fds) == 1, "Expected exactly one fd to be created"
+    leaked_fd = leaked_fds[0]
+
+    # If fd is still open, os.fstat will succeed; if closed, it raises OSError
+    with pytest.raises(OSError):
+        os.fstat(leaked_fd)
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
