@@ -97,6 +97,10 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
+            # Use `or ""` to convert None/missing to empty string, which triggers
+            # __post_init__ to generate timestamps. This ensures that None values
+            # are treated the same as missing values - both result in auto-generated
+            # timestamps rather than preserving None (which would fail type checks).
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
