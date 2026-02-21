@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 from unittest.mock import patch
 
@@ -229,3 +230,57 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_permissions_enforced_after_save(tmp_path) -> None:
+    """Regression test for issue #5027: File permissions must be 0o600 after save.
+
+    Security: Verifies that the final db.json file has restrictive permissions
+    (0o600 = owner read/write only) after save, even if pre-existing file had
+    different permissions.
+    """
+    db = tmp_path / ".todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file with permissive permissions (0o644)
+    db.write_text("[]", encoding="utf-8")
+    db.chmod(0o644)
+
+    # Verify initial permissions are permissive
+    initial_mode = db.stat().st_mode & 0o777
+    assert initial_mode == 0o644, f"Expected 0o644, got {oct(initial_mode)}"
+
+    # Save todos
+    todos = [Todo(id=1, text="test task")]
+    storage.save(todos)
+
+    # Verify final permissions are restrictive (0o600)
+    final_mode = db.stat().st_mode & 0o777
+    assert final_mode == stat.S_IRUSR | stat.S_IWUSR, (
+        f"Expected 0o600 (owner read/write only), got {oct(final_mode)}. "
+        f"File permissions must be restrictive after save for security."
+    )
+
+
+def test_fresh_file_has_restrictive_permissions(tmp_path) -> None:
+    """Test that a fresh save on new file produces 0o600 permissions.
+
+    Security: Even for newly created files, permissions must be 0o600.
+    """
+    db = tmp_path / "new_todo.json"
+    storage = TodoStorage(str(db))
+
+    # File should not exist yet
+    assert not db.exists()
+
+    # Save todos (creates new file)
+    todos = [Todo(id=1, text="fresh task")]
+    storage.save(todos)
+
+    # Verify file now exists with restrictive permissions
+    assert db.exists()
+    final_mode = db.stat().st_mode & 0o777
+    assert final_mode == stat.S_IRUSR | stat.S_IWUSR, (
+        f"Expected 0o600 (owner read/write only), got {oct(final_mode)}. "
+        f"Newly created files must have restrictive permissions for security."
+    )
