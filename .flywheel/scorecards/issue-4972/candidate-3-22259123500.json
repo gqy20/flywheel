@@ -1,27 +1,23 @@
 {
-  "issue_number": 4972,
-  "issue_title": "[Perf] save 方法对大型 todo 列表使用 indent=2 会产生不必要的文件体积膨胀",
-  "candidate_number": 3,
+  "issue": 4972,
+  "candidate": 3,
   "run_id": "22259123500",
-  "branch_name": "claude/issue-4972-candidate-3-22259123500",
-  "summary": "Optimized TodoStorage.save() to use compact JSON serialization for large todo lists (>=100 items) while maintaining pretty format for smaller lists (<100 items) for readability.",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py"
-    ],
-    "test_files": [
-      "tests/test_issue_4972_compact_serialization.py"
-    ]
-  },
-  "acceptance_criteria_met": {
-    "small_lists_readable": true,
-    "large_lists_compact": true,
-    "backward_compatible": true
-  },
-  "tests_added": 6,
-  "tests_passed": 118,
-  "file_size_reduction": "12-15% for large lists",
-  "implementation_approach": "Dynamic indent selection based on list size threshold (100 items)",
-  "risks": "None identified - JSON output remains semantically identical",
-  "limitations": "Threshold is fixed at 100 items; not configurable"
+  "branch": "claude/issue-4972-candidate-3-22259123500",
+  "pr_number": 4993,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4993",
+  "generated_at": "2026-02-21T16:49:44.824708+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3223,
+    "plan": 2286,
+    "implement": 1860,
+    "verify": 2844,
+    "finalize": 1111
+  }
 }
