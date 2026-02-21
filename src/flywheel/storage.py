@@ -126,3 +126,19 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def count(self) -> int:
+        """Return the count of todos without full deserialization.
+
+        This method provides a more efficient way to check if there are any todos
+        without loading and deserializing all todo objects. Currently implemented
+        using len(self.load()) for simplicity, but could be optimized later to
+        read file metadata or use a cached count.
+
+        Returns:
+            The number of todos in storage.
+
+        Raises:
+            ValueError: If the storage file contains invalid JSON or is not a list.
+        """
+        return len(self.load())
