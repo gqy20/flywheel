@@ -151,6 +151,39 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_rejects_symlink_destination(tmp_path) -> None:
+    """Regression test for issue #4832: Symlink attack prevention.
+
+    If the destination path is a symlink, save() should reject it to prevent
+    an attacker from redirecting writes to an arbitrary file.
+
+    Security: os.replace follows symlinks at destination, which could allow
+    an attacker-controlled symlink to redirect writes to sensitive files.
+    """
+    # Create a target file that the attacker wants to protect
+    attacker_target = tmp_path / "secret" / "sensitive.txt"
+    attacker_target.parent.mkdir()
+    attacker_target.write_text("SENSITIVE DATA - DO NOT MODIFY", encoding="utf-8")
+
+    # Create a symlink in the database location pointing to the target
+    db_symlink = tmp_path / "todo.json"
+    db_symlink.symlink_to(attacker_target)
+
+    # Verify symlink is set up correctly
+    assert db_symlink.is_symlink()
+    assert db_symlink.exists()
+
+    # Attempt to save should raise ValueError
+    storage = TodoStorage(str(db_symlink))
+    todos = [Todo(id=1, text="malicious todo")]
+
+    with pytest.raises(ValueError, match=r"[Ss]ymlink"):
+        storage.save(todos)
+
+    # Verify the attacker's target file is unchanged
+    assert attacker_target.read_text(encoding="utf-8") == "SENSITIVE DATA - DO NOT MODIFY"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
