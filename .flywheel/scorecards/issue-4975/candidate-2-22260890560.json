@@ -1,0 +1,29 @@
+{
+  "issue_number": 4975,
+  "candidate_number": 2,
+  "run_id": "22260890560",
+  "status": "implemented",
+  "summary": "Added TodoStorage.exists() helper method that returns True if the database file exists, False otherwise. This provides a convenient API for users to check file existence without accessing the internal .path attribute.",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "change_type": "modified",
+      "description": "Added exists() method to TodoStorage class"
+    },
+    {
+      "file": "tests/test_issue_4975_storage_exists.py",
+      "change_type": "added",
+      "description": "Added regression tests for exists() method"
+    }
+  ],
+  "tests_run": [
+    "tests/test_issue_4975_storage_exists.py::test_exists_returns_false_before_any_save",
+    "tests/test_issue_4975_storage_exists.py::test_exists_returns_true_after_save",
+    "tests/test_issue_4975_storage_exists.py::test_exists_returns_false_after_file_deleted",
+    "tests/test_issue_4975_storage_exists.py::test_exists_uses_internal_path_attribute",
+    "tests/test_issue_4975_storage_exists.py::test_exists_with_default_path"
+  ],
+  "all_tests_passed": true,
+  "risks": "Minimal risk - the implementation is a simple wrapper around self.path.exists()",
+  "limitations": "None - the method returns a boolean indicating file existence"
+}
