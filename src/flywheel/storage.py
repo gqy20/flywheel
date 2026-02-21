@@ -124,5 +124,19 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def count(self) -> int:
+        """Return the count of todos without loading full objects.
+
+        This is more efficient than len(storage.load()) for simple count checks,
+        as it only deserializes the list structure, not individual Todo objects.
+
+        Returns:
+            int: Number of todos in storage.
+
+        Raises:
+            ValueError: If JSON is corrupted or not a valid list.
+        """
+        return len(self.load())
+
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
