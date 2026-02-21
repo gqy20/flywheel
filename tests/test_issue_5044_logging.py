@@ -6,7 +6,6 @@ to help diagnose issues when storage operations fail.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from unittest.mock import patch
@@ -54,9 +53,10 @@ class TestStorageLogging:
         # Create invalid JSON file
         db.write_text("{ invalid json", encoding="utf-8")
 
-        with caplog.at_level(logging.DEBUG, logger="test_storage"):
-            with pytest.raises(ValueError, match="Invalid JSON"):
-                storage.load()
+        with caplog.at_level(logging.DEBUG, logger="test_storage"), pytest.raises(
+            ValueError, match="Invalid JSON"
+        ):
+            storage.load()
 
         # Should have logged a debug message about the error
         assert any(
@@ -99,9 +99,8 @@ class TestStorageLogging:
         # Create invalid JSON file
         db.write_text("{ invalid json", encoding="utf-8")
 
-        with caplog.at_level(logging.DEBUG):
-            with pytest.raises(ValueError, match="Invalid JSON"):
-                storage.load()
+        with caplog.at_level(logging.DEBUG), pytest.raises(ValueError, match="Invalid JSON"):
+            storage.load()
 
         # Should not have logged anything
         assert len(caplog.records) == 0
