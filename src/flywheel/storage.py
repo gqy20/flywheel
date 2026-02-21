@@ -14,6 +14,9 @@ from .todo import Todo
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
+# Threshold for switching from pretty to compact JSON format
+_COMPACT_FORMAT_THRESHOLD = 100
+
 
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
@@ -95,7 +98,9 @@ class TodoStorage:
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        # Use compact format for large lists to reduce file size bloat
+        indent = 2 if len(todos) < _COMPACT_FORMAT_THRESHOLD else None
+        content = json.dumps(payload, ensure_ascii=False, indent=indent)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
