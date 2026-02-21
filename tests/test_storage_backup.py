@@ -6,8 +6,6 @@ of existing files before overwriting them, providing simple undo capability.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -69,8 +67,6 @@ def test_backup_failure_does_not_affect_save(tmp_path, monkeypatch) -> None:
     storage.save(todos_v1)
 
     # Make shutil.copy2 fail to simulate backup failure
-    original_copy2 = shutil.copy2
-
     def failing_copy2(*args, **kwargs):
         raise OSError("Simulated backup failure")
 
