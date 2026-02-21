@@ -1,28 +1,23 @@
 {
-  "issue_number": 4846,
-  "candidate_number": 2,
+  "issue": 4846,
+  "candidate": 2,
   "run_id": "22251272823",
-  "status": "verified",
-  "summary": "Fix from_dict to validate text field for whitespace-only values",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "description": "Added validation in from_dict() to reject empty/whitespace-only text, consistent with rename() method"
-    },
-    {
-      "file": "tests/test_issue_2000_json_validation.py",
-      "description": "Added 3 regression tests for whitespace-only text validation"
-    }
+  "branch": "claude/issue-4846-candidate-2-22251272823",
+  "pr_number": 4882,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4882",
+  "generated_at": "2026-02-21T06:24:50.577278+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": 115,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "pytest_result": "15 tests passed",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-    "ruff_result": "All checks passed",
-    "full_test_command": "uv run pytest tests/ -v",
-    "full_test_result": "115 tests passed, no regressions"
-  },
-  "risks": "Low - validation is consistent with existing rename() method behavior"
+  "stage_response_sizes": {
+    "triage": 3173,
+    "plan": 4000,
+    "implement": 1950,
+    "verify": 1428,
+    "finalize": 1311
+  }
 }
