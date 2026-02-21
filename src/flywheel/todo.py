@@ -67,7 +67,14 @@ class Todo:
 
         # Validate 'id' is an integer (or can be converted to one)
         try:
-            todo_id = int(data["id"])
+            raw_id = data["id"]
+            todo_id = int(raw_id)
+            # Reject floats that lose precision when converted to int
+            if isinstance(raw_id, float) and raw_id != todo_id:
+                raise ValueError(
+                    f"Invalid value for 'id': {raw_id!r}. "
+                    "'id' must be an integer (float with decimal is not allowed)."
+                )
         except (ValueError, TypeError) as e:
             raise ValueError(
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
