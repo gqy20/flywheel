@@ -158,3 +158,82 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestNextIdEdgeCases:
+    """Test next_id() with edge cases: gap IDs, high IDs, empty list."""
+
+    def test_next_id_with_gap_ids(self) -> None:
+        """Issue #4987: next_id should return max_id + 1 even with gaps."""
+        storage = TodoStorage()  # No file needed for this test
+        todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+        # max id is 10, so next_id should be 11
+        assert storage.next_id(todos) == 11
+
+    def test_next_id_with_single_high_id(self) -> None:
+        """Issue #4987: next_id should handle a single high ID correctly."""
+        storage = TodoStorage()
+        todos = [Todo(id=100, text="high id")]
+        assert storage.next_id(todos) == 101
+
+    def test_next_id_empty_list(self) -> None:
+        """Issue #4987: next_id should return 1 for empty list."""
+        storage = TodoStorage()
+        assert storage.next_id([]) == 1
+
+    def test_next_id_after_removing_middle_item(self, tmp_path) -> None:
+        """Issue #4987: next_id after removing middle item returns max + 1."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Create and save todos
+        todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+        storage.save(todos)
+
+        # Remove middle item
+        remaining = [t for t in storage.load() if t.id != 2]
+
+        # next_id should be 4 (max is 3), not 2 (the gap)
+        assert storage.next_id(remaining) == 4
+
+
+class TestLoadWithDuplicateIds:
+    """Test load() behavior with duplicate IDs in JSON."""
+
+    def test_load_with_duplicate_ids(self, tmp_path) -> None:
+        """Issue #4987: load() should handle JSON with duplicate IDs."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Write JSON with duplicate IDs directly
+        raw_data = [
+            {"id": 1, "text": "first", "done": False},
+            {"id": 1, "text": "duplicate", "done": False},
+            {"id": 2, "text": "second", "done": True},
+        ]
+        db.write_text(json.dumps(raw_data), encoding="utf-8")
+
+        # Should load all items, including duplicates
+        loaded = storage.load()
+        assert len(loaded) == 3
+        # Both items with id=1 should be present
+        id_1_items = [t for t in loaded if t.id == 1]
+        assert len(id_1_items) == 2
+        assert id_1_items[0].text == "first"
+        assert id_1_items[1].text == "duplicate"
+
+    def test_next_id_with_duplicate_ids(self, tmp_path) -> None:
+        """Issue #4987: next_id should work correctly after loading duplicates."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Write JSON with duplicate IDs
+        raw_data = [
+            {"id": 5, "text": "a", "done": False},
+            {"id": 5, "text": "duplicate", "done": False},
+        ]
+        db.write_text(json.dumps(raw_data), encoding="utf-8")
+
+        loaded = storage.load()
+        # max id is 5, so next_id should be 6
+        assert storage.next_id(loaded) == 6
