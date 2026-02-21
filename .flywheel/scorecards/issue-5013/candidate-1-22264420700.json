@@ -1,45 +1,23 @@
 {
-  "issue_number": 5013,
-  "issue_title": "[Bug] next_id 方法不会检测或处理负数 ID 和 ID=0 的情况，可能产生 ID=0 或负数的新 Todo",
-  "candidate_number": 1,
+  "issue": 5013,
+  "candidate": 1,
   "run_id": "22264420700",
   "branch": "claude/issue-5013-candidate-1-22264420700",
-  "status": "verified",
-  "approach": {
-    "summary": "Filter out non-positive IDs in next_id method to ensure new todos always receive a positive integer ID >= 1",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_5013_next_id_nonpositive.py"
-    ],
-    "key_changes": [
-      {
-        "file": "src/flywheel/storage.py",
-        "line": 128,
-        "change": "Modified next_id to filter out IDs <= 0 when calculating max, ensuring next ID is always >= 1"
-      },
-      {
-        "file": "tests/test_issue_5013_next_id_nonpositive.py",
-        "change": "Added 7 regression tests covering negative IDs, zero IDs, and mixed scenarios"
-      }
-    ]
-  },
-  "tests": {
-    "added": 7,
-    "passed": 7,
-    "failed": 0,
-    "test_file": "tests/test_issue_5013_next_id_nonpositive.py"
-  },
-  "lint": {
-    "status": "passed",
-    "tool": "ruff"
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_5013_next_id_nonpositive.py -v",
-    "pytest_result": "7 passed in 0.06s",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5013_next_id_nonpositive.py",
-    "ruff_result": "All checks passed!"
-  },
-  "risks": [],
-  "limitations": [],
-  "timestamp": "2026-02-21T18:45:00Z"
+  "pr_number": 5050,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5050",
+  "generated_at": "2026-02-21T21:42:34.945122+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2358,
+    "plan": 3718,
+    "implement": 1343,
+    "verify": 2923,
+    "finalize": 2194
+  }
 }
