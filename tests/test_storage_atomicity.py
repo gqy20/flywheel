@@ -151,6 +151,55 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fchmod_failure_closes_file_descriptor(tmp_path) -> None:
+    """Regression test for issue #4875: File descriptor leak on fchmod failure.
+
+    Tests that if os.fchmod raises OSError, the file descriptor fd returned
+    by mkstemp is properly closed in the cleanup block. Without the fix,
+    fd leaks when fchmod fails (e.g., due to EBADF or permission issues).
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Get initial open file descriptor count
+    proc_fd_path = Path(f"/proc/{os.getpid()}/fd")
+    initial_fd_count = len(list(proc_fd_path.iterdir())) if proc_fd_path.exists() else 0
+
+    # Track fd created by mkstemp
+    leaked_fds = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    # Mock os.fchmod to raise OSError, simulating permission/bad fd error
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fchmod", side_effect=OSError("Mocked fchmod failure")),
+        pytest.raises(OSError, match="Mocked fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify the fd was closed (no longer in /proc/self/fd)
+    if proc_fd_path.exists():
+        for fd in leaked_fds:
+            fd_link = proc_fd_path / str(fd)
+            assert not fd_link.exists(), f"File descriptor {fd} was not closed after fchmod failure"
+
+    # Verify fd count is stable (no leak)
+    if proc_fd_path.exists():
+        final_fd_count = len(list(proc_fd_path.iterdir()))
+        assert final_fd_count == initial_fd_count, (
+            f"File descriptor leak detected: {final_fd_count - initial_fd_count} fds leaked"
+        )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
