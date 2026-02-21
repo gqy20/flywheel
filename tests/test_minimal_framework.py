@@ -158,3 +158,30 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_finds_gap_in_non_contiguous_ids() -> None:
+    """Bug #4916: next_id should return first available ID, not max+1."""
+    storage = TodoStorage()
+    # IDs [1, 5] - next_id should return 2, not 6
+    todos = [Todo(id=1, text="first"), Todo(id=5, text="fifth")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_ignores_negative_ids() -> None:
+    """Bug #4916: next_id should ignore negative IDs."""
+    storage = TodoStorage()
+    # IDs [-1, 1] - negative ID should not affect calculation
+    todos = [Todo(id=-1, text="negative"), Todo(id=1, text="first")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_never_returns_zero_or_negative() -> None:
+    """Bug #4916: next_id should always return positive integer >= 1."""
+    storage = TodoStorage()
+    # All negative IDs - should still return 1
+    todos = [Todo(id=-1, text="negative"), Todo(id=-5, text="also_negative")]
+    assert storage.next_id(todos) == 1
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
