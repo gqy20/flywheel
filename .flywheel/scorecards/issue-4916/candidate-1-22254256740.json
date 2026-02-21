@@ -1,0 +1,28 @@
+{
+  "issue_number": 4916,
+  "candidate_number": 1,
+  "run_id": "22254256740",
+  "created_at": "2026-02-21T09:50:00Z",
+  "summary": "Fix next_id to return first unused positive integer instead of max+1",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "change_type": "modified",
+      "description": "Rewrote next_id to find first unused positive integer ID, ignoring negative IDs"
+    },
+    {
+      "file": "tests/test_minimal_framework.py",
+      "change_type": "modified",
+      "description": "Added 4 regression tests for non-contiguous IDs, negative IDs, mixed IDs, and zero/negative prevention"
+    }
+  ],
+  "tests_passed": 14,
+  "tests_added": 4,
+  "risks": [
+    "Behavior change: next_id now returns first available ID instead of max+1. Existing workflows expecting max+1 will see different behavior."
+  ],
+  "verification": {
+    "linter_passed": true,
+    "all_tests_passed": true
+  }
+}
