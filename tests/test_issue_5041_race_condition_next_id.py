@@ -7,10 +7,7 @@ duplicate IDs, even when multiple processes are writing simultaneously.
 from __future__ import annotations
 
 import multiprocessing
-import time
 from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
