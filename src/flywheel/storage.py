@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +124,18 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Generate the next unique positive ID.
+
+        Only considers positive IDs when determining the next ID.
+        This prevents issues with:
+        - Negative IDs in loaded data causing collisions
+        - All-negative IDs returning a negative next_id
+
+        Returns:
+            The smallest positive integer not in use, or 1 if empty/no positive IDs.
+        """
+        # Filter to only positive IDs
+        positive_ids = {todo.id for todo in todos if todo.id > 0}
+        if not positive_ids:
+            return 1
+        return max(positive_ids) + 1
