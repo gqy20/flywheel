@@ -53,12 +53,35 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, cache_enabled: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self._cache_enabled = cache_enabled
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
+
+    def invalidate_cache(self) -> None:
+        """Clear the in-memory cache.
+
+        When cache is enabled, call this to force the next load() to read from disk.
+        """
+        self._cache = None
+        self._cache_mtime = None
 
     def load(self) -> list[Todo]:
+        # Handle non-existent file
         if not self.path.exists():
+            if self._cache_enabled:
+                # Cache empty list for consistency
+                self._cache = []
+                self._cache_mtime = None
             return []
+
+        # Check cache validity when caching is enabled
+        if self._cache_enabled:
+            current_mtime = self.path.stat().st_mtime
+            if self._cache is not None and self._cache_mtime == current_mtime:
+                # Return cached data
+                return self._cache
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +103,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Update cache when caching is enabled
+        if self._cache_enabled:
+            self._cache = todos
+            self._cache_mtime = self.path.stat().st_mtime
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +149,9 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Invalidate cache after successful save
+            self.invalidate_cache()
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
