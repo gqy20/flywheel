@@ -1,0 +1,23 @@
+{
+  "issue_number": 5056,
+  "candidate_number": 1,
+  "run_id": "22266190850",
+  "branch": "claude/issue-5056-candidate-1-22266190850",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/formatter.py"
+    ],
+    "test_files": [
+      "tests/test_issue_1924_format_todo_sanitization.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "summary": "Fixed format_list(None) to raise TypeError instead of silently returning 'No todos yet.'",
+  "implementation_details": {
+    "approach": "Added explicit None check before the falsy check to distinguish None from empty list",
+    "lines_changed": 2,
+    "test_added": "test_format_list_none_raises_type_error"
+  }
+}
