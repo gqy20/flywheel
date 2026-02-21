@@ -158,3 +158,57 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_finds_smallest_available_with_gaps(tmp_path) -> None:
+    """Bug #4985: next_id() should find smallest available ID, not max+1.
+
+    After removing todo with id=2 from [id=1, id=3], next_id() should
+    return 2 (the smallest available), not 4 (max+1).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with gaps: [1, 3, 5]
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2 (smallest available), not 6 (max+1)
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_no_duplicate_after_deletion(tmp_path) -> None:
+    """Bug #4985: Adding a new todo after deletion should not create duplicate IDs.
+
+    After removing todo with id=2 from [id=1, id=2, id=3], adding new todo
+    should get id=2 (not duplicate id=3 which would happen with max+1).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Start with [1, 2, 3]
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    storage.save(todos)
+
+    # Remove id=2, leaving [1, 3]
+    loaded = storage.load()
+    remaining = [t for t in loaded if t.id != 2]
+    storage.save(remaining)
+
+    # next_id should be 2 (the gap), not 4
+    reloaded = storage.load()
+    assert storage.next_id(reloaded) == 2
+
+
+def test_next_id_sequential_for_empty_and_continuous(tmp_path) -> None:
+    """Bug #4985: next_id() should still work correctly for empty/continuous cases."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Continuous [1, 2] should return 3
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b")]
+    assert storage.next_id(todos) == 3
