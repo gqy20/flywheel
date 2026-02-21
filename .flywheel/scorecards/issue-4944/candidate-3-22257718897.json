@@ -1,0 +1,20 @@
+{
+  "issue_number": 4944,
+  "issue_title": "[Bug] fd leakage when os.fdopen raises exception after mkstemp succeeds",
+  "candidate_number": 3,
+  "run_id": "22257718897",
+  "branch": "claude/issue-4944-candidate-3-22257718897",
+  "created_at": "2026-02-21T12:00:00Z",
+  "fix_summary": "Fixed file descriptor leak in TodoStorage.save() by wrapping os.fdopen in try-except to ensure the raw fd from mkstemp is closed if fdopen fails.",
+  "test_coverage": {
+    "test_file": "tests/test_storage_atomicity.py",
+    "test_name": "test_fd_not_leaked_when_fdopen_raises_exception",
+    "test_description": "Verifies that when os.fdopen raises an exception after mkstemp succeeds, the raw file descriptor is properly closed."
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "risks": "Minimal risk - the fix adds proper error handling to close the fd if fdopen fails, which is the correct behavior.",
+  "limitations": "None"
+}

@@ -229,3 +229,42 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_fd_not_leaked_when_fdopen_raises_exception(tmp_path) -> None:
+    """Regression test for issue #4944: fd leakage when os.fdopen raises exception.
+
+    If os.fdopen raises an exception after mkstemp succeeds, the raw file descriptor
+    from mkstemp must be properly closed to avoid resource leakage.
+    """
+    import os
+    import tempfile
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track fds that were created
+    leaked_fds = []
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    # Mock os.fdopen to raise an exception
+    class FdOpenRaiser:
+        def __init__(self, *args, **kwargs):
+            raise OSError("Simulated fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", FdOpenRaiser),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify fd was closed - os.fstat should raise BadFileDescriptor
+    for fd in leaked_fds:
+        with pytest.raises(OSError):
+            os.fstat(fd)
