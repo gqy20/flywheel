@@ -171,8 +171,6 @@ def test_load_handles_file_deleted_between_exists_and_stat(tmp_path) -> None:
     # Use a mock to replace the path's stat method
     # This simulates a race condition where the file is deleted between
     # the exists() check and the stat() call
-    import os
-
     def mock_stat(*args, **kwargs):
         raise FileNotFoundError(f"No such file or directory: '{db}'")
 
