@@ -1,0 +1,61 @@
+{
+  "issue": 4836,
+  "candidate": 1,
+  "run_id": "22249267181",
+  "timestamp": "2026-02-21T00:00:00Z",
+  "triage": {
+    "summary": "Add file change callback hooks support for TodoStorage",
+    "root_cause": "TodoStorage has no extensibility mechanism - no hooks for customization",
+    "risk_points": [
+      "Exception handling - hooks exceptions propagate to caller",
+      "Backward compatibility - all callbacks optional with None default",
+      "Type hints - proper Callable types from collections.abc"
+    ],
+    "verification_targets": [
+      "Without callbacks - behavior unchanged",
+      "on_post_save called after save() with todos list",
+      "on_post_load called after load() with todos list",
+      "on_pre_save called before save() with todos list",
+      "Hook exception behavior is clear and documented"
+    ]
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4836_hooks.py"
+    ],
+    "approach": "Add optional keyword-only callback parameters to TodoStorage.__init__ with type HookCallback = Callable[[list[Todo]], None]",
+    "hooks_implemented": [
+      "on_pre_save - called before save operation",
+      "on_post_save - called after successful atomic save",
+      "on_post_load - called after successful load (including empty file case)"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_4836_hooks.py",
+    "test_count": 7,
+    "tests_passed": 7,
+    "coverage": [
+      "test_no_hooks_behavior_unchanged",
+      "test_on_post_save_called_after_save",
+      "test_on_post_load_called_after_load",
+      "test_on_pre_save_called_before_save",
+      "test_all_hooks_together",
+      "test_hook_exception_propagates",
+      "test_on_post_load_not_called_on_empty_file"
+    ]
+  },
+  "checks": {
+    "pytest": "PASSED",
+    "ruff": "PASSED",
+    "existing_tests": "PASSED (test_storage_atomicity.py - 6 tests)"
+  },
+  "acceptance_criteria": {
+    "on_pre_save_supported": true,
+    "on_post_save_supported": true,
+    "on_post_load_supported": true,
+    "callback_receives_todos": true,
+    "backward_compatible": true,
+    "exception_propagation": "Hooks exceptions propagate to caller"
+  }
+}
