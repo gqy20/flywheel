@@ -158,3 +158,88 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_only_zero_ids() -> None:
+    """Bug #4560: next_id should return unique ID when all IDs are 0.
+
+    The problem: when all existing IDs are 0, next_id returns 1.
+    This is the same value returned for an empty list.
+    While 1 is technically correct (max of [0] is 0, 0+1=1),
+    the issue is about ensuring IDs are always unique.
+
+    The acceptance criteria states: "next_id never returns 0 since Todo.id is typically >= 1"
+    So when all IDs are 0, we should return a positive ID (>= 1) that doesn't collide.
+    """
+    storage = TodoStorage("/tmp/test.json")
+
+    # Edge case: todos with ALL IDs being 0 (invalid/malformed data)
+    todos = [Todo(id=0, text="zero id todo")]
+
+    next_id = storage.next_id(todos)
+
+    # next_id should return a positive ID (>= 1), not 0
+    assert next_id >= 1
+
+    # The returned ID should ideally not collide with existing IDs
+    # Since all existing IDs are 0, and next_id returns 1, this is fine
+    # But the key insight is: we should ensure it's >= 1
+    existing_ids = {todo.id for todo in todos}
+    # If next_id is 1, it won't be in existing_ids (which only contains 0)
+    assert next_id not in existing_ids
+
+
+def test_next_id_empty_list_vs_all_zeros_distinguishable() -> None:
+    """Bug #4560: Ensure next_id handles empty list and all-zeros list correctly.
+
+    Both cases return 1, which is acceptable as long as:
+    1. Empty list returns 1 (correct)
+    2. List with all zeros returns a value >= 1 that doesn't collide with existing
+
+    This test verifies the acceptance criteria: "next_id never returns 0"
+    """
+    storage = TodoStorage("/tmp/test.json")
+
+    # Empty list should return 1
+    empty_next_id = storage.next_id([])
+    assert empty_next_id == 1
+
+    # List with all zeros should also return a positive ID (>= 1)
+    zero_todos = [Todo(id=0, text="zero")]
+    zero_next_id = storage.next_id(zero_todos)
+    assert zero_next_id >= 1
+
+    # Key requirement: next_id should never return 0
+    assert empty_next_id != 0
+    assert zero_next_id != 0
+
+
+def test_next_id_never_returns_existing_id() -> None:
+    """Bug #4560: next_id should never return an ID that already exists.
+
+    The core issue: if we have todos with mixed valid and zero IDs,
+    next_id must ensure it doesn't return an existing ID.
+
+    Example scenario that could cause collision:
+    - todos = [Todo(id=0), Todo(id=1)]
+    - max() returns 1, so next_id returns 2 (correct!)
+
+    This test ensures the acceptance criteria:
+    "next_id returns unique ID regardless of existing ID values"
+    """
+    storage = TodoStorage("/tmp/test.json")
+
+    # Test various edge cases where collision could occur
+    test_cases = [
+        # (todos, expected_not_in_set)
+        ([Todo(id=0, text="t0"), Todo(id=1, text="t1")], {0, 1}),
+        ([Todo(id=0, text="t0"), Todo(id=2, text="t2")], {0, 2}),
+        ([Todo(id=0, text="t0"), Todo(id=1, text="t1"), Todo(id=2, text="t2")], {0, 1, 2}),
+    ]
+
+    for todos, existing_ids in test_cases:
+        next_id = storage.next_id(todos)
+        # Verify the returned ID doesn't collide with any existing ID
+        assert next_id not in existing_ids, (
+            f"next_id={next_id} collides with existing IDs {existing_ids}"
+        )
