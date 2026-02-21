@@ -1,30 +1,23 @@
 {
-  "issue_number": 4905,
+  "issue": 4905,
   "candidate": 2,
   "run_id": "22254992176",
-  "branch_name": "claude/issue-4905-candidate-2-22254992176",
-  "status": "implemented",
-  "plan": {
-    "description": "Add export functionality for CSV and Markdown formats",
-    "approach": "Add export_csv() and export_markdown() methods to TodoStorage class using TDD",
-    "files_to_touch": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py",
-      "tests/test_issue_4905_export_functionality.py"
-    ],
-    "test_plan": [
-      "Test CSV export with unicode characters",
-      "Test CSV export with empty list",
-      "Test CSV export headers match spec: id,text,done,created_at,updated_at",
-      "Test Markdown export table structure",
-      "Test Markdown export with unicode characters"
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_4905_export_functionality.py -v",
-      "uv run ruff check src/flywheel/storage.py"
-    ]
-  },
-  "implementation_summary": "Added export_csv() and export_markdown() methods to TodoStorage class, plus export CLI command with --format option (json, csv, md/markdown)",
-  "tests_passed": 116,
-  "created_at": "2026-02-21T00:00:00Z"
+  "branch": "claude/issue-4905-candidate-2-22254992176",
+  "pr_number": 4937,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4937",
+  "generated_at": "2026-02-21T10:54:11.018618+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3273,
+    "plan": 2533,
+    "implement": 1085,
+    "verify": 2012,
+    "finalize": 1494
+  }
 }
