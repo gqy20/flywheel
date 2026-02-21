@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -123,6 +122,18 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def exists(self) -> bool:
+        """Check if the database file exists without loading it.
+
+        This is an efficient way to check database existence without triggering
+        file I/O and JSON parsing. Useful for CLI status checks and conditional
+        initialization.
+
+        Returns:
+            True if the database file exists, False otherwise.
+        """
+        return self.path.exists()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
