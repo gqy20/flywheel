@@ -169,9 +169,11 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         try:
             storage = TodoStorage(str(db))
             # Each worker creates unique todos with worker_id in text
+            # Use worker_id + 1 to ensure positive IDs (id must be > 0)
+            todo_id_base = worker_id + 1
             todos = [
-                Todo(id=i, text=f"worker-{worker_id}-todo-{i}"),
-                Todo(id=i + 1, text=f"worker-{worker_id}-todo-{i + 1}"),
+                Todo(id=todo_id_base, text=f"worker-{worker_id}-todo-{todo_id_base}"),
+                Todo(id=todo_id_base + 1, text=f"worker-{worker_id}-todo-{todo_id_base + 1}"),
             ]
             storage.save(todos)
 
