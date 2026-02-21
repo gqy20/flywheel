@@ -16,6 +16,48 @@ from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
 
+class TestTOCTOURaceCondition:
+    """Tests for TOCTOU (Time-of-check to time-of-use) race condition handling.
+
+    Issue #4903: load() should handle FileNotFoundError gracefully when file
+    is deleted between exists() check and stat()/read_text() calls.
+    """
+
+    def test_load_handles_file_deleted_after_exists_check(self, tmp_path) -> None:
+        """Test that load() handles file deleted between exists() and stat()."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Create a valid file
+        todos = [Todo(id=1, text="initial")]
+        storage.save(todos)
+
+        # Simulate TOCTOU race: file deleted between exists() check and stat() call
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(Path, "stat", side_effect=FileNotFoundError("Race condition")),
+        ):
+            # Should not raise uncaught FileNotFoundError
+            # Should return empty list or raise a cleaner error
+            result = storage.load()
+            assert result == []
+
+    def test_load_handles_file_deleted_before_read_text(self, tmp_path) -> None:
+        """Test that load() handles file deleted between stat() and read_text()."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Create a valid file
+        todos = [Todo(id=1, text="initial")]
+        storage.save(todos)
+
+        # Simulate TOCTOU race: file exists and stat succeeds, but read_text fails
+        with patch.object(Path, "read_text", side_effect=FileNotFoundError("Race condition")):
+            # Should not raise uncaught FileNotFoundError
+            result = storage.load()
+            assert result == []
+
+
 def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     """Test that save uses atomic os.replace instead of non-atomic write_text."""
     db = tmp_path / "todo.json"
