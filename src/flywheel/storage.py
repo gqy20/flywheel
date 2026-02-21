@@ -113,6 +113,7 @@ class TodoStorage:
             # Try to acquire exclusive lock with non-blocking flag
             # Use a simple spin-loop with timeout
             import time
+
             start_time = time.monotonic()
 
             while True:
@@ -159,8 +160,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):

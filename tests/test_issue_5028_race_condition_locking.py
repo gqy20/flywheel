@@ -38,7 +38,9 @@ def test_concurrent_add_operations_no_data_loss(tmp_path: Path) -> None:
     """
     db_path = tmp_path / "test.json"
 
-    def add_todo_worker(worker_id: int, db_path_str: str, result_queue: multiprocessing.Queue) -> None:
+    def add_todo_worker(
+        worker_id: int, db_path_str: str, result_queue: multiprocessing.Queue
+    ) -> None:
         """Worker that adds a single todo and reports the result."""
         try:
             app = TodoApp(db_path=db_path_str)
@@ -54,10 +56,7 @@ def test_concurrent_add_operations_no_data_loss(tmp_path: Path) -> None:
 
     # Start all workers at roughly the same time
     for i in range(num_workers):
-        p = multiprocessing.Process(
-            target=add_todo_worker,
-            args=(i, str(db_path), result_queue)
-        )
+        p = multiprocessing.Process(target=add_todo_worker, args=(i, str(db_path), result_queue))
         processes.append(p)
         p.start()
 
@@ -90,8 +89,7 @@ def test_concurrent_add_operations_no_data_loss(tmp_path: Path) -> None:
     # All IDs should be unique (no duplicates from race condition)
     ids = [todo.id for todo in todos]
     assert len(set(ids)) == num_workers, (
-        f"Duplicate IDs found: {ids}. "
-        f"This indicates race condition in ID assignment."
+        f"Duplicate IDs found: {ids}. This indicates race condition in ID assignment."
     )
 
     # All worker texts should be present
@@ -110,7 +108,9 @@ def test_concurrent_mark_done_operations(tmp_path: Path) -> None:
     for i in range(5):
         app.add(f"task-{i}")
 
-    def mark_done_worker(todo_id: int, db_path_str: str, result_queue: multiprocessing.Queue) -> None:
+    def mark_done_worker(
+        todo_id: int, db_path_str: str, result_queue: multiprocessing.Queue
+    ) -> None:
         """Worker that marks a todo as done."""
         try:
             app = TodoApp(db_path=db_path_str)
@@ -126,8 +126,7 @@ def test_concurrent_mark_done_operations(tmp_path: Path) -> None:
     for i in range(1, 6):  # IDs 1-5
         for _ in range(3):  # Multiple workers per todo
             p = multiprocessing.Process(
-                target=mark_done_worker,
-                args=(i, str(db_path), result_queue)
+                target=mark_done_worker, args=(i, str(db_path), result_queue)
             )
             processes.append(p)
             p.start()
@@ -182,10 +181,7 @@ def test_concurrent_remove_operations(tmp_path: Path) -> None:
     # Each todo gets multiple removal attempts
     for i in range(1, num_todos + 1):
         for _ in range(3):
-            p = multiprocessing.Process(
-                target=remove_worker,
-                args=(i, str(db_path), result_queue)
-            )
+            p = multiprocessing.Process(target=remove_worker, args=(i, str(db_path), result_queue))
             processes.append(p)
             p.start()
 
@@ -251,10 +247,7 @@ def test_lock_released_on_crash(tmp_path: Path) -> None:
             result_queue.put("crashed")
 
     result_queue: multiprocessing.Queue = multiprocessing.Queue()
-    p = multiprocessing.Process(
-        target=crashing_worker,
-        args=(str(db_path), result_queue)
-    )
+    p = multiprocessing.Process(target=crashing_worker, args=(str(db_path), result_queue))
     p.start()
     p.join(timeout=10)
 
