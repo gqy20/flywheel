@@ -229,3 +229,79 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_parent_directory_creation_no_race(tmp_path) -> None:
+    """Regression test for issue #4943: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that multiple processes saving to a file with a non-existent parent directory
+    do not fail with FileExistsError due to the race condition between:
+    1. if not parent.exists()
+    2. parent.mkdir(parents=True, exist_ok=False)
+
+    The fix uses exist_ok=True to make the mkdir atomic.
+    """
+    import multiprocessing
+    import time
+
+    # Use a path with non-existent parent directories to trigger _ensure_parent_directory
+    db = tmp_path / "deeply" / "nested" / "dir" / "concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves to path requiring parent directory creation."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=1, text=f"worker-{worker_id}")]
+            storage.save(todos)
+
+            # Small delay to allow race condition to manifest
+            time.sleep(0.001)
+
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the specific error we're trying to avoid
+            result_queue.put(("FileExistsError", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently - all will try to create parent dirs
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Check for FileExistsError specifically
+    file_exists_errors = [r for r in results if r[0] == "FileExistsError"]
+    assert len(file_exists_errors) == 0, (
+        f"TOCTOU race condition detected: {len(file_exists_errors)} workers "
+        f"got FileExistsError when creating parent directory: {file_exists_errors}"
+    )
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered unexpected errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify the parent directory was created
+    assert db.parent.exists(), "Parent directory should have been created"
+    assert db.parent.is_dir(), "Parent should be a directory"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) >= 1
