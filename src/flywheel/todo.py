@@ -79,6 +79,13 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate 'text' maximum length
+        max_text_length = 10000
+        if len(data["text"]) > max_text_length:
+            raise ValueError(
+                f"'text' exceeds maximum length of {max_text_length} characters."
+            )
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types

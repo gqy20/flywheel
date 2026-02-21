@@ -1,0 +1,33 @@
+{
+  "issue_number": 4861,
+  "issue_title": "[Bug] from_dict 不验证 text 最大长度，可导致存储/显示问题",
+  "candidate_number": 2,
+  "run_id": "22252710909",
+  "branch": "claude/issue-4861-candidate-2-22252710909",
+  "stage": "IMPLEMENT",
+  "status": "implemented",
+  "summary": "Added text maximum length validation (10000 characters) in Todo.from_dict to prevent storage/display issues from excessively long text",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_4861_text_max_length.py"],
+    "lines_changed": 8
+  },
+  "tests_run": [
+    "tests/test_issue_4861_text_max_length.py::test_todo_from_dict_accepts_text_at_max_length",
+    "tests/test_issue_4861_text_max_length.py::test_todo_from_dict_rejects_text_exceeding_max_length",
+    "tests/test_issue_2000_json_validation.py (all 12 tests)"
+  ],
+  "tests_passed": 14,
+  "tests_failed": 0,
+  "risks_limitations": [
+    "Existing data with text > 10000 characters will fail to load after this fix",
+    "The 10000 character limit is arbitrary but matches the issue requirements"
+  ],
+  "acceptance_criteria_met": [
+    "text length <= 10000 characters is accepted",
+    "text length > 10000 characters raises ValueError",
+    "error message explains maximum length limit"
+  ],
+  "created_at": "2026-02-21T03:37:00Z",
+  "updated_at": "2026-02-21T03:45:00Z"
+}
