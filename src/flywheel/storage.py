@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import contextlib
+import csv
+import io
 import json
 import os
 import stat
@@ -126,3 +128,45 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def export_csv(self, todos: list[Todo]) -> str:
+        """Export todos to CSV format.
+
+        Args:
+            todos: List of Todo objects to export.
+
+        Returns:
+            CSV string with headers: id, text, done, created_at, updated_at
+        """
+        fieldnames = ["id", "text", "done", "created_at", "updated_at"]
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for todo in todos:
+            writer.writerow({
+                "id": todo.id,
+                "text": todo.text,
+                "done": todo.done,
+                "created_at": todo.created_at,
+                "updated_at": todo.updated_at,
+            })
+        return output.getvalue()
+
+    def export_markdown(self, todos: list[Todo]) -> str:
+        """Export todos to GitHub-flavored markdown table.
+
+        Args:
+            todos: List of Todo objects to export.
+
+        Returns:
+            Markdown table string with columns: id, text, done, created_at, updated_at
+        """
+        lines = ["| id | text | done | created_at | updated_at |"]
+        lines.append("|---|------|------|------------|------------|")
+        for todo in todos:
+            # Escape pipe characters in text to not break markdown table
+            safe_text = todo.text.replace("|", "\\|")
+            lines.append(
+                f"| {todo.id} | {safe_text} | {todo.done} | {todo.created_at} | {todo.updated_at} |"
+            )
+        return "\n".join(lines) + "\n"
