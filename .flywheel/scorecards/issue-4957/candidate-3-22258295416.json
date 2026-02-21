@@ -1,24 +1,23 @@
 {
-  "issue_number": 4957,
+  "issue": 4957,
   "candidate": 3,
   "run_id": "22258295416",
   "branch": "claude/issue-4957-candidate-3-22258295416",
-  "status": "pr_created",
+  "pr_number": 4978,
   "pr_url": "https://github.com/gqy20/flywheel/pull/4978",
-  "summary": "Fix from_dict to reject float IDs that lose precision when converted to int",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "tests_passed": 114,
-  "ruff_passed": true,
-  "approach": {
-    "description": "Added precision loss check after int() conversion for float values",
-    "validation": "If input is a float and int(float) != float, raise ValueError"
-  },
-  "acceptance_criteria_met": {
-    "reject_float_with_decimal": true,
-    "accept_whole_number_float": true,
-    "clear_error_message": true
+  "generated_at": "2026-02-21T15:47:05.910669+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2879,
+    "plan": 2428,
+    "implement": 2418,
+    "verify": 2352,
+    "finalize": 1258
   }
 }
