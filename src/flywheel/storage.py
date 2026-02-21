@@ -53,8 +53,14 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self, path: str | None = None, json_dumps_kwargs: dict | None = None
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        # Default json.dumps kwargs; user can override via json_dumps_kwargs
+        self._json_dumps_kwargs = {"ensure_ascii": False, "indent": 2}
+        if json_dumps_kwargs:
+            self._json_dumps_kwargs.update(json_dumps_kwargs)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -95,7 +101,7 @@ class TodoStorage:
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        content = json.dumps(payload, **self._json_dumps_kwargs)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
