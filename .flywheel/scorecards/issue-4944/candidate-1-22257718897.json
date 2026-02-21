@@ -1,0 +1,31 @@
+{
+  "issue_number": 4944,
+  "issue_title": "[Bug] fd leakage when os.fdopen raises exception after mkstemp succeeds",
+  "candidate_number": 1,
+  "run_id": "22257718897",
+  "status": "plan",
+  "plan": {
+    "summary": "Fix fd leakage when os.fdopen raises exception after mkstemp succeeds",
+    "files_to_touch": [
+      "tests/test_issue_4944_fd_leakage.py",
+      "src/flywheel/storage.py"
+    ],
+    "tdd_approach": {
+      "red": "Create failing regression test that mocks os.fdopen to raise exception after mkstemp succeeds, verifying fd is closed",
+      "green": "Wrap os.fdopen in try-except to ensure fd is closed if fdopen fails"
+    },
+    "implementation_sequence": [
+      "1. Add test file tests/test_issue_4944_fd_leakage.py with failing regression test",
+      "2. Run uv run pytest tests/test_issue_4944_fd_leakage.py -v (expect failure)",
+      "3. Modify src/flywheel/storage.py save() method to wrap os.fdopen in try-except",
+      "4. Run uv run pytest tests/test_issue_4944_fd_leakage.py -v (expect pass)",
+      "5. Run uv run ruff check src/flywheel/storage.py",
+      "6. Run uv run pytest tests/test_storage_atomicity.py -v (ensure no regression)"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_4944_fd_leakage.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run pytest tests/test_storage_atomicity.py -v"
+    ]
+  }
+}
