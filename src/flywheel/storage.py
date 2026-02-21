@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -123,6 +122,40 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def count(self) -> int:
+        """Return the number of todos without full deserialization.
+
+        This is more efficient than len(storage.load()) because it only
+        parses the JSON array length without constructing Todo objects.
+
+        Returns:
+            The number of todos in storage (0 if file doesn't exist).
+        """
+        if not self.path.exists():
+            return 0
+
+        # Security: Check file size before loading to prevent DoS
+        file_size = self.path.stat().st_size
+        if file_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = file_size / (1024 * 1024)
+            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            raise ValueError(
+                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                f"This protects against denial-of-service attacks."
+            )
+
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError("Todo storage must be a JSON list")
+
+        return len(raw)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

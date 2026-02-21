@@ -1,0 +1,64 @@
+{
+  "issue_number": 4933,
+  "candidate_number": 1,
+  "run_id": "22257718897",
+  "branch_name": "claude/issue-4933-candidate-1-22257718897",
+  "stage": "VERIFY",
+  "created_at": "2026-02-21T10:40:00Z",
+  "plan": {
+    "summary": "Add TodoStorage.count() method to get todo count without full deserialization",
+    "files_to_touch": [
+      "tests/test_issue_4933_count_method.py",
+      "src/flywheel/storage.py"
+    ],
+    "implementation_sequence": [
+      "RED: Write failing regression tests for count() method",
+      "GREEN: Implement count() method that reads JSON and returns len(raw_list)",
+      "VERIFY: Run pytest and ruff checks"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_4933_count_method.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff format src/flywheel/storage.py",
+      "uv run pytest tests/test_minimal_framework.py tests/test_storage_atomicity.py -v"
+    ]
+  },
+  "tests_added": [
+    "tests/test_issue_4933_count_method.py"
+  ],
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4933_count_method.py"
+  ],
+  "verification_results": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_4933_count_method.py -v",
+      "result": "PASSED",
+      "tests_passed": 5,
+      "tests_failed": 0
+    },
+    "ruff_lint": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_4933_count_method.py",
+      "result": "PASSED",
+      "initial_error": "F401: unused pytest import in test file",
+      "fix_applied": "Removed unused pytest import from test file"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/storage.py tests/test_issue_4933_count_method.py",
+      "result": "PASSED",
+      "message": "2 files already formatted"
+    },
+    "regression_tests": {
+      "command": "uv run pytest tests/test_storage_atomicity.py tests/test_issue_2000_json_validation.py -v",
+      "result": "PASSED",
+      "tests_passed": 18,
+      "tests_failed": 0
+    }
+  },
+  "status": "verify_complete",
+  "finalization": {
+    "stage": "FINALIZE",
+    "timestamp": "2026-02-21T11:00:00Z",
+    "ready_for_pr": true
+  }
+}
