@@ -1,0 +1,89 @@
+{
+  "issue_number": 4859,
+  "candidate": 2,
+  "run_id": "22251940130",
+  "stage": "plan",
+  "triage_summary": {
+    "root_cause": "Race condition in the load-compute-save sequence of add() in cli.py:25-34. The next_id() function at storage.py:127-128 computes max(id)+1 based on current in-memory todos list, but between load() and save() another process can perform its own load-save cycle, resulting in both processes computing the same 'next' ID.",
+    "affected_files": [
+      "src/flywheel/cli.py",
+      "src/flywheel/storage.py"
+    ],
+    "affected_functions": [
+      "TodoApp.add()",
+      "TodoStorage.next_id()"
+    ],
+    "race_window": "Between load() and save() in add() - two processes can both call load(), compute same next_id, and both save their todo with duplicate IDs",
+    "risk_points": [
+      "cli.py:30-33: add() loads, computes next_id, appends, saves - no locking",
+      "storage.py:127-128: next_id() is stateless computation on passed list",
+      "Atomic save only prevents file corruption, not ID collision"
+    ]
+  },
+  "plan": {
+    "summary": "Fix race condition by adding file-based locking using fcntl.flock (Unix) and msvcrt.locking (Windows) to protect the load-compute-save critical section",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "description": "RED: Add failing regression test test_concurrent_add_produces_unique_ids() that spawns 5+ processes calling add() concurrently and verifies all resulting IDs are unique",
+        "type": "test",
+        "file": "tests/test_storage_atomicity.py"
+      },
+      {
+        "step": 2,
+        "description": "GREEN: Add _lock_file_path property and _acquire_lock()/_release_lock() methods to TodoStorage with platform-specific file locking (fcntl for Unix, msvcrt for Windows)",
+        "type": "implementation",
+        "file": "src/flywheel/storage.py"
+      },
+      {
+        "step": 3,
+        "description": "GREEN: Add atomic_add() method to TodoStorage that wraps load-compute_id-append-save in lock acquire/release context",
+        "type": "implementation",
+        "file": "src/flywheel/storage.py"
+      },
+      {
+        "step": 4,
+        "description": "GREEN: Update TodoApp.add() to use storage.atomic_add() instead of manual load-save sequence",
+        "type": "implementation",
+        "file": "src/flywheel/cli.py"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_storage_atomicity.py::test_concurrent_add_produces_unique_ids -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_storage_atomicity.py"
+    ]
+  },
+  "risk_assessment": {
+    "risks": [
+      "File locking is platform-specific (fcntl on Unix, msvcrt on Windows)",
+      "Lock files may be orphaned if process crashes before release",
+      "Lock contention may impact performance under heavy concurrent load"
+    ],
+    "mitigations": [
+      "Use context manager pattern with try/finally to ensure lock release on exception",
+      "Create separate .lock file sibling to db file to avoid modifying db file directly",
+      "Use LOCK_EX (exclusive) with blocking to serialize access - simple and reliable"
+    ]
+  },
+  "status": "verify_complete",
+  "implementation": {
+    "branch": "claude/issue-4859-candidate-2-22251940130",
+    "commit": "64193e0",
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "src/flywheel/storage.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "tests_passed": 113,
+    "verification": {
+      "pytest": "All 113 tests passed",
+      "ruff_check": "All checks passed",
+      "ruff_format": "3 files already formatted"
+    }
+  }
+}
