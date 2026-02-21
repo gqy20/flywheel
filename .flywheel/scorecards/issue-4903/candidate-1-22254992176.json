@@ -1,0 +1,21 @@
+{
+  "issue_number": 4903,
+  "issue_title": "[Bug] load() raises uncaught FileNotFoundError in TOCTOU race condition",
+  "candidate_number": 1,
+  "run_id": "22254992176",
+  "branch": "claude/issue-4903-candidate-1-22254992176",
+  "commit_sha": "fbc1057",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4941",
+  "summary": "Fixed TOCTOU race condition in TodoStorage.load() by catching FileNotFoundError that can occur when a file is deleted between the exists() check and stat()/read_text() calls. Returns empty list for consistent behavior.",
+  "test_coverage": [
+    "test_load_handles_file_deleted_after_exists_check",
+    "test_load_handles_file_deleted_before_read_text"
+  ],
+  "files_modified": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_passed": 114,
+  "risks": "Low risk - minimal change that adds defensive error handling for edge case",
+  "limitations": "None - fix is minimal and follows existing patterns in the codebase"
+}
