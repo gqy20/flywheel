@@ -9,7 +9,7 @@ from flywheel.todo import Todo
 
 def test_from_dict_rejects_invalid_iso8601_created_at() -> None:
     """Bug #4931: from_dict should reject invalid ISO 8601 created_at timestamps."""
-    with pytest.raises(ValueError, match="created_at.*ISO 8601"):
+    with pytest.raises(ValueError, match=r"created_at.*ISO 8601"):
         Todo.from_dict({
             "id": 1,
             "text": "test",
@@ -19,7 +19,7 @@ def test_from_dict_rejects_invalid_iso8601_created_at() -> None:
 
 def test_from_dict_rejects_malformed_iso8601_created_at() -> None:
     """Bug #4931: from_dict should reject malformed ISO 8601 created_at timestamps."""
-    with pytest.raises(ValueError, match="created_at.*ISO 8601"):
+    with pytest.raises(ValueError, match=r"created_at.*ISO 8601"):
         Todo.from_dict({
             "id": 1,
             "text": "test",
@@ -29,7 +29,7 @@ def test_from_dict_rejects_malformed_iso8601_created_at() -> None:
 
 def test_from_dict_rejects_invalid_iso8601_updated_at() -> None:
     """Bug #4931: from_dict should reject invalid ISO 8601 updated_at timestamps."""
-    with pytest.raises(ValueError, match="updated_at.*ISO 8601"):
+    with pytest.raises(ValueError, match=r"updated_at.*ISO 8601"):
         Todo.from_dict({
             "id": 1,
             "text": "test",
@@ -39,7 +39,7 @@ def test_from_dict_rejects_invalid_iso8601_updated_at() -> None:
 
 def test_from_dict_rejects_malformed_iso8601_updated_at() -> None:
     """Bug #4931: from_dict should reject malformed ISO 8601 updated_at timestamps."""
-    with pytest.raises(ValueError, match="updated_at.*ISO 8601"):
+    with pytest.raises(ValueError, match=r"updated_at.*ISO 8601"):
         Todo.from_dict({
             "id": 1,
             "text": "test",
