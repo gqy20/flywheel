@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    pass
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +58,11 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self, path: str | None = None, logger: logging.Logger | None = None
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.logger = logger
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -80,7 +88,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        if self.logger:
+            self.logger.debug(
+                "Loaded %d todos from %s", len(todos), self.path
+            )
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +131,10 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            if self.logger:
+                self.logger.debug(
+                    "Saved %d todos to %s", len(todos), self.path
+                )
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):

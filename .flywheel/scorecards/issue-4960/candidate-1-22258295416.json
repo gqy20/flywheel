@@ -1,0 +1,24 @@
+{
+  "issue_number": 4960,
+  "candidate_id": 1,
+  "run_id": 22258295416,
+  "branch": "claude/issue-4960-candidate-1-22258295416",
+  "created_at": "2026-02-21T14:00:00Z",
+  "status": "implemented",
+  "summary": "Added optional logging for load/save operations in TodoStorage",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_4960_storage_logging.py"],
+    "lines_changed": 233
+  },
+  "acceptance_criteria_met": [
+    "Optional logger parameter in TodoStorage constructor (default None)",
+    "load() logs DEBUG message with file path and entry count on success",
+    "save() logs DEBUG message with file path and entry count on success",
+    "Default behavior unchanged (no logging when logger is None)"
+  ],
+  "tests_passed": 6,
+  "tests_total": 6,
+  "ruff_status": "passed",
+  "risks": "None - optional feature with default silent mode"
+}
