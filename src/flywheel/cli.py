@@ -39,6 +39,32 @@ class TodoApp:
             return todos
         return [todo for todo in todos if not todo.done]
 
+    def export(self, fmt: str = "json") -> str:
+        """Export todos to the specified format.
+
+        Args:
+            fmt: Export format - 'json', 'csv', or 'md'/'markdown'.
+
+        Returns:
+            String representation of todos in the specified format.
+
+        Raises:
+            ValueError: If format is not supported.
+        """
+        todos = self._load()
+        if fmt == "json":
+            import json
+            return json.dumps([t.to_dict() for t in todos], ensure_ascii=False, indent=2)
+        elif fmt == "csv":
+            return self.storage.export_csv(todos)
+        elif fmt in ("md", "markdown"):
+            return self.storage.export_markdown(todos)
+        else:
+            raise ValueError(
+                f"Unsupported format: {fmt!r}. "
+                f"Supported formats: json, csv, md/markdown"
+            )
+
     def mark_done(self, todo_id: int) -> Todo:
         todos = self._load()
         for todo in todos:
@@ -79,6 +105,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_list = sub.add_parser("list", help="List todos")
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
 
+    p_export = sub.add_parser("export", help="Export todos to various formats")
+    p_export.add_argument(
+        "--format",
+        choices=["json", "csv", "md", "markdown"],
+        default="json",
+        help="Export format (default: json)",
+    )
+
     p_done = sub.add_parser("done", help="Mark todo done")
     p_done.add_argument("id", type=int)
 
@@ -103,6 +137,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "list":
             todos = app.list(show_all=not args.pending)
             print(TodoFormatter.format_list(todos))
+            return 0
+
+        if args.command == "export":
+            output = app.export(fmt=args.format)
+            print(output)
             return 0
 
         if args.command == "done":
