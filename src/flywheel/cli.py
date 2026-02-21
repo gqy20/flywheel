@@ -27,10 +27,10 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
+        # Use incremental append for better performance with large datasets
         todos = self._load()
         todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        self.storage.append(todo)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,31 +40,22 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        """Mark a todo as done using incremental modification."""
+        result = self.storage.modify_by_id(todo_id, "done")
+        if result is None:
+            raise ValueError(f"Todo #{todo_id} not found")
+        return result
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        """Mark a todo as undone using incremental modification."""
+        result = self.storage.modify_by_id(todo_id, "undone")
+        if result is None:
+            raise ValueError(f"Todo #{todo_id} not found")
+        return result
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        """Remove a todo using incremental modification."""
+        self.storage.modify_by_id(todo_id, "remove")
 
 
 def build_parser() -> argparse.ArgumentParser:
