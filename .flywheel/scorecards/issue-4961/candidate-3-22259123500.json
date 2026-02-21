@@ -1,0 +1,25 @@
+{
+  "issue_number": 4961,
+  "candidate_number": 3,
+  "run_id": "22259123500",
+  "branch": "claude/issue-4961-candidate-3-22259123500",
+  "status": "implemented",
+  "approach": "Add automatic backup before save with opt-out parameter",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_4961_auto_backup.py"
+    ]
+  },
+  "tests_passed": true,
+  "linting_passed": true,
+  "acceptance_criteria": {
+    "save_creates_backup": true,
+    "backup_file_naming_clear": true,
+    "backup_can_be_disabled": true,
+    "backup_failure_does_not_affect_save": true
+  },
+  "summary": "Added automatic backup feature to TodoStorage.save() method. Before overwriting existing data, the old file is copied to a backup file with .bak extension (e.g., .todo.json.bak). The backup can be disabled by passing backup=False. Backup failures are silently ignored to prevent disruption to normal save operations."
+}

@@ -74,15 +74,14 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], backup: bool = True) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,9 +89,18 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of todos to save.
+            backup: If True, create a backup of existing file before overwriting.
+                    Default is True. Set to False to skip backup creation.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if it exists and backup is enabled
+        if backup and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +131,25 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current data file.
+
+        Creates a backup file with .bak extension (e.g., .todo.json.bak).
+        Backup failures are silently ignored to not prevent normal save operations.
+        """
+        # Create backup path: add .bak suffix to full filename
+        # For .todo.json -> .todo.json.bak, for todo.json -> .todo.json.bak (with dot prefix)
+        backup_path = self.path.parent / f".{self.path.name}.bak"
+        try:
+            # Copy current file content to backup
+            import shutil
+
+            shutil.copy2(self.path, backup_path)
+        except OSError:
+            # Backup failure should not prevent save operation
+            # Silently ignore (as per acceptance criteria)
+            pass
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
