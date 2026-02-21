@@ -158,3 +158,39 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_finds_first_gap_for_non_contiguous_ids() -> None:
+    """Bug #4985: next_id() should find first available ID, not max+1.
+
+    When todos have non-contiguous IDs (e.g., after deletion),
+    next_id() should return the smallest unused ID, not max(id)+1.
+    """
+    storage = TodoStorage()  # Path doesn't matter for this test
+
+    # Case 1: IDs [1, 3, 5] -> next_id should be 2 (not 6)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Case 2: IDs [2, 3, 4] -> next_id should be 1 (not 5)
+    todos = [Todo(id=2, text="a"), Todo(id=3, text="b"), Todo(id=4, text="c")]
+    assert storage.next_id(todos) == 1
+
+    # Case 3: IDs [1, 2, 4] -> next_id should be 3 (not 5)
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=4, text="c")]
+    assert storage.next_id(todos) == 3
+
+
+def test_next_id_handles_contiguous_ids() -> None:
+    """Verify next_id() still works correctly with contiguous IDs."""
+    storage = TodoStorage()
+
+    # Case 1: IDs [1, 2] -> next_id should be 3
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b")]
+    assert storage.next_id(todos) == 3
+
+    # Case 2: Empty list -> next_id should be 1
+    assert storage.next_id([]) == 1
+
+    # Case 3: Single ID [1] -> next_id should be 2
+    assert storage.next_id([Todo(id=1, text="a")]) == 2
