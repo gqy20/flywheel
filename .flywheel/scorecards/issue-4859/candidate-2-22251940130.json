@@ -2,7 +2,7 @@
   "issue_number": 4859,
   "candidate": 2,
   "run_id": "22251940130",
-  "stage": "plan",
+  "stage": "finalize",
   "triage_summary": {
     "root_cause": "Race condition in the load-compute-save sequence of add() in cli.py:25-34. The next_id() function at storage.py:127-128 computes max(id)+1 based on current in-memory todos list, but between load() and save() another process can perform its own load-save cycle, resulting in both processes computing the same 'next' ID.",
     "affected_files": [
