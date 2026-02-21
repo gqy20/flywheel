@@ -54,9 +54,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(
-        self, path: str | None = None, logger: logging.Logger | None = None
-    ) -> None:
+    def __init__(self, path: str | None = None, logger: logging.Logger | None = None) -> None:
         self.path = Path(path or ".todo.json")
         self.logger = logger
 
@@ -83,8 +81,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -92,9 +89,7 @@ class TodoStorage:
 
         todos = [Todo.from_dict(item) for item in raw]
         if self.logger:
-            self.logger.debug(
-                "Load: loaded %d todos from %s", len(todos), self.path
-            )
+            self.logger.debug("Load: loaded %d todos from %s", len(todos), self.path)
         return todos
 
     def save(self, todos: list[Todo]) -> None:
@@ -135,9 +130,7 @@ class TodoStorage:
             os.replace(temp_path, self.path)
 
             if self.logger:
-                self.logger.debug(
-                    "Save: saved %d todos to %s", len(todos), self.path
-                )
+                self.logger.debug("Save: saved %d todos to %s", len(todos), self.path)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
