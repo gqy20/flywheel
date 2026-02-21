@@ -80,7 +80,17 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        # Validate all items with clear error messages including item index
+        todos = []
+        for index, item in enumerate(raw):
+            try:
+                todos.append(Todo.from_dict(item))
+            except ValueError as e:
+                raise ValueError(
+                    f"Validation error at item index {index}: {e}"
+                ) from e
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
