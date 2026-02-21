@@ -1,0 +1,22 @@
+{
+  "issue": 4836,
+  "candidate": 2,
+  "run_id": "22249267181",
+  "status": "verified",
+  "approach": "Add optional callback hooks (on_pre_save, on_post_save, on_post_load) to TodoStorage.__init__",
+  "changes": [
+    "src/flywheel/storage.py - Added HookCallback type alias, optional hook parameters to __init__, and hook invocations in save() and load() methods",
+    "tests/test_issue_4836_storage_hooks.py - New test file with 8 test cases covering all acceptance criteria"
+  ],
+  "tests_passed": 24,
+  "acceptance_criteria_met": [
+    "TodoStorage supports on_pre_save, on_post_save, on_post_load optional callbacks",
+    "Callbacks receive todos list as parameter",
+    "Not passing callbacks leaves behavior unchanged",
+    "Hooks are called in the correct order (pre_save before save, post_save after save, post_load after load)"
+  ],
+  "risks": [
+    "Hook exceptions will propagate to caller (explicit exception propagation as mentioned in acceptance criteria)"
+  ],
+  "limitations": []
+}
