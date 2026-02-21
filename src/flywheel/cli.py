@@ -27,11 +27,12 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        def add_todo(todos: list[Todo]) -> Todo:
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            return todo
+
+        return self.storage.atomic_read_modify_write(add_todo)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +41,34 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        def mark_todo_done(todos: list[Todo]) -> Todo:
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    return todo
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        return self.storage.atomic_read_modify_write(mark_todo_done)
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        def mark_todo_undone(todos: list[Todo]) -> Todo:
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    return todo
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        return self.storage.atomic_read_modify_write(mark_todo_undone)
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        def remove_todo(todos: list[Todo]) -> None:
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    return
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_read_modify_write(remove_todo)
 
 
 def build_parser() -> argparse.ArgumentParser:

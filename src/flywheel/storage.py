@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,15 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT_SECONDS = 30
+
+
+class LockAcquisitionError(TimeoutError):
+    """Raised when a lock cannot be acquired within the timeout period."""
+
+    pass
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -53,8 +63,74 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT_SECONDS) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+        self._lock_timeout = lock_timeout
+
+    @property
+    def lock_path(self) -> Path:
+        """Return the path to the lock file."""
+        return self._lock_path
+
+    def _acquire_lock(self, timeout: float | None = None) -> int:
+        """Acquire an exclusive file lock.
+
+        Uses fcntl.flock for cross-process locking with a timeout.
+
+        Args:
+            timeout: Maximum time to wait for lock in seconds. Uses instance default if None.
+
+        Returns:
+            File descriptor of the lock file.
+
+        Raises:
+            LockAcquisitionError: If lock cannot be acquired within timeout.
+        """
+        import time
+
+        timeout = timeout if timeout is not None else self._lock_timeout
+        start_time = time.monotonic()
+
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open lock file (create if doesn't exist)
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            while True:
+                try:
+                    # Try non-blocking lock acquisition
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return lock_fd
+                except (BlockingIOError, OSError):
+                    # Check timeout
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        os.close(lock_fd)
+                        raise LockAcquisitionError(
+                            f"Could not acquire lock on '{self._lock_path}' within {timeout:.1f}s. "
+                            f"Another process may be holding the lock."
+                        ) from None
+                    # Brief sleep before retry
+                    time.sleep(0.01)
+        except Exception:
+            # Clean up on any unexpected error
+            with contextlib.suppress(OSError):
+                os.close(lock_fd)
+            raise
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release the file lock and close the file descriptor."""
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +202,29 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_read_modify_write(self, modify_fn):
+        """Perform an atomic read-modify-write operation with file locking.
+
+        This is the safe way to modify todos when multiple processes might
+        be accessing the same storage file concurrently.
+
+        Args:
+            modify_fn: A callable that takes the current list of todos and returns
+                      the modified list. Will be called while holding the lock.
+
+        Returns:
+            The return value of modify_fn.
+
+        Raises:
+            LockAcquisitionError: If lock cannot be acquired within timeout.
+        """
+        lock_fd = self._acquire_lock()
+        try:
+            # Critical section: load, modify, save
+            todos = self.load()
+            result = modify_fn(todos)
+            self.save(todos)
+            return result
+        finally:
+            self._release_lock(lock_fd)
