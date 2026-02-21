@@ -76,5 +76,12 @@
     "test_passes_after_fix": true,
     "no_regressions": true,
     "minimal_scope": true
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "timestamp": "2026-02-21",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/4884",
+    "pr_number": 4884,
+    "status": "PR_CREATED"
   }
 }
