@@ -229,3 +229,89 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_directory_creation_no_race(tmp_path) -> None:
+    """Regression test for issue #4973: TOCTOU race in _ensure_parent_directory.
+
+    Tests that multiple processes concurrently saving to a path requiring
+    parent directory creation do not hit FileExistsError due to the TOCTOU
+    race between parent.exists() check and parent.mkdir(exist_ok=False).
+
+    The fix is to use exist_ok=True since the file-as-directory validation
+    already ensures no confusion will occur.
+    """
+    import multiprocessing
+    import time
+
+    # Use a subdirectory that doesn't exist yet to trigger _ensure_parent_directory
+    db = tmp_path / "new_subdir" / "nested" / "concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that saves todos and reports success."""
+        try:
+            storage = TodoStorage(str(db))
+            # Each worker creates unique todos with worker_id in text
+            todos = [
+                Todo(id=i, text=f"worker-{worker_id}-todo-{i}"),
+                Todo(id=i + 1, text=f"worker-{worker_id}-todo-{i + 1}"),
+            ]
+            storage.save(todos)
+
+            # Small delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 5))
+
+            # Verify we can read back valid data
+            loaded = storage.load()
+            result_queue.put(("success", worker_id, len(loaded)))
+        except FileExistsError as e:
+            # This is the specific error from TOCTOU race in mkdir
+            result_queue.put(("race_error", worker_id, f"FileExistsError: {e}"))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently - they all try to create the same parent dir
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without FileExistsError
+    successes = [r for r in results if r[0] == "success"]
+    race_errors = [r for r in results if r[0] == "race_error"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(race_errors) == 0, f"Workers hit TOCTOU race condition (FileExistsError): {race_errors}"
+    assert len(errors) == 0, f"Workers encountered other errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final verification: file should contain valid JSON
+    storage = TodoStorage(str(db))
+
+    # This should not raise json.JSONDecodeError or ValueError
+    try:
+        final_todos = storage.load()
+    except (json.JSONDecodeError, ValueError) as e:
+        raise AssertionError(
+            f"File was corrupted by concurrent writes. Got error: {e}"
+        ) from e
+
+    # Verify we got some valid todo data
+    assert isinstance(final_todos, list), "Final data should be a list"
+    for todo in final_todos:
+        assert hasattr(todo, "id"), "Todo should have id"
+        assert hasattr(todo, "text"), "Todo should have text"
+        assert isinstance(todo.text, str), "Todo text should be a string"
