@@ -2,7 +2,7 @@
   "issue_number": 4902,
   "candidate": 3,
   "run_id": "22252710909",
-  "stage": "FINALIZED",
+  "stage": "VERIFY",
   "triage": {
     "root_cause": "os.fchmod is not available on Windows, causing AttributeError when calling TodoStorage.save()",
     "location": "src/flywheel/storage.py:112",
@@ -21,16 +21,24 @@
   },
   "tests": {
     "added": 1,
-    "passed": 7,
+    "passed": 113,
     "failed": 0
   },
   "lint": {
-    "ruff": "passed"
+    "ruff_check": "passed",
+    "ruff_format": "passed"
   },
   "scorecard": {
     "minimal_change": true,
     "has_regression_test": true,
     "all_tests_pass": true,
     "lint_clean": true
+  },
+  "verification": {
+    "pytest_command": "uv run pytest tests/ -v --tb=short",
+    "ruff_check_command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+    "ruff_format_command": "uv run ruff format --check src/flywheel/storage.py tests/test_storage_atomicity.py",
+    "all_storage_tests": 16,
+    "all_project_tests": 113
   }
 }
