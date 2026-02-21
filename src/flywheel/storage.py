@@ -106,6 +106,8 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        # Track if fd has been consumed by fdopen
+        fd_consumed = False
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
@@ -114,11 +116,16 @@ class TodoStorage:
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
+                fd_consumed = True  # fdopen now owns the fd
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
+            # Clean up fd if it wasn't consumed by fdopen
+            if not fd_consumed:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
