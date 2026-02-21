@@ -124,5 +124,16 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def exists(self) -> bool:
+        """Check if the database file exists without loading it.
+
+        This is a lightweight check that does not read or parse the file.
+        Useful for CLI status checks and conditional initialization.
+
+        Returns:
+            True if the database file exists, False otherwise.
+        """
+        return self.path.exists()
+
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
