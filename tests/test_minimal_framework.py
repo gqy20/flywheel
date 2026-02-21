@@ -116,6 +116,28 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     assert loaded[0].text == "normal todo"
 
 
+def test_storage_load_rejects_deeply_nested_json(tmp_path) -> None:
+    """Security: Deeply nested JSON should be rejected to prevent stack overflow.
+
+    Issue #4424: While file size is limited to 10MB, malicious nested structures
+    could cause RecursionError in Python's json parser at depths >= 10000.
+    """
+    db = tmp_path / "deep.json"
+    storage = TodoStorage(str(db))
+
+    # Create a deeply nested JSON that would cause RecursionError
+    # We create it as a valid todo list but with deeply nested metadata
+    depth = 10000  # Known to cause RecursionError
+    # Build nested structure: [{"id": 1, "text": "...", "nested": {...}}]
+    nested_content = '{"a": ' * depth + '{}' + '}' * depth
+    malicious_json = f'[{{"id": 1, "text": "todo", "nested": {nested_content}}}]'
+    db.write_text(malicious_json, encoding="utf-8")
+
+    # Should raise a clear ValueError instead of crashing with RecursionError
+    with pytest.raises(ValueError, match=r"depth|nested|recursion|structure"):
+        storage.load()
+
+
 def test_todo_rename_rejects_empty_string() -> None:
     """Bug #2085: Todo.rename() should reject empty strings after strip."""
     todo = Todo(id=1, text="original")
