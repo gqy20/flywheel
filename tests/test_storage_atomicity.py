@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,56 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_preserves_restrictive_permissions(tmp_path) -> None:
+    """Regression test for issue #5027: File permissions after atomic rename.
+
+    Security: When saving to a pre-existing file with different permissions,
+    the final file should have restrictive 0o600 permissions to prevent
+    unauthorized access to the todo database.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file with lax permissions (0o644 = rw-r--r--)
+    db.write_text("[]", encoding="utf-8")
+    os.chmod(db, 0o644)
+
+    # Verify initial permissions are lax
+    initial_mode = db.stat().st_mode & 0o777
+    assert initial_mode == 0o644, f"Expected 0o644, got {oct(initial_mode)}"
+
+    # Save todos - this should enforce restrictive permissions
+    todos = [Todo(id=1, text="secret task")]
+    storage.save(todos)
+
+    # Verify final permissions are restrictive (0o600 = rw-------)
+    final_mode = db.stat().st_mode & 0o777
+    assert final_mode == 0o600, (
+        f"Security issue: File should have 0o600 permissions after save, "
+        f"but got {oct(final_mode)}"
+    )
+
+
+def test_save_sets_restrictive_permissions_on_new_file(tmp_path) -> None:
+    """Test that saving to a new file creates it with restrictive permissions."""
+    db = tmp_path / "new_todo.json"
+    storage = TodoStorage(str(db))
+
+    # File should not exist initially
+    assert not db.exists()
+
+    # Save todos to a new file
+    todos = [Todo(id=1, text="new task")]
+    storage.save(todos)
+
+    # Verify file was created with restrictive permissions (0o600 = rw-------)
+    final_mode = db.stat().st_mode & 0o777
+    assert final_mode == 0o600, (
+        f"Security issue: New file should have 0o600 permissions, "
+        f"but got {oct(final_mode)}"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
