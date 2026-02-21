@@ -229,3 +229,65 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_toctou_race_condition_in_ensure_parent_directory(tmp_path) -> None:
+    """Regression test for issue #4943: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that concurrent calls to save() with the same new parent directory
+    must not raise FileExistsError. The check-then-act pattern (exists() then mkdir())
+    creates a race window that can cause failures when multiple processes try to
+    create the same directory simultaneously.
+
+    This test directly calls _ensure_parent_directory under controlled conditions
+    to verify it handles the race condition correctly with exist_ok=True.
+    """
+    import multiprocessing
+    import threading
+    import time
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Use a non-existent subdirectory to trigger directory creation
+    test_path = tmp_path / "race_test" / "deep" / "nested" / "file.json"
+
+    errors = []
+    success_count = multiprocessing.Value("i", 0)
+
+    def ensure_parent_worker():
+        """Worker that calls _ensure_parent_directory."""
+        try:
+            # Small delay to increase race condition likelihood
+            time.sleep(0.001)
+            _ensure_parent_directory(test_path)
+            with success_count.get_lock():
+                success_count.value += 1
+        except FileExistsError as e:
+            errors.append(("toctou", str(e)))
+        except Exception as e:
+            errors.append(("other", str(e)))
+
+    # Run 20 concurrent threads to stress-test the race condition
+    threads = []
+    for _ in range(20):
+        t = threading.Thread(target=ensure_parent_worker)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join(timeout=5)
+
+    # No TOCTOU errors should occur
+    toctou_errors = [e for e in errors if e[0] == "toctou"]
+    assert len(toctou_errors) == 0, (
+        f"TOCTOU race condition detected! FileExistsError raised {len(toctou_errors)} times: "
+        f"{toctou_errors}"
+    )
+
+    # All threads should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert success_count.value == 20, f"Expected 20 successes, got {success_count.value}"
+
+    # Verify directory was created
+    assert test_path.parent.exists(), "Parent directory should have been created"
+    assert test_path.parent.is_dir(), "Parent should be a directory"
