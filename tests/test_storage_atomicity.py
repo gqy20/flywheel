@@ -229,3 +229,67 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_permissions_preserved_after_atomic_rename(tmp_path) -> None:
+    """Security regression test for issue #5027.
+
+    Test that file permissions are corrected after atomic rename.
+    When a file exists with less restrictive permissions (e.g., 0o644),
+    saving should ensure the final file has restrictive permissions (0o600).
+
+    This protects sensitive todo data from being readable by other users.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial file with overly permissive permissions (0o644)
+    db.write_text("[]", encoding="utf-8")
+    db.chmod(0o644)
+
+    # Verify initial permissions are too permissive
+    initial_mode = db.stat().st_mode & 0o777
+    assert initial_mode == 0o644, f"Expected 0o644, got {oct(initial_mode)}"
+
+    # Save todos (should enforce restrictive permissions)
+    todos = [Todo(id=1, text="sensitive data")]
+    storage.save(todos)
+
+    # Verify final permissions are restrictive (0o600)
+    final_mode = db.stat().st_mode & 0o777
+    assert final_mode == 0o600, (
+        f"Security issue: File should have 0o600 permissions after save, "
+        f"but got {oct(final_mode)}"
+    )
+
+
+def test_fresh_save_has_restrictive_permissions(tmp_path) -> None:
+    """Test that fresh save (new file) produces 0o600 permissions."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save to a new file
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Verify file has restrictive permissions
+    mode = db.stat().st_mode & 0o777
+    assert mode == 0o600, f"Expected 0o600 for new file, got {oct(mode)}"
+
+
+def test_existing_restrictive_permissions_preserved(tmp_path) -> None:
+    """Test that files with correct permissions maintain them after save."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create file with correct restrictive permissions
+    db.write_text("[]", encoding="utf-8")
+    db.chmod(0o600)
+
+    # Save new data
+    todos = [Todo(id=1, text="updated")]
+    storage.save(todos)
+
+    # Verify permissions remain restrictive
+    mode = db.stat().st_mode & 0o777
+    assert mode == 0o600, f"Expected 0o600 to be preserved, got {oct(mode)}"
