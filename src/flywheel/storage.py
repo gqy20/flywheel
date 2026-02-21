@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id_cache: int | None = None
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -91,6 +91,9 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Update max_id cache for O(1) next_id() lookups
+        self._max_id_cache = max((todo.id for todo in todos), default=0) if todos else 0
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -125,4 +128,21 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Get the next available todo ID in O(1) time after initial computation.
+
+        Uses a cached max_id for constant-time lookup. The cache is populated
+        on first call (O(n)) and updated when todos are saved via save().
+
+        For best performance in production workflows, always call save() after
+        modifying the todo list to keep the cache warm.
+
+        Args:
+            todos: List of existing todos.
+
+        Returns:
+            The next available ID (max_id + 1), or 1 if no todos exist.
+        """
+        if self._max_id_cache is None:
+            # First call: compute and cache max_id (O(n))
+            self._max_id_cache = max((todo.id for todo in todos), default=0) if todos else 0
+        return self._max_id_cache + 1
