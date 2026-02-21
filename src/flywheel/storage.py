@@ -53,8 +53,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        json_dumps_kwargs: dict | None = None,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        # Custom json.dumps kwargs, merged with defaults
+        self._json_dumps_kwargs: dict = {"ensure_ascii": False, "indent": 2}
+        if json_dumps_kwargs:
+            self._json_dumps_kwargs.update(json_dumps_kwargs)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +82,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -95,7 +102,7 @@ class TodoStorage:
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
+        content = json.dumps(payload, **self._json_dumps_kwargs)
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
