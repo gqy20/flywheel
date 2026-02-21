@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import os
 import stat
-from pathlib import Path
-from unittest.mock import patch
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -107,6 +105,7 @@ def test_import_storage_succeeds_on_simulated_windows(tmp_path) -> None:
     try:
         # Re-import the module to trigger any module-level code
         import importlib
+
         import flywheel.storage
 
         importlib.reload(flywheel.storage)
