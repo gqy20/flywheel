@@ -158,3 +158,48 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids(tmp_path) -> None:
+    """Bug #4916: next_id should find first available ID when gaps exist."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Todos with gap: IDs 1 and 5, so 2 should be available
+    todos = [Todo(id=1, text="first"), Todo(id=5, text="fifth")]
+    next_id = storage.next_id(todos)
+
+    # Should return first available positive integer (2, not 6)
+    assert next_id == 2
+
+
+def test_next_id_ignores_negative_ids(tmp_path) -> None:
+    """Bug #4916: next_id should ignore negative IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Todos with negative ID -1 and positive ID 1
+    todos = [Todo(id=-1, text="negative"), Todo(id=1, text="positive")]
+    next_id = storage.next_id(todos)
+
+    # Should return 2 (first available after positive IDs), ignoring negative
+    assert next_id == 2
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #4916: next_id should return 1 for empty list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_never_returns_zero_or_negative(tmp_path) -> None:
+    """Bug #4916: next_id should never return 0 or negative number."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Only negative IDs - should return 1
+    todos = [Todo(id=-5, text="neg1"), Todo(id=-1, text="neg2")]
+    assert storage.next_id(todos) == 1
