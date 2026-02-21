@@ -158,3 +158,47 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_positive_integer() -> None:
+    """Bug #4453: next_id() should return the smallest unused positive integer.
+
+    This handles both gaps in ID sequences and duplicate IDs in the todo list.
+    """
+    storage = TodoStorage("/nonexistent/path.json")  # Path doesn't matter for this test
+
+    # Empty list returns 1
+    assert storage.next_id([]) == 1
+
+    # Continuous IDs: [1, 2, 3] -> 4
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+    # Gap in IDs: [1, 3] -> 2 (smallest unused)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Multiple gaps: [1, 5, 10] -> 2 (smallest unused)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="e"), Todo(id=10, text="j")]
+    assert storage.next_id(todos) == 2
+
+
+def test_next_id_handles_duplicate_ids() -> None:
+    """Bug #4453: next_id() should handle duplicate IDs correctly.
+
+    When duplicate IDs exist (e.g., from manual JSON edits), next_id()
+    should still return the smallest unused positive integer.
+    """
+    storage = TodoStorage("/nonexistent/path.json")  # Path doesn't matter for this test
+
+    # Duplicate IDs: [1, 1, 1] -> 2
+    todos = [Todo(id=1, text="a"), Todo(id=1, text="b"), Todo(id=1, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Mixed duplicates with gap: [1, 1, 3] -> 2
+    todos = [Todo(id=1, text="a"), Todo(id=1, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Gap before max: [2, 2, 5] -> 1 (smallest unused)
+    todos = [Todo(id=2, text="a"), Todo(id=2, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 1
