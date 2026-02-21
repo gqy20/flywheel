@@ -1,0 +1,46 @@
+{
+  "issue_number": 4933,
+  "issue_title": "[Enhancement] Add TodoStorage.count() method to get todo count without full deserialization",
+  "candidate_number": 3,
+  "run_id": "22257718897",
+  "branch": "claude/issue-4933-candidate-3-22257718897",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_4933_count_method.py"
+    ],
+    "approach": "Added count() method to TodoStorage that reads JSON file and returns len(raw_list) without constructing Todo objects. This enables quick status checks without full deserialization.",
+    "key_changes": [
+      "Added count() method to TodoStorage class",
+      "Added 6 regression tests covering edge cases"
+    ]
+  },
+  "tests": {
+    "test_file": "tests/test_issue_4933_count_method.py",
+    "tests_added": 6,
+    "tests_passing": true,
+    "all_tests_passing": true,
+    "test_cases": [
+      "test_count_returns_zero_for_missing_file",
+      "test_count_returns_correct_count_after_save",
+      "test_count_handles_empty_list_correctly",
+      "test_count_matches_len_load",
+      "test_count_does_not_construct_todo_objects",
+      "test_count_returns_integer"
+    ]
+  },
+  "validation": {
+    "acceptance_criteria_met": [
+      "count() returns integer >= 0",
+      "count() returns 0 for non-existent database",
+      "count() is faster than len(storage.load()) for large datasets (avoids Todo object construction)"
+    ],
+    "minimal_test_plan_covered": [
+      "Test count() returns 0 for missing file",
+      "Test count() returns correct count after save",
+      "Test count() handles empty list correctly"
+    ]
+  },
+  "risks": [],
+  "limitations": []
+}
