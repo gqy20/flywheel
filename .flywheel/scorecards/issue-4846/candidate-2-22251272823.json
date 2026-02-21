@@ -2,7 +2,7 @@
   "issue_number": 4846,
   "candidate_number": 2,
   "run_id": "22251272823",
-  "status": "implemented",
+  "status": "verified",
   "summary": "Fix from_dict to validate text field for whitespace-only values",
   "changes": [
     {
@@ -15,6 +15,14 @@
     }
   ],
   "tests_added": 3,
-  "tests_passed": 15,
+  "tests_passed": 115,
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "pytest_result": "15 tests passed",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "ruff_result": "All checks passed",
+    "full_test_command": "uv run pytest tests/ -v",
+    "full_test_result": "115 tests passed, no regressions"
+  },
   "risks": "Low - validation is consistent with existing rename() method behavior"
 }
