@@ -82,8 +82,6 @@ def test_load_uses_single_file_descriptor(tmp_path) -> None:
     assert loaded[0].text == "test todo"
 
     # Verify file is opened only once for reading (not multiple times)
-    # O_RDONLY = 0, we expect the fix to use os.open with O_RDONLY
-    read_opens = [c for c in open_calls if "read" in str(c).lower() or c[1] == 0]
     # Before fix: path.exists(), path.stat(), path.read_text() = 3 separate opens
     # After fix: os.open() once, fstat on fd, read from fd = 1 open
     # We allow up to 2 opens (one for the fix, one might be in path handling)
@@ -116,7 +114,7 @@ def test_load_rejects_symlink(tmp_path) -> None:
 
     # Before fix: load() would follow symlink and return sensitive data
     # After fix: load() should reject the symlink
-    with pytest.raises(ValueError, match="symlink|symbolic link|not a regular file"):
+    with pytest.raises(ValueError, match=r"symlink|symbolic link|not a regular file"):
         storage.load()
 
 
@@ -157,10 +155,11 @@ def test_load_detects_symlink_swap_attack(tmp_path) -> None:
             Path(path).symlink_to(attack_target)
         return original_open(path, flags, *args, **kwargs)
 
-    with patch("os.open", side_effect=malicious_open):
+    with patch("os.open", side_effect=malicious_open), pytest.raises(
+        ValueError, match=r"symlink|symbolic link"
+    ):
         # After fix: O_NOFOLLOW will reject the symlink at os.open() time
-        with pytest.raises(ValueError, match="symlink|symbolic link"):
-            storage.load()
+        storage.load()
 
 
 def test_load_size_check_uses_same_file_descriptor(tmp_path) -> None:
@@ -228,7 +227,7 @@ def test_load_continues_to_enforce_size_limit(tmp_path) -> None:
     db.write_text(large_content)
 
     # Should raise ValueError for size limit
-    with pytest.raises(ValueError, match="too large|DoS"):
+    with pytest.raises(ValueError, match=r"too large|DoS"):
         storage.load()
 
 
