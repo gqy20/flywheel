@@ -146,8 +146,9 @@ class TodoStorage:
             return 1
 
         # Check if we can use cached value (O(1))
-        # Cache is valid if last todo's ID >= our cached max (list grew or unchanged)
-        if self._max_id is not None and todos[-1].id >= self._max_id:
+        # Cache is valid if last todo's ID equals our cached max
+        # (meaning the list is exactly as we left it after last next_id call)
+        if self._max_id is not None and todos[-1].id == self._max_id:
             return self._max_id + 1
 
         # Cache miss or external modification: compute max (O(n))

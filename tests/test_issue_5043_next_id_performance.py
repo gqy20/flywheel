@@ -54,6 +54,8 @@ def test_next_id_performance_is_constant_time() -> None:
     # Measure with 1000 todos (multiple iterations for accuracy)
     todos_1k = [Todo(id=i, text=f"task-{i}") for i in range(1, 1001)]
     iterations = 100
+    # Warmup call to prime the cache
+    storage.next_id(todos_1k)
     start_time = time.perf_counter()
     for _ in range(iterations):
         storage.next_id(todos_1k)
@@ -61,6 +63,8 @@ def test_next_id_performance_is_constant_time() -> None:
 
     # Measure with 10000 todos (10x larger)
     todos_10k = [Todo(id=i, text=f"task-{i}") for i in range(1, 10001)]
+    # Warmup call to prime the cache
+    storage.next_id(todos_10k)
     start_time = time.perf_counter()
     for _ in range(iterations):
         storage.next_id(todos_10k)

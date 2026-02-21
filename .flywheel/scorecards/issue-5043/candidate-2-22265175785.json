@@ -18,7 +18,7 @@
     "passed": true,
     "coverage": "100% of changed code"
   },
-  "implementation_approach": "Added _max_id cache to TodoStorage. Cache is validated by checking if last todo's ID >= cached max, providing O(1) amortized performance for sequential additions while handling external modifications correctly.",
+  "implementation_approach": "Added _max_id cache to TodoStorage. Cache is validated by checking if last todo's ID equals cached max, providing O(1) amortized performance for sequential additions while correctly handling external list modifications.",
   "risks": [
     "Cache could be invalidated if todos are modified externally without using the storage instance",
     "Thread safety not guaranteed - concurrent access would need external synchronization"
