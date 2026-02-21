@@ -158,3 +158,30 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_empty_list_returns_1() -> None:
+    """Bug #4999: next_id should return 1 when todos list is empty."""
+    storage = TodoStorage("/dev/null/todo.json")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_with_only_negative_ids_returns_1() -> None:
+    """Bug #4999: next_id should return 1 when all existing IDs are negative."""
+    storage = TodoStorage("/dev/null/todo.json")
+    todos = [Todo(id=-5, text="negative"), Todo(id=-3, text="also negative")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_mixed_ids_ignores_negative() -> None:
+    """Bug #4999: next_id should ignore negative IDs and compute max from positive IDs only."""
+    storage = TodoStorage("/dev/null/todo.json")
+    todos = [Todo(id=1, text="positive"), Todo(id=-5, text="negative"), Todo(id=3, text="positive")]
+    assert storage.next_id(todos) == 4
+
+
+def test_next_id_with_normal_positive_ids() -> None:
+    """Bug #4999: next_id should work normally with positive IDs."""
+    storage = TodoStorage("/dev/null/todo.json")
+    todos = [Todo(id=1, text="first"), Todo(id=2, text="second")]
+    assert storage.next_id(todos) == 3
