@@ -1,0 +1,26 @@
+{
+  "issue_number": 4822,
+  "issue_title": "[Feature] Add count() method to return todo count without full load",
+  "candidate_number": 3,
+  "run_id": "22247022497",
+  "branch_name": "claude/issue-4822-candidate-3-22247022497",
+  "status": "implemented",
+  "implementation_summary": "Added count() method to TodoStorage class that returns the number of stored todos without requiring explicit load() call.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_4822_count_method.py"
+  ],
+  "tests_added": 5,
+  "tests_passed": 117,
+  "coverage_percent": 92,
+  "lint_status": "passed",
+  "acceptance_criteria_met": [
+    "count() returns 0 when storage file does not exist",
+    "count() returns correct integer count of stored todos",
+    "count() raises ValueError for corrupted JSON (consistent with load())"
+  ],
+  "risks_limitations": [
+    "Current implementation uses len(self.load()) which still deserializes all todos. Future optimization could read file metadata directly."
+  ],
+  "timestamp": "2026-02-21T00:00:00Z"
+}
