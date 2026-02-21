@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,43 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file for preventing concurrent access issues
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive lock on the lock file.
+
+        Creates the lock file if it doesn't exist.
+        Uses fcntl.flock with LOCK_EX for exclusive access.
+        """
+        _ensure_parent_directory(self._lock_path)
+        # Open/create lock file and acquire exclusive lock
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
+    def _release_lock(self) -> None:
+        """Release the exclusive lock on the lock file."""
+        if hasattr(self, "_lock_fd"):
+            fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+            os.close(self._lock_fd)
+            del self._lock_fd
+
+    @contextlib.contextmanager
+    def _exclusive_access(self):
+        """Context manager for exclusive access to storage.
+
+        Prevents race conditions by holding an exclusive lock during
+        load → modify → save operations.
+        """
+        self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +164,29 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo_atomic(self, text: str) -> Todo:
+        """Add a todo atomically with exclusive file locking.
+
+        This method prevents race conditions by holding an exclusive lock
+        during the entire load → compute ID → append → save operation.
+
+        Args:
+            text: The todo text to add
+
+        Returns:
+            The newly created Todo with a unique ID
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._exclusive_access():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+        return todo
