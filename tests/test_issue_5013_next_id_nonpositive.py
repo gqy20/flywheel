@@ -6,8 +6,6 @@ the next ID to ensure new todos always receive a positive integer ID >= 1.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
