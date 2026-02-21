@@ -119,3 +119,26 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4846 - validate 'text' field is non-empty after strip
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only strings for 'text' field.
+
+    This aligns with the validation in rename() which rejects empty text.
+    """
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_rejects_tabs_newlines_only_text() -> None:
+    """Todo.from_dict should reject text that is only tabs/newlines."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo.from_dict({"id": 1, "text": "\t\n"})
+
+
+def test_todo_from_dict_accepts_valid_text_with_whitespace() -> None:
+    """Todo.from_dict should accept text that becomes valid after strip."""
+    todo = Todo.from_dict({"id": 1, "text": " valid "})
+    # Text should be stripped per the rename() convention
+    assert todo.text == "valid"
