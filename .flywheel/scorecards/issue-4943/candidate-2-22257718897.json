@@ -1,28 +1,23 @@
 {
-  "issue_number": 4943,
-  "issue_title": "[Security] TOCTOU race condition in _ensure_parent_directory: file exists check and mkdir a",
-  "candidate_number": 2,
+  "issue": 4943,
+  "candidate": 2,
   "run_id": "22257718897",
-  "branch_name": "claude/issue-4943-candidate-2-22257718897",
-  "status": "verified",
-  "fix_summary": "Changed parent.mkdir(parents=True, exist_ok=False) to parent.mkdir(parents=True, exist_ok=True) to avoid TOCTOU race condition. The validation of parent components above already ensures path safety.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_atomicity.py"
+  "branch": "claude/issue-4943-candidate-2-22257718897",
+  "pr_number": 4966,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/4966",
+  "generated_at": "2026-02-21T14:40:31.526418+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_toctou_race_condition_in_ensure_parent_directory"
-  ],
-  "tests_passed": true,
-  "linter_passed": true,
-  "verification_commands": [
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
-  ],
-  "verification_results": {
-    "pytest": "7 passed in 0.10s",
-    "ruff": "All checks passed!"
-  },
-  "created_at": "2026-02-21T12:00:00Z",
-  "verified_at": "2026-02-21T12:05:00Z"
+  "stage_response_sizes": {
+    "triage": 2581,
+    "plan": 4000,
+    "implement": 1889,
+    "verify": 2263,
+    "finalize": 1292
+  }
 }
