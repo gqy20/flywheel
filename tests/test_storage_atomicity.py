@@ -6,7 +6,9 @@ preventing data corruption if the process crashes during write.
 
 from __future__ import annotations
 
+import errno
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +151,112 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_closed_when_fchmod_raises_oserror(tmp_path) -> None:
+    """Regression test for issue #4875: File descriptor leak in save() cleanup.
+
+    If os.fchmod raises OSError after mkstemp but before fdopen, the raw file
+    descriptor fd must be closed. Without proper cleanup, fd would leak.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Get the initial fd count for this process
+    import os
+
+    def get_open_fd_count() -> int:
+        """Count open file descriptors for this process."""
+        try:
+            fd_dir = Path(f"/proc/{os.getpid()}/fd")
+            if fd_dir.exists():
+                return len(list(fd_dir.iterdir()))
+        except OSError:
+            pass
+        return -1  # Can't determine on this platform
+
+    initial_fd_count = get_open_fd_count()
+
+    # Mock os.fchmod to raise OSError, simulating permission/IO error
+    # This happens after mkstemp returns fd but before fdopen consumes it
+    original_fchmod = os.fchmod
+    call_count = [0]
+
+    def failing_fchmod(fd, mode):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            # First call (during test save) should fail
+            raise OSError(errno.EBADF, "Bad file descriptor")
+        # Subsequent calls (during other operations) should work
+        return original_fchmod(fd, mode)
+
+    import errno
+
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Bad file descriptor"),
+    ):
+        storage.save(todos)
+
+    # CRITICAL: Verify no fd leak occurred
+    # The fd should have been closed in the cleanup block
+    final_fd_count = get_open_fd_count()
+
+    if initial_fd_count >= 0 and final_fd_count >= 0:
+        # Allow some tolerance for other system activity, but no persistent leak
+        assert final_fd_count <= initial_fd_count + 2, (
+            f"File descriptor leak detected: initial={initial_fd_count}, "
+            f"final={final_fd_count}"
+        )
+
+
+def test_fd_closed_when_fdopen_raises_oserror(tmp_path) -> None:
+    """Regression test for issue #4875: fd leak when os.fdopen fails.
+
+    If os.fdopen raises an exception (e.g., due to encoding error),
+    the raw fd must be closed before cleanup.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+    leaked_fds = []
+
+    # Track which fds are created
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure
+        raise OSError("Simulated fdopen failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save(todos)
+
+    # Verify the leaked fd was properly closed
+    for fd in leaked_fds:
+        try:
+            # If fd is still open, os.close should succeed (but we don't want that)
+            # If fd is closed, os.close should raise OSError (Bad file descriptor)
+            os.close(fd)
+            # If we get here, the fd was NOT closed - this is a bug!
+            pytest.fail(f"File descriptor {fd} was not closed during cleanup!")
+        except OSError as e:
+            # Expected: fd should already be closed
+            if e.errno != errno.EBADF:
+                raise
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
