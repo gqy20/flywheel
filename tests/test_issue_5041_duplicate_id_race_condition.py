@@ -20,8 +20,6 @@ import multiprocessing
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -197,7 +195,7 @@ def test_add_with_file_locking_prevents_duplicate_ids(tmp_path: Path) -> None:
         results.append(result_queue.get())
 
     successes = [r for r in results if r[0] == "success"]
-    errors = [r for r in results if r[0] == "error"]
+    _errors = [r for r in results if r[0] == "error"]
 
     # If we got successes, verify no duplicate IDs
     if len(successes) >= 2:
