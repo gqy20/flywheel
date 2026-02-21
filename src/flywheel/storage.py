@@ -51,13 +51,59 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
 
-    def __init__(self, path: str | None = None) -> None:
+    Args:
+        path: Path to the JSON storage file. Defaults to ".todo.json".
+        cache_enabled: If True, cache loaded todos in memory to reduce disk I/O.
+            The cache is automatically invalidated on save() and when file mtime
+            changes externally. Default is False for backward compatibility.
+    """
+
+    def __init__(
+        self, path: str | None = None, cache_enabled: bool = False
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.cache_enabled = cache_enabled
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
+
+    def _get_file_mtime(self) -> float | None:
+        """Get file modification time, or None if file doesn't exist."""
+        if not self.path.exists():
+            return None
+        return self.path.stat().st_mtime
+
+    def _is_cache_valid(self) -> bool:
+        """Check if cached data is still valid based on mtime."""
+        if self._cache is None:
+            return False
+        # Special case: cache_mtime is None means file didn't exist when cached
+        if self._cache_mtime is None:
+            # Cache is valid only if file still doesn't exist
+            return not self.path.exists()
+        current_mtime = self._get_file_mtime()
+        # Cache is valid if mtime matches
+        return current_mtime == self._cache_mtime
+
+    def invalidate_cache(self) -> None:
+        """Clear the in-memory cache.
+
+        Safe to call even if cache is empty or file doesn't exist.
+        """
+        self._cache = None
+        self._cache_mtime = None
 
     def load(self) -> list[Todo]:
+        # Return cached data if valid
+        if self.cache_enabled and self._is_cache_valid():
+            return self._cache if self._cache is not None else []
+
         if not self.path.exists():
+            # Cache the empty result
+            if self.cache_enabled:
+                self._cache = []
+                self._cache_mtime = None
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +126,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Update cache if enabled
+        if self.cache_enabled:
+            self._cache = todos
+            self._cache_mtime = self._get_file_mtime()
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -90,7 +144,12 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Note: Invalidates the cache if caching is enabled.
         """
+        # Invalidate cache before saving
+        self.invalidate_cache()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
