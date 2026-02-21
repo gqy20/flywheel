@@ -53,8 +53,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = True) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            backup: If True, create a .bak backup before overwriting. Defaults to True.
+        """
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,11 +95,20 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        If backup is enabled and the file already exists, creates a .bak backup
+        before overwriting to prevent accidental data loss.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if backup is enabled
+        if self.backup and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            # Copy the existing file content to backup (before overwriting)
+            backup_path.write_bytes(self.path.read_bytes())
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
