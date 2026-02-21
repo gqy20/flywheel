@@ -90,12 +90,22 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: Before overwriting, creates a .bak backup of the existing file
+        to allow recovery from accidental data deletion.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file before overwriting
+        # Backup file is hidden (starts with .) and has .bak suffix
+        backup_path = self.path.parent / f".{self.path.name}.bak"
+        if self.path.exists():
+            # Copy existing file to backup location
+            backup_path.write_text(self.path.read_text(encoding="utf-8"), encoding="utf-8")
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
