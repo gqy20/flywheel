@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #4957 - reject float IDs that would lose precision
+def test_todo_from_dict_rejects_float_id_with_precision_loss() -> None:
+    """Todo.from_dict should reject float 'id' values that would lose precision.
+
+    int(1.5) returns 1 silently, which could cause ID collisions.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|precision"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_accepts_float_id_without_precision_loss() -> None:
+    """Todo.from_dict should accept float 'id' values that don't lose precision.
+
+    1.0 is equivalent to 1 and shouldn't be rejected.
+    """
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
