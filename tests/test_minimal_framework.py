@@ -158,3 +158,40 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_available_with_gaps(tmp_path) -> None:
+    """Bug #4985: next_id() should return smallest available ID, not max+1."""
+    db = tmp_path / "gaps.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs [1, 3, 5]
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    storage.save(todos)
+    loaded = storage.load()
+
+    # Should return 2 (first gap), not 6 (max+1)
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_returns_max_plus_one_when_no_gaps(tmp_path) -> None:
+    """Verify next_id() still works correctly with sequential IDs."""
+    db = tmp_path / "sequential.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with sequential IDs [1, 2, 3]
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    storage.save(todos)
+    loaded = storage.load()
+
+    # Should return 4 (no gaps)
+    assert storage.next_id(loaded) == 4
+
+
+def test_next_id_returns_1_for_empty_storage(tmp_path) -> None:
+    """Verify next_id() returns 1 for empty storage."""
+    db = tmp_path / "empty.json"
+    storage = TodoStorage(str(db))
+
+    # Empty storage should return 1
+    assert storage.next_id([]) == 1
