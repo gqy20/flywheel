@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage
+from flywheel.storage import TodoStorage, _ensure_parent_directory
 from flywheel.todo import Todo
 
 
@@ -149,6 +149,62 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_concurrent_directory_creation_no_toctou_race(tmp_path) -> None:
+    """Regression test for issue #4973: TOCTOU race in _ensure_parent_directory.
+
+    Tests that multiple threads concurrently calling _ensure_parent_directory
+    on a new path do not hit FileExistsError due to TOCTOU race between
+    parent.exists() check and parent.mkdir(exist_ok=False) call.
+
+    The race window exists between:
+    1. `if not parent.exists()` returning True for thread A and B
+    2. Thread A creates directory
+    3. Thread B tries to create directory with exist_ok=False -> FileExistsError
+
+    Fix: Use exist_ok=True since the pre-validation already ensures no
+    file-as-directory confusion exists.
+    """
+    import threading
+
+    errors = []
+    success_count = [0]
+    lock = threading.Lock()
+
+    def worker(worker_id: int) -> None:
+        """Worker that calls _ensure_parent_directory on a new path."""
+        try:
+            # Each thread tries to ensure a different file in the same NEW directory
+            file_path = tmp_path / "new_subdir" / f"file_{worker_id}.json"
+            _ensure_parent_directory(file_path)
+            with lock:
+                success_count[0] += 1
+        except Exception as e:
+            with lock:
+                errors.append((worker_id, str(e)))
+
+    # Run many threads concurrently to maximize race condition likelihood
+    threads = []
+    for i in range(20):
+        t = threading.Thread(target=worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads nearly simultaneously
+    for t in threads:
+        t.start()
+
+    for t in threads:
+        t.join(timeout=10)
+
+    # All workers should have succeeded without FileExistsError
+    assert len(errors) == 0, (
+        f"Workers encountered errors (TOCTOU race triggered): {errors}"
+    )
+    assert success_count[0] == 20, f"Expected 20 successes, got {success_count[0]}"
+
+    # Verify the directory was created
+    assert (tmp_path / "new_subdir").is_dir()
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
