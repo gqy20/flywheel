@@ -2,7 +2,7 @@
   "issue_number": 5029,
   "candidate": 1,
   "run_id": "22265175785",
-  "status": "implemented",
+  "status": "verified",
   "summary": "Fix next_id to find first available gap instead of max+1",
   "changes": {
     "test_files": [
@@ -12,12 +12,19 @@
       "src/flywheel/storage.py"
     ]
   },
-  "tests_passed": 118,
+  "tests_passed": 6,
   "tests_added": 6,
   "lint_status": "passed",
+  "format_status": "passed",
   "approach": "Changed next_id() from max()+1 to finding first available gap using a set-based approach",
   "risks": [
     "Minimal performance impact for very large todo lists (O(n) space for set, O(gap) iterations)"
   ],
-  "limitations": []
+  "limitations": [],
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_5029_next_id_duplicates.py -v",
+    "ruff_check_command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5029_next_id_duplicates.py",
+    "ruff_format_command": "uv run ruff format --check src/flywheel/storage.py tests/test_issue_5029_next_id_duplicates.py",
+    "all_passed": true
+  }
 }
