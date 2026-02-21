@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
@@ -53,11 +55,18 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, logger: logging.Logger | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._logger = logger
 
     def load(self) -> list[Todo]:
+        start_time = time.perf_counter()
         if not self.path.exists():
+            if self._logger:
+                self._logger.debug(
+                    "load: file not found, returning empty list",
+                    extra={"path": str(self.path), "count": 0},
+                )
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,22 +74,48 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
+            error_msg = (
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
+            if self._logger:
+                self._logger.error(
+                    "load: file too large",
+                    extra={"path": str(self.path), "size_mb": size_mb, "limit_mb": limit_mb},
+                )
+            raise ValueError(error_msg)
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            if self._logger:
+                self._logger.warning(
+                    "load: JSON decode error",
+                    extra={"path": str(self.path), "error": str(e), "line": e.lineno, "column": e.colno},
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            if self._logger:
+                self._logger.warning(
+                    "load: invalid format, expected list",
+                    extra={"path": str(self.path), "type": type(raw).__name__},
+                )
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        if self._logger:
+            self._logger.debug(
+                "load: completed",
+                extra={"path": str(self.path), "count": len(result), "elapsed_ms": round(elapsed_ms, 2)},
+            )
+
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,22 +126,25 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
-        # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
-
-        payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
-
-        # Create temp file in same directory as target for atomic rename
-        # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=f".{self.path.name}.",
-            suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
-        )
+        start_time = time.perf_counter()
+        temp_path: str | None = None
 
         try:
+            # Ensure parent directory exists (lazy creation, validated)
+            _ensure_parent_directory(self.path)
+
+            payload = [todo.to_dict() for todo in todos]
+            content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+            # Create temp file in same directory as target for atomic rename
+            # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                text=False,  # We'll write binary data to control encoding
+            )
+
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
@@ -118,10 +156,23 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            if self._logger:
+                self._logger.debug(
+                    "save: completed",
+                    extra={"path": str(self.path), "count": len(todos), "elapsed_ms": round(elapsed_ms, 2)},
+                )
+        except OSError as e:
             # Clean up temp file on error
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
+            if temp_path:
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+            if self._logger:
+                self._logger.error(
+                    "save: failed",
+                    extra={"path": str(self.path), "error": str(e)},
+                )
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
