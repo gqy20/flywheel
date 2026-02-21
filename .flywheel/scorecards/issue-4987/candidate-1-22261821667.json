@@ -1,0 +1,23 @@
+{
+  "issue_number": 4987,
+  "candidate_number": 1,
+  "run_id": "22261821667",
+  "timestamp": "2026-02-21T16:30:00Z",
+  "status": "completed",
+  "summary": "Added missing test coverage for next_id() edge cases including gap IDs, single high ID, empty list, negative IDs, and load() with duplicate IDs in JSON",
+  "tests_added": [
+    "tests/test_next_id_edge_cases.py::TestNextIdEdgeCases::test_next_id_with_gap_ids",
+    "tests/test_next_id_edge_cases.py::TestNextIdEdgeCases::test_next_id_with_single_high_id",
+    "tests/test_next_id_edge_cases.py::TestNextIdEdgeCases::test_next_id_with_empty_list",
+    "tests/test_next_id_edge_cases.py::TestNextIdEdgeCases::test_next_id_with_negative_ids",
+    "tests/test_next_id_edge_cases.py::TestNextIdEdgeCases::test_next_id_after_removing_middle_item",
+    "tests/test_next_id_edge_cases.py::TestLoadWithDuplicateIds::test_load_with_duplicate_ids_returns_both_items",
+    "tests/test_next_id_edge_cases.py::TestLoadWithDuplicateIds::test_load_with_multiple_duplicate_ids"
+  ],
+  "files_changed": [
+    "tests/test_next_id_edge_cases.py"
+  ],
+  "source_files_changed": [],
+  "risks": "None - this is a test-only change that adds coverage for existing functionality",
+  "limitations": "No source code changes needed - existing implementation already handles all edge cases correctly"
+}
