@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,38 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_handles_missing_fchmod_on_windows(tmp_path) -> None:
+    """Regression test for issue #4902: os.fchmod not available on Windows.
+
+    On Windows, os.fchmod does not exist and raises AttributeError.
+    The save() method should handle this gracefully by skipping the
+    permission setting (best-effort approach for Windows).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a mock that simulates Windows behavior where fchmod doesn't exist
+    original_fchmod = getattr(os, "fchmod", None)
+
+    # Remove fchmod to simulate Windows
+    if hasattr(os, "fchmod"):
+        delattr(os, "fchmod")
+
+    try:
+        # This should not raise AttributeError
+        todos = [Todo(id=1, text="test on windows")]
+        storage.save(todos)
+
+        # Verify file was saved correctly
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test on windows"
+    finally:
+        # Restore fchmod if it existed
+        if original_fchmod is not None:
+            os.fchmod = original_fchmod
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
