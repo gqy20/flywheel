@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    tags: tuple[str, ...] = ()
     created_at: str = ""
     updated_at: str = ""
 
@@ -55,7 +56,10 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        result = asdict(self)
+        # Convert tags tuple to list for JSON compatibility
+        result["tags"] = list(self.tags)
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
@@ -93,10 +97,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate and normalize tags to tuple
+        raw_tags = data.get("tags", ())
+        if isinstance(raw_tags, tuple):
+            tags = raw_tags
+        elif isinstance(raw_tags, list):
+            tags = tuple(raw_tags)
+        else:
+            raise ValueError(
+                f"Invalid value for 'tags': {raw_tags!r}. "
+                "'tags' must be a list or tuple of strings."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            tags=tags,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
