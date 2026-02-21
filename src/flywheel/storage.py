@@ -57,21 +57,63 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
-            return []
+        """Load todos from file with TOCTOU protection.
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        Opens file once with O_NOFOLLOW (where supported) and uses fstat()
+        on the same file descriptor to prevent symlink attacks between
+        the existence check, size check, and read operations.
+
+        Returns:
+            List of Todo objects, empty list if file doesn't exist.
+
+        Raises:
+            ValueError: If file is too large, contains invalid JSON,
+                        or is not a JSON list. Also raised if path is
+                        a symlink (symlink attack prevention).
+        """
+        # Use O_NOFOLLOW on systems that support it (Linux, BSD, macOS)
+        # This prevents following symlinks and protects against TOCTOU attacks
+        open_flags = os.O_RDONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            open_flags |= os.O_NOFOLLOW
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            fd = os.open(self.path, open_flags)
+        except FileNotFoundError:
+            # File doesn't exist - return empty list (normal case)
+            return []
+        except OSError as e:
+            # O_NOFOLLOW raises ELOOP (40) on Linux when path is a symlink
+            # On BSD/macOS it raises EFTYPE or similar
+            if e.errno == 40 or "Too many levels of symbolic links" in str(e):
+                raise ValueError(
+                    f"Security error: '{self.path}' is a symbolic link. "
+                    f"Symbolic links are not allowed for database files."
+                ) from e
+            raise
+
+        try:
+            # Security: Check file size via fstat on the SAME file descriptor
+            # This prevents TOCTOU between stat() and read()
+            file_stat = os.fstat(fd)
+            file_size = file_stat.st_size
+
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            # Read from the SAME file descriptor (not a new open call)
+            with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as f:
+                raw_content = f.read()
+        finally:
+            os.close(fd)
+
+        try:
+            raw = json.loads(raw_content)
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
