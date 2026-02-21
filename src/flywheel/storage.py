@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock acquisition timeout in seconds
+_LOCK_TIMEOUT_SECONDS = 10
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +59,87 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with file-based locking.
+
+    Uses fcntl.flock for cross-process synchronization to prevent race
+    conditions when multiple processes access the same storage concurrently.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    @property
+    def _lock_path(self) -> Path:
+        """Path to the lock file.
+
+        The lock file is separate from the data file to avoid interference
+        with atomic write operations.
+        """
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def lock(self, timeout: float | None = None) -> Iterator[None]:
+        """Acquire an exclusive file lock for cross-process synchronization.
+
+        Uses fcntl.flock with LOCK_EX for exclusive access. The lock is
+        automatically released when exiting the context manager, even if
+        an exception occurs.
+
+        Args:
+            timeout: Maximum time to wait for lock acquisition in seconds.
+                    Defaults to _LOCK_TIMEOUT_SECONDS.
+
+        Yields:
+            None
+
+        Raises:
+            TimeoutError: If the lock cannot be acquired within the timeout.
+            OSError: If the lock file cannot be created or accessed.
+        """
+        if timeout is None:
+            timeout = _LOCK_TIMEOUT_SECONDS
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create the lock file
+        lock_fd = os.open(
+            self._lock_path,
+            os.O_CREAT | os.O_RDWR,
+            0o600,  # Secure permissions
+        )
+
+        try:
+            # Try to acquire exclusive lock with non-blocking flag
+            # Use a simple spin-loop with timeout
+            import time
+            start_time = time.monotonic()
+
+            while True:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break  # Lock acquired
+                except (BlockingIOError, OSError):
+                    # Lock is held by another process
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        raise TimeoutError(
+                            f"Could not acquire lock on '{self._lock_path}' "
+                            f"within {timeout:.1f} seconds. "
+                            f"Another process may be holding the lock."
+                        ) from None
+                    # Brief sleep before retry
+                    time.sleep(0.05)
+
+            # Lock acquired - yield to caller
+            try:
+                yield
+            finally:
+                # Release the lock
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            # Always close the file descriptor
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
