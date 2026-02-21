@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,58 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire an exclusive file lock for atomic operations.
+
+        This prevents race conditions when multiple processes try to
+        read-modify-write the same database file concurrently.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open or create the lock file and acquire exclusive lock
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+
+    def _release_lock(self) -> None:
+        """Release the exclusive file lock."""
+        if hasattr(self, "_lock_fd"):
+            fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+            os.close(self._lock_fd)
+            del self._lock_fd
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a todo item with proper locking.
+
+        This method acquires an exclusive lock, loads todos, computes the next ID,
+        saves, and releases the lock - ensuring no duplicate IDs can be generated
+        by concurrent processes.
+
+        Args:
+            text: The todo text to add.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        self._acquire_lock()
+        try:
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
