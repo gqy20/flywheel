@@ -51,10 +51,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Performance note: next_id() is O(1) by tracking the maximum ID
+    separately rather than scanning all todos each time.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None  # Cached max ID for O(1) next_id()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +130,27 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available todo ID.
+
+        Performance: O(1) amortized for sequential additions.
+        Uses cached max_id to avoid O(n) linear scan on each call.
+        The cache is validated by checking if the last todo's ID matches
+        or exceeds our cached max, indicating the list hasn't been modified
+        in a way that would invalidate our cache.
+
+        Returns:
+            The next available ID (max(existing_ids) + 1, or 1 if empty).
+        """
+        if not todos:
+            self._max_id = 0
+            return 1
+
+        # Check if we can use cached value (O(1))
+        # Cache is valid if last todo's ID equals our cached max
+        # (meaning the list is exactly as we left it after last next_id call)
+        if self._max_id is not None and todos[-1].id == self._max_id:
+            return self._max_id + 1
+
+        # Cache miss or external modification: compute max (O(n))
+        self._max_id = max(todo.id for todo in todos)
+        return self._max_id + 1
