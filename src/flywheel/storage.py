@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +124,19 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the smallest unused positive integer ID.
+
+        This ensures next_id never returns an ID that already exists,
+        even if loaded data contains non-sequential or negative IDs.
+        """
+        if not todos:
+            return 1
+
+        # Collect all existing IDs
+        used_ids = {todo.id for todo in todos}
+
+        # Find the smallest unused positive integer starting from 1
+        next_candidate = 1
+        while next_candidate in used_ids:
+            next_candidate += 1
+        return next_candidate
