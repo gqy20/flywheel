@@ -110,3 +110,15 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_list_none_raises_type_error() -> None:
+    """format_list(None) should raise TypeError, not return default message.
+
+    Regression test for Issue #5056: format_list(None) was silently returning
+    'No todos yet.' instead of raising an explicit error.
+    """
+    import pytest
+
+    with pytest.raises(TypeError, match="todos cannot be None"):
+        TodoFormatter.format_list(None)
