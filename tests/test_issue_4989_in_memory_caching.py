@@ -16,8 +16,6 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -99,7 +97,7 @@ class TestCacheEnabled:
         storage.save(todos)
 
         # Load once to populate cache
-        loaded1 = storage.load()
+        storage.load()
 
         # Modify file externally (this should NOT be reflected due to cache)
         import json
