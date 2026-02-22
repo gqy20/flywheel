@@ -1,26 +1,23 @@
 {
-  "issue_number": 5111,
-  "candidate_number": 1,
+  "issue": 5111,
+  "candidate": 1,
   "run_id": "22272043048",
   "branch": "claude/issue-5111-candidate-1-22272043048",
-  "created_at": "2026-02-22T07:00:00Z",
-  "summary": "Fix Unicode BiDi character sanitization vulnerability",
-  "changes": {
-    "source_files": ["src/flywheel/formatter.py"],
-    "test_files": ["tests/test_issue_5111_bidi_sanitization.py"],
-    "lines_added": 175,
-    "lines_removed": 5
-  },
-  "tests": {
-    "new_tests": 15,
-    "passed": true,
-    "regression_tests_passed": true
-  },
-  "lint": {
-    "ruff": "passed"
-  },
-  "risks": [
-    "New escape ranges may affect existing text containing these Unicode characters"
+  "pr_number": 5117,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5117",
+  "generated_at": "2026-02-22T07:21:48.495690+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 3305,
+    "plan": 4000,
+    "implement": 2092,
+    "verify": 2154,
+    "finalize": 999
+  }
 }
