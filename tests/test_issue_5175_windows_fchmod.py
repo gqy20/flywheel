@@ -64,6 +64,7 @@ def test_save_still_sets_permissions_when_fchmod_available(tmp_path) -> None:
     # Skip this test if fchmod is not available (e.g., running on Windows)
     if not hasattr(os, "fchmod"):
         import pytest
+
         pytest.skip("os.fchmod not available on this platform")
 
     # Track if fchmod was called
@@ -83,9 +84,7 @@ def test_save_still_sets_permissions_when_fchmod_available(tmp_path) -> None:
     # Verify fchmod was called with 0o600 permissions
     assert len(fchmod_calls) == 1, f"Expected 1 fchmod call, got {len(fchmod_calls)}"
     _fd, mode = fchmod_calls[0]
-    assert mode == (stat.S_IRUSR | stat.S_IWUSR), (
-        f"Expected mode 0o600, got {oct(mode)}"
-    )
+    assert mode == (stat.S_IRUSR | stat.S_IWUSR), f"Expected mode 0o600, got {oct(mode)}"
 
 
 def test_save_handles_missing_fchmod_gracefully(tmp_path) -> None:
