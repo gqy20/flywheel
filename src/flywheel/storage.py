@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,47 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive lock for atomic operations.
+
+        Returns the file descriptor of the lock file. Caller is responsible
+        for closing the fd to release the lock.
+        """
+        _ensure_parent_directory(self._lock_path)
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the exclusive lock."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Add a todo atomically with file locking to prevent race conditions.
+
+        This method loads todos, appends the new todo, and saves - all while
+        holding an exclusive lock to prevent concurrent processes from
+        generating duplicate IDs.
+        """
+        fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            # Generate ID atomically based on current file state
+            todo = Todo(id=self.next_id(todos), text=todo.text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
