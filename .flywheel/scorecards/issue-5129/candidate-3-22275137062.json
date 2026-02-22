@@ -1,0 +1,74 @@
+{
+  "issue_number": 5129,
+  "candidate_number": 3,
+  "run_id": "22275137062",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "description": "Add data import/export functionality to TodoStorage class",
+    "files_to_touch": [
+      "tests/test_issue_5129_import_export.py (new)",
+      "src/flywheel/storage.py (modify)"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Write failing tests for export_to() and import_from() methods",
+        "tests": [
+          "test_export_to_json_creates_valid_file",
+          "test_export_to_csv_creates_valid_file",
+          "test_import_from_json_restores_todos",
+          "test_import_from_csv_restores_todos",
+          "test_import_invalid_format_raises_value_error",
+          "test_import_merges_with_replace_strategy"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Implement minimal export_to() and import_from() methods",
+        "implementation": [
+          "Add export_to(path: Path, format: str = 'json') -> None",
+          "Add import_from(path: Path, format: str = 'json', merge: bool = True) -> list[Todo]",
+          "Support 'json' and 'csv' formats",
+          "Add validation and clear error messages"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run tests and linting",
+        "commands": [
+          "uv run pytest tests/test_issue_5129_import_export.py -v",
+          "uv run ruff check src/flywheel/storage.py"
+        ]
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5129_import_export.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff format --check src/flywheel/storage.py"
+    ],
+    "acceptance_criteria": [
+      "export_to() method supports export to specified path",
+      "import_from() method imports from external file with merge/replace",
+      "Supports both JSON and CSV formats",
+      "Imports validate data format and provide clear error messages"
+    ],
+    "risks": [
+      "CSV format doesn't naturally support nested data structures (timestamps)",
+      "Import merge strategy needs to handle ID conflicts"
+    ]
+  },
+  "implementation": {
+    "tests_passed": 12,
+    "tests_file": "tests/test_issue_5129_import_export.py",
+    "source_file": "src/flywheel/storage.py",
+    "commands_executed": [
+      "uv run pytest tests/test_issue_5129_import_export.py -v",
+      "uv run ruff check src/flywheel/storage.py",
+      "uv run ruff format src/flywheel/storage.py"
+    ]
+  },
+  "created_at": "2026-02-22T00:00:00Z"
+}

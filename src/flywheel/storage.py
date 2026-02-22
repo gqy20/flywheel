@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import json
 import os
 import stat
@@ -74,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +126,103 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def export_to(self, path: Path | str, format: str = "json") -> None:
+        """Export todos to an external file.
+
+        Args:
+            path: Destination file path.
+            format: Export format - 'json' (default) or 'csv'.
+
+        Raises:
+            ValueError: If format is not supported.
+        """
+        dest_path = Path(path)
+        todos = self.load()
+
+        if format == "json":
+            _ensure_parent_directory(dest_path)
+            payload = [todo.to_dict() for todo in todos]
+            content = json.dumps(payload, ensure_ascii=False, indent=2)
+            dest_path.write_text(content, encoding="utf-8")
+        elif format == "csv":
+            _ensure_parent_directory(dest_path)
+            with open(dest_path, "w", newline="", encoding="utf-8") as f:
+                fieldnames = ["id", "text", "done", "created_at", "updated_at"]
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for todo in todos:
+                    writer.writerow(todo.to_dict())
+        else:
+            raise ValueError(f"Unsupported format '{format}'. Supported formats: json, csv.")
+
+    def import_from(self, path: Path | str, format: str = "json", merge: bool = True) -> list[Todo]:
+        """Import todos from an external file.
+
+        Args:
+            path: Source file path.
+            format: Import format - 'json' (default) or 'csv'.
+            merge: If True (default), imported todos are merged with existing ones.
+                   If False, imported todos replace all existing todos.
+
+        Returns:
+            List of imported Todo objects.
+
+        Raises:
+            ValueError: If format is not supported or file content is invalid.
+        """
+        src_path = Path(path)
+
+        if format == "json":
+            if not src_path.exists():
+                raise ValueError(f"Import file not found: '{src_path}'")
+
+            try:
+                raw = json.loads(src_path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{src_path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+
+            if not isinstance(raw, list):
+                raise ValueError("Import file must contain a JSON list")
+
+            imported = [Todo.from_dict(item) for item in raw]
+        elif format == "csv":
+            if not src_path.exists():
+                raise ValueError(f"Import file not found: '{src_path}'")
+
+            imported = []
+            with open(src_path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    # Convert CSV string values to appropriate types
+                    data = {
+                        "id": int(row["id"]),
+                        "text": row["text"],
+                        "done": row.get("done", "False") == "True",
+                        "created_at": row.get("created_at", ""),
+                        "updated_at": row.get("updated_at", ""),
+                    }
+                    imported.append(Todo.from_dict(data))
+        else:
+            raise ValueError(f"Unsupported format '{format}'. Supported formats: json, csv.")
+
+        if merge:
+            existing = self.load()
+            existing_ids = {todo.id for todo in existing}
+
+            # Reassign IDs for conflicts
+            next_id = self.next_id(existing)
+            for todo in imported:
+                if todo.id in existing_ids:
+                    todo.id = next_id
+                    next_id += 1
+
+            combined = existing + imported
+            self.save(combined)
+        else:
+            self.save(imported)
+
+        return imported
