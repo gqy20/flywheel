@@ -19,7 +19,9 @@ class TodoApp:
         self._max_backups = 3  # Default max backups
 
     def _save(self, todos: list[Todo]) -> None:
-        self.storage.save(todos, backup_before_save=self._backup_enabled, max_backups=self._max_backups)
+        self.storage.save(
+            todos, backup_before_save=self._backup_enabled, max_backups=self._max_backups
+        )
 
     def _load(self) -> list[Todo]:
         return self.storage.load()

@@ -34,7 +34,9 @@ class TestBackupCreation:
 
         # Verify backup file exists (using .json.bak.<n> format)
         backup_files = list(tmp_path.glob("todo.json.bak.*"))
-        assert len(backup_files) >= 1, f"Backup file should exist, found: {list(tmp_path.iterdir())}"
+        assert len(backup_files) >= 1, (
+            f"Backup file should exist, found: {list(tmp_path.iterdir())}"
+        )
 
     def test_save_without_backup_does_not_create_backup(self, tmp_path: Path) -> None:
         """When backup_before_save=False (default), no backup file is created."""
@@ -82,7 +84,9 @@ class TestBackupRotation:
 
         # Count backup files (should be exactly 2)
         backup_files = list(tmp_path.glob("todo.json.bak*"))
-        assert len(backup_files) == 2, f"Expected 2 backup files, found {len(backup_files)}: {backup_files}"
+        assert len(backup_files) == 2, (
+            f"Expected 2 backup files, found {len(backup_files)}: {backup_files}"
+        )
 
     def test_backup_rotation_keeps_most_recent(self, tmp_path: Path) -> None:
         """Backup rotation should keep the most recent backups."""
@@ -128,7 +132,9 @@ class TestBackupRotation:
 
         # Should have 3 backup files (default)
         backup_files = list(tmp_path.glob("todo.json.bak*"))
-        assert len(backup_files) == 3, f"Expected 3 backup files by default, found {len(backup_files)}"
+        assert len(backup_files) == 3, (
+            f"Expected 3 backup files by default, found {len(backup_files)}"
+        )
 
 
 class TestLoadBackup:
@@ -213,7 +219,9 @@ class TestRestoreFromBackup:
         storage = TodoStorage(str(db))
 
         # Save multiple versions (each creates a backup of the previous)
-        storage.save([Todo(id=1, text="v1")], backup_before_save=True)  # creates backup of nothing (first save)
+        storage.save(
+            [Todo(id=1, text="v1")], backup_before_save=True
+        )  # creates backup of nothing (first save)
         time.sleep(0.01)
         storage.save([Todo(id=1, text="v2")], backup_before_save=True)  # creates backup of "v1"
         time.sleep(0.01)
