@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
@@ -51,10 +52,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with optional backup support."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        backup_before_save: bool = False,
+        max_backups: int = 3,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup_before_save = backup_before_save
+        self.max_backups = max_backups
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,9 +98,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        If backup_before_save is enabled, creates a timestamped backup of the
+        existing file before overwriting, and rotates old backups.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before save if enabled and file exists
+        if self.backup_before_save and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +138,84 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a timestamped backup of the current file and rotate old backups."""
+        timestamp = int(time.time() * 1000000)  # Microsecond precision for uniqueness
+        backup_path = self.path.parent / f"{self.path.name}.bak.{timestamp}"
+
+        # Copy current file to backup (atomic read + write)
+        current_content = self.path.read_bytes()
+        backup_path.write_bytes(current_content)
+
+        # Rotate backups if max_backups > 0
+        if self.max_backups > 0:
+            self._rotate_backups()
+
+    def _rotate_backups(self) -> None:
+        """Remove oldest backups if count exceeds max_backups."""
+        backup_pattern = f"{self.path.name}.bak.*"
+        backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.name,
+            reverse=True,  # Newest first
+        )
+
+        # Remove backups exceeding max_backups
+        for old_backup in backups[self.max_backups :]:
+            with contextlib.suppress(OSError):
+                old_backup.unlink()
+
+    def load_backup(self, n: int = 0) -> list[Todo]:
+        """Load todos from the nth most recent backup.
+
+        Args:
+            n: Which backup to load (0 = most recent, 1 = second most recent, etc.)
+
+        Returns:
+            List of Todo objects from the backup.
+
+        Raises:
+            FileNotFoundError: If no backup files exist or n is too large.
+            ValueError: If the backup file contains invalid JSON or data.
+        """
+        backup_pattern = f"{self.path.name}.bak.*"
+        backups = sorted(
+            self.path.parent.glob(backup_pattern),
+            key=lambda p: p.name,
+            reverse=True,  # Newest first
+        )
+
+        if not backups:
+            raise FileNotFoundError(f"No backup files found for '{self.path}'")
+
+        if n >= len(backups):
+            raise FileNotFoundError(
+                f"Backup index {n} out of range. Only {len(backups)} backup(s) available."
+            )
+
+        backup_path = backups[n]
+
+        # Security: Check file size before loading
+        file_size = backup_path.stat().st_size
+        if file_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = file_size / (1024 * 1024)
+            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            raise ValueError(
+                f"Backup file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit)."
+            )
+
+        try:
+            raw = json.loads(backup_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in backup '{backup_path}': {e.msg}. "
+                f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError("Backup storage must be a JSON list")
+        return [Todo.from_dict(item) for item in raw]
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
