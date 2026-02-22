@@ -1,0 +1,13 @@
+{
+  "issue_number": 5099,
+  "candidate": 3,
+  "run_id": "22273469553",
+  "approach": "Add None check at the start of _sanitize_text function that raises TypeError with clear message",
+  "changes": {
+    "source_files": ["src/flywheel/formatter.py"],
+    "test_files": ["tests/test_issue_2097_backslash_escape_collision.py"]
+  },
+  "tests_passed": 113,
+  "risks": [],
+  "limitations": []
+}

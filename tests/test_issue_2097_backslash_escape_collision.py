@@ -14,8 +14,19 @@ Solution: Escape backslash character BEFORE escaping control characters.
 
 from __future__ import annotations
 
+import pytest
+
 from flywheel.formatter import TodoFormatter, _sanitize_text
 from flywheel.todo import Todo
+
+
+class TestSanitizeTextNoneInput:
+    """Regression tests for Issue #5099: _sanitize_text must handle None input."""
+
+    def test_sanitize_text_none_raises_type_error(self):
+        """_sanitize_text(None) should raise TypeError with clear message."""
+        with pytest.raises(TypeError, match="text must be a string, not NoneType"):
+            _sanitize_text(None)
 
 
 class TestBackslashEscapeCollision:
