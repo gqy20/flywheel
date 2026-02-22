@@ -39,6 +39,7 @@ def _get_logger() -> logging.Logger:
         _logger.setLevel(logging.CRITICAL + 1)  # Effectively disable logging
     return _logger
 
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -114,12 +115,15 @@ class TodoStorage:
                 e.msg,
             )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
-            logger.error("load: invalid format, expected list (path=%s, type=%s)", self.path, type(raw).__name__)
+            logger.error(
+                "load: invalid format, expected list (path=%s, type=%s)",
+                self.path,
+                type(raw).__name__,
+            )
             raise ValueError("Todo storage must be a JSON list")
 
         todos = [Todo.from_dict(item) for item in raw]

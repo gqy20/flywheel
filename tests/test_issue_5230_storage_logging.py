@@ -38,7 +38,9 @@ class TestStorageLogging:
         with patch.dict(os.environ, {"TODO_DEBUG": "0"}):
             assert _is_debug_enabled() is False
 
-    def test_load_emits_debug_log_when_enabled(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_emits_debug_log_when_enabled(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG log should be emitted for load operations with file path and item count."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -62,14 +64,20 @@ class TestStorageLogging:
 
         # Check for DEBUG log with file path
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_records) >= 1, f"Expected DEBUG log, got: {[r.message for r in caplog.records]}"
+        assert len(debug_records) >= 1, (
+            f"Expected DEBUG log, got: {[r.message for r in caplog.records]}"
+        )
 
         # Log should contain file path
         log_msg = debug_records[0].message.lower()
         assert "load" in log_msg, f"Log should mention 'load': {debug_records[0].message}"
-        assert str(db) in debug_records[0].message or "todo.json" in debug_records[0].message.lower()
+        assert (
+            str(db) in debug_records[0].message or "todo.json" in debug_records[0].message.lower()
+        )
 
-    def test_save_emits_debug_log_when_enabled(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_emits_debug_log_when_enabled(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG log should be emitted for save operations with file path and item count."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -83,13 +91,17 @@ class TestStorageLogging:
 
         # Check for DEBUG log
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_records) >= 1, f"Expected DEBUG log, got: {[r.message for r in caplog.records]}"
+        assert len(debug_records) >= 1, (
+            f"Expected DEBUG log, got: {[r.message for r in caplog.records]}"
+        )
 
         # Log should contain file path and/or count
         log_msg = debug_records[0].message.lower()
         assert "save" in log_msg, f"Log should mention 'save': {debug_records[0].message}"
 
-    def test_load_error_emits_error_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_error_emits_error_log(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """ERROR log should be emitted when load fails (e.g., malformed JSON)."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -99,18 +111,25 @@ class TestStorageLogging:
 
         with patch.dict(os.environ, {"TODO_DEBUG": "1"}):
             _get_logger()
-            with caplog.at_level(logging.DEBUG, logger="flywheel.storage"), pytest.raises(ValueError):
+            with (
+                caplog.at_level(logging.DEBUG, logger="flywheel.storage"),
+                pytest.raises(ValueError),
+            ):
                 storage.load()
 
         # Check for ERROR log
         error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
-        assert len(error_records) >= 1, f"Expected ERROR log, got: {[r.message for r in caplog.records]}"
+        assert len(error_records) >= 1, (
+            f"Expected ERROR log, got: {[r.message for r in caplog.records]}"
+        )
 
         # Log should mention error and file
         log_msg = error_records[0].message.lower()
         assert "error" in log_msg or "failed" in log_msg or "invalid" in log_msg
 
-    def test_save_error_emits_error_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_error_emits_error_log(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """ERROR log should be emitted when save fails (e.g., permission denied)."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -132,9 +151,13 @@ class TestStorageLogging:
 
         # Check for ERROR log
         error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
-        assert len(error_records) >= 1, f"Expected ERROR log, got: {[r.message for r in caplog.records]}"
+        assert len(error_records) >= 1, (
+            f"Expected ERROR log, got: {[r.message for r in caplog.records]}"
+        )
 
-    def test_no_logging_when_debug_disabled(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_logging_when_debug_disabled(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """No logs should be emitted when TODO_DEBUG is not set."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -150,10 +173,16 @@ class TestStorageLogging:
 
         # Should have no log records (or very few if logging is disabled)
         # The key is that debug operations should not spam logs by default
-        debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG and "flywheel.storage" in (r.name or "")]
+        debug_records = [
+            r
+            for r in caplog.records
+            if r.levelno == logging.DEBUG and "flywheel.storage" in (r.name or "")
+        ]
         assert len(debug_records) == 0, "No debug logs should be emitted when TODO_DEBUG is not set"
 
-    def test_log_includes_item_count_on_save(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_log_includes_item_count_on_save(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG log for save should include the count of items being saved."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -172,7 +201,9 @@ class TestStorageLogging:
         log_msg = debug_records[0].message
         assert "5" in log_msg, f"Log should mention item count '5': {log_msg}"
 
-    def test_log_includes_item_count_on_load(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_log_includes_item_count_on_load(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG log for load should include the count of items loaded."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -197,7 +228,9 @@ class TestStorageLogging:
         log_msg = debug_records[0].message
         assert "3" in log_msg, f"Log should mention item count '3': {log_msg}"
 
-    def test_load_file_not_found_no_error_log(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_file_not_found_no_error_log(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Loading non-existent file should return empty list, log at DEBUG level."""
         db = tmp_path / "nonexistent.json"
         storage = TodoStorage(str(db))
