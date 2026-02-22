@@ -1,0 +1,33 @@
+{
+  "issue_number": 5069,
+  "candidate_number": 1,
+  "run_id": "22269669630",
+  "branch": "claude/issue-5069-candidate-1-22269669630",
+  "commit_sha": "99190ae",
+  "created_at": "2026-02-22T00:00:00Z",
+  "status": "implemented",
+  "summary": {
+    "title": "Fix next_id to return smallest unused ID instead of max+1",
+    "description": "The previous implementation returned max(existing_ids) + 1, which could lead to duplicate IDs when IDs have gaps (e.g., due to deletions). Changed next_id to find the smallest unused positive integer.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "lines_added": 52,
+    "lines_removed": 1
+  },
+  "tests": {
+    "new_tests_added": 1,
+    "test_function": "test_next_id_returns_smallest_unused_id_with_gaps",
+    "all_tests_passed": true,
+    "total_tests_run": 113
+  },
+  "quality_checks": {
+    "ruff_linting": "passed",
+    "coverage": "92%"
+  },
+  "risks": {
+    "breaking_changes": false,
+    "performance_impact": "minimal - O(n) where n is max ID, but for small todo lists this is negligible"
+  }
+}
