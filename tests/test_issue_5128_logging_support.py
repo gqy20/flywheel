@@ -42,7 +42,9 @@ class TestLoggingSupport:
         assert len(loaded) == 1
         assert loaded[0].text == "test"
 
-    def test_load_logs_debug_on_success(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_logs_debug_on_success(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that load() logs DEBUG with file size and entry count when logger provided."""
         db = tmp_path / "todo.json"
         logger = logging.getLogger("flywheel.storage")
@@ -62,10 +64,16 @@ class TestLoggingSupport:
 
         # Verify log contains file size and entry count
         log_messages = [record.message for record in caplog.records]
-        assert any("load" in msg.lower() for msg in log_messages), f"Expected 'load' in logs: {log_messages}"
-        assert any("3" in msg for msg in log_messages), f"Expected entry count '3' in logs: {log_messages}"
+        assert any("load" in msg.lower() for msg in log_messages), (
+            f"Expected 'load' in logs: {log_messages}"
+        )
+        assert any("3" in msg for msg in log_messages), (
+            f"Expected entry count '3' in logs: {log_messages}"
+        )
 
-    def test_save_logs_debug_on_success(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_logs_debug_on_success(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that save() logs DEBUG with write completion when logger provided."""
         db = tmp_path / "todo.json"
         logger = logging.getLogger("flywheel.storage")
@@ -79,9 +87,13 @@ class TestLoggingSupport:
 
         # Verify log contains save operation info
         log_messages = [record.message for record in caplog.records]
-        assert any("save" in msg.lower() for msg in log_messages), f"Expected 'save' in logs: {log_messages}"
+        assert any("save" in msg.lower() for msg in log_messages), (
+            f"Expected 'save' in logs: {log_messages}"
+        )
 
-    def test_no_logging_when_logger_is_none(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_no_logging_when_logger_is_none(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that no logs are emitted when logger is None (default)."""
         db = tmp_path / "todo.json"
 
@@ -98,7 +110,9 @@ class TestLoggingSupport:
         storage_logs = [r for r in caplog.records if "flywheel.storage" in r.name]
         assert len(storage_logs) == 0, f"Expected no logs when logger is None, got: {storage_logs}"
 
-    def test_load_empty_file_logs_zero_entries(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_empty_file_logs_zero_entries(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that loading an empty (non-existent) file logs appropriately."""
         db = tmp_path / "todo.json"
         logger = logging.getLogger("flywheel.storage")
