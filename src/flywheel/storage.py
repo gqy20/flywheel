@@ -131,8 +131,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -181,9 +180,7 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
-    def save_if_version_matches(
-        self, todos: list[Todo], expected_version: float | None
-    ) -> None:
+    def save_if_version_matches(self, todos: list[Todo], expected_version: float | None) -> None:
         """Save todos only if the file version matches expected.
 
         Implements optimistic locking to prevent data loss in concurrent scenarios.

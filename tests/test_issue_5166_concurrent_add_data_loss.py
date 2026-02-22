@@ -101,9 +101,7 @@ def test_concurrent_add_preserves_all_todos(tmp_path: Path) -> None:
     # Verify all worker todos are present
     for i in range(num_concurrent):
         worker_text = f"worker-{i} todo"
-        assert worker_text in initial_texts, (
-            f"Worker {i} todo was lost! Missing: {worker_text}"
-        )
+        assert worker_text in initial_texts, f"Worker {i} todo was lost! Missing: {worker_text}"
 
 
 def test_concurrent_add_high_contention(tmp_path: Path) -> None:
