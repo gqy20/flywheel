@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock file suffix for concurrent access protection
+_LOCK_SUFFIX = ".lock"
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +59,31 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with concurrent access protection."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + _LOCK_SUFFIX)
+
+    @contextlib.contextmanager
+    def _file_lock(self) -> Iterator[None]:
+        """Acquire exclusive file lock for atomic read-modify-write operations.
+
+        Uses fcntl.flock() with LOCK_EX for exclusive access. This prevents
+        concurrent processes from reading stale data or overwriting each other's
+        changes (last-writer-wins data loss).
+
+        The lock is held on a separate .lock file to avoid conflicts with the
+        actual data file's atomic rename operations.
+        """
+        _ensure_parent_directory(self._lock_path)
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

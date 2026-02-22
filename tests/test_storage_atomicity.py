@@ -229,3 +229,87 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_preserves_all_todos(tmp_path) -> None:
+    """Regression test for issue #5166: Concurrent add operations should preserve all todos.
+
+    This test verifies that the "last-writer-wins" problem is fixed.
+    The bug: Process A reads [todo1], Process B reads [todo1],
+    Process A saves [todo1, todo2], Process B saves [todo1, todo3].
+    Result: todo2 is lost.
+
+    The fix: Use file locking to serialize writes, so reads and writes
+    are atomic at the application level.
+
+    Test plan:
+    1. Create initial todo
+    2. Run 3 concurrent add operations
+    3. Verify all 4 todos (1 initial + 3 new) are present in file
+    """
+    import threading
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "concurrent_add.json"
+
+    # Create initial todo
+    app = TodoApp(db_path=str(db))
+    app.add("initial todo")
+
+    # Use a barrier to ensure all threads start at exactly the same time
+    barrier = threading.Barrier(3)
+    results = {"success": [], "error": []}
+    results_lock = threading.Lock()
+
+    def add_worker(worker_id: int) -> None:
+        """Worker function that adds a todo."""
+        try:
+            local_app = TodoApp(db_path=str(db))
+            # Wait for all workers to be ready - then all proceed simultaneously
+            barrier.wait()
+            todo = local_app.add(f"worker-{worker_id} todo")
+            with results_lock:
+                results["success"].append((worker_id, todo.id))
+        except Exception as e:
+            with results_lock:
+                results["error"].append((worker_id, str(e)))
+
+    # Run 3 concurrent add workers in threads (better for race conditions than processes)
+    num_workers = 3
+    threads = []
+
+    for i in range(num_workers):
+        t = threading.Thread(target=add_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads at once
+    for t in threads:
+        t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join(timeout=10)
+
+    # All workers should have succeeded without errors
+    assert len(results["error"]) == 0, f"Workers encountered errors: {results['error']}"
+    assert len(results["success"]) == num_workers, (
+        f"Expected {num_workers} successes, got {len(results['success'])}"
+    )
+
+    # Critical assertion: verify all 4 todos are present
+    # 1 initial + 3 concurrent adds = 4 total todos
+    final_todos = app.list()
+    assert len(final_todos) == 4, (
+        f"DATA LOSS: Expected 4 todos (1 initial + 3 concurrent adds), "
+        f"but only {len(final_todos)} remain. "
+        f"This indicates last-writer-wins data loss. "
+        f"Todos: {[t.text for t in final_todos]}"
+    )
+
+    # Verify the initial todo is still there
+    texts = [t.text for t in final_todos]
+    assert "initial todo" in texts, "Initial todo was lost"
+    # Verify all worker todos are present
+    for i in range(num_workers):
+        assert f"worker-{i} todo" in texts, f"Worker {i} todo was lost"
