@@ -158,3 +158,60 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #5188: next_id should return a unique ID not conflicting with existing."""
+    storage = TodoStorage()
+
+    # IDs 1, 5, 10 -> next_id should be 11 (or any unique value)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    next_id = storage.next_id(todos)
+
+    assert next_id not in {1, 5, 10}, f"next_id {next_id} conflicts with existing IDs"
+    assert next_id > 0, f"next_id {next_id} should be positive"
+
+
+def test_next_id_with_negative_ids() -> None:
+    """Bug #5188: next_id should return a valid positive integer even with negative IDs."""
+    storage = TodoStorage()
+
+    # IDs -1, -5, 3 -> next_id should be a positive integer not conflicting
+    todos = [Todo(id=-1, text="a"), Todo(id=-5, text="b"), Todo(id=3, text="c")]
+    next_id = storage.next_id(todos)
+
+    assert next_id not in {-1, -5, 3}, f"next_id {next_id} conflicts with existing IDs"
+    assert next_id > 0, f"next_id {next_id} should be positive"
+
+
+def test_next_id_with_all_negative_ids() -> None:
+    """Bug #5188: next_id should return positive integer when all IDs are negative."""
+    storage = TodoStorage()
+
+    # All negative IDs: max returns negative, +1 could be 0 or negative
+    todos = [Todo(id=-1, text="a"), Todo(id=-5, text="b")]
+    next_id = storage.next_id(todos)
+
+    assert next_id not in {-1, -5}, f"next_id {next_id} conflicts with existing IDs"
+    assert next_id > 0, f"next_id {next_id} should be positive, not 0 or negative"
+
+
+def test_next_id_with_zero_id() -> None:
+    """Bug #5188: next_id should return unique ID when ID 0 exists."""
+    storage = TodoStorage()
+
+    # IDs 0, -1 -> max returns 0, next_id=1 (could conflict if 1 was deleted)
+    todos = [Todo(id=0, text="a"), Todo(id=-1, text="b")]
+    next_id = storage.next_id(todos)
+
+    assert next_id not in {0, -1}, f"next_id {next_id} conflicts with existing IDs"
+    assert next_id > 0, f"next_id {next_id} should be positive"
+
+
+def test_next_id_with_empty_list() -> None:
+    """Bug #5188: next_id should return 1 for empty list."""
+    storage = TodoStorage()
+
+    next_id = storage.next_id([])
+
+    assert next_id == 1, f"next_id for empty list should be 1, got {next_id}"
