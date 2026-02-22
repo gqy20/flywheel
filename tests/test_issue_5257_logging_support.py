@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -115,7 +115,7 @@ class TestTodoStorageLoggingSupport:
 
         with caplog.at_level(logging.DEBUG):
             storage.save([Todo(id=1, text="test")])
-            loaded = storage.load()
+            storage.load()
 
         # No log records should have been captured
         assert len(caplog.records) == 0
