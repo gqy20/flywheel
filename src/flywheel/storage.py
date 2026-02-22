@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,36 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextlib.contextmanager
+    def exclusive_lock(self) -> None:
+        """Acquire an exclusive lock on the storage file for concurrent access safety.
+
+        This context manager provides mutual exclusion for operations that need
+        to perform load-modify-save sequences atomically, preventing race conditions
+        where concurrent processes could generate duplicate IDs or lose data.
+
+        Uses fcntl.flock for POSIX-compliant advisory locking on Unix systems.
+        The lock is held on a separate lock file (.todo.json.lock) to avoid
+        conflicts with the data file itself.
+
+        Usage:
+            with storage.exclusive_lock():
+                todos = storage.load()
+                todo = Todo(id=storage.next_id(todos), text=text)
+                todos.append(todo)
+                storage.save(todos)
+        """
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)

@@ -1,0 +1,25 @@
+{
+  "issue_number": 5165,
+  "candidate_number": 2,
+  "run_id": "22277003854",
+  "branch": "claude/issue-5165-candidate-2-22277003854",
+  "summary": "Fix race condition in concurrent add operations by adding file locking to the storage layer",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_5165_race_condition_duplicate_ids.py"
+    ],
+    "source_files": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ]
+  },
+  "tests_passed": 114,
+  "approach": "Added exclusive_lock() context manager using fcntl.flock to provide mutual exclusion for load-modify-save operations",
+  "risks": [
+    "fcntl is Unix-specific; this solution does not work on Windows",
+    "Lock file (.todo.json.lock) may be left behind if process crashes"
+  ],
+  "limitations": [
+    "Only the add() operation is protected; mark_done, mark_undone, remove operations could also benefit from locking"
+  ]
+}
