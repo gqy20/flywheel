@@ -1,0 +1,22 @@
+{
+  "issue_number": 5113,
+  "candidate_number": 3,
+  "run_id": "22272043048",
+  "plan": {
+    "summary": "Fix race condition in TodoApp.add() that can produce duplicate IDs with concurrent processes",
+    "approach": "File locking with fcntl - use exclusive lock during add operation to ensure atomicity",
+    "files_to_modify": [
+      "tests/test_storage_atomicity.py",
+      "src/flywheel/cli.py"
+    ],
+    "test_strategy": "Add multiprocessing test that spawns concurrent add() operations and verifies all IDs are unique",
+    "implementation_details": "Use fcntl.flock to acquire an exclusive lock on a .lock file before the load-compute-save sequence in add(), ensuring only one process can add at a time"
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_storage_atomicity.py -v",
+    "uv run ruff check src/flywheel/cli.py src/flywheel/storage.py",
+    "uv run ruff format --check src/flywheel/cli.py src/flywheel/storage.py"
+  ],
+  "stage": "IMPLEMENT",
+  "created_at": "2026-02-22T07:00:00Z"
+}

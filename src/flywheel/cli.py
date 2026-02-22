@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import sys
 
 from .formatter import TodoFormatter, _sanitize_text
@@ -27,11 +28,25 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use file locking to prevent race conditions with concurrent processes.
+        # This ensures the load-compute-save sequence is atomic.
+        lock_path = self.storage.path.with_suffix(self.storage.path.suffix + ".lock")
+
+        # Ensure parent directory exists
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(lock_path, "w") as lock_file:
+            # Exclusive lock - blocks until acquired
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+
+            try:
+                todos = self._load()
+                todo = Todo(id=self.storage.next_id(todos), text=text)
+                todos.append(todo)
+                self._save(todos)
+                return todo
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
