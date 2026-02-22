@@ -125,4 +125,17 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        # Use a set to track existing IDs for O(1) lookup
+        existing_ids = {todo.id for todo in todos}
+        if not existing_ids:
+            return 1
+        # Start from max(existing_ids) + 1, but ensure we find a positive ID
+        # that doesn't conflict with existing IDs
+        candidate = max(existing_ids) + 1
+        # If max was negative or zero, start from 1
+        if candidate < 1:
+            candidate = 1
+        # Find the next available ID that doesn't conflict
+        while candidate in existing_ids:
+            candidate += 1
+        return candidate
