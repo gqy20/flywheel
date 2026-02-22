@@ -1,20 +1,23 @@
 {
-  "issue_number": 5256,
-  "candidate_id": 2,
+  "issue": 5256,
+  "candidate": 2,
   "run_id": "22287471051",
-  "branch_name": "claude/issue-5256-candidate-2-22287471051",
-  "created_at": "2026-02-22T21:32:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/cli.py"],
-    "test_files": ["tests/test_issue_5256_todoapp_rename_method.py"]
-  },
-  "tests_passed": true,
-  "ruff_check_passed": true,
-  "acceptance_criteria": {
-    "todoapp_rename_exists": true,
-    "returns_updated_todo": true,
-    "raises_valueerror_missing_id": true,
-    "raises_valueerror_empty_text": true
+  "branch": "claude/issue-5256-candidate-2-22287471051",
+  "pr_number": 5278,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5278",
+  "generated_at": "2026-02-22T23:50:24.327595+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2325,
+    "plan": 1922,
+    "implement": 1166,
+    "verify": 1971,
+    "finalize": 2424
   }
 }
