@@ -82,11 +82,17 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
+
+        Args:
+            todos: List of Todo objects to save.
+            backup: If True, create a backup of the existing file before overwriting.
+                    The backup file is named <filename>.bak and contains the previous
+                    version's content. Only the most recent backup is kept.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
@@ -96,6 +102,16 @@ class TodoStorage:
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup before writing if requested and file exists
+        if backup and self.path.exists():
+            backup_path = Path(str(self.path) + ".bak")
+            # Copy existing file to backup (preserves content and permissions)
+            existing_content = self.path.read_bytes()
+            backup_path.write_bytes(existing_content)
+            # Copy permissions from original file to backup
+            original_mode = self.path.stat().st_mode
+            backup_path.chmod(stat.S_IMODE(original_mode))
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
