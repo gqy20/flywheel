@@ -120,6 +120,9 @@ class TodoStorage:
             os.replace(temp_path, self.path)
         except OSError:
             # Clean up temp file on error
+            # Close fd if still open (fchmod failure before fdopen)
+            with contextlib.suppress(OSError):
+                os.close(fd)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise

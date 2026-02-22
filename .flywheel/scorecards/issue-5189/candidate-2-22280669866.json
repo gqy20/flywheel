@@ -1,0 +1,32 @@
+{
+  "issue_number": 5189,
+  "issue_title": "[Bug] save 方法中 os.fdopen 与 fchmod 顺序可能导致权限设置后、写入前文件描述符泄露",
+  "candidate_number": 2,
+  "run_id": "22280669866",
+  "branch_name": "claude/issue-5189-candidate-2-22280669866",
+  "created_at": "2026-02-22T15:34:25Z",
+  "fix_summary": "Fixed file descriptor leak in TodoStorage.save() when os.fchmod fails. Added os.close(fd) call in the except block to ensure proper resource cleanup.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_5189_fchmod_fd_leak.py"
+  ],
+  "tests_added": [
+    "test_fchmod_failure_closes_fd",
+    "test_fchmod_failure_cleans_up_temp_path",
+    "test_successful_save_does_not_leak_fd_via_os_close"
+  ],
+  "tests_passed": true,
+  "linting_passed": true,
+  "acceptance_criteria_met": [
+    "fchmod failure now properly closes fd",
+    "temp_path is deleted on fchmod failure",
+    "added tests verify exception path resource cleanup"
+  ],
+  "risks_limitations": [
+    "Minor: os.close() is called in except block even if fd was already closed by fdopen, but this is handled gracefully with contextlib.suppress(OSError)"
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_issue_5189_fchmod_fd_leak.py -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ]
+}
