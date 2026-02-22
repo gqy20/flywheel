@@ -130,10 +130,28 @@ class TestImportFromCSV:
 
         # Create import file
         with open(import_file, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=["id", "text", "done", "created_at", "updated_at"])
+            writer = csv.DictWriter(
+                f, fieldnames=["id", "text", "done", "created_at", "updated_at"]
+            )
             writer.writeheader()
-            writer.writerow({"id": "20", "text": "CSV task 1", "done": "False", "created_at": "", "updated_at": ""})
-            writer.writerow({"id": "21", "text": "CSV task 2", "done": "True", "created_at": "", "updated_at": ""})
+            writer.writerow(
+                {
+                    "id": "20",
+                    "text": "CSV task 1",
+                    "done": "False",
+                    "created_at": "",
+                    "updated_at": "",
+                }
+            )
+            writer.writerow(
+                {
+                    "id": "21",
+                    "text": "CSV task 2",
+                    "done": "True",
+                    "created_at": "",
+                    "updated_at": "",
+                }
+            )
 
         imported = storage.import_from(import_file, format="csv")
 
