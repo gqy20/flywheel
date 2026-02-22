@@ -151,6 +151,120 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fchmod_failure_closes_file_descriptor(tmp_path) -> None:
+    """Regression test for issue #5189: fd leak on fchmod failure.
+
+    When os.fchmod fails between mkstemp and fdopen, the file descriptor
+    should be properly closed to prevent resource leaks.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Get open fds before the test
+    before_fds = set(os.listdir("/proc/self/fd"))
+
+    # Mock fchmod to fail
+    def failing_fchmod(*args, **kwargs):
+        raise OSError("Simulated fchmod failure")
+
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Get open fds after the test
+    after_fds = set(os.listdir("/proc/self/fd"))
+
+    # There should be no new fds leaked (allow for minor variations)
+    new_fds = after_fds - before_fds
+    # Filter out any fds that might have been opened for other reasons
+    # The key assertion is that our test didn't leave the temp fd open
+    assert len(new_fds) == 0, f"File descriptors leaked: {new_fds}"
+
+
+def test_fchmod_failure_closes_fd_via_mock(tmp_path) -> None:
+    """Test issue #5189: verify os.close is called when fchmod fails.
+
+    This test uses mocking to verify that the fd is explicitly closed
+    when fchmod raises an exception.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track which fds were created and closed
+    created_fds = []
+    closed_fds = []
+
+    original_mkstemp = __import__("tempfile").mkstemp
+    original_close = os.close
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        created_fds.append(fd)
+        return fd, path
+
+    def tracking_close(fd):
+        closed_fds.append(fd)
+        return original_close(fd)
+
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "close", tracking_close),
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that the fd created by mkstemp was closed
+    assert len(created_fds) == 1, f"Expected 1 fd, got {created_fds}"
+    assert created_fds[0] in closed_fds, (
+        f"fd {created_fds[0]} was not closed. Closed fds: {closed_fds}"
+    )
+
+
+def test_fchmod_failure_cleans_up_temp_file(tmp_path) -> None:
+    """Test issue #5189: verify temp file is cleaned up when fchmod fails."""
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track temp files created
+    temp_files = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files.append(path)
+        return fd, path
+
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify temp file was cleaned up
+    for temp_path in temp_files:
+        assert not os.path.exists(temp_path), f"Temp file not cleaned up: {temp_path}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
