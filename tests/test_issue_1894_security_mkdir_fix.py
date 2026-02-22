@@ -122,3 +122,29 @@ def test_cli_succeeds_when_parent_already_exists_as_directory(tmp_path, capsys) 
 
     captured = capsys.readouterr()
     assert "Added" in captured.out
+
+
+def test_concurrent_nested_path_creation_succeeds(tmp_path) -> None:
+    """Issue #5215: Concurrent creation of same nested path should not fail.
+
+    Before fix: exist_ok=False causes FileExistsError when two processes
+    create the same directory simultaneously (TOCTOU race condition).
+    After fix: exist_ok=True allows both to succeed.
+    """
+    import concurrent.futures
+
+    from flywheel.todo import Todo
+
+    db_path = tmp_path / "a" / "b" / "c" / "todo.json"
+    storage = TodoStorage(str(db_path))
+
+    def save_todos() -> None:
+        storage.save([Todo(id=1, text="test", done=False)])
+
+    # Simulate concurrent directory creation by running two saves in parallel
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(save_todos) for _ in range(2)]
+        # Both should succeed without FileExistsError
+        for future in concurrent.futures.as_completed(futures):
+            # Should NOT raise FileExistsError from mkdir(exist_ok=False)
+            future.result()  # Will raise if there was an error
