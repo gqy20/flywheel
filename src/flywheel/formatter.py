@@ -12,6 +12,9 @@ def _sanitize_text(text: str) -> str:
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
     """
+    # Guard against None input with clear error message
+    if text is None:
+        raise TypeError("text must be a string, not NoneType")
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
     # between literal backslash-escape text and sanitized control characters.
@@ -31,7 +34,7 @@ def _sanitize_text(text: str) -> str:
     result = []
     for char in text:
         code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
+        if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
             result.append(f"\\x{code:02x}")
         else:
             result.append(char)
