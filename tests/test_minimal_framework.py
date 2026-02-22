@@ -158,3 +158,143 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_valid_id_for_non_contiguous_ids(tmp_path) -> None:
+    """Bug #5188: next_id should return a valid ID not in existing set.
+
+    When IDs are non-contiguous (e.g., [1, 5]), the next_id should return
+    an ID that doesn't conflict with any existing ID.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Non-contiguous IDs: 1, 5 (gap at 2, 3, 4)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    next_id = storage.next_id(loaded)
+
+    # next_id should not conflict with any existing ID
+    assert next_id not in {todo.id for todo in loaded}
+
+
+def test_next_id_returns_valid_id_for_negative_ids(tmp_path) -> None:
+    """Bug #5188: next_id should return a valid positive ID even with negative IDs.
+
+    When IDs include negative values, next_id should still return a valid
+    positive integer that doesn't conflict with existing IDs.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Include negative IDs: -5, -1, 3
+    todos = [
+        Todo(id=-5, text="negative1"),
+        Todo(id=-1, text="negative2"),
+        Todo(id=3, text="positive"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    next_id = storage.next_id(loaded)
+
+    # next_id should be a valid positive integer
+    assert next_id > 0
+    # The issue: if max is 3, next_id = 4, which is valid
+    # But if max was negative, next_id could be 0 or negative
+    # With the fix, we ensure it's always positive and unique
+    assert next_id not in {todo.id for todo in loaded}
+
+
+def test_next_id_returns_valid_id_after_max_deletion(tmp_path) -> None:
+    """Bug #5188: next_id should not duplicate IDs after max ID is deleted.
+
+    Scenario:
+    1. Start with [1, 5, 10]
+    2. Delete ID 10 -> remaining: [1, 5]
+    3. next_id should return 6, not 6 (which is fine)
+    4. Add new todo with ID 6 -> [1, 5, 6]
+    5. next_id should return 7, not 6 again
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Start with [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    # Delete ID 10
+    todos = [t for t in todos if t.id != 10]
+    storage.save(todos)
+
+    # next_id should be 6
+    next_id = storage.next_id(todos)
+    assert next_id == 6
+
+    # Add new todo with ID 6
+    todos.append(Todo(id=next_id, text="new"))
+    storage.save(todos)
+
+    # next_id should now be 7, not 6 (duplicate)
+    next_id_2 = storage.next_id(todos)
+    assert next_id_2 == 7
+    assert next_id_2 not in {todo.id for todo in todos}
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #5188: next_id should return 1 for an empty todo list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    next_id = storage.next_id([])
+    assert next_id == 1
+
+
+def test_next_id_returns_valid_positive_id_when_all_ids_are_negative(tmp_path) -> None:
+    """Bug #5188: next_id should return positive ID even when all IDs are negative.
+
+    This is the core bug: if all existing IDs are negative (e.g., [-5, -1]),
+    max() returns -1, and next_id would return 0 (which is not a valid positive ID).
+
+    The fix ensures next_id always returns a valid positive integer >= 1.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # All IDs are negative
+    todos = [Todo(id=-5, text="negative1"), Todo(id=-1, text="negative2")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    next_id = storage.next_id(loaded)
+
+    # next_id should be a valid positive integer (>= 1)
+    assert next_id >= 1, f"Expected positive ID, got {next_id}"
+    # Should not conflict with any existing ID
+    assert next_id not in {todo.id for todo in loaded}
+
+
+def test_next_id_returns_valid_positive_id_when_max_is_zero(tmp_path) -> None:
+    """Bug #5188: next_id should return positive ID even when max ID is 0.
+
+    If IDs include 0 as the max, next_id would return 1, which is fine.
+    But if IDs are [-2, 0], max() returns 0, and next_id returns 1.
+    This test ensures that case works correctly.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # IDs include 0 as max
+    todos = [Todo(id=-2, text="negative"), Todo(id=0, text="zero")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    next_id = storage.next_id(loaded)
+
+    # next_id should be >= 1
+    assert next_id >= 1, f"Expected positive ID >= 1, got {next_id}"
+    # Should not conflict with any existing ID
+    assert next_id not in {todo.id for todo in loaded}
