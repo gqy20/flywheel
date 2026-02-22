@@ -6,7 +6,9 @@ preventing data corruption if the process crashes during write.
 
 from __future__ import annotations
 
+import contextlib
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +151,139 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_partial_write_failure_preserves_original_file(tmp_path) -> None:
+    """Regression test for issue #5141: Partial write failure should not corrupt file.
+
+    If f.write() fails mid-stream (e.g., disk full), the temp file should be
+    cleaned up and the original file should remain unchanged. The issue was that
+    without explicit flush(), buffered writes might succeed but actual disk write
+    fails, leading to a truncated temp file being renamed over the original.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original content that should be preserved")]
+    storage.save(original_todos)
+    original_content = db.read_text(encoding="utf-8")
+
+    # Create a write function that simulates partial write failure
+    # by raising OSError after some bytes are written
+    write_call_count = 0
+
+    def failing_write(self, s):
+        nonlocal write_call_count
+        write_call_count += 1
+        # Simulate disk full error on the write call
+        raise OSError(28, "No space left on device")
+
+    original_fdopen = os.fdopen
+
+    def patched_fdopen(fd, *args, **kwargs):
+        file_obj = original_fdopen(fd, *args, **kwargs)
+        # Patch the write method to simulate failure
+        file_obj.write = failing_write.__get__(file_obj, type(file_obj))
+        return file_obj
+
+    with (
+        patch("flywheel.storage.os.fdopen", patched_fdopen),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=2, text="this should not be saved")])
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+    # Verify we can still load original data
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original content that should be preserved"
+
+
+def test_flush_failure_before_replace_preserves_original_file(tmp_path) -> None:
+    """Regression test for issue #5141: Flush failure should prevent rename.
+
+    If f.flush() fails (e.g., disk full after buffered write), os.replace()
+    should NOT be called. The fix adds explicit flush() before replace to catch
+    disk errors before the atomic rename.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original content")]
+    storage.save(original_todos)
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track whether os.replace was called
+    replace_called = False
+    original_replace = os.replace
+
+    def tracking_replace(*args, **kwargs):
+        nonlocal replace_called
+        replace_called = True
+        return original_replace(*args, **kwargs)
+
+    # Create file objects where write succeeds but flush fails
+    original_fdopen = os.fdopen
+
+    class FailingFlushFile:
+        """A file-like object where flush() fails to simulate disk full."""
+
+        def __init__(self, real_file):
+            self._real_file = real_file
+            self._flush_count = 0
+
+        def write(self, s):
+            # Write succeeds (data goes to buffer)
+            return self._real_file.write(s)
+
+        def flush(self):
+            self._flush_count += 1
+            # First flush (explicit flush after write) fails
+            # This simulates disk full after buffered write
+            if self._flush_count == 1:
+                raise OSError(28, "No space left on device")
+            # Subsequent flushes (e.g., on close) can succeed or fail
+            # We don't care - the error should already be raised
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            # Don't flush on close if we already have an exception
+            if exc_type is None:
+                with contextlib.suppress(OSError):
+                    self.flush()
+            return False
+
+        def close(self):
+            with contextlib.suppress(OSError):
+                self.flush()
+            self._real_file.close()
+
+    def patched_fdopen(fd, *args, **kwargs):
+        real_file = original_fdopen(fd, *args, **kwargs)
+        return FailingFlushFile(real_file)
+
+    with (
+        patch("flywheel.storage.os.fdopen", patched_fdopen),
+        patch("flywheel.storage.os.replace", tracking_replace),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=2, text="new data")])
+
+    # CRITICAL: os.replace should NOT have been called
+    # If it was, that's the bug - we renamed a truncated file
+    assert not replace_called, (
+        "BUG: os.replace() was called even though flush failed! "
+        "This would rename a truncated temp file over the original."
+    )
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
