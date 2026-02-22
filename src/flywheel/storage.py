@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
@@ -13,6 +14,34 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+def _get_logger() -> logging.Logger:
+    """Get the storage logger, configured based on TODO_DEBUG environment variable.
+
+    Returns a logger with NullHandler when TODO_DEBUG is not set (default).
+    When TODO_DEBUG=1, returns a logger with StreamHandler at DEBUG level.
+    """
+    logger = logging.getLogger("flywheel.storage")
+
+    # Only configure if not already configured for this session
+    if not logger.handlers:
+        if os.environ.get("TODO_DEBUG") == "1":
+            logger.setLevel(logging.DEBUG)
+            handler = logging.StreamHandler()
+            handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+        else:
+            # Default: no logging output, but still allow debug calls to work silently
+            null_handler = logging.NullHandler()
+            logger.addHandler(null_handler)
+            logger.propagate = False  # Don't bubble up to root logger
+
+    return logger
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,9 +84,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._logger = _get_logger()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            self._logger.debug("Load: file not found at %s, returning empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,6 +96,10 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            self._logger.error(
+                "Load failed: file too large (%.1fMB > %.0fMB limit) at %s",
+                size_mb, limit_mb, self.path
+            )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,14 +108,22 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            self._logger.error(
+                "Load failed: invalid JSON in %s at line %d, column %d: %s",
+                self.path, e.lineno, e.colno, e.msg
+            )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            self._logger.error("Load failed: storage must be JSON list, got %s", type(raw).__name__)
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        self._logger.debug("Load: loaded %d items from %s", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +134,7 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        self._logger.debug("Save: saving %d items to %s", len(todos), self.path)
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -118,7 +162,9 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+            self._logger.debug("Save: successfully saved %d items to %s", len(todos), self.path)
+        except OSError as e:
+            self._logger.error("Save failed: %s for %s", e, self.path)
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
