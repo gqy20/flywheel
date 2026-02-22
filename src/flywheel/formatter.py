@@ -4,6 +4,17 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Pre-computed translation table for control characters that need \xNN escaping
+# Maps code point -> escaped string (or None for characters that pass through)
+# This is computed once at module load for optimal performance
+_CONTROL_CHAR_TRANSLATION: dict[int, str | None] = {}
+
+for code in range(0x100):
+    if (0 <= code <= 0x1f and code not in (0x0A, 0x0D, 0x09)) or 0x7F <= code <= 0x9F:
+        # Control characters (excluding \n, \r, \t) that need \xNN escaping
+        _CONTROL_CHAR_TRANSLATION[code] = f"\\x{code:02x}"
+    # Characters not in the dict (None mapping) pass through unchanged
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -18,24 +29,15 @@ def _sanitize_text(text: str) -> str:
     text = text.replace("\\", "\\\\")
 
     # Common control characters - replace with readable escapes
-    replacements = [
-        ("\n", "\\n"),
-        ("\r", "\\r"),
-        ("\t", "\\t"),
-    ]
-    for char, escaped in replacements:
-        text = text.replace(char, escaped)
+    text = text.replace("\n", "\\n")
+    text = text.replace("\r", "\\r")
+    text = text.replace("\t", "\\t")
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
-    result = []
-    for char in text:
-        code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
-        else:
-            result.append(char)
-    return "".join(result)
+    # Use str.translate() with pre-computed table for O(n) C-level performance
+    text = text.translate(_CONTROL_CHAR_TRANSLATION)
+
+    return text
 
 
 class TodoFormatter:
