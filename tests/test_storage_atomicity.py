@@ -229,3 +229,55 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_fchmod_failure_closes_file_descriptor(tmp_path) -> None:
+    """Regression test for issue #5189: fd leak when fchmod fails.
+
+    When os.fchmod raises OSError after mkstemp succeeds, the file descriptor
+    must be closed to prevent resource leak.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    storage.save([Todo(id=1, text="initial")])
+
+    # Track the fd from mkstemp and verify it gets closed
+    import os
+    import tempfile
+
+    original_mkstemp = tempfile.mkstemp
+    captured_fd = None
+
+    def capturing_mkstemp(*args, **kwargs):
+        nonlocal captured_fd
+        fd, path = original_mkstemp(*args, **kwargs)
+        captured_fd = fd
+        return fd, path
+
+    close_calls = []
+    original_close = os.close
+
+    def tracking_close(fd):
+        close_calls.append(fd)
+        return original_close(fd)
+
+    # Mock fchmod to fail
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", capturing_mkstemp),
+        patch.object(os, "fchmod", failing_fchmod),
+        patch.object(os, "close", tracking_close),
+        patch.object(os, "unlink", lambda p: None),  # Prevent actual unlink
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Verify fd was closed
+    assert captured_fd is not None, "mkstemp should have been called"
+    assert captured_fd in close_calls, (
+        f"fd {captured_fd} should have been closed, but close was called with: {close_calls}"
+    )

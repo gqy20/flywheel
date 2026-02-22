@@ -115,6 +115,7 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+            fd = None  # Mark fd as closed (fdopen took ownership)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
@@ -123,6 +124,11 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+        finally:
+            # Close fd if not yet taken by fdopen (e.g., fchmod failed)
+            if fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
