@@ -7,7 +7,11 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+
+import filelock
 
 from .todo import Todo
 
@@ -51,12 +55,102 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
 
-    def __init__(self, path: str | None = None) -> None:
+    Args:
+        path: Path to the JSON file for storage.
+        use_lock: If True, use file locking to prevent concurrent write conflicts.
+            When enabled, use the transaction() context manager to safely perform
+            load-modify-save cycles. Default is False for backward compatibility.
+        lock_timeout: Maximum time in seconds to wait for lock acquisition.
+            Default is 30 seconds. Only used when use_lock=True.
+
+    Note:
+        For concurrent access safety, always use the transaction() context manager
+        to wrap the entire load-modify-save cycle:
+
+            with storage.transaction():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+
+        Individual load() and save() calls inside a transaction() block will not
+        re-acquire the lock.
+    """
+
+    # Default lock timeout in seconds
+    DEFAULT_LOCK_TIMEOUT = 30
+
+    def __init__(
+        self,
+        path: str | None = None,
+        use_lock: bool = False,
+        lock_timeout: float | None = None,
+    ) -> None:
         self.path = Path(path or ".todo.json")
+        self.use_lock = use_lock
+        self.lock_timeout = lock_timeout if lock_timeout is not None else self.DEFAULT_LOCK_TIMEOUT
+
+        # Create lock file path (same directory, same name with .lock suffix)
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        self._file_lock = filelock.FileLock(self._lock_path, timeout=self.lock_timeout)
+        # Track if we're inside a transaction (lock already held)
+        self._in_transaction = False
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Context manager for transactional access to the storage.
+
+        When use_lock is True, acquires an exclusive lock for the entire block,
+        ensuring that load-modify-save cycles are atomic across processes.
+
+        Usage:
+            with storage.transaction():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+
+        If use_lock is False, this context manager does nothing (no-op).
+
+        Yields:
+            None
+        """
+        if not self.use_lock:
+            # No locking, just execute the block
+            yield
+            return
+
+        if self._in_transaction:
+            # Already in a transaction (reentrant), just execute the block
+            yield
+            return
+
+        # Acquire lock and set transaction flag
+        with self._file_lock:
+            self._in_transaction = True
+            try:
+                yield
+            finally:
+                self._in_transaction = False
 
     def load(self) -> list[Todo]:
+        """Load todos from file.
+
+        If use_lock is True and not inside a transaction(), acquires an
+        exclusive lock before reading. The lock is released after reading
+        completes (unless inside a transaction()).
+
+        For safe concurrent access, wrap the entire load-modify-save cycle
+        in a transaction() block.
+        """
+        if not self.use_lock or self._in_transaction:
+            return self._load_without_lock()
+
+        with self._file_lock:
+            return self._load_without_lock()
+
+    def _load_without_lock(self) -> list[Todo]:
+        """Internal load method without lock acquisition."""
         if not self.path.exists():
             return []
 
@@ -88,9 +182,25 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        If use_lock is True and not inside a transaction(), acquires an
+        exclusive lock before writing. This prevents last-writer-wins data loss
+        when multiple processes modify the same file concurrently.
+
+        For safe concurrent access, wrap the entire load-modify-save cycle
+        in a transaction() block.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        if not self.use_lock or self._in_transaction:
+            self._save_without_lock(todos)
+            return
+
+        with self._file_lock:
+            self._save_without_lock(todos)
+
+    def _save_without_lock(self, todos: list[Todo]) -> None:
+        """Internal save method without lock acquisition."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
