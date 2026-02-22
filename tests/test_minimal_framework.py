@@ -158,3 +158,57 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command_works(tmp_path, capsys) -> None:
+    """Issue #5255: CLI should support rename command."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Rename the todo
+    args = parser.parse_args(["--db", db, "rename", "1", "renamed task"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1:" in captured.out
+    assert "renamed task" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "renamed task" in captured.out
+    assert "original task" not in captured.out
+
+
+def test_cli_rename_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Issue #5255: CLI rename command should return error for non-existent ID."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Try to rename a non-existent todo
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
+def test_cli_rename_command_sanitizes_control_characters(tmp_path, capsys) -> None:
+    """Issue #5255: CLI rename command should sanitize control characters in output."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Rename with control characters - they should be escaped in output
+    args = parser.parse_args(["--db", db, "rename", "1", "task\twith\ncontrol"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1:" in captured.out
+    # Control characters should be escaped (tab becomes \\t, newline becomes \\n)
+    assert "\\t" in captured.out or "\\n" in captured.out
