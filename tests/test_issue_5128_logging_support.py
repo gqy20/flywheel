@@ -112,7 +112,5 @@ class TestLoggingSupport:
 
         assert len(loaded) == 0
 
-        # Should log that file doesn't exist or returned 0 entries
-        log_messages = [record.message for record in caplog.records]
         # Either logs about non-existent file or returns empty without logging
         # This is implementation-specific, just verify it doesn't crash
