@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
@@ -53,8 +55,16 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = False) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON file. Defaults to '.todo.json'.
+            backup: If True, create .bak backup before each save. Defaults to False.
+        """
         self.path = Path(path or ".todo.json")
+        self.backup = backup
+        self._backup_path = self.path.with_suffix(self.path.suffix + ".bak")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,7 +100,14 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        If backup=True, creates a .bak file with the previous content before
+        overwriting. Backup failure is logged as a warning but does not block save.
         """
+        # Create backup before save if enabled and file exists
+        if self.backup and self.path.exists():
+            self._create_backup()
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -126,3 +143,21 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before overwriting.
+
+        Copies the current file to .bak with the same permissions.
+        Backup failure is logged as a warning but does not raise.
+        """
+        logger = logging.getLogger(__name__)
+        try:
+            # Copy with metadata to preserve permissions
+            shutil.copy2(self.path, self._backup_path)
+        except OSError as e:
+            # Backup failure should not block the main save flow
+            logger.warning(
+                "Failed to create backup '%s': %s. Save will proceed without backup.",
+                self._backup_path,
+                e,
+            )

@@ -1,0 +1,84 @@
+{
+  "issue_number": 5258,
+  "issue_title": "[Feature] 添加文件备份机制",
+  "candidate": 3,
+  "run_id": "22287471051",
+  "branch": "claude/issue-5258-candidate-3-22287471051",
+  "created_at": "2026-02-22T23:45:00Z",
+  "summary": {
+    "description": "添加文件备份机制到TodoStorage，在save()前可选择创建.bak备份文件",
+    "files_changed": 2,
+    "tests_added": 7
+  },
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_storage_backup.py"
+    ]
+  },
+  "tests": {
+    "total": 13,
+    "passed": 13,
+    "failed": 0,
+    "coverage": {
+      "storage.py": "71%"
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "backup=False（默认）时行为与当前完全一致",
+      "status": "passed",
+      "tests": [
+        "test_no_backup_file_created_by_default",
+        "test_explicit_backup_false_creates_no_backup"
+      ]
+    },
+    {
+      "criterion": "backup=True 且文件存在时，在 save 前创建 .bak 备份",
+      "status": "passed",
+      "tests": [
+        "test_backup_created_when_backup_true",
+        "test_backup_contains_previous_version"
+      ]
+    },
+    {
+      "criterion": "备份失败时记录警告但不阻止主 save 流程",
+      "status": "passed",
+      "tests": [
+        "test_backup_failure_does_not_block_save"
+      ]
+    },
+    {
+      "criterion": ".bak 文件权限与原文件一致",
+      "status": "passed",
+      "tests": [
+        "test_backup_file_permissions_match_original"
+      ]
+    },
+    {
+      "criterion": "首次 save（无现有文件）时不创建空备份",
+      "status": "passed",
+      "tests": [
+        "test_first_save_creates_no_empty_backup"
+      ]
+    }
+  ],
+  "implementation_notes": {
+    "approach": "在TodoStorage.__init__添加backup参数，在save()中调用_create_backup()方法",
+    "backup_method": "使用shutil.copy2复制文件，保留权限和元数据",
+    "failure_handling": "备份失败时使用logging.warning记录警告，不抛出异常",
+    "backward_compatible": true
+  },
+  "risks": [
+    {
+      "risk": "备份文件可能占用额外磁盘空间",
+      "mitigation": "默认关闭，仅在显式设置backup=True时启用"
+    },
+    {
+      "risk": "备份操作可能轻微增加save延迟",
+      "mitigation": "使用shutil.copy2是高效的本地文件复制"
+    }
+  ]
+}
