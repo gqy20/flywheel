@@ -151,6 +151,45 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_ensure_parent_directory_toctou_race_condition(tmp_path) -> None:
+    """Regression test for issue #5227: TOCTOU race in _ensure_parent_directory.
+
+    When exist_ok=False is used, there's a race window between checking if
+    the parent exists and creating it. Another process could create the
+    directory during this window, causing FileExistsError.
+
+    This test simulates that race by mocking mkdir to raise FileExistsError
+    (as if another process created the directory between our check and mkdir).
+    With exist_ok=True (the fix), mkdir won't raise FileExistsError.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    test_path = tmp_path / "newdir" / "file.json"
+
+    # We'll mock mkdir to simulate race: it gets called with exist_ok=False
+    # and raises FileExistsError (simulating another process created the dir)
+    original_mkdir = Path.mkdir
+    mkdir_calls = []
+
+    def mock_mkdir(self, parents=False, exist_ok=False, **kwargs):
+        mkdir_calls.append({"path": str(self), "parents": parents, "exist_ok": exist_ok})
+        # Simulate: another process created the directory between our
+        # exists() check and this mkdir call
+        # With exist_ok=False, this raises FileExistsError
+        if self == test_path.parent and not exist_ok:
+            raise FileExistsError(f"[Errno 17] File exists: '{self}'")
+        # With exist_ok=True, mkdir succeeds (no error)
+        return original_mkdir(self, parents=parents, exist_ok=exist_ok, **kwargs)
+
+    with patch.object(Path, "mkdir", mock_mkdir):
+        # This should NOT raise FileExistsError after the fix (exist_ok=True)
+        _ensure_parent_directory(test_path)
+
+    # Verify mkdir was called with exist_ok=True (the fix)
+    assert len(mkdir_calls) == 1
+    assert mkdir_calls[0]["exist_ok"] is True, "exist_ok should be True to handle TOCTOU race"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
