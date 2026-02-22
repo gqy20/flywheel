@@ -1,0 +1,84 @@
+{
+  "issue_number": 5254,
+  "issue_title": "[Perf] _sanitize_text 对超长文本可能存在性能问题",
+  "candidate_number": 3,
+  "run_id": "22285451545",
+  "branch": "claude/issue-5254-candidate-3-22285451545",
+  "stage": "PLAN",
+  "created_at": "2026-02-22T21:40:00Z",
+  "triage_summary": {
+    "root_cause": "The _sanitize_text function in src/flywheel/formatter.py uses O(n) character-by-character iteration with Python-level loop (lines 31-38). While algorithmically correct, the Python-level for-loop with append creates significant overhead for large texts due to interpreter overhead per iteration.",
+    "risk_points": [
+      "src/flywheel/formatter.py:31-38 - Python-level char iteration is slow for large inputs",
+      "src/flywheel/cli.py:100,110,115 - Direct _sanitize_text calls on user input without length limits",
+      "No maximum text length validation in add command path"
+    ],
+    "proposed_verification": {
+      "benchmark_target": "Process 1MB text in < 100ms",
+      "approach": "Use str.translate() with pre-computed translation table - O(n) but with C-level implementation",
+      "test_strategy": "Create performance benchmark test comparing current vs optimized implementation"
+    },
+    "affected_files": [
+      "src/flywheel/formatter.py"
+    ],
+    "test_files_needed": [
+      "tests/test_issue_5254_sanitize_text_performance.py"
+    ],
+    "constraints": [
+      "Must preserve exact same output behavior (security-sensitive function)",
+      "Must pass all existing sanitization tests (backslash escape, control chars, C1 chars)",
+      "TDD: Write failing benchmark first, then optimize"
+    ]
+  },
+  "plan": {
+    "description": "Optimize _sanitize_text for large text using str.translate()",
+    "files_to_touch": [
+      "tests/test_issue_5254_sanitize_text_performance.py",
+      "src/flywheel/formatter.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "action": "RED: Create failing performance test",
+        "file": "tests/test_issue_5254_sanitize_text_performance.py",
+        "details": "Add benchmark test that verifies 1MB text processing < 100ms. Current implementation will fail this."
+      },
+      {
+        "step": 2,
+        "action": "GREEN: Optimize _sanitize_text with str.translate()",
+        "file": "src/flywheel/formatter.py",
+        "details": "Replace character-by-character loop with str.translate() using pre-computed translation table for control characters (0x00-0x1f, 0x7f-0x9f). Keep backslash/newline/tab replacements as str.replace() calls."
+      },
+      {
+        "step": 3,
+        "action": "Verify all existing tests still pass",
+        "details": "Run existing sanitization tests to ensure behavior is preserved"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5254_sanitize_text_performance.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
+      "uv run ruff check src/flywheel/formatter.py"
+    ]
+  },
+  "status": "FINALIZE",
+  "verify_summary": {
+    "performance_tests": {
+      "command": "uv run pytest tests/test_issue_5254_sanitize_text_performance.py -v",
+      "result": "PASSED",
+      "tests_run": 3,
+      "tests_passed": 3
+    },
+    "existing_sanitization_tests": {
+      "command": "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2028_del_char_sanitization.py tests/test_issue_2057_c1_control_sanitization.py tests/test_issue_2097_backslash_escape_collision.py -v",
+      "result": "PASSED",
+      "tests_run": 32,
+      "tests_passed": 32
+    },
+    "lint_check": {
+      "command": "uv run ruff check src/flywheel/formatter.py",
+      "result": "PASSED"
+    },
+    "all_checks_passed": true
+  }
+}
