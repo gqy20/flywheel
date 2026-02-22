@@ -158,3 +158,43 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_id_with_gaps(tmp_path) -> None:
+    """Bug #5069: next_id should return smallest unused ID, not max+1.
+
+    When IDs have gaps (e.g., due to deletions), next_id should return
+    the smallest unused positive integer, not max(existing_ids) + 1.
+    This prevents potential duplicate IDs if a todo with max ID is deleted.
+    """
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # Case 1: IDs with gaps - [1, 3, 5] should return 2, not 6
+    todos_with_gaps = [
+        Todo(id=1, text="first"),
+        Todo(id=3, text="third"),
+        Todo(id=5, text="fifth"),
+    ]
+    assert storage.next_id(todos_with_gaps) == 2
+
+    # Case 2: Starting from 2 - [2, 3] should return 1
+    todos_starting_from_2 = [
+        Todo(id=2, text="second"),
+        Todo(id=3, text="third"),
+    ]
+    assert storage.next_id(todos_starting_from_2) == 1
+
+    # Case 3: Large gap at start - [10, 20] should return 1
+    todos_large_gap = [
+        Todo(id=10, text="tenth"),
+        Todo(id=20, text="twentieth"),
+    ]
+    assert storage.next_id(todos_large_gap) == 1
+
+    # Case 4: Single gap - [1, 2, 4] should return 3
+    todos_single_gap = [
+        Todo(id=1, text="first"),
+        Todo(id=2, text="second"),
+        Todo(id=4, text="fourth"),
+    ]
+    assert storage.next_id(todos_single_gap) == 3
