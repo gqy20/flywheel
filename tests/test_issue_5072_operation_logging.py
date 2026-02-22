@@ -18,7 +18,9 @@ from flywheel.todo import Todo
 class TestLoadOperationLogging:
     """Tests for load() operation logging."""
 
-    def test_load_logs_start_and_completion_at_debug_level(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_logs_start_and_completion_at_debug_level(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG logs should record load operation start and completion."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -40,10 +42,14 @@ class TestLoadOperationLogging:
         assert len(start_logs) >= 1, "Should log load start at DEBUG level"
 
         # Check for completion log
-        complete_logs = [r for r in caplog.records if "loaded" in r.message.lower() and str(db) in r.message]
+        complete_logs = [
+            r for r in caplog.records if "loaded" in r.message.lower() and str(db) in r.message
+        ]
         assert len(complete_logs) >= 1, "Should log load completion with path"
 
-    def test_load_empty_file_logs_zero_count(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_empty_file_logs_zero_count(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Loading from empty/missing file should log appropriately."""
         db = tmp_path / "empty.json"
         storage = TodoStorage(str(db))
@@ -56,9 +62,16 @@ class TestLoadOperationLogging:
         # Should log that no file exists or 0 items loaded
         logs_text = " ".join(r.message.lower() for r in caplog.records)
         # Accept either "0 todos" or "no file" type messages
-        assert "0" in logs_text or "empty" in logs_text or "no file" in logs_text or "not exist" in logs_text
+        assert (
+            "0" in logs_text
+            or "empty" in logs_text
+            or "no file" in logs_text
+            or "not exist" in logs_text
+        )
 
-    def test_load_json_parse_error_logs_detailed_error(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_json_parse_error_logs_detailed_error(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """JSON parse failures should log detailed error with file path."""
         db = tmp_path / "invalid.json"
         db.write_text("{ invalid json }", encoding="utf-8")
@@ -80,7 +93,9 @@ class TestLoadOperationLogging:
 class TestSaveOperationLogging:
     """Tests for save() operation logging."""
 
-    def test_save_logs_start_and_completion_at_debug_level(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_logs_start_and_completion_at_debug_level(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """DEBUG logs should record save operation start and completion."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -98,7 +113,9 @@ class TestSaveOperationLogging:
         complete_logs = [r for r in caplog.records if "saved" in r.message.lower()]
         assert len(complete_logs) >= 1, "Should log save completion at DEBUG level"
 
-    def test_save_logs_include_item_count(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_logs_include_item_count(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Save logs should include the count of items being saved."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -111,7 +128,9 @@ class TestSaveOperationLogging:
         logs_text = " ".join(r.message for r in caplog.records)
         assert "3" in logs_text, "Should log the count of items saved"
 
-    def test_save_logs_include_file_path(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_logs_include_file_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Save logs should include the file path for context."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -128,7 +147,9 @@ class TestSaveOperationLogging:
 class TestMkdirOperationLogging:
     """Tests for directory creation logging."""
 
-    def test_mkdir_logs_directory_creation(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_mkdir_logs_directory_creation(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Creating parent directory should be logged."""
         db = tmp_path / "subdir" / "todo.json"
         storage = TodoStorage(str(db))
@@ -141,13 +162,20 @@ class TestMkdirOperationLogging:
         # Should have log about directory creation
         logs_text = " ".join(r.message.lower() for r in caplog.records)
         # Accept various forms of mkdir logging
-        assert "dir" in logs_text or "mkdir" in logs_text or "creat" in logs_text or "saved" in logs_text
+        assert (
+            "dir" in logs_text
+            or "mkdir" in logs_text
+            or "creat" in logs_text
+            or "saved" in logs_text
+        )
 
 
 class TestLogFormat:
     """Tests for log format compliance."""
 
-    def test_log_messages_are_informative(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_log_messages_are_informative(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Log messages should contain useful debugging information."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
