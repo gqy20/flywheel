@@ -9,7 +9,6 @@ data loss when multiple processes modify the same file concurrently.
 from __future__ import annotations
 
 import fcntl
-import os
 from pathlib import Path
 
 import pytest
@@ -67,7 +66,7 @@ class TestFileLockMechanism:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
 
             # Try to save with a very short timeout - should raise TimeoutError
-            with pytest.raises(TimeoutError, match="lock|timeout"):
+            with pytest.raises(TimeoutError, match=r"lock|timeout"):
                 storage.save([Todo(id=2, text="should-fail")])
 
     def test_save_without_lock_works_normally(self, tmp_path: Path) -> None:
