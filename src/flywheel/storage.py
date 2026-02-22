@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import json
 import os
 import stat
@@ -126,3 +127,145 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def export_to(self, path: Path | str, format: str = "json") -> None:
+        """Export todos to an external file in the specified format.
+
+        Args:
+            path: Destination file path for the export.
+            format: Export format - 'json' (default) or 'csv'.
+
+        Raises:
+            ValueError: If format is not supported.
+        """
+        path = Path(path)
+        todos = self.load()
+
+        if format == "json":
+            payload = [todo.to_dict() for todo in todos]
+            content = json.dumps(payload, ensure_ascii=False, indent=2)
+            path.write_text(content, encoding="utf-8")
+        elif format == "csv":
+            _ensure_parent_directory(path)
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["id", "text", "done", "created_at", "updated_at"])
+                for todo in todos:
+                    writer.writerow([
+                        todo.id,
+                        todo.text,
+                        todo.done,
+                        todo.created_at,
+                        todo.updated_at,
+                    ])
+        else:
+            raise ValueError(
+                f"Unsupported export format: '{format}'. "
+                f"Supported formats: json, csv"
+            )
+
+    def import_from(
+        self, path: Path | str, format: str = "json", *, merge: bool = True
+    ) -> list[Todo]:
+        """Import todos from an external file and merge or replace existing data.
+
+        Args:
+            path: Source file path to import from.
+            format: Import format - 'json' (default) or 'csv'.
+            merge: If True, merge imported todos with existing. If False, replace all.
+
+        Returns:
+            List of imported Todo objects.
+
+        Raises:
+            ValueError: If format is not supported or file contains invalid data.
+        """
+        path = Path(path)
+
+        if format == "json":
+            imported_todos = self._import_json(path)
+        elif format == "csv":
+            imported_todos = self._import_csv(path)
+        else:
+            raise ValueError(
+                f"Unsupported import format: '{format}'. "
+                f"Supported formats: json, csv"
+            )
+
+        if merge:
+            existing = self.load()
+            existing_ids = {todo.id for todo in existing}
+            max_id = max((todo.id for todo in existing), default=0)
+
+            # Add imported todos, assigning new IDs for conflicts
+            for todo in imported_todos:
+                if todo.id in existing_ids:
+                    max_id += 1
+                    todo.id = max_id
+                existing.append(todo)
+
+            self.save(existing)
+            return existing
+        else:
+            self.save(imported_todos)
+            return imported_todos
+
+    def _import_json(self, path: Path) -> list[Todo]:
+        """Import todos from a JSON file."""
+        try:
+            content = path.read_text(encoding="utf-8")
+            raw = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise ValueError(
+                f"Invalid JSON in '{path}': {e.msg}. "
+                f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+
+        if not isinstance(raw, list):
+            raise ValueError(f"Import file must contain a JSON list, got {type(raw).__name__}")
+
+        return [Todo.from_dict(item) for item in raw]
+
+    def _import_csv(self, path: Path) -> list[Todo]:
+        """Import todos from a CSV file."""
+        todos = []
+
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+
+                # Validate required columns exist
+                if reader.fieldnames is None:
+                    raise ValueError(
+                        f"CSV file '{path}' is empty or has no headers"
+                    )
+
+                required = {"id", "text"}
+                missing = required - set(reader.fieldnames)
+                if missing:
+                    raise ValueError(
+                        f"CSV file '{path}' missing required columns: {', '.join(sorted(missing))}"
+                    )
+
+                for row_num, row in enumerate(reader, start=2):
+                    try:
+                        # Parse done field - accept various boolean representations
+                        done_str = row.get("done", "False").strip().lower()
+                        done = done_str in ("true", "1", "yes")
+
+                        todo = Todo(
+                            id=int(row["id"]),
+                            text=row["text"],
+                            done=done,
+                            created_at=row.get("created_at", ""),
+                            updated_at=row.get("updated_at", ""),
+                        )
+                        todos.append(todo)
+                    except (ValueError, KeyError) as e:
+                        raise ValueError(
+                            f"Invalid data in CSV file '{path}' at row {row_num}: {e}"
+                        ) from e
+        except FileNotFoundError:
+            raise ValueError(f"Import file not found: '{path}'") from None
+
+        return todos
