@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -126,3 +129,26 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextmanager
+    def _lock(self) -> Iterator[None]:
+        """Acquire an exclusive file lock for atomic operations.
+
+        Uses fcntl.flock with LOCK_EX for cross-process mutual exclusion.
+        The lock file is separate from the data file to avoid conflicts.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file to avoid interfering with data file operations
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
