@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -57,7 +60,9 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        logger.debug("Loading todos from '%s'", self.path)
         if not self.path.exists():
+            logger.debug("File '%s' does not exist, returning empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -73,6 +78,10 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            logger.error(
+                "JSON parse error in '%s': %s at line %d, column %d",
+                self.path, e.msg, e.lineno, e.colno
+            )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -80,7 +89,9 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug("Loaded %d todos from '%s'", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +102,7 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        logger.debug("Saving %d todos to '%s'", len(todos), self.path)
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -118,6 +130,7 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            logger.debug("Saved %d todos to '%s'", len(todos), self.path)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
