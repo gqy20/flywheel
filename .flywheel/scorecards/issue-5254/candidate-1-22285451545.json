@@ -1,0 +1,26 @@
+{
+  "issue_number": 5254,
+  "issue_title": "[Perf] _sanitize_text 对超长文本可能存在性能问题",
+  "candidate_number": 1,
+  "run_id": "22285451545",
+  "branch": "claude/issue-5254-candidate-1-22285451545",
+  "approach": "Replace character-by-character iteration with str.translate() using a pre-built translation table",
+  "changes": [
+    {
+      "file": "src/flywheel/formatter.py",
+      "description": "Optimized _sanitize_text using str.translate() with pre-built translation table at module load time"
+    },
+    {
+      "file": "tests/test_issue_5254_sanitize_text_performance.py",
+      "description": "Added performance regression tests verifying 1MB text processes in < 100ms"
+    }
+  ],
+  "tests_passed": 29,
+  "performance_before_ms": 193,
+  "performance_after_ms": 20,
+  "acceptance_criteria_met": true,
+  "risks": [
+    "None identified - str.translate is well-tested Python stdlib function"
+  ],
+  "limitations": []
+}

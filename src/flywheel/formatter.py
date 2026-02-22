@@ -4,6 +4,20 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Pre-built translation table for control character escaping
+# Built once at module load for O(1) lookup during sanitization
+_CONTROL_CHAR_TABLE = {
+    i: f"\\x{i:02x}" for i in range(0x100) if (i <= 0x1F or 0x7F <= i <= 0x9F)
+}
+
+# Override common control characters with readable escapes
+_CONTROL_CHAR_TABLE[ord("\n")] = "\\n"
+_CONTROL_CHAR_TABLE[ord("\r")] = "\\r"
+_CONTROL_CHAR_TABLE[ord("\t")] = "\\t"
+
+# Remove backslash from the table - it's handled separately first
+_CONTROL_CHAR_TABLE.pop(ord("\\"), None)
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -17,25 +31,8 @@ def _sanitize_text(text: str) -> str:
     # between literal backslash-escape text and sanitized control characters.
     text = text.replace("\\", "\\\\")
 
-    # Common control characters - replace with readable escapes
-    replacements = [
-        ("\n", "\\n"),
-        ("\r", "\\r"),
-        ("\t", "\\t"),
-    ]
-    for char, escaped in replacements:
-        text = text.replace(char, escaped)
-
-    # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
-    result = []
-    for char in text:
-        code = ord(char)
-        if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
-            result.append(f"\\x{code:02x}")
-        else:
-            result.append(char)
-    return "".join(result)
+    # Use str.translate for efficient control character replacement
+    return text.translate(_CONTROL_CHAR_TABLE)
 
 
 class TodoFormatter:
