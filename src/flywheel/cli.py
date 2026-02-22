@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import sys
+from pathlib import Path
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
@@ -22,16 +24,39 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    def _with_lock(self, operation):
+        """Execute an operation with an exclusive file lock.
+
+        Uses fcntl for cross-process synchronization on Unix.
+        Creates a lock file next to the database file.
+        """
+        lock_path = Path(str(self.storage.path) + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(lock_path, "w") as lock_file:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                return operation()
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use file locking to prevent race conditions where multiple
+        # processes compute the same next_id concurrently.
+        # See issue #5113.
+        def do_add():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
+            return todo
+
+        return self._with_lock(do_add)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
