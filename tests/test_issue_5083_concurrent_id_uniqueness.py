@@ -12,10 +12,6 @@ The issue occurs when:
 from __future__ import annotations
 
 import multiprocessing
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
@@ -101,10 +97,6 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
 
     # Load final state and check for unique IDs
-    # Note: Due to last-writer-wins, we may not have all todos,
-    # but the IDs assigned should still be unique
-    assigned_ids = [r[2] for r in successes]
-
     # Check that the final file contains no duplicate IDs
     if db.exists():
         with open(db, encoding="utf-8") as f:
@@ -127,7 +119,6 @@ def test_concurrent_add_with_barrier_stress(tmp_path) -> None:
     all workers start at exactly the same time.
     """
     import json
-    import time
 
     db = tmp_path / "stress.json"
 
@@ -170,7 +161,6 @@ def test_concurrent_add_with_barrier_stress(tmp_path) -> None:
         results.append(result_queue.get())
 
     successes = [r for r in results if r[0] == "success"]
-    errors = [r for r in results if r[0] == "error"]
 
     # At minimum, some should succeed
     assert len(successes) > 0, "No workers succeeded"
