@@ -1,0 +1,88 @@
+{
+  "issue": 5213,
+  "candidate": 1,
+  "run_id": "22281631779",
+  "branch": "claude/issue-5213-candidate-1-22281631779",
+  "stage": "FINALIZE",
+  "plan": {
+    "summary": "Fix race condition in next_id() by using file-based locking when generating new IDs",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5213_race_condition_next_id.py"
+    ],
+    "approach": "Use filelock (already available via transitive dependency) to protect the load-compute-save cycle in TodoApp.add()",
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing regression test that spawns multiple processes calling app.add() concurrently and asserts unique IDs"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add file-based locking to TodoStorage using filelock library, protecting the critical section around load/next_id/save"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run targeted tests and linting to ensure fix works and code quality is maintained"
+      }
+    ],
+    "implementation_details": {
+      "strategy": "Add a lock method to TodoStorage that uses filelock with a .lock file alongside the database. The add operation in cli.py will acquire this lock during the load-compute-next_id-save cycle.",
+      "key_changes": [
+        "Add import for filelock in storage.py",
+        "Add _get_lock_path() method to TodoStorage",
+        "Add acquire_lock() context manager method to TodoStorage",
+        "Modify TodoApp.add() to use locking around the critical section"
+      ],
+      "alternatives_considered": [
+        {
+          "approach": "Persistent counter in JSON file",
+          "rejected_reason": "Requires additional file or restructuring JSON format; more invasive change"
+        },
+        {
+          "approach": "Detect duplicate IDs in Todo.from_dict",
+          "rejected_reason": "Only detects after the fact; does not prevent duplicates from being created"
+        }
+      ]
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5213_next_id_race_condition.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_5213_next_id_race_condition.py"
+    ],
+    "acceptance_criteria": [
+      "Two concurrent add operations produce different IDs",
+      "All existing tests pass",
+      "No linting errors"
+    ]
+  },
+  "implementation": {
+    "actual_approach": "Used fcntl.flock (built-in Unix file locking) instead of filelock library",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_5213_next_id_race_condition.py"
+    ],
+    "key_changes_made": [
+      "Added fcntl import to storage.py",
+      "Added _lock_path() method to get lock file path",
+      "Added _file_lock() context manager using fcntl.flock for cross-process sync",
+      "Added add_todo_atomic() method that holds lock during entire add operation",
+      "Updated TodoApp.add() to use the new atomic method",
+      "Created comprehensive regression tests for concurrent ID generation"
+    ],
+    "tests_passed": 116,
+    "linter_passed": true
+  },
+  "status": "ready",
+  "risks": [
+    "Uses fcntl.flock which is Unix-only (not available on Windows)",
+    "Lock file (.todo.json.lock) is created alongside the data file",
+    "Lock is process-level, not thread-level (multiprocessing safe but may need consideration for threaded environments)"
+  ],
+  "commit_sha": "8965522",
+  "commit_message": "fix: add file locking to prevent duplicate IDs in concurrent next_id()"
+}
