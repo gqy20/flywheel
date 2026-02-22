@@ -6,6 +6,8 @@ the same pattern as mark_done/mark_undone: calls todo.rename(text) and saves.
 
 from __future__ import annotations
 
+import pytest
+
 from flywheel.cli import TodoApp
 
 
@@ -33,11 +35,8 @@ def test_todoapp_rename_nonexistent_id_raises_value_error(tmp_path) -> None:
     app.add("Some todo")
 
     # Try to rename non-existent ID
-    try:
+    with pytest.raises(ValueError, match=r"(?i)not found"):
         app.rename(999, "New text")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "not found" in str(e).lower()
 
 
 def test_todoapp_rename_empty_text_raises_value_error(tmp_path) -> None:
@@ -52,11 +51,8 @@ def test_todoapp_rename_empty_text_raises_value_error(tmp_path) -> None:
     todo = app.add("Original text")
 
     # Try to rename with empty text
-    try:
+    with pytest.raises(ValueError, match=r"(?i)empty"):
         app.rename(todo.id, "")
-        assert False, "Should have raised ValueError"
-    except ValueError as e:
-        assert "empty" in str(e).lower()
 
 
 def test_todoapp_rename_persists_to_storage(tmp_path) -> None:
