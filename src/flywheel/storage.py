@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,37 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _get_lock_path(self) -> Path:
+        """Get the path for the lock file."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def exclusive_access(self):
+        """Context manager for exclusive access to the storage file.
+
+        Uses file locking to prevent race conditions between concurrent
+        processes. This ensures that next_id() and save() operations are
+        atomic relative to other processes.
+
+        Usage:
+            with storage.exclusive_access():
+                todos = storage.load()
+                new_id = storage.next_id(todos)
+                todos.append(Todo(id=new_id, text="..."))
+                storage.save(todos)
+        """
+        _ensure_parent_directory(self.path)
+        lock_path = self._get_lock_path()
+        lock_fd = None
+        try:
+            # Create/open lock file
+            lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            if lock_fd is not None:
+                # Release lock and close file descriptor
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                os.close(lock_fd)
