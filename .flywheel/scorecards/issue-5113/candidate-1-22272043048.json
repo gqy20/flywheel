@@ -1,0 +1,79 @@
+{
+  "issue_number": 5113,
+  "issue_title": "[Bug] Race condition in add() - duplicate IDs possible with concurrent processes",
+  "candidate_number": 1,
+  "run_id": "22272043048",
+  "branch_name": "claude/issue-5113-candidate-1-22272043048",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Fix race condition in TodoApp.add() where concurrent processes can generate duplicate IDs",
+    "root_cause": "The add() method loads todos, computes next_id based on loaded state, then saves. Between load and save, another process could complete the same sequence with the same next_id, causing duplicate IDs.",
+    "solution_approach": "Implement file locking using fcntl.flock to ensure atomicity of add() operations across concurrent processes",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_issue_5113_concurrent_add_duplicate_id.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing regression test that spawns multiple processes calling add() concurrently and verifies all IDs are unique",
+        "status": "completed"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Implement file locking in TodoStorage.exclusive_lock() and use it in TodoApp.add()",
+        "status": "completed"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run all tests to ensure fix works and no regressions",
+        "status": "completed"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5113_concurrent_add_duplicate_id.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_issue_5113_concurrent_add_duplicate_id.py"
+    ]
+  },
+  "implementation": {
+    "summary": "Fixed race condition by adding file locking using fcntl.flock. The exclusive_lock() context manager in TodoStorage acquires an exclusive lock before load/save operations in add().",
+    "changes": [
+      {
+        "file": "src/flywheel/storage.py",
+        "change_type": "modified",
+        "description": "Added exclusive_lock() context manager using fcntl.flock for advisory file locking"
+      },
+      {
+        "file": "src/flywheel/cli.py",
+        "change_type": "modified",
+        "description": "Modified add() to use exclusive_lock() for atomic load-compute-save operation"
+      },
+      {
+        "file": "tests/test_issue_5113_concurrent_add_duplicate_id.py",
+        "change_type": "added",
+        "description": "Added regression tests for concurrent add() race condition"
+      }
+    ],
+    "tests_run": [
+      "tests/test_issue_5113_concurrent_add_duplicate_id.py - PASSED (2 tests)",
+      "tests/test_storage_atomicity.py - PASSED (6 tests)",
+      "tests/ - PASSED (112 tests)"
+    ],
+    "risks": [
+      "File locking uses fcntl.flock which is Unix-specific; not available on Windows",
+      "Advisory locking only works if all processes cooperate; external processes modifying the file won't be blocked"
+    ],
+    "limitations": [
+      "Only add() operation uses locking; other operations (mark_done, mark_undone, remove) may still have race conditions but are less critical for ID uniqueness"
+    ]
+  },
+  "status": "ready_for_commit",
+  "created_at": "2026-02-22T07:10:00Z",
+  "updated_at": "2026-02-22T07:12:00Z"
+}
