@@ -229,3 +229,97 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_nested_directory_creation_succeeds(tmp_path) -> None:
+    """Regression test for issue #5215: TOCTOU in _ensure_parent_directory.
+
+    Tests that concurrent creation of nested directories does not fail due to
+    exist_ok=False in mkdir. Before fix: FileExistsError when directory is created
+    by another process between the existence check and mkdir call.
+    After fix: Both processes succeed gracefully.
+    """
+    import multiprocessing
+
+    # Use a deeply nested path that doesn't exist yet
+    db_path = tmp_path / "level1" / "level2" / "level3" / "todo.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that tries to save to the same nested path."""
+        try:
+            storage = TodoStorage(str(db_path))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            result_queue.put(("success", worker_id, None))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run workers concurrently - they will race to create the parent directory
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        # Start all workers as close together as possible to maximize race
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed - no FileExistsError from TOCTOU race
+    assert len(errors) == 0, f"Workers failed due to TOCTOU race: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db_path))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list)
+    assert len(final_todos) == 1  # Last writer wins, but all should succeed
+
+
+def test_ensure_parent_directory_handles_toctou_race(tmp_path) -> None:
+    """Unit test for issue #5215: _ensure_parent_directory should handle TOCTOU race.
+
+    Simulates the scenario where the directory is created by another process
+    between the existence check and mkdir call. With exist_ok=False, this would
+    raise FileExistsError; with exist_ok=True, it succeeds gracefully.
+    """
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path for nested directories that doesn't exist
+    nested_path = tmp_path / "toctou" / "nested" / "file.json"
+    parent = nested_path.parent
+
+    # Track the original mkdir method
+    original_mkdir = Path.mkdir
+
+    def mkdir_with_toctou_race(self, *args, **kwargs):
+        """Mock mkdir that creates directory BEFORE the actual call, simulating race."""
+        # Simulate another process creating the directory between check and mkdir
+        if not self.exists():
+            # First create it as if another process did
+            original_mkdir(self, parents=True, exist_ok=True)
+        # Then call the actual mkdir with exist_ok as passed
+        return original_mkdir(self, *args, **kwargs)
+
+    # Patch Path.mkdir to simulate the TOCTOU race
+    with patch.object(Path, "mkdir", mkdir_with_toctou_race):
+        # This should NOT raise FileExistsError even with the race
+        # With exist_ok=False (the bug), this would raise FileExistsError
+        _ensure_parent_directory(nested_path)  # Should not raise
+
+    assert parent.exists(), "Parent should exist after the call"
