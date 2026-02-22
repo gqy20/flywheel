@@ -1,43 +1,23 @@
 {
-  "issue_number": 5256,
+  "issue": 5256,
   "candidate": 1,
   "run_id": "22287471051",
   "branch": "claude/issue-5256-candidate-1-22287471051",
-  "scorecard_version": "1.0",
-  "timestamp": "2026-02-22T21:45:00Z",
-  "summary": "Added rename method to TodoApp class to expose the model layer rename functionality",
-  "changes": {
-    "source_files": [
-      {
-        "path": "src/flywheel/cli.py",
-        "change_type": "modified",
-        "description": "Added rename(todo_id, text) method to TodoApp class"
-      }
-    ],
-    "test_files": [
-      {
-        "path": "tests/test_issue_5256_todoapp_rename.py",
-        "change_type": "added",
-        "description": "5 regression tests for TodoApp.rename method"
-      }
-    ]
-  },
-  "tests_run": [
-    "tests/test_issue_5256_todoapp_rename.py::test_todoapp_rename_successfully_renames_todo",
-    "tests/test_issue_5256_todoapp_rename.py::test_todoapp_rename_raises_for_nonexistent_id",
-    "tests/test_issue_5256_todoapp_rename.py::test_todoapp_rename_raises_for_empty_text",
-    "tests/test_issue_5256_todoapp_rename.py::test_todoapp_rename_raises_for_whitespace_only_text",
-    "tests/test_issue_5256_todoapp_rename.py::test_todoapp_rename_strips_whitespace"
+  "pr_number": 5277,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5277",
+  "generated_at": "2026-02-22T23:50:21.843099+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 5,
-  "tests_failed": 0,
-  "lint_status": "passed",
-  "acceptance_criteria": {
-    "rename_method_exists": true,
-    "returns_updated_todo": true,
-    "raises_on_nonexistent_id": true,
-    "raises_on_empty_text": true
-  },
-  "risks": "None - follows existing patterns from mark_done/mark_undone methods",
-  "limitations": "None"
+  "stage_response_sizes": {
+    "triage": 1509,
+    "plan": 2566,
+    "implement": 2363,
+    "verify": 1585,
+    "finalize": 1184
+  }
 }
