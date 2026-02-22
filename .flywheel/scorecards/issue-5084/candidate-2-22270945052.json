@@ -1,34 +1,23 @@
 {
-  "issue_number": 5084,
-  "candidate_number": 2,
+  "issue": 5084,
+  "candidate": 2,
   "run_id": "22270945052",
   "branch": "claude/issue-5084-candidate-2-22270945052",
+  "pr_number": 5106,
   "pr_url": "https://github.com/gqy20/flywheel/pull/5106",
-  "status": "finalized",
-  "score": 0,
-  "checks": {
-    "tests_pass": true,
-    "linter_pass": true,
-    "minimal_scope": true,
-    "tdd_followed": true
-  },
-  "implementation_summary": {
-    "files_changed": [
-      "src/flywheel/cli.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 43,
-    "lines_removed": 0,
-    "approach": "Exposed Todo.rename() method through CLI by adding rename subcommand, TodoApp.rename() method, and handler in run_command()"
-  },
-  "test_coverage": {
-    "new_tests_added": 3,
-    "test_names": [
-      "test_cli_rename_command_updates_todo_text",
-      "test_cli_rename_command_returns_error_for_empty_text",
-      "test_cli_rename_command_returns_error_for_missing_todo"
-    ]
-  },
-  "risks": [],
-  "limitations": []
+  "generated_at": "2026-02-22T05:50:19.779551+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1849,
+    "plan": 4000,
+    "implement": 2227,
+    "verify": 1735,
+    "finalize": 1382
+  }
 }
