@@ -1,39 +1,23 @@
 {
-  "issue_number": 5179,
-  "issue_title": "[Feature] 添加文件保存前的自动备份功能",
-  "candidate_number": 3,
+  "issue": 5179,
+  "candidate": 3,
   "run_id": "22279693643",
-  "branch_name": "claude/issue-5179-candidate-3-22279693643",
-  "created_at": "2026-02-22T15:00:00Z",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "tests/test_issue_5179_backup.py"
-    ],
-    "lines_added": 161,
-    "lines_removed": 1,
-    "test_coverage": {
-      "tests_added": 7,
-      "tests_passed": 7
-    }
-  },
-  "acceptance_criteria": {
-    "backup_parameter_added": true,
-    "backup_true_creates_bak_file": true,
-    "backup_false_default_no_change": true,
-    "first_save_no_error": true,
-    "permissions_preserved": true
-  },
-  "tests_run": [
-    "tests/test_issue_5179_backup.py::TestBackupDisabled::test_no_backup_file_created_by_default",
-    "tests/test_issue_5179_backup.py::TestBackupDisabled::test_save_without_backup_works_normally",
-    "tests/test_issue_5179_backup.py::TestBackupEnabled::test_backup_file_created_when_backup_true",
-    "tests/test_issue_5179_backup.py::TestBackupEnabled::test_backup_preserves_original_file_permissions",
-    "tests/test_issue_5179_backup.py::TestBackupEnabled::test_first_save_with_backup_no_error",
-    "tests/test_issue_5179_backup.py::TestBackupEnabled::test_multiple_saves_with_backup_overwrites_old_backup",
-    "tests/test_issue_5179_backup.py::TestBackupEnabled::test_backup_with_unicode_content"
+  "branch": "claude/issue-5179-candidate-3-22279693643",
+  "pr_number": 5198,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5198",
+  "generated_at": "2026-02-22T16:27:43.796605+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "lint_status": "passed",
-  "commit_sha": "a8a223b"
+  "stage_response_sizes": {
+    "triage": 2775,
+    "plan": 3536,
+    "implement": 2552,
+    "verify": 1061,
+    "finalize": 1536
+  }
 }
