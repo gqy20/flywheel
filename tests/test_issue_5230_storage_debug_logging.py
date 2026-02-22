@@ -41,8 +41,9 @@ class TestStorageDebugLogging:
 
         assert len(load_logs) >= 1, f"Expected load log with path {db}. Got logs: {debug_messages}"
         # Should include item count
-        assert any("2" in msg or "count" in msg.lower() for msg in load_logs), \
+        assert any("2" in msg or "count" in msg.lower() for msg in load_logs), (
             f"Expected load log to include item count. Got: {load_logs}"
+        )
 
     def test_save_emits_debug_log_with_file_path_and_count(self, tmp_path, caplog):
         """When TODO_DEBUG=1, save() should emit DEBUG log with file path and item count."""
@@ -61,8 +62,9 @@ class TestStorageDebugLogging:
 
         assert len(save_logs) >= 1, f"Expected save log with path {db}. Got logs: {debug_messages}"
         # Should include item count
-        assert any("3" in msg or "count" in msg.lower() for msg in save_logs), \
+        assert any("3" in msg or "count" in msg.lower() for msg in save_logs), (
             f"Expected save log to include item count. Got: {save_logs}"
+        )
 
     def test_load_emits_error_log_on_json_decode_error(self, tmp_path, caplog):
         """When JSON decoding fails, load() should emit ERROR log with context."""
@@ -70,15 +72,21 @@ class TestStorageDebugLogging:
         db.write_text("{ invalid json", encoding="utf-8")
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.ERROR, logger="flywheel.storage"), \
-             pytest.raises(ValueError, match="Invalid JSON"):
+        with (
+            caplog.at_level(logging.ERROR, logger="flywheel.storage"),
+            pytest.raises(ValueError, match="Invalid JSON"),
+        ):
             storage.load()
 
         # Verify error log was emitted
         error_messages = [r.message for r in caplog.records if r.levelno == logging.ERROR]
-        error_logs = [msg for msg in error_messages if "load" in msg.lower() or "json" in msg.lower()]
+        error_logs = [
+            msg for msg in error_messages if "load" in msg.lower() or "json" in msg.lower()
+        ]
 
-        assert len(error_logs) >= 1, f"Expected error log for JSON decode failure. Got: {error_messages}"
+        assert len(error_logs) >= 1, (
+            f"Expected error log for JSON decode failure. Got: {error_messages}"
+        )
 
     def test_load_emits_error_log_on_file_too_large(self, tmp_path, caplog):
         """When file is too large, load() should emit ERROR log with context."""
@@ -92,13 +100,17 @@ class TestStorageDebugLogging:
 
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.ERROR, logger="flywheel.storage"), \
-             pytest.raises(ValueError, match="too large"):
+        with (
+            caplog.at_level(logging.ERROR, logger="flywheel.storage"),
+            pytest.raises(ValueError, match="too large"),
+        ):
             storage.load()
 
         # Verify error log was emitted
         error_messages = [r.message for r in caplog.records if r.levelno == logging.ERROR]
-        error_logs = [msg for msg in error_messages if "large" in msg.lower() or "size" in msg.lower()]
+        error_logs = [
+            msg for msg in error_messages if "large" in msg.lower() or "size" in msg.lower()
+        ]
 
         assert len(error_logs) >= 1, f"Expected error log for oversized file. Got: {error_messages}"
 
@@ -113,14 +125,19 @@ class TestStorageDebugLogging:
 
         # Mock os.replace to fail
         import os as os_module
-        with caplog.at_level(logging.ERROR, logger="flywheel.storage"), \
-             patch.object(os_module, "replace", side_effect=OSError("Disk full")), \
-             pytest.raises(OSError, match="Disk full"):
+
+        with (
+            caplog.at_level(logging.ERROR, logger="flywheel.storage"),
+            patch.object(os_module, "replace", side_effect=OSError("Disk full")),
+            pytest.raises(OSError, match="Disk full"),
+        ):
             storage.save([Todo(id=2, text="new")])
 
         # Verify error log was emitted
         error_messages = [r.message for r in caplog.records if r.levelno == logging.ERROR]
-        error_logs = [msg for msg in error_messages if "save" in msg.lower() or "write" in msg.lower()]
+        error_logs = [
+            msg for msg in error_messages if "save" in msg.lower() or "write" in msg.lower()
+        ]
 
         assert len(error_logs) >= 1, f"Expected error log for save failure. Got: {error_messages}"
 
@@ -136,6 +153,12 @@ class TestStorageDebugLogging:
 
         # Verify debug log was emitted for non-existent file
         debug_messages = [r.message for r in caplog.records if r.levelno == logging.DEBUG]
-        load_logs = [msg for msg in debug_messages if "load" in msg.lower() or "not found" in msg.lower() or "empty" in msg.lower()]
+        load_logs = [
+            msg
+            for msg in debug_messages
+            if "load" in msg.lower() or "not found" in msg.lower() or "empty" in msg.lower()
+        ]
 
-        assert len(load_logs) >= 1, f"Expected debug log for non-existent file. Got: {debug_messages}"
+        assert len(load_logs) >= 1, (
+            f"Expected debug log for non-existent file. Got: {debug_messages}"
+        )

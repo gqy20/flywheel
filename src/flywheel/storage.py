@@ -71,8 +71,7 @@ class TodoStorage:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
             _logger.error(
-                "Load: file too large at %s (%.1fMB > %.0fMB limit)",
-                self.path, size_mb, limit_mb
+                "Load: file too large at %s (%.1fMB > %.0fMB limit)", self.path, size_mb, limit_mb
             )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
@@ -84,15 +83,19 @@ class TodoStorage:
         except json.JSONDecodeError as e:
             _logger.error(
                 "Load: JSON decode error in %s at line %d, column %d: %s",
-                self.path, e.lineno, e.colno, e.msg
+                self.path,
+                e.lineno,
+                e.colno,
+                e.msg,
             )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
-            _logger.error("Load: invalid format in %s - expected list, got %s", self.path, type(raw).__name__)
+            _logger.error(
+                "Load: invalid format in %s - expected list, got %s", self.path, type(raw).__name__
+            )
             raise ValueError("Todo storage must be a JSON list")
 
         todos = [Todo.from_dict(item) for item in raw]
