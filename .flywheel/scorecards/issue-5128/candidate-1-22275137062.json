@@ -38,8 +38,10 @@
     },
     "finalize": {
       "status": "completed",
-      "pr_created": false,
-      "note": "Implementation already complete in commit b125812"
+      "pr_created": true,
+      "pr_url": "https://github.com/gqy20/flywheel/pull/5159",
+      "pr_number": 5159,
+      "note": "PR already exists at #5159, pushed additional formatting changes"
     }
   },
   "acceptance_criteria": {
