@@ -1,33 +1,23 @@
 {
-  "issue_number": 5256,
-  "candidate_number": 3,
+  "issue": 5256,
+  "candidate": 3,
   "run_id": "22287471051",
   "branch": "claude/issue-5256-candidate-3-22287471051",
-  "status": "verified",
-  "created_at": "2026-02-22T21:32:00Z",
-  "verified_at": "2026-02-22T21:35:00Z",
-  "tests": {
-    "added": ["tests/test_issue_5256_todoapp_rename_method.py"],
-    "passed": true,
-    "count": 4
-  },
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_5256_todoapp_rename_method.py -v",
-      "result": "4 passed"
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/cli.py tests/test_issue_5256_todoapp_rename_method.py",
-      "result": "All checks passed!"
-    },
-    "full_test_suite": {
-      "command": "uv run pytest tests/ -v",
-      "result": "116 passed"
-    }
-  },
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_5256_todoapp_rename_method.py"
+  "pr_number": 5280,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5280",
+  "generated_at": "2026-02-22T23:53:41.930194+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "implementation_summary": "Added rename method to TodoApp class following the same pattern as mark_done/mark_undone methods. The method calls todo.rename(text) and saves the updated todo list."
+  "stage_response_sizes": {
+    "triage": 2915,
+    "plan": 2640,
+    "implement": 1285,
+    "verify": 2273,
+    "finalize": 1198
+  }
 }
