@@ -1,0 +1,21 @@
+{
+  "issue_number": 5099,
+  "candidate_number": 1,
+  "run_id": "22273469553",
+  "branch": "claude/issue-5099-candidate-1-22273469553",
+  "created_at": "2026-02-22T05:45:00Z",
+  "status": "implemented",
+  "summary": "Add None check at the beginning of _sanitize_text to raise TypeError with clear message instead of AttributeError",
+  "files_changed": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_5099_sanitize_text_none_input.py"
+  ],
+  "tests_passed": 113,
+  "ruff_checks": "passed",
+  "acceptance_criteria_met": [
+    "_sanitize_text(None) raises TypeError with message 'text must be a string, not NoneType'",
+    "All existing tests continue to pass"
+  ],
+  "risks": "None - minimal defensive check with clear error message",
+  "limitations": "None - simple null check at function entry"
+}
