@@ -1,0 +1,26 @@
+{
+  "issue_number": 5177,
+  "issue_title": "[Security] Zero-width and invisible Unicode characters not sanitized, enabling visual spoof",
+  "candidate_number": 1,
+  "run_id": "22278183830",
+  "branch_name": "claude/issue-5177-candidate-1-22278183830",
+  "created_at": "2026-02-22T14:30:00Z",
+  "fix_summary": "Added sanitization for zero-width and invisible Unicode characters (U+200B-U+200F, U+FEFF, U+2060) that enable visual spoofing attacks. These characters are now escaped to visible \\uNNNN representations.",
+  "files_changed": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_5177_zero_width_sanitization.py"
+  ],
+  "tests_added": 11,
+  "tests_passed": 11,
+  "security_fix": true,
+  "vulnerability_type": "Visual Spoofing / Unicode Injection",
+  "affected_characters": [
+    {"code": "U+200B", "name": "Zero-width space"},
+    {"code": "U+200C", "name": "Zero-width non-joiner"},
+    {"code": "U+200D", "name": "Zero-width joiner"},
+    {"code": "U+200E", "name": "Left-to-right mark"},
+    {"code": "U+200F", "name": "Right-to-left mark"},
+    {"code": "U+FEFF", "name": "BOM / Zero-width no-break space"},
+    {"code": "U+2060", "name": "Word joiner"}
+  ]
+}
