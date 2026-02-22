@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock file suffix for concurrent access protection
+_LOCK_SUFFIX = ".lock"
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +59,47 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + _LOCK_SUFFIX)
+
+    def _acquire_lock(self) -> int:
+        """Acquire exclusive lock for file operations.
+
+        Returns the lock file descriptor for later release.
+        Uses fcntl.flock for cross-process synchronization.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        # Use O_CREAT to create if not exists, O_RDWR for read/write
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            0o600,  # Restrictive permissions
+        )
+        # BLOCKING: Wait for exclusive lock
+        # fcntl.LOCK_EX = exclusive lock (blocks other readers/writers)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        return lock_fd
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release the exclusive lock."""
+        try:
+            # fcntl.LOCK_UN = unlock
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+        except OSError:
+            # Lock release failed - not critical, just log
+            pass
+
+    @contextlib.contextmanager
+    def _locked(self) -> None:
+        """Context manager for exclusive lock-protected operations."""
+        lock_fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +119,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +170,26 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Atomically add a new todo with a unique ID.
+
+        Uses file locking to ensure the load-next_id-save sequence is atomic,
+        preventing race conditions when multiple processes add todos concurrently.
+
+        Args:
+            text: The todo text content.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._locked():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
