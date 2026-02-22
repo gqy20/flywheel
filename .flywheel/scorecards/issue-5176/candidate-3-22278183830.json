@@ -1,16 +1,23 @@
 {
-  "issue_number": 5176,
+  "issue": 5176,
   "candidate": 3,
   "run_id": "22278183830",
   "branch": "claude/issue-5176-candidate-3-22278183830",
-  "status": "implemented",
-  "test_file": "tests/test_issue_5176_bidi_sanitization.py",
-  "source_files": ["src/flywheel/formatter.py"],
-  "tests_added": 13,
-  "tests_passed": 34,
-  "linter_passed": true,
-  "coverage_formatter": "100%",
-  "summary": "Extended _sanitize_text() to escape Unicode bidi control characters (U+202A-U+202E, U+2066-U+2069, U+200E-U+200F) to prevent text direction spoofing attacks. Uses \\uXXXX format for visibility.",
-  "risks": "Minimal - only affects display of bidi control characters which are invisible anyway. Normal unicode text passes through unchanged.",
-  "created_at": "2026-02-22T14:30:00Z"
+  "pr_number": 5180,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5180",
+  "generated_at": "2026-02-22T14:45:01.550205+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2191,
+    "plan": 3095,
+    "implement": 2349,
+    "verify": 2090,
+    "finalize": 1427
+  }
 }
