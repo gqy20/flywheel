@@ -1,0 +1,63 @@
+{
+  "issue_number": 5141,
+  "issue_title": "[Bug] save() truncates content if os.fdopen write fails mid-stream",
+  "candidate_number": 3,
+  "run_id": "22274357421",
+  "branch": "claude/issue-5141-candidate-3-22274357421",
+  "created_at": "2026-02-22T10:15:00Z",
+  "status": "implemented",
+  "summary": "Added explicit f.flush() after f.write() in TodoStorage.save() to ensure all data is written to disk before attempting atomic rename. This prevents the original file from being replaced with truncated data if disk write fails mid-stream.",
+  "changes": {
+    "source_files": [
+      {
+        "path": "src/flywheel/storage.py",
+        "change_type": "modified",
+        "lines_added": 5,
+        "lines_removed": 0
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/test_storage_atomicity.py",
+        "change_type": "modified",
+        "lines_added": 135,
+        "lines_removed": 0,
+        "new_tests": [
+          "test_partial_write_failure_preserves_original_file",
+          "test_flush_failure_before_replace_preserves_original_file"
+        ]
+      }
+    ]
+  },
+  "tests_run": [
+    "tests/test_storage_atomicity.py::test_save_is_atomic_with_os_replace",
+    "tests/test_storage_atomicity.py::test_write_failure_preserves_original_file",
+    "tests/test_storage_atomicity.py::test_temp_file_created_in_same_directory",
+    "tests/test_storage_atomicity.py::test_atomic_write_produces_valid_json",
+    "tests/test_storage_atomicity.py::test_concurrent_write_safety",
+    "tests/test_storage_atomicity.py::test_partial_write_failure_preserves_original_file",
+    "tests/test_storage_atomicity.py::test_flush_failure_before_replace_preserves_original_file",
+    "tests/test_storage_atomicity.py::test_concurrent_save_from_multiple_processes"
+  ],
+  "tests_passed": 8,
+  "tests_failed": 0,
+  "risks": [
+    {
+      "description": "The flush() call adds minimal overhead to the save operation",
+      "mitigation": "The overhead is negligible compared to the file I/O already happening"
+    }
+  ],
+  "limitations": [],
+  "acceptance_criteria_met": [
+    {
+      "criterion": "If write fails due to disk full, temp file should be cleaned up and not renamed",
+      "met": true,
+      "evidence": "test_flush_failure_before_replace_preserves_original_file verifies os.replace() is NOT called when flush fails"
+    },
+    {
+      "criterion": "Original file should remain unchanged on partial write failure",
+      "met": true,
+      "evidence": "Both new tests verify original file content is preserved after simulated disk full failure"
+    }
+  ]
+}
