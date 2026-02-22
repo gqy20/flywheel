@@ -9,6 +9,8 @@ import stat
 import tempfile
 from pathlib import Path
 
+import filelock
+
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
@@ -55,6 +57,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +129,25 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a todo atomically with file locking to prevent race conditions.
+
+        This method performs load-compute_id-save in a single atomic operation,
+        preventing duplicate IDs when multiple processes call it concurrently.
+
+        Args:
+            text: The text content of the todo item.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        # Ensure parent directory exists before acquiring lock
+        _ensure_parent_directory(self.path)
+
+        with filelock.FileLock(self._lock_path):
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
