@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Zero-width and invisible Unicode characters that can be used for visual spoofing
+# These should be escaped to visible representations for security
+_INVISIBLE_UNICODE_RANGES = [
+    (0x200B, 0x200F),  # Zero-width space, non-joiner, joiner, LTR mark, RTL mark
+    (0xFEFF, 0xFEFF),  # BOM (Byte Order Mark)
+    (0x2060, 0x2060),  # Word joiner
+]
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -11,6 +19,9 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes zero-width and invisible Unicode characters (U+200B-U+200F,
+    U+FEFF, U+2060) to prevent visual spoofing attacks.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -28,11 +39,14 @@ def _sanitize_text(text: str) -> str:
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
     # Replace with \\xNN escape sequences
+    # Also escape invisible Unicode characters with \\uNNNN
     result = []
     for char in text:
         code = ord(char)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        elif any(start <= code <= end for start, end in _INVISIBLE_UNICODE_RANGES):
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)

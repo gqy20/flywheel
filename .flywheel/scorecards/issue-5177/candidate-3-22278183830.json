@@ -1,0 +1,31 @@
+{
+  "issue_number": 5177,
+  "issue_title": "[Security] Zero-width and invisible Unicode characters not sanitized, enabling visual spoof",
+  "candidate_number": 3,
+  "run_id": "22278183830",
+  "branch": "claude/issue-5177-candidate-3-22278183830",
+  "approach": "Add zero-width and invisible Unicode character escaping to the _sanitize_text function in formatter.py",
+  "changes": {
+    "source_files": ["src/flywheel/formatter.py"],
+    "test_files": ["tests/test_issue_5177_invisible_unicode_sanitization.py"]
+  },
+  "test_results": {
+    "new_tests_passed": 10,
+    "existing_tests_passed": true,
+    "ruff_check": "passed"
+  },
+  "implementation_details": {
+    "invisible_ranges": [
+      {"start": "U+200B", "end": "U+200F", "description": "Zero-width space, non-joiner, joiner, LTR mark, RTL mark"},
+      {"start": "U+FEFF", "end": "U+FEFF", "description": "BOM (Byte Order Mark)"},
+      {"start": "U+2060", "end": "U+2060", "description": "Word joiner"}
+    ],
+    "escape_format": "\\uNNNN"
+  },
+  "verification_criteria_met": [
+    "Zero-width space (U+200B) is escaped to visible representation",
+    "Zero-width joiner (U+200D) is escaped to visible representation",
+    "BOM (U+FEFF) is escaped to visible representation",
+    "Word joiner (U+2060) is escaped to visible representation"
+  ]
+}
