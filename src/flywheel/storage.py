@@ -80,6 +80,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        # Validate each item is a dict before passing to Todo.from_dict
+        for index, item in enumerate(raw):
+            if not isinstance(item, dict):
+                raise ValueError(
+                    f"Invalid element at index {index}: expected an object/dict, "
+                    f"got {type(item).__name__}. Each todo item must be a JSON object."
+                )
+
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
