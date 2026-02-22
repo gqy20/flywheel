@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -50,11 +51,67 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+class ConcurrentWriteError(Exception):
+    """Raised when a concurrent write is detected during optimistic locking."""
+
+    pass
+
+
+class FileLock:
+    """Context manager for file-based locking using fcntl.
+
+    Provides exclusive locking for read-modify-write operations
+    to prevent data loss in concurrent scenarios.
+    """
+
+    def __init__(self, file_path: Path, timeout: float = 10.0) -> None:
+        self.file_path = file_path
+        self.timeout = timeout
+        self._lock_file: object | None = None
+        self._lock_path = file_path.with_suffix(file_path.suffix + ".lock")
+
+    def __enter__(self) -> FileLock:
+        _ensure_parent_directory(self._lock_path)
+        self._lock_file = open(self._lock_path, "w")
+        try:
+            fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            if self._lock_file:
+                self._lock_file.close()
+                self._lock_file = None
+            raise
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._lock_file:
+            try:
+                fcntl.flock(self._lock_file.fileno(), fcntl.LOCK_UN)
+            finally:
+                self._lock_file.close()
+                self._lock_file = None
+                # Note: We intentionally don't unlink the lock file.
+                # Removing it while other processes are waiting can cause issues.
+        return False
+
+
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Supports optimistic locking via file modification time to detect
+    concurrent writes and prevent data loss.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+
+    def _get_file_version(self) -> float | None:
+        """Get the file modification time as a version identifier.
+
+        Returns None if file doesn't exist.
+        """
+        if not self.path.exists():
+            return None
+        return self.path.stat().st_mtime
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -124,5 +181,60 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def save_if_version_matches(
+        self, todos: list[Todo], expected_version: float | None
+    ) -> None:
+        """Save todos only if the file version matches expected.
+
+        Implements optimistic locking to prevent data loss in concurrent scenarios.
+        Uses file modification time as the version identifier.
+
+        Args:
+            todos: List of todos to save
+            expected_version: The version (mtime) that was read, or None if file
+                             didn't exist at read time.
+
+        Raises:
+            ConcurrentWriteError: If the file was modified by another process
+                                 between read and write.
+        """
+        current_version = self._get_file_version()
+
+        # Check for concurrent modification
+        if current_version != expected_version:
+            raise ConcurrentWriteError(
+                f"Concurrent write detected: file was modified after read. "
+                f"Expected version {expected_version}, but current is {current_version}."
+            )
+
+        # Version matches, proceed with save
+        self.save(todos)
+
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a todo atomically using file locking.
+
+        This method acquires an exclusive lock before reading, adding, and saving,
+        ensuring no data is lost during concurrent add operations.
+
+        Args:
+            text: The todo text to add
+
+        Returns:
+            The newly created Todo
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with FileLock(self.path):
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo

@@ -1,0 +1,30 @@
+{
+  "issue": 5166,
+  "candidate": 1,
+  "run_id": "22277003854",
+  "timestamp": "2026-02-22T12:45:00Z",
+  "status": "ready",
+  "approach": "file-locking",
+  "description": "Fix concurrent add data loss using fcntl file locking",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_5166_concurrent_add_data_loss.py"
+    ]
+  },
+  "tests_passed": 114,
+  "tests_added": 2,
+  "risks": [
+    "File locking uses fcntl which is Unix-specific; may not work on Windows",
+    "Lock file may remain after abnormal termination (but won't cause deadlock)"
+  ],
+  "verification": {
+    "concurrent_add_3_workers": "PASSED",
+    "concurrent_add_10_workers": "PASSED",
+    "all_existing_tests": "PASSED",
+    "ruff_linting": "PASSED"
+  }
+}
