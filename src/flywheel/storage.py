@@ -4,12 +4,24 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import Protocol
 
 from .todo import Todo
+
+
+class LoggerProtocol(Protocol):
+    """Protocol for logger interface to support both logging.Logger and mocks."""
+
+    def debug(self, msg: str, *args: object) -> None: ...
+
+
+# Type alias for logger parameter
+LoggerType = logging.Logger | LoggerProtocol | None
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -51,13 +63,28 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with optional logging support."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self, path: str | None = None, *, logger: LoggerType = None
+    ) -> None:
+        """Initialize storage with optional logger for debugging.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            logger: Optional logger for recording storage operations at DEBUG level.
+                    When None (default), no logging occurs (backward compatible).
+        """
         self.path = Path(path or ".todo.json")
+        self._logger = logger
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            if self._logger:
+                self._logger.debug(
+                    "Storage load: file '%s' does not exist, returning empty list",
+                    self.path,
+                )
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +107,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        if self._logger:
+            self._logger.debug(
+                "Storage load: loaded %d todos from '%s'", len(todos), self.path
+            )
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -123,6 +155,12 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Log successful save
+        if self._logger:
+            self._logger.debug(
+                "Storage save: saved %d todos to '%s'", len(todos), self.path
+            )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
