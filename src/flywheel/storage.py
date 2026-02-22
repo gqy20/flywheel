@@ -125,4 +125,21 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Generate the next sequential ID for a new todo.
+
+        Returns max(existing IDs) + 1, or 1 if no todos exist.
+
+        Concurrency Warning:
+            This method is NOT atomic with save(). In concurrent scenarios,
+            multiple processes may receive the same ID, leading to duplicate
+            IDs in the final data. This is a known limitation of the current
+            file-based storage design.
+
+            For single-process usage, this is safe and efficient.
+            For multi-process environments, consider using external locking
+            or a database backend.
+
+        See Also:
+            Issue #5083: Documents the non-atomic nature of next_id/save.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
