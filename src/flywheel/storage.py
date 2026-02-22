@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 import stat
 import tempfile
 from pathlib import Path
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default number of backups to keep
+_DEFAULT_MAX_BACKUPS = 3
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -82,7 +86,13 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(
+        self,
+        todos: list[Todo],
+        *,
+        backup_before_save: bool = False,
+        max_backups: int = _DEFAULT_MAX_BACKUPS,
+    ) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,9 +100,18 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of Todo objects to save.
+            backup_before_save: If True, create a backup before overwriting.
+            max_backups: Maximum number of backup files to keep (default 3).
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup before save if enabled and file exists
+        if backup_before_save and self.path.exists():
+            self._create_backup(max_backups)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +142,113 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _get_backup_paths(self) -> list[Path]:
+        """Get all backup file paths sorted by modification time (newest first)."""
+        # Pattern: <filename>.bak.<n> where n is 0, 1, 2, ...
+        pattern = re.compile(rf"^{re.escape(self.path.name)}\.bak(?:\.\d+)?$")
+        backup_files = []
+
+        if self.path.parent.exists():
+            for f in self.path.parent.iterdir():
+                if pattern.match(f.name):
+                    backup_files.append(f)
+
+        # Sort by modification time, newest first
+        backup_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return backup_files
+
+    def _create_backup(self, max_backups: int) -> None:
+        """Create a backup of the current file and rotate old backups.
+
+        Args:
+            max_backups: Maximum number of backup files to keep.
+        """
+        # Get existing backups
+        existing_backups = self._get_backup_paths()
+
+        # Determine the new backup path
+        if existing_backups:
+            # Find the highest index
+            highest_idx = 0
+            for backup in existing_backups:
+                match = re.search(r"\.bak\.(\d+)$", backup.name)
+                if match:
+                    idx = int(match.group(1))
+                    highest_idx = max(highest_idx, idx)
+            new_backup_path = self.path.with_suffix(f"{self.path.suffix}.bak.{highest_idx + 1}")
+        else:
+            # First backup uses .bak.0
+            new_backup_path = self.path.with_suffix(f"{self.path.suffix}.bak.0")
+
+        # Copy current file to new backup
+        import shutil
+
+        shutil.copy2(self.path, new_backup_path)
+
+        # Rotate: delete oldest backups if we exceed max_backups
+        all_backups = self._get_backup_paths()
+        while len(all_backups) > max_backups:
+            all_backups[-1].unlink()
+            all_backups = self._get_backup_paths()
+
+    def load_backup(self, n: int = 0) -> list[Todo]:
+        """Load todos from the nth most recent backup.
+
+        Args:
+            n: Which backup to load (0 = most recent, 1 = second most recent, etc.)
+
+        Returns:
+            List of Todo objects from the backup.
+
+        Raises:
+            FileNotFoundError: If no backup file exists or n is too large.
+        """
+        backups = self._get_backup_paths()
+
+        if not backups:
+            raise FileNotFoundError(f"No backup file found for {self.path}")
+
+        if n >= len(backups):
+            raise FileNotFoundError(
+                f"Backup #{n} not found. Only {len(backups)} backup(s) available."
+            )
+
+        backup_path = backups[n]
+
+        # Reuse load logic by temporarily replacing path
+        original_path = self.path
+        try:
+            self.path = backup_path
+            return self.load()
+        finally:
+            self.path = original_path
+
+    def restore_backup(self, n: int = 0) -> None:
+        """Restore the database from the nth most recent backup.
+
+        Args:
+            n: Which backup to restore (0 = most recent, 1 = second most recent, etc.)
+
+        Raises:
+            FileNotFoundError: If no backup file exists or n is too large.
+        """
+        backups = self._get_backup_paths()
+
+        if not backups:
+            raise FileNotFoundError(f"No backup file found for {self.path}")
+
+        if n >= len(backups):
+            raise FileNotFoundError(
+                f"Backup #{n} not found. Only {len(backups)} backup(s) available."
+            )
+
+        backup_path = backups[n]
+
+        # Copy backup to main file
+        import shutil
+
+        shutil.copy2(backup_path, self.path)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

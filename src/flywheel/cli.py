@@ -13,14 +13,16 @@ from .todo import Todo
 class TodoApp:
     """Simple in-process todo application."""
 
-    def __init__(self, db_path: str | None = None) -> None:
+    def __init__(self, db_path: str | None = None, *, backup_enabled: bool = False) -> None:
         self.storage = TodoStorage(db_path)
+        self._backup_enabled = backup_enabled
+        self._max_backups = 3  # Default max backups
+
+    def _save(self, todos: list[Todo]) -> None:
+        self.storage.save(todos, backup_before_save=self._backup_enabled, max_backups=self._max_backups)
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
-
-    def _save(self, todos: list[Todo]) -> None:
-        self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
         text = text.strip()
@@ -66,10 +68,30 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def undo(self, n: int = 0) -> list[Todo]:
+        """Restore todos from the nth most recent backup.
+
+        Args:
+            n: Which backup to restore (0 = most recent, 1 = second most recent, etc.)
+
+        Returns:
+            The restored list of todos.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+        """
+        self.storage.restore_backup(n)
+        return self._load()
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
     parser.add_argument("--db", default=".todo.json", help="Path to JSON database")
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Enable automatic backups before destructive operations",
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -88,11 +110,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_rm = sub.add_parser("rm", help="Remove todo")
     p_rm.add_argument("id", type=int)
 
+    p_undo = sub.add_parser("undo", help="Restore from backup")
+    p_undo.add_argument(
+        "-n",
+        "--backup-index",
+        type=int,
+        default=0,
+        help="Which backup to restore (0=most recent, default: 0)",
+    )
+
     return parser
 
 
 def run_command(args: argparse.Namespace) -> int:
-    app = TodoApp(db_path=args.db)
+    app = TodoApp(db_path=args.db, backup_enabled=args.backup)
 
     try:
         if args.command == "add":
@@ -118,6 +149,11 @@ def run_command(args: argparse.Namespace) -> int:
         if args.command == "rm":
             app.remove(args.id)
             print(f"Removed #{args.id}")
+            return 0
+
+        if args.command == "undo":
+            todos = app.undo(n=args.backup_index)
+            print(f"Restored {len(todos)} todo(s) from backup")
             return 0
 
         raise ValueError(f"Unsupported command: {args.command}")
