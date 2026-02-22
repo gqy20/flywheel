@@ -7,6 +7,8 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +151,279 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_partial_write_failure_preserves_original(tmp_path) -> None:
+    """Regression test for issue #5141: Partial write failure should not truncate original.
+
+    If f.write() fails mid-stream (e.g., disk full), the temp file should be cleaned up
+    and the original file should remain unchanged.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original content that should be preserved")]
+    storage.save(original_todos)
+
+    # Get the original file content for comparison
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track temp file creation to verify cleanup
+    temp_files_created = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    # Track if os.replace was called
+    replace_called = []
+    original_replace = os.replace
+
+    def tracking_replace(src, dst):
+        replace_called.append((src, dst))
+        return original_replace(src, dst)
+
+    # Mock os.fdopen to simulate partial write failure
+    original_fdopen = os.fdopen
+    write_call_count = 0
+
+    def failing_write_fdopen(fd, *args, **kwargs):
+        """fdopen wrapper that simulates partial write failure."""
+        f = original_fdopen(fd, *args, **kwargs)
+        original_write = f.write
+
+        def failing_write(content):
+            nonlocal write_call_count
+            write_call_count += 1
+            # Write partial content then fail
+            if write_call_count == 1:
+                partial = content[: len(content) // 2]
+                original_write(partial)
+                raise OSError("No space left on device")
+            return original_write(content)
+
+        f.write = failing_write
+        return f
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_write_fdopen),
+        patch("flywheel.storage.os.replace", tracking_replace),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=2, text="this should not be saved")])
+
+    # CRITICAL: os.replace should NOT be called when write fails
+    assert len(replace_called) == 0, "os.replace should not have been called on write failure"
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+    # Verify temp file was cleaned up
+    for temp_file in temp_files_created:
+        assert not temp_file.exists(), f"Temp file {temp_file} should have been cleaned up"
+
+    # Verify we can still load original data
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original content that should be preserved"
+
+
+def test_flush_failure_preserves_original(tmp_path) -> None:
+    """Regression test for issue #5141: Flush/close failure should preserve original.
+
+    If f.flush() or close fails (e.g., disk full after buffered write), the temp file
+    should be cleaned up and the original file should remain unchanged.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original content")]
+    storage.save(original_todos)
+
+    # Get the original file content for comparison
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track temp file creation to verify cleanup
+    temp_files_created = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    # Track if os.replace was called
+    replace_called = []
+
+    # Mock os.fdopen to simulate flush failure (data buffered, then disk full on close)
+    original_fdopen = os.fdopen
+    original_replace = os.replace
+
+    def tracking_replace(src, dst):
+        replace_called.append((src, dst))
+        return original_replace(src, dst)
+
+    def failing_flush_fdopen(fd, *args, **kwargs):
+        """fdopen wrapper that simulates flush failure on close."""
+        f = original_fdopen(fd, *args, **kwargs)
+
+        # Override __exit__ to raise on context manager exit
+        class FailingFlushWrapper:
+            def __init__(self, file_obj):
+                self._file = file_obj
+
+            def write(self, content):
+                return self._file.write(content)
+
+            def flush(self):
+                return self._file.flush()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                # Simulate flush failure when context manager exits
+                self._file.flush()  # Try to flush first
+                raise OSError("No space left on device")
+
+        return FailingFlushWrapper(f)
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_flush_fdopen),
+        patch("flywheel.storage.os.replace", tracking_replace),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=2, text="this should not be saved")])
+
+    # CRITICAL: os.replace should NOT be called when flush fails
+    assert len(replace_called) == 0, "os.replace should not have been called on flush failure"
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+    # Verify temp file was cleaned up
+    for temp_file in temp_files_created:
+        assert not temp_file.exists(), f"Temp file {temp_file} should have been cleaned up"
+
+    # Verify we can still load original data
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original content"
+
+
+def test_explicit_flush_before_replace(tmp_path) -> None:
+    """Regression test for issue #5141: Explicit flush should be called before replace.
+
+    To ensure data integrity, save() should call f.flush() before os.replace()
+    to catch any buffered write errors (like disk full) before renaming the temp file.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track order of operations
+    operations = []
+
+    # Create a wrapper that tracks flush and close
+    original_fdopen = os.fdopen
+    original_replace = os.replace
+
+    def tracking_replace(src, dst):
+        operations.append("replace")
+        return original_replace(src, dst)
+
+    def tracking_fdopen(fd, *args, **kwargs):
+        f = original_fdopen(fd, *args, **kwargs)
+        original_flush = f.flush
+
+        def tracking_flush():
+            operations.append("flush")
+            return original_flush()
+
+        f.flush = tracking_flush
+        return f
+
+    with (
+        patch("flywheel.storage.os.fdopen", tracking_fdopen),
+        patch("flywheel.storage.os.replace", tracking_replace),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify flush was called before replace
+    assert "flush" in operations, "f.flush() should be called"
+    flush_idx = operations.index("flush")
+    replace_idx = operations.index("replace")
+    assert flush_idx < replace_idx, "f.flush() should be called before os.replace()"
+
+
+def test_flush_failure_prevents_replace(tmp_path) -> None:
+    """Regression test for issue #5141: Flush failure should prevent os.replace().
+
+    If f.flush() raises an error (e.g., disk full), os.replace() should NOT be called
+    and the original file should be preserved.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original content")]
+    storage.save(original_todos)
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track operations
+    operations = []
+    temp_files_created = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    original_fdopen = os.fdopen
+    original_replace = os.replace
+
+    def tracking_replace(src, dst):
+        operations.append("replace")
+        return original_replace(src, dst)
+
+    def failing_flush_fdopen(fd, *args, **kwargs):
+        f = original_fdopen(fd, *args, **kwargs)
+        original_flush = f.flush
+
+        def failing_flush():
+            operations.append("flush")
+            original_flush()  # Try to flush first
+            raise OSError("No space left on device")
+
+        f.flush = failing_flush
+        return f
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_flush_fdopen),
+        patch("flywheel.storage.os.replace", tracking_replace),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=2, text="this should not be saved")])
+
+    # Verify flush was attempted
+    assert "flush" in operations, "f.flush() should have been attempted"
+
+    # CRITICAL: os.replace should NOT be called when flush fails
+    assert "replace" not in operations, "os.replace() should NOT have been called when flush fails"
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+    # Verify temp file was cleaned up
+    for temp_file in temp_files_created:
+        assert not temp_file.exists(), f"Temp file {temp_file} should have been cleaned up"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:

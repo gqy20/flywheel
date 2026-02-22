@@ -115,6 +115,9 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Explicit flush before rename to catch disk-full errors early
+                # and ensure data is on disk before atomic replace
+                f.flush()
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
