@@ -3,7 +3,8 @@
   "candidate_number": 2,
   "run_id": "22270945052",
   "branch": "claude/issue-5084-candidate-2-22270945052",
-  "status": "ready_for_pr",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5106",
+  "status": "finalized",
   "score": 0,
   "checks": {
     "tests_pass": true,
