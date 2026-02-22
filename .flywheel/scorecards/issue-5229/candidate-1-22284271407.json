@@ -1,0 +1,15 @@
+{
+  "issue_number": 5229,
+  "candidate": 1,
+  "run_id": "22284271407",
+  "branch": "claude/issue-5229-candidate-1-22284271407",
+  "approach": "Add text validation in Todo.__post_init__() to reject whitespace-only text, consistent with rename() method",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5229_todo_empty_text_validation.py"
+  ],
+  "tests_added": 10,
+  "tests_passed": 120,
+  "ruff_check": "passed",
+  "summary": "Fixed Todo constructor to validate and strip text, raising ValueError for whitespace-only text"
+}
