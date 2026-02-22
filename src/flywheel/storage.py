@@ -6,10 +6,17 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+# Platform-specific file locking
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +62,34 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock, creating lock file if needed.
+
+        Returns the file descriptor of the lock file.
+        """
+        _ensure_parent_directory(self._lock_path)
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            if sys.platform == "win32":
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock and close the file descriptor."""
+        try:
+            if sys.platform == "win32":
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +161,30 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Atomically add a new todo with file locking to prevent race conditions.
+
+        This method acquires an exclusive lock, loads todos, calculates the next ID,
+        creates and saves the new todo, then releases the lock. This ensures that
+        concurrent processes cannot generate duplicate IDs.
+
+        Args:
+            text: The text content for the new todo.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        lock_fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(lock_fd)
