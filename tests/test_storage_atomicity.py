@@ -151,6 +151,121 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_partial_write_failure_cleans_up_temp_file(tmp_path) -> None:
+    """Regression test for issue #5141: Partial write should clean up temp file.
+
+    If f.write() succeeds but the implicit flush/close fails (e.g., disk full
+    during final flush), the temp file should be cleaned up and the original
+    file should remain unchanged. The key issue is ensuring errors during
+    flush are caught BEFORE os.replace() is called.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original"), Todo(id=2, text="data")]
+    storage.save(original_todos)
+    original_content = db.read_text(encoding="utf-8")
+
+    # Track temp files created during save
+    created_temp_files = []
+
+    # Create a mock that simulates flush failure after successful write
+    # This is the real bug scenario: write succeeds (buffers data) but
+    # flush/close fails due to disk full
+    original_fdopen = os.fdopen
+
+    def mock_fdopen(fd, *args, **kwargs):
+        file_obj = original_fdopen(fd, *args, **kwargs)
+        # Make flush raise OSError (simulating disk full during flush)
+        file_obj.flush = lambda: (_ for _ in ()).throw(
+            OSError("No space left on device")
+        )
+        return file_obj
+
+    # Track mkstemp to know temp file paths
+    import tempfile
+
+    original_mkstemp = tempfile.mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        created_temp_files.append(Path(path))
+        return fd, path
+
+    with (
+        patch.object(os, "fdopen", mock_fdopen),
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        pytest.raises(OSError, match="No space left on device"),
+    ):
+        storage.save([Todo(id=3, text="new data that will fail to flush")])
+
+    # Verify original file is unchanged
+    assert db.read_text(encoding="utf-8") == original_content
+
+    # Verify we can still load the original data
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "original"
+    assert loaded[1].text == "data"
+
+    # Verify temp file was cleaned up (should not exist)
+    for temp_file in created_temp_files:
+        assert not temp_file.exists(), f"Temp file {temp_file} should have been cleaned up"
+
+
+def test_explicit_flush_called_before_atomic_replace(tmp_path) -> None:
+    """Test that save() calls explicit flush before atomic rename.
+
+    This ensures that any buffered write errors are raised before os.replace()
+    is called, making the error handling more predictable and reliable.
+
+    The fix for issue #5141 requires that flush() be called explicitly INSIDE
+    the try block (not just implicitly on `with` block exit) so that errors
+    are caught by the except block before os.replace() is called.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track order of operations
+    operations = []
+
+    original_fdopen = os.fdopen
+    original_replace = os.replace
+
+    def mock_fdopen(fd, *args, **kwargs):
+        file_obj = original_fdopen(fd, *args, **kwargs)
+        original_flush = file_obj.flush
+
+        def tracked_flush():
+            operations.append("flush")
+            return original_flush()
+
+        file_obj.flush = tracked_flush
+        return file_obj
+
+    def mock_replace(*args, **kwargs):
+        operations.append("replace")
+        return original_replace(*args, **kwargs)
+
+    with (
+        patch.object(os, "fdopen", mock_fdopen),
+        patch.object(os, "replace", mock_replace),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify flush was called BEFORE replace
+    assert operations == [
+        "flush",
+        "flush",  # One explicit flush + one implicit from close()
+        "replace",
+    ], f"Expected ['flush', 'flush', 'replace'] but got {operations}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

@@ -1,0 +1,54 @@
+{
+  "issue_number": 5141,
+  "candidate_number": 2,
+  "run_id": "22274357421",
+  "stage": "implementation_complete",
+  "triage_summary": {
+    "root_cause": "In save() at storage.py:116-117, if f.write() fails mid-stream (e.g., disk full), the truncated temp file may be renamed atomically over the original file. The exception handler at line 121-125 only catches OSError from the entire try block, but os.fdopen context exit triggers implicit flush which can raise OSError AFTER partial write success. If the with block exits with exception, temp_path may still get renamed before cleanup.",
+    "risk_points": [
+      "storage.py:116-117: f.write(content) can succeed partially before raising OSError",
+      "storage.py:117: Context exit triggers implicit flush() which can also raise OSError",
+      "storage.py:120: os.replace(temp_path, self.path) happens on same try level as write - exception from write triggers cleanup but flush happens on context exit"
+    ],
+    "verification_targets": [
+      "Mock f.write() to raise OSError after partial write to verify temp file cleanup",
+      "Verify original file remains unchanged on partial write failure",
+      "Verify temp file is deleted (not renamed) when write fails"
+    ],
+    "proposed_fix": "Add explicit f.flush() before context exit, or restructure try/except to separate write phase from rename phase so that write failures are caught before os.replace is called"
+  },
+  "plan": {
+    "description": "Fix save() truncates content if os.fdopen write fails mid-stream",
+    "approach": "Add explicit flush() call before exiting the with block to ensure any buffered write errors are raised before os.replace() is called",
+    "files_touched": [
+      "tests/test_storage_atomicity.py",
+      "src/flywheel/storage.py"
+    ],
+    "tests_added": [
+      "test_partial_write_failure_cleans_up_temp_file",
+      "test_explicit_flush_called_before_atomic_replace"
+    ],
+    "implementation_sequence": [
+      "1. Add test_explicit_flush_called_before_atomic_replace to verify explicit flush is called before os.replace",
+      "2. Add test_partial_write_failure_cleans_up_temp_file to verify cleanup on flush failure",
+      "3. Add explicit f.flush() after f.write(content) in storage.py save() method"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py"
+    ]
+  },
+  "test_results": {
+    "tests_passed": 114,
+    "tests_failed": 0,
+    "ruff_check": "passed"
+  },
+  "files_to_modify": [
+    "src/flywheel/storage.py"
+  ],
+  "tests_to_add": [
+    "tests/test_storage_atomicity.py - add test for partial write failure cleanup"
+  ],
+  "status": "implementation_complete",
+  "created_at": "2026-02-22T10:00:00Z"
+}
