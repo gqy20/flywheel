@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -124,5 +125,65 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def _lock_path(self) -> Path:
+        """Get the path to the lock file."""
+        return self.path.parent / f".{self.path.name}.lock"
+
+    @contextlib.contextmanager
+    def _file_lock(self):
+        """Context manager for file-based locking.
+
+        Uses fcntl.flock for cross-process synchronization.
+        Acquires an exclusive lock that is released when the context exits.
+        """
+        lock_path = self._lock_path()
+        _ensure_parent_directory(lock_path)
+
+        lock_fd = os.open(
+            str(lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Generate the next unique ID for a new todo.
+
+        Uses file-based locking to prevent race conditions when multiple
+        processes try to generate IDs concurrently. The lock ensures that
+        we always get a unique ID by reading the current state under lock.
+
+        Args:
+            todos: The current list of todos (may be stale if under race).
+
+        Returns:
+            The next unique integer ID.
+        """
+        with self._file_lock():
+            current_todos = self.load()
+            return (max((todo.id for todo in current_todos), default=0) + 1) if current_todos else 1
+
+    def add_todo_atomic(self, text: str) -> Todo:
+        """Atomically add a new todo with a unique ID.
+
+        This method holds the file lock for the entire load-compute_id-save
+        sequence, ensuring that concurrent processes do not generate duplicate IDs.
+
+        Args:
+            text: The text content of the todo.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._file_lock():
+            todos = self.load()
+            next_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+            todo = Todo(id=next_id, text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
