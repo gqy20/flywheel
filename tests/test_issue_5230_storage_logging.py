@@ -7,7 +7,6 @@ TODO_DEBUG environment variable is set.
 from __future__ import annotations
 
 import logging
-import os
 
 import pytest
 
@@ -50,7 +49,7 @@ def no_debug_env(monkeypatch):
 class TestStorageDebugLogging:
     """Tests for debug logging in storage operations."""
 
-    def test_load_emits_debug_log_with_file_path(self, tmp_path, debug_env, caplog):
+    def test_load_emits_debug_log_with_file_path(self, tmp_path, debug_env, capsys):
         """Test that load() emits DEBUG log with file path when TODO_DEBUG=1."""
         from flywheel.storage import TodoStorage
 
@@ -61,20 +60,21 @@ class TestStorageDebugLogging:
         todos = [Todo(id=1, text="test item")]
         storage.save(todos)
 
-        # Clear any previous logs
-        caplog.clear()
+        # Clear any previous captured output
+        capsys.readouterr()
 
         # Load should emit debug log
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            loaded = storage.load()
+        loaded = storage.load()
 
         assert len(loaded) == 1
-        # Check that debug log contains file path
-        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) >= 1
-        assert str(db) in debug_logs[0].message or "load" in debug_logs[0].message.lower()
 
-    def test_load_emits_debug_log_with_item_count(self, tmp_path, debug_env, caplog):
+        # Check stderr for debug log output
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+        assert str(db) in captured.err
+
+    def test_load_emits_debug_log_with_item_count(self, tmp_path, debug_env, capsys):
         """Test that load() emits DEBUG log with item count when TODO_DEBUG=1."""
         from flywheel.storage import TodoStorage
 
@@ -85,18 +85,17 @@ class TestStorageDebugLogging:
         todos = [Todo(id=1, text="item 1"), Todo(id=2, text="item 2"), Todo(id=3, text="item 3")]
         storage.save(todos)
 
-        caplog.clear()
+        capsys.readouterr()
 
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            storage.load()
+        storage.load()
 
-        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) >= 1
-        # Should mention the count
-        log_messages = " ".join(r.message for r in debug_logs)
-        assert "3" in log_messages
+        # Check stderr for debug log with item count
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+        assert "3" in captured.err
 
-    def test_save_emits_debug_log_with_file_path(self, tmp_path, debug_env, caplog):
+    def test_save_emits_debug_log_with_file_path(self, tmp_path, debug_env, capsys):
         """Test that save() emits DEBUG log with file path when TODO_DEBUG=1."""
         from flywheel.storage import TodoStorage
 
@@ -105,15 +104,17 @@ class TestStorageDebugLogging:
 
         todos = [Todo(id=1, text="test")]
 
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            storage.save(todos)
+        capsys.readouterr()
 
-        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) >= 1
-        log_messages = " ".join(r.message for r in debug_logs)
-        assert str(db) in log_messages or "save" in log_messages.lower()
+        storage.save(todos)
 
-    def test_save_emits_debug_log_with_item_count(self, tmp_path, debug_env, caplog):
+        # Check stderr for debug log output
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+        assert str(db) in captured.err
+
+    def test_save_emits_debug_log_with_item_count(self, tmp_path, debug_env, capsys):
         """Test that save() emits DEBUG log with item count when TODO_DEBUG=1."""
         from flywheel.storage import TodoStorage
 
@@ -122,19 +123,21 @@ class TestStorageDebugLogging:
 
         todos = [Todo(id=i, text=f"item {i}") for i in range(1, 6)]
 
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            storage.save(todos)
+        capsys.readouterr()
 
-        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) >= 1
-        log_messages = " ".join(r.message for r in debug_logs)
-        assert "5" in log_messages
+        storage.save(todos)
 
-    def test_no_logging_when_debug_disabled(self, tmp_path, no_debug_env, caplog):
-        """Test that no debug logs propagate when TODO_DEBUG is not set.
+        # Check stderr for debug log with item count
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+        assert "5" in captured.err
+
+    def test_no_logging_when_debug_disabled(self, tmp_path, no_debug_env, capsys):
+        """Test that no debug logs are output when TODO_DEBUG is not set.
 
         When TODO_DEBUG is not set, NullHandler is used and propagate=False,
-        so logs are not captured by caplog.
+        so logs are not output to stderr.
         """
         from flywheel.storage import TodoStorage
 
@@ -144,36 +147,36 @@ class TestStorageDebugLogging:
         todos = [Todo(id=1, text="test")]
         storage.save(todos)
 
-        caplog.clear()
+        capsys.readouterr()
 
-        # With NullHandler and propagate=False, logs won't propagate even with caplog
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            storage.load()
-            storage.save(todos)
+        storage.load()
+        storage.save(todos)
 
-        # When TODO_DEBUG is not set, NullHandler is used and logs don't propagate
-        # Check that there's no StreamHandler output (logs stay internal)
-        debug_logs = [r for r in caplog.records if r.levelno == logging.DEBUG]
-        assert len(debug_logs) == 0
+        # When TODO_DEBUG is not set, NullHandler is used - no stderr output
+        captured = capsys.readouterr()
+        assert "flywheel.storage" not in captured.err
+        assert "DEBUG" not in captured.err
 
-    def test_load_file_not_found_emits_debug_log(self, tmp_path, debug_env, caplog):
+    def test_load_file_not_found_emits_debug_log(self, tmp_path, debug_env, capsys):
         """Test that load() emits DEBUG log when file does not exist."""
         from flywheel.storage import TodoStorage
 
         db = tmp_path / "nonexistent.json"
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"):
-            result = storage.load()
+        capsys.readouterr()
+
+        result = storage.load()
 
         # Returns empty list for missing file
         assert result == []
-        # Note: caplog may not capture logs when propagate=True due to handler interaction
-        # So we verify the log was generated by checking the log content if captured,
-        # or by verifying stderr output
-        # For this test, we just verify it doesn't crash and returns empty list
 
-    def test_load_malformed_json_emits_error_log(self, tmp_path, debug_env, caplog):
+        # Check that debug log was emitted
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+
+    def test_load_malformed_json_emits_error_log(self, tmp_path, debug_env, capsys):
         """Test that load() emits ERROR log for malformed JSON."""
         from flywheel.storage import TodoStorage
 
@@ -181,38 +184,49 @@ class TestStorageDebugLogging:
         db.write_text("{ invalid json }", encoding="utf-8")
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.DEBUG, logger="flywheel.storage"), \
-             pytest.raises(ValueError, match="Invalid JSON"):
+        capsys.readouterr()
+
+        with pytest.raises(ValueError, match="Invalid JSON"):
             storage.load()
 
-        # Note: caplog may not capture logs when there's a StreamHandler added
-        # The error is logged to stderr (visible in captured stderr call)
-        # We verify the error was raised correctly
+        # Check that error log was emitted
+        captured = capsys.readouterr()
+        assert "flywheel.storage" in captured.err
+        assert "ERROR" in captured.err
 
-    def test_save_permission_error_emits_error_log(self, tmp_path, debug_env, caplog):
-        """Test that save() emits ERROR log when permission denied."""
+    def test_save_permission_error_emits_error_log(self, tmp_path, debug_env, capsys):
+        """Test that save() emits ERROR log when permission denied during write.
+
+        Note: We test the error logging path by simulating a write failure.
+        The try/except in save() catches OSError during write and logs it.
+        """
+        from unittest.mock import patch
+
         from flywheel.storage import TodoStorage
 
-        db = tmp_path / "readonly" / "todo.json"
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
 
-        # Make parent directory read-only first
-        readonly_dir = tmp_path / "readonly"
-        readonly_dir.mkdir()
-        os.chmod(readonly_dir, 0o500)  # read + execute only
+        # Create a valid file first
+        todos = [Todo(id=1, text="test")]
+        storage.save(todos)
 
-        try:
-            storage = TodoStorage(str(db))
-            todos = [Todo(id=1, text="test")]
-            with caplog.at_level(logging.DEBUG, logger="flywheel.storage"), \
-                 pytest.raises(OSError):
+        capsys.readouterr()
+
+        # Mock os.fdopen to raise OSError during write
+        with patch("flywheel.storage.os.fdopen") as mock_fdopen:
+            mock_fdopen.side_effect = OSError("Permission denied")
+
+            with pytest.raises(OSError):
                 storage.save(todos)
 
-            # Note: caplog may not capture logs when there's a StreamHandler added
-            # The error is logged to stderr (visible in captured stderr call)
-            # We verify the OSError was raised correctly
-        finally:
-            # Restore permissions for cleanup
-            os.chmod(readonly_dir, 0o755)
+        # Check that error log was emitted for the write failure
+        captured = capsys.readouterr()
+        # Debug log should be present
+        assert "flywheel.storage" in captured.err
+        assert "DEBUG" in captured.err
+        # Error log should also be present
+        assert "ERROR" in captured.err
 
     def test_get_logger_returns_null_handler_when_disabled(self, no_debug_env):
         """Test that _get_logger returns a logger with NullHandler when disabled."""

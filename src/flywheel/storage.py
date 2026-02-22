@@ -35,6 +35,7 @@ def _get_logger() -> logging.Logger:
             )
             handler.setFormatter(formatter)
             logger.addHandler(handler)
+            # Keep propagate=True (default) so caplog can capture logs in tests
         else:
             # Default: no logging output, but still allow debug calls to work silently
             null_handler = logging.NullHandler()
