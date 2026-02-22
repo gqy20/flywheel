@@ -208,9 +208,7 @@ class TestImportFromJSON:
         loaded = storage.load()
         assert len(loaded) == 2
 
-    def test_import_from_json_invalid_format_raises_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_import_from_json_invalid_format_raises_error(self, tmp_path: Path) -> None:
         """import_from() should raise ValueError for invalid JSON."""
         db = tmp_path / "todo.json"
         import_path = tmp_path / "invalid.json"
@@ -221,9 +219,7 @@ class TestImportFromJSON:
         with pytest.raises(ValueError, match=r"[Ii]nvalid"):
             storage.import_from(import_path, format="json")
 
-    def test_import_from_json_missing_required_field_raises_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_import_from_json_missing_required_field_raises_error(self, tmp_path: Path) -> None:
         """import_from() should raise ValueError for missing required fields."""
         db = tmp_path / "todo.json"
         import_path = tmp_path / "missing_field.json"
@@ -272,9 +268,7 @@ class TestImportFromCSV:
         assert todos[0].done is True
         assert todos[1].done is False
 
-    def test_import_from_csv_invalid_format_raises_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_import_from_csv_invalid_format_raises_error(self, tmp_path: Path) -> None:
         """import_from() should raise ValueError for invalid CSV."""
         db = tmp_path / "todo.json"
         import_path = tmp_path / "invalid.csv"
@@ -343,9 +337,7 @@ class TestImportExportRoundtrip:
 class TestUnsupportedFormat:
     """Tests for unsupported format handling."""
 
-    def test_export_to_unsupported_format_raises_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_export_to_unsupported_format_raises_error(self, tmp_path: Path) -> None:
         """export_to() should raise ValueError for unsupported formats."""
         db = tmp_path / "todo.json"
         export_path = tmp_path / "export.xml"
@@ -357,9 +349,7 @@ class TestUnsupportedFormat:
         with pytest.raises(ValueError, match=r"[Uu]nsupported.*format"):
             storage.export_to(export_path, format="xml")
 
-    def test_import_from_unsupported_format_raises_error(
-        self, tmp_path: Path
-    ) -> None:
+    def test_import_from_unsupported_format_raises_error(self, tmp_path: Path) -> None:
         """import_from() should raise ValueError for unsupported formats."""
         db = tmp_path / "todo.json"
         import_path = tmp_path / "import.xml"

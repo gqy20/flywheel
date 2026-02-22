@@ -75,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -151,18 +150,17 @@ class TodoStorage:
                 writer = csv.writer(f)
                 writer.writerow(["id", "text", "done", "created_at", "updated_at"])
                 for todo in todos:
-                    writer.writerow([
-                        todo.id,
-                        todo.text,
-                        todo.done,
-                        todo.created_at,
-                        todo.updated_at,
-                    ])
+                    writer.writerow(
+                        [
+                            todo.id,
+                            todo.text,
+                            todo.done,
+                            todo.created_at,
+                            todo.updated_at,
+                        ]
+                    )
         else:
-            raise ValueError(
-                f"Unsupported export format: '{format}'. "
-                f"Supported formats: json, csv"
-            )
+            raise ValueError(f"Unsupported export format: '{format}'. Supported formats: json, csv")
 
     def import_from(
         self, path: Path | str, format: str = "json", *, merge: bool = True
@@ -187,10 +185,7 @@ class TodoStorage:
         elif format == "csv":
             imported_todos = self._import_csv(path)
         else:
-            raise ValueError(
-                f"Unsupported import format: '{format}'. "
-                f"Supported formats: json, csv"
-            )
+            raise ValueError(f"Unsupported import format: '{format}'. Supported formats: json, csv")
 
         if merge:
             existing = self.load()
@@ -217,8 +212,7 @@ class TodoStorage:
             raw = json.loads(content)
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -236,9 +230,7 @@ class TodoStorage:
 
                 # Validate required columns exist
                 if reader.fieldnames is None:
-                    raise ValueError(
-                        f"CSV file '{path}' is empty or has no headers"
-                    )
+                    raise ValueError(f"CSV file '{path}' is empty or has no headers")
 
                 required = {"id", "text"}
                 missing = required - set(reader.fieldnames)
