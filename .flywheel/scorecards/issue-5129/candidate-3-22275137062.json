@@ -2,7 +2,7 @@
   "issue_number": 5129,
   "candidate_number": 3,
   "run_id": "22275137062",
-  "stage": "IMPLEMENT",
+  "stage": "VERIFY",
   "plan": {
     "description": "Add data import/export functionality to TodoStorage class",
     "files_to_touch": [
@@ -70,5 +70,34 @@
       "uv run ruff format src/flywheel/storage.py"
     ]
   },
-  "created_at": "2026-02-22T00:00:00Z"
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_issue_5129_import_export.py -v",
+      "result": "PASSED",
+      "tests_run": 12,
+      "tests_passed": 12,
+      "tests_failed": 0,
+      "coverage_percent": 83
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py",
+      "result": "PASSED"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/storage.py",
+      "result": "PASSED"
+    },
+    "ruff_check_test": {
+      "command": "uv run ruff check tests/test_issue_5129_import_export.py",
+      "result": "PASSED"
+    },
+    "ruff_format_test": {
+      "command": "uv run ruff format --check tests/test_issue_5129_import_export.py",
+      "result": "PASSED (after reformat)",
+      "fix_applied": true
+    },
+    "all_checks_passed": true
+  },
+  "created_at": "2026-02-22T00:00:00Z",
+  "verified_at": "2026-02-22T11:20:00Z"
 }
