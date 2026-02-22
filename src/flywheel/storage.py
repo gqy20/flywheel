@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +57,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = False) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,9 +95,24 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: If backup=True and the file exists, creates a .bak copy before
+        overwriting. Backup failures are logged as warnings but don't block save.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup if enabled and file exists
+        if self.backup and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            try:
+                shutil.copy2(self.path, backup_path)
+            except OSError as e:
+                _logger.warning(
+                    "Failed to create backup %s: %s. Continuing with save.",
+                    backup_path,
+                    e,
+                )
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
