@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,55 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_ensure_parent_directory_race_condition(tmp_path) -> None:
+    """Regression test for issue #5227: TOCTOU race condition in _ensure_parent_directory.
+
+    When another process creates the parent directory between the exists() check
+    and the mkdir() call, the save should still succeed rather than raising
+    FileExistsError.
+    """
+    from flywheel import storage as storage_module
+
+    # Create a path where parent doesn't exist yet
+    file_path = tmp_path / "subdir" / "todo.json"
+    parent = file_path.parent
+
+    # Verify parent doesn't exist yet
+    assert not parent.exists()
+
+    # Track mkdir calls to simulate the race condition
+    mkdir_calls = []
+
+    original_mkdir = Path.mkdir
+
+    def mock_mkdir_race_condition(self, *args, **kwargs):
+        """Mock mkdir that raises FileExistsError on first call with exist_ok=False."""
+        # Track the call
+        mkdir_calls.append((str(self), args, kwargs))
+
+        # If exist_ok=False, simulate another process creating the directory
+        # This is the TOCTOU race condition: the exists() check returned False,
+        # but another process created the directory before we could
+        if kwargs.get("exist_ok") is False:
+            raise FileExistsError(f"[Errno 17] File exists: '{self}' (simulated race condition)")
+
+        # For exist_ok=True, just succeed (the fix allows this)
+        return original_mkdir(self, *args, **kwargs)
+
+    # Patch Path.mkdir globally
+    with patch.object(Path, "mkdir", mock_mkdir_race_condition):
+        # This should NOT raise an error - the race condition should be handled gracefully
+        # by using exist_ok=True instead of exist_ok=False
+        storage_module._ensure_parent_directory(file_path)
+
+    # Verify mkdir was called (simulating the race condition path)
+    assert len(mkdir_calls) >= 1, "mkdir() should have been called"
+    # The call should have been with exist_ok=True (the fix)
+    assert mkdir_calls[0][2].get("exist_ok") is True, (
+        "mkdir should be called with exist_ok=True to handle race condition"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +269,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
