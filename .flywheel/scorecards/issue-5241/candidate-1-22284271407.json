@@ -1,26 +1,23 @@
 {
-  "issue_number": 5241,
-  "issue_title": "[Bug] next_id() 在并发场景下可能产生重复 ID (race condition)",
-  "candidate_number": 1,
+  "issue": 5241,
+  "candidate": 1,
   "run_id": "22284271407",
-  "branch_name": "claude/issue-5241-candidate-1-22284271407",
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_5241_next_id_race_condition.py -v",
-    "pytest_outcome": "3 passed",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py",
-    "ruff_outcome": "All checks passed"
-  },
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "src/flywheel/cli.py"
+  "branch": "claude/issue-5241-candidate-1-22284271407",
+  "pr_number": 5249,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5249",
+  "generated_at": "2026-02-22T20:46:41.507012+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "test_files": [
-    "tests/test_issue_5241_next_id_race_condition.py"
-  ],
-  "approach": "Added file locking using fcntl.flock to protect the load-compute-save sequence in TodoApp.add(). A new _lock() context manager in TodoStorage acquires an exclusive lock on a separate .lock file before the add operation, ensuring atomicity across concurrent processes.",
-  "risks": [
-    "File locking is Unix-only (fcntl is POSIX). This fix will not work on Windows.",
-    "Lock files (.json.lock) are left behind after operations - this is harmless but may accumulate.",
-    "If a process crashes while holding the lock, other processes may be blocked until the lock is released by the OS."
-  ]
+  "stage_response_sizes": {
+    "triage": 2813,
+    "plan": 2819,
+    "implement": 201,
+    "verify": 2818,
+    "finalize": 831
+  }
 }
