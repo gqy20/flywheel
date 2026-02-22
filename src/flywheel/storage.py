@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,47 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo_atomic(self, text: str) -> Todo:
+        """Add a new todo atomically with file locking to prevent race conditions.
+
+        This method performs load, ID generation, and save as a single atomic
+        operation using file locking. This prevents the race condition where
+        concurrent processes could get the same ID.
+
+        Args:
+            text: The todo text (must be non-empty after stripping).
+
+        Returns:
+            The newly created Todo with a unique ID.
+
+        Raises:
+            ValueError: If text is empty after stripping.
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Create/open a lock file (separate from data file)
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        lock_fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o600)
+
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+            # Perform the entire add operation while holding the lock
+            todos = self.load()
+            new_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+            todo = Todo(id=new_id, text=text)
+            todos.append(todo)
+            self.save(todos)
+
+            return todo
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
