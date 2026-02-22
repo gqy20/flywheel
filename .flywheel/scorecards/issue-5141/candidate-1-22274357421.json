@@ -1,31 +1,23 @@
 {
-  "issue_number": 5141,
-  "issue_title": "[Bug] save() truncates content if os.fdopen write fails mid-stream",
-  "candidate_number": 1,
+  "issue": 5141,
+  "candidate": 1,
   "run_id": "22274357421",
-  "branch_name": "claude/issue-5141-candidate-1-22274357421",
-  "created_at": "2026-02-22T10:00:00Z",
-  "fix_summary": "Added explicit f.flush() before os.replace() in save() method to ensure data is persisted to disk before atomic rename. This catches disk-full errors early and prevents potential truncation issues.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_atomicity.py"
+  "branch": "claude/issue-5141-candidate-1-22274357421",
+  "pr_number": 5149,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5149",
+  "generated_at": "2026-02-22T10:29:35.614610+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_partial_write_failure_preserves_original",
-    "test_flush_failure_preserves_original",
-    "test_explicit_flush_before_replace",
-    "test_flush_failure_prevents_replace"
-  ],
-  "verification_commands": [
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run ruff check src/flywheel/storage.py"
-  ],
-  "risks": [
-    "The explicit flush adds minimal overhead but ensures data integrity",
-    "No breaking changes - this is a defensive improvement"
-  ],
-  "acceptance_criteria_met": [
-    "If write fails due to disk full, temp file is cleaned up and not renamed",
-    "Original file remains unchanged on partial write failure"
-  ]
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 4000,
+    "implement": 3434,
+    "verify": 2721,
+    "finalize": 688
+  }
 }
