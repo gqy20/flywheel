@@ -1,0 +1,41 @@
+{
+  "issue_number": 5215,
+  "candidate_number": 1,
+  "run_id": "22283546825",
+  "issue_title": "[Refactor] _ensure_parent_directory 中 exist_ok=False 与前置检查存在冗余逻辑",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by changing exist_ok=False to exist_ok=True",
+  "changes": {
+    "source_files": [
+      {
+        "path": "src/flywheel/storage.py",
+        "change_type": "modified",
+        "description": "Changed exist_ok=False to exist_ok=True in parent.mkdir() call to handle TOCTOU race condition"
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/test_issue_5215_toctou_mkdir_race.py",
+        "change_type": "created",
+        "description": "Added regression tests for TOCTOU race condition fix"
+      }
+    ]
+  },
+  "tests_run": [
+    "tests/test_issue_5215_toctou_mkdir_race.py",
+    "tests/test_issue_1894_security_mkdir_fix.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_passed": 17,
+  "risks": [
+    {
+      "description": "exist_ok=True may mask some edge cases",
+      "mitigation": "The pre-validation loop still ensures no parent is a file, so exist_ok=True is safe"
+    }
+  ],
+  "limitations": [],
+  "verification_steps": [
+    "uv run pytest tests/test_issue_5215_toctou_mkdir_race.py -v",
+    "uv run pytest tests/test_issue_1894_security_mkdir_fix.py -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ]
+}
