@@ -152,9 +152,7 @@ class TestFileLockConcurrency:
         # Without locking, we may have lost some data (but not guaranteed by timing)
         # This test demonstrates the behavior but doesn't assert on it
 
-    def test_concurrent_writes_with_lock_preserves_all_data(
-        self, tmp_path: Path
-    ) -> None:
+    def test_concurrent_writes_with_lock_preserves_all_data(self, tmp_path: Path) -> None:
         """
         Test that with file locking, concurrent write-modify-read cycles preserve data.
 
@@ -167,9 +165,7 @@ class TestFileLockConcurrency:
         storage = TodoStorage(str(db), use_lock=True)
         storage.save([])
 
-        def locking_writer_worker(
-            worker_id: int, result_queue: multiprocessing.Queue
-        ) -> None:
+        def locking_writer_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
             """Worker that loads, adds a todo, and saves with locking."""
             try:
                 storage = TodoStorage(str(db), use_lock=True)
@@ -193,9 +189,7 @@ class TestFileLockConcurrency:
         result_queue = multiprocessing.Queue()
 
         for i in range(num_workers):
-            p = multiprocessing.Process(
-                target=locking_writer_worker, args=(i, result_queue)
-            )
+            p = multiprocessing.Process(target=locking_writer_worker, args=(i, result_queue))
             processes.append(p)
             p.start()
 
@@ -227,9 +221,7 @@ class TestFileLockConcurrency:
         worker_texts = {todo.text for todo in final_todos}
         for i in range(num_workers):
             expected_text = f"worker-{i}"
-            assert expected_text in worker_texts, (
-                f"Missing todo from worker {i}. Data was lost."
-            )
+            assert expected_text in worker_texts, f"Missing todo from worker {i}. Data was lost."
 
 
 class TestFileLockTimeout:
