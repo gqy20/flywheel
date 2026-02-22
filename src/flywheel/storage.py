@@ -82,7 +82,12 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(
+        self,
+        todos: list[Todo],
+        backup_before_save: bool = False,
+        max_backups: int = 3,
+    ) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,7 +95,16 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of todos to save.
+            backup_before_save: If True, create a backup of existing file before overwrite.
+            max_backups: Maximum number of backup files to keep (default 3).
         """
+        # Create backup of existing file if requested
+        if backup_before_save and self.path.exists():
+            self._create_backup(max_backups)
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -123,6 +137,60 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self, max_backups: int) -> None:
+        """Create a backup of the current file with rotation.
+
+        Backup files are named: <filename>.bak.0 (most recent) to <filename>.bak.N-1
+
+        Args:
+            max_backups: Maximum number of backup files to keep.
+        """
+        # Shift existing backups: .bak.0 -> .bak.1, .bak.1 -> .bak.2, etc.
+        for i in range(max_backups - 1, -1, -1):
+            old_backup = self._backup_path(i)
+            if old_backup.exists():
+                if i == max_backups - 1:
+                    # Delete oldest backup
+                    old_backup.unlink()
+                else:
+                    # Shift to next number
+                    old_backup.rename(self._backup_path(i + 1))
+
+        # Create new backup as .bak.0
+        backup_path = self._backup_path(0)
+        self.path.rename(backup_path)
+
+    def _backup_path(self, n: int) -> Path:
+        """Get the path for backup number n."""
+        return self.path.parent / f"{self.path.name}.bak.{n}"
+
+    def load_backup(self, n: int = 0) -> list[Todo]:
+        """Load todos from the nth most recent backup.
+
+        Args:
+            n: Backup index (0 = most recent, 1 = second most recent, etc.)
+
+        Returns:
+            List of todos from the backup file.
+
+        Raises:
+            FileNotFoundError: If no backup file exists for the given index.
+        """
+        backup_path = self._backup_path(n)
+        if not backup_path.exists():
+            if n == 0:
+                raise FileNotFoundError("No backup file found")
+            raise FileNotFoundError(f"Backup file not found: {backup_path}")
+
+        # Reuse load() logic by temporarily swapping the path
+        try:
+            # Create a temporary storage instance pointing to the backup
+            temp_storage = TodoStorage.__new__(TodoStorage)
+            temp_storage.path = backup_path
+            return temp_storage.load()
+        finally:
+            pass  # Original path unchanged
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
