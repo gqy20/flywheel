@@ -1,0 +1,14 @@
+{
+  "issue_number": 5177,
+  "issue_title": "[Security] Zero-width and invisible Unicode characters not sanitized, enabling visual spoof",
+  "candidate_number": 2,
+  "run_id": "22278183830",
+  "branch": "claude/issue-5177-candidate-2-22278183830",
+  "status": "implemented",
+  "test_file": "tests/test_issue_5177_zero_width_sanitization.py",
+  "source_files": ["src/flywheel/formatter.py"],
+  "tests_passed": 10,
+  "lint_status": "passed",
+  "summary": "Extended _sanitize_text to escape invisible/formatting Unicode characters (U+200B-U+200F, U+2060, U+FEFF) to prevent visual spoofing attacks",
+  "risks": "Minimal risk - only adds new escaping for previously unhandled invisible characters"
+}
