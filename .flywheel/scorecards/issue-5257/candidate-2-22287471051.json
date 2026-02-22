@@ -104,5 +104,6 @@
       ]
     }
   ],
-  "status": "VERIFY_COMPLETE"
+  "status": "FINALIZE_COMPLETE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5276"
 }
