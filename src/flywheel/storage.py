@@ -82,7 +82,7 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
+    def save(self, todos: list[Todo], *, backup: bool = False) -> None:
         """Save todos to file atomically.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
@@ -90,12 +90,31 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Args:
+            todos: List of Todo objects to save.
+            backup: If True, creates a backup of the existing file before
+                    overwriting. The backup file is named with .bak suffix.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup of existing file before writing (if requested and file exists)
+        # Backup filename: append .bak to the full filename (e.g., .todo.json -> .todo.json.bak)
+        backup_path = self.path.parent / f"{self.path.name}.bak"
+        if backup and self.path.exists():
+            # Read existing content for backup
+            original_content = self.path.read_text(encoding="utf-8")
+            # Write backup with same secure permissions as main file
+            backup_path.write_text(original_content, encoding="utf-8")
+            os.chmod(backup_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+        elif backup and not self.path.exists():
+            # No existing file to backup, remove any stale backup
+            with contextlib.suppress(OSError):
+                backup_path.unlink()
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
