@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import json
 import os
 import stat
@@ -126,3 +127,160 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def export_to(self, path: Path | str, format: str = "json") -> None:
+        """Export todos to a file in the specified format.
+
+        Args:
+            path: Destination file path for the export.
+            format: Export format - 'json' (default) or 'csv'.
+
+        Raises:
+            ValueError: If format is not supported.
+            OSError: If file cannot be written.
+        """
+        path = Path(path)
+        format = format.lower()
+
+        if format not in ("json", "csv"):
+            raise ValueError(
+                f"Unsupported format '{format}'. Supported formats: json, csv"
+            )
+
+        # Load current todos
+        todos = self.load()
+        _ensure_parent_directory(path)
+
+        if format == "json":
+            payload = [todo.to_dict() for todo in todos]
+            content = json.dumps(payload, ensure_ascii=False, indent=2)
+            path.write_text(content, encoding="utf-8")
+        else:  # csv
+            fieldnames = ["id", "text", "done", "created_at", "updated_at"]
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for todo in todos:
+                    writer.writerow(todo.to_dict())
+
+    def import_from(
+        self,
+        path: Path | str,
+        format: str = "json",
+        mode: str = "merge",
+    ) -> None:
+        """Import todos from an external file.
+
+        Args:
+            path: Source file path to import from.
+            format: Import format - 'json' (default) or 'csv'.
+            mode: Import mode - 'merge' (default) to add to existing,
+                  'replace' to replace all existing todos.
+
+        Raises:
+            FileNotFoundError: If the source file does not exist.
+            ValueError: If format is not supported or data is invalid.
+        """
+        path = Path(path)
+        format = format.lower()
+
+        if not path.exists():
+            raise FileNotFoundError(f"Import file not found: {path}")
+
+        if format not in ("json", "csv"):
+            raise ValueError(
+                f"Unsupported format '{format}'. Supported formats: json, csv"
+            )
+
+        # Parse import file
+        imported_todos: list[Todo] = []
+
+        if format == "json":
+            content = path.read_text(encoding="utf-8")
+            try:
+                raw = json.loads(content)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+
+            if not isinstance(raw, list):
+                raise ValueError(f"Import file '{path}' must contain a JSON list")
+
+            for item in raw:
+                try:
+                    imported_todos.append(Todo.from_dict(item))
+                except ValueError as e:
+                    raise ValueError(
+                        f"Invalid todo data in '{path}': {e}"
+                    ) from e
+        else:  # csv
+            required_columns = {"id", "text"}
+            with open(path, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+
+                # Validate required columns
+                if reader.fieldnames is None:
+                    raise ValueError(f"CSV file '{path}' is empty or has no headers")
+                missing = required_columns - set(reader.fieldnames)
+                if missing:
+                    raise ValueError(
+                        f"Missing required column(s) in CSV: {', '.join(missing)}"
+                    )
+
+                for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+                    try:
+                        # Convert CSV string values to proper types
+                        # CSV stores done as "True"/"False" strings, convert to 0/1
+                        done_str = row.get("done", "False").strip().lower()
+                        done_val = 1 if done_str in ("true", "1", "yes") else 0
+
+                        data = {
+                            "id": row.get("id", ""),
+                            "text": row.get("text", ""),
+                            "done": done_val,
+                            "created_at": row.get("created_at", ""),
+                            "updated_at": row.get("updated_at", ""),
+                        }
+                        imported_todos.append(Todo.from_dict(data))
+                    except ValueError as e:
+                        raise ValueError(
+                            f"Invalid data in CSV '{path}' at row {row_num}: {e}"
+                        ) from e
+
+        # Apply import mode
+        if mode == "replace":
+            # Replace all existing todos
+            # Reassign IDs to ensure consistency
+            final_todos = []
+            for i, todo in enumerate(imported_todos, start=1):
+                final_todos.append(
+                    Todo(
+                        id=i,
+                        text=todo.text,
+                        done=todo.done,
+                        created_at=todo.created_at,
+                        updated_at=todo.updated_at,
+                    )
+                )
+            self.save(final_todos)
+        else:  # merge
+            existing = self.load()
+            next_id = self.next_id(existing)
+
+            # Add imported todos with reassigned IDs to avoid conflicts
+            for todo in imported_todos:
+                new_id = next_id
+                next_id += 1
+                existing.append(
+                    Todo(
+                        id=new_id,
+                        text=todo.text,
+                        done=todo.done,
+                        created_at=todo.created_at,
+                        updated_at=todo.updated_at,
+                    )
+                )
+
+            self.save(existing)
