@@ -229,3 +229,62 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
+    """Regression test for issue #5201: Race condition in next_id().
+
+    Tests that concurrent add() operations from multiple processes
+    never produce duplicate IDs. Each process calls add() with unique
+    text, and all resulting todo IDs should be unique.
+    """
+    import multiprocessing
+
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo and reports the assigned ID."""
+        try:
+            # Import here to ensure clean state per process
+            from flywheel.cli import TodoApp
+
+            app = TodoApp(db_path=str(db))
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, f"{type(e).__name__}: {e}"))
+
+    # Run multiple workers concurrently
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Check for errors
+    errors = [r for r in results if r[0] == "error"]
+    if errors:
+        error_details = "\n".join(f"  Worker {e[1]}: {e[2]}" for e in errors)
+        pytest.fail(f"Workers encountered errors:\n{error_details}")
+
+    # Extract all IDs
+    ids = [r[2] for r in results if r[0] == "success"]
+
+    # Verify all IDs are unique (no duplicates)
+    assert len(ids) == len(set(ids)), (
+        f"Duplicate IDs detected! IDs: {sorted(ids)}. "
+        f"Expected {len(ids)} unique IDs, got {len(set(ids))}. "
+        f"Duplicates: {[id for id in ids if ids.count(id) > 1]}"
+    )

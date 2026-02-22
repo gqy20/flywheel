@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -126,3 +131,28 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextlib.contextmanager
+    def exclusive_lock(self) -> Iterator[None]:
+        """Acquire an exclusive file lock for atomic operations.
+
+        Uses fcntl.flock to provide cross-process mutual exclusion.
+        This prevents race conditions when multiple processes attempt
+        concurrent modifications (e.g., generating IDs).
+
+        The lock file is a separate file with .lock suffix to avoid
+        conflicts with the data file itself.
+        """
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
