@@ -1,0 +1,26 @@
+{
+  "issue_number": 5365,
+  "issue_title": "[Bug] TodoApp class lacks rename() method even though Todo model supports it",
+  "candidate_number": 2,
+  "run_id": "22304244401",
+  "branch": "claude/issue-5365-candidate-2-22304244401",
+  "created_at": "2026-02-23T12:10:00Z",
+  "status": "implemented",
+  "summary": "Added rename(todo_id: int, text: str) -> Todo method to TodoApp class that loads, finds, renames, and saves todo items.",
+  "tests_passed": [
+    "test_rename_todo_with_valid_id_and_text",
+    "test_rename_todo_raises_valueerror_for_invalid_id",
+    "test_rename_strips_whitespace_from_text",
+    "test_rename_raises_valueerror_for_empty_text",
+    "test_rename_updates_persisted_state"
+  ],
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_5365_todoapp_rename_method.py"
+  ],
+  "acceptance_criteria": {
+    "rename_method_exists": true,
+    "raises_valueerror_if_not_found": true,
+    "saves_updated_todo": true
+  }
+}
