@@ -151,6 +151,78 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_ensure_parent_directory_handles_race_condition(tmp_path) -> None:
+    """Regression test for issue #5296: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the race condition where another
+    process creates the directory between the exists() check and mkdir() call.
+
+    The bug was in _ensure_parent_directory:
+        if not parent.exists():          # <-- Check
+            parent.mkdir(exist_ok=False) # <-- Race window: another process creates dir here
+
+    Fix: Use exist_ok=True to handle the race condition atomically.
+    """
+    import os
+
+    from flywheel.storage import _ensure_parent_directory
+
+    new_dir = tmp_path / "new_subdir" / "nested"
+    file_path = new_dir / "test.json"
+
+    original_path_mkdir = Path.mkdir
+    mkdir_called = [False]
+
+    def race_condition_mkdir(self, parents=False, exist_ok=False):
+        mkdir_called[0] = True
+        # Simulate another process creating the directory during the race window
+        # This happens BEFORE the actual mkdir executes
+        if not new_dir.exists():
+            os.makedirs(str(new_dir), exist_ok=True)
+        # Now call the original mkdir - with exist_ok=False this would raise FileExistsError
+        # With exist_ok=True (the fix) it should succeed
+        return original_path_mkdir(self, parents=parents, exist_ok=exist_ok)
+
+    with patch.object(Path, "mkdir", race_condition_mkdir):
+        # This should NOT raise FileExistsError with exist_ok=True fix
+        _ensure_parent_directory(file_path)
+
+    # Verify mkdir was actually called and directory exists
+    assert mkdir_called[0], "mkdir should have been called"
+    assert new_dir.exists()
+    assert new_dir.is_dir()
+
+
+def test_ensure_parent_directory_race_with_mocked_exists(tmp_path) -> None:
+    """More direct test for issue #5296: verify mkdir is called with exist_ok=True.
+
+    This test directly verifies that mkdir is called with exist_ok=True,
+    which prevents FileExistsError when the directory is created by another
+    process during the race window.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    new_dir = tmp_path / "race_test"
+    file_path = new_dir / "test.json"
+
+    mkdir_calls = []
+    original_path_mkdir = Path.mkdir
+
+    def tracking_mkdir(self, parents=False, exist_ok=False):
+        mkdir_calls.append({"path": str(self), "parents": parents, "exist_ok": exist_ok})
+        # Actually create the directory using the original method
+        return original_path_mkdir(self, parents=parents, exist_ok=True)
+
+    with patch.object(Path, "mkdir", tracking_mkdir):
+        _ensure_parent_directory(file_path)
+
+    # Verify mkdir was called with exist_ok=True to handle the race condition
+    assert len(mkdir_calls) == 1
+    assert mkdir_calls[0]["exist_ok"] is True, (
+        "mkdir must be called with exist_ok=True to handle TOCTOU race condition"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
