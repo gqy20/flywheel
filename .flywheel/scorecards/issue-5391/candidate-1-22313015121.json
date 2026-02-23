@@ -1,34 +1,23 @@
 {
-  "issue_number": 5391,
-  "issue_title": "[Feature] Add file lock mechanism for safe concurrent multi-process writes",
-  "candidate_number": 1,
+  "issue": 5391,
+  "candidate": 1,
   "run_id": "22313015121",
-  "branch_name": "claude/issue-5391-candidate-1-22313015121",
-  "status": "implemented",
-  "created_at": "2026-02-23T15:30:00Z",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "lines_added": 150,
-    "lines_removed": 45
-  },
-  "tests": {
-    "total_tests": 8,
-    "passed": 8,
-    "failed": 0
-  },
-  "implementation_summary": "Added optional file locking mechanism to TodoStorage for safe concurrent multi-process writes. Implemented platform-specific locking (fcntl.flock on Unix, msvcrt.locking on Windows) with a _acquire_lock() context manager. The feature is opt-in via use_locking parameter for backward compatibility.",
-  "acceptance_criteria": {
-    "serialized_writes": true,
-    "lock_released_on_exception": true,
-    "backward_compatible": true,
-    "cross_platform": true
-  },
-  "risks": [
-    "Non-blocking lock on Windows (LK_NBLCK) could fail if lock is held - may need retry logic for high-contention scenarios",
-    "Lock file (.json.lock) persists after use - could accumulate if not cleaned up",
-    "Network filesystems may have different locking semantics"
-  ]
+  "branch": "claude/issue-5391-candidate-1-22313015121",
+  "pr_number": 5413,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5413",
+  "generated_at": "2026-02-23T17:01:43.040722+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3207,
+    "plan": 3504,
+    "implement": 3229,
+    "verify": 2626,
+    "finalize": 2492
+  }
 }
