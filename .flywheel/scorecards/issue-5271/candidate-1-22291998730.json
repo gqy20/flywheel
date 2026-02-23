@@ -1,0 +1,44 @@
+{
+  "issue_number": 5271,
+  "candidate_number": 1,
+  "run_id": "22291998730",
+  "branch": "claude/issue-5271-candidate-1-22291998730",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5301",
+  "status": "finalized",
+  "stage": "FINALIZE",
+  "tests_added": true,
+  "tests_passed": true,
+  "lint_passed": true,
+  "verification": {
+    "pytest_main": {
+      "command": "uv run pytest tests/test_issue_5271_todo_hash.py -v",
+      "status": "PASSED",
+      "tests_run": 6,
+      "tests_passed": 6
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_5271_todo_hash.py",
+      "status": "PASSED"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_5271_todo_hash.py",
+      "status": "PASSED"
+    },
+    "regression_tests": {
+      "command": "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2087_todo_repr.py -v",
+      "status": "PASSED",
+      "tests_run": 18,
+      "tests_passed": 18
+    }
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_5271_todo_hash.py"
+    ],
+    "approach": "Added explicit __hash__ = None declaration to Todo class to document that it is intentionally unhashable because it is mutable",
+    "lines_changed": 80
+  },
+  "created_at": "2026-02-23T04:20:00Z",
+  "verified_at": "2026-02-23T04:30:00Z"
+}
