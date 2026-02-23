@@ -15,8 +15,6 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -44,7 +42,7 @@ class TestFileLockingUnit:
         import fcntl
 
         with patch.object(fcntl, "flock", mock_flock):
-            loaded = storage.load()
+            storage.load()
 
         # Verify lock was called with LOCK_SH (shared lock)
         assert any(call[2] == fcntl.LOCK_SH for call in lock_calls), (
