@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -255,15 +255,16 @@ def test_load_toctou_protection_file_size_grows_between_check_and_read(tmp_path)
 
     # Create a mock that simulates the TOCTOU attack scenario
     original_stat = db.stat
-    original_read_text = db.read_text
 
     def malicious_stat(*args, **kwargs):
         call_count["stat"] += 1
         # Return a fake stat result with small size
-        result = original_stat()
+        original_stat()  # Call original but ignore result
+
         # Create a mock stat_result with small size
         class FakeStatResult:
             st_size = 100  # Report small size
+
         return FakeStatResult()
 
     def malicious_read_text(*args, **kwargs):
@@ -276,11 +277,11 @@ def test_load_toctou_protection_file_size_grows_between_check_and_read(tmp_path)
     with (
         patch.object(Path, "stat", malicious_stat),
         patch.object(Path, "read_text", malicious_read_text),
-    ):
         # The fix should reject oversized content even if stat reported small size
         # by checking the size of the in-memory data
-        with pytest.raises(ValueError, match=r"too large|size"):
-            storage.load()
+        pytest.raises(ValueError, match=r"too large|size"),
+    ):
+        storage.load()
 
     # Verify our mocks were called (stat should be called, read_text should be called)
     assert call_count["stat"] >= 1, "stat should have been called"
