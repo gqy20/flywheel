@@ -1,0 +1,36 @@
+{
+  "issue_number": 5389,
+  "issue_title": "[Bug] _ensure_parent_directory 检查所有父路径但不检查 path.parent 是否为文件，当 path 本身是目录时可能产生误导性错误",
+  "candidate_number": 2,
+  "run_id": "22310906587",
+  "branch_name": "claude/issue-5389-candidate-2-22310906587",
+  "stage": "VERIFY",
+  "approach": "Add explicit parent check before the ancestor loop with clearer error message",
+  "changes_summary": "Added explicit check for path.parent being a file in _ensure_parent_directory() with clearer error message, modified ancestor loop to skip parent since it's now checked separately",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_5389_parent_check.py"
+  ],
+  "tests_added": 4,
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_issue_5389_parent_check.py tests/test_issue_1894_security_mkdir_fix.py tests/test_storage_atomicity.py -v",
+      "result": "16 tests passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5389_parent_check.py",
+      "result": "All checks passed"
+    },
+    "ruff_format": {
+      "command": "uv run ruff format src/flywheel/storage.py",
+      "result": "1 file reformatted"
+    }
+  },
+  "acceptance_criteria_met": [
+    "When parent exists and is a file, raises ValueError with clear 'not a directory' message",
+    "When parent doesn't exist, successfully creates directory",
+    "When parent is a directory, continues normally"
+  ],
+  "risks_limitations": "Minimal risk - the change makes the error handling more explicit but doesn't change the logical behavior",
+  "timestamp": "2026-02-23T15:57:00Z"
+}

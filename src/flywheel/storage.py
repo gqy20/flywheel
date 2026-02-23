@@ -29,11 +29,19 @@ def _ensure_parent_directory(file_path: Path) -> None:
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
+    # Explicit check: parent must not be a file (issue #5389)
+    # This provides a clear error message for the most common case
+    if parent.exists() and not parent.is_dir():
+        raise ValueError(
+            f"Parent path '{parent}' exists as a file, not a directory. "
+            f"Cannot use '{file_path}' as database path."
+        )
+
+    # Check all ancestor components for file-as-directory confusion
     # This handles cases like: /path/to/file.json/subdir/db.json
     # where 'file.json' exists as a file but we need it to be a directory
-    for part in list(file_path.parents):  # Only check parents, not file_path itself
-        if part.exists() and not part.is_dir():
+    for part in list(file_path.parents):
+        if part != parent and part.exists() and not part.is_dir():
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
                 f"Cannot use '{file_path}' as database path."
@@ -74,8 +82,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
