@@ -158,3 +158,64 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Issue #5270: Equality comparison tests for Todo objects
+def test_todo_equality_based_on_id_text_done() -> None:
+    """Issue #5270: Todo equality should compare id, text, and done only."""
+    # Same id, text, and done should be equal
+    todo1 = Todo(id=1, text="a", done=True)
+    todo2 = Todo(id=1, text="a", done=True)
+    assert todo1 == todo2
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #5270: Todo equality should ignore created_at and updated_at."""
+    import time
+
+    todo1 = Todo(id=1, text="a")
+    time.sleep(0.01)  # Ensure different timestamps
+    todo2 = Todo(id=1, text="a")
+    # Timestamps will be different, but semantically equal
+    assert todo1 == todo2
+
+
+def test_todo_inequality_different_id() -> None:
+    """Issue #5270: Todos with different ids should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    assert todo1 != todo2
+
+
+def test_todo_inequality_different_text() -> None:
+    """Issue #5270: Todos with different text should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+    assert todo1 != todo2
+
+
+def test_todo_inequality_different_done() -> None:
+    """Issue #5270: Todos with different done status should not be equal."""
+    todo1 = Todo(id=1, text="a", done=True)
+    todo2 = Todo(id=1, text="a", done=False)
+    assert todo1 != todo2
+
+
+def test_todo_equality_with_non_todo() -> None:
+    """Issue #5270: Todo should not be equal to non-Todo objects."""
+    todo = Todo(id=1, text="a")
+    assert todo != "not a todo"
+    assert todo != 1
+    assert todo != {"id": 1, "text": "a"}
+    assert todo is not None
+
+
+def test_todo_hash_consistency() -> None:
+    """Issue #5270: Hash must be consistent with equality."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    # Equal objects must have equal hashes
+    assert hash(todo1) == hash(todo2)
+    # Can be used in sets and dicts
+    todo_set = {todo1, todo2}
+    assert len(todo_set) == 1  # Both should hash to same value

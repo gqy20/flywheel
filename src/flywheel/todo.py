@@ -10,7 +10,7 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
     """Simple todo item."""
 
@@ -19,6 +19,27 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        """Semantic equality based on id, text, and done only.
+
+        Timestamps (created_at, updated_at) are intentionally excluded from
+        equality comparison to allow semantically identical todos with
+        different timestamps to be considered equal.
+
+        Issue #5270
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on semantic equality fields.
+
+        Must be consistent with __eq__: equal objects must have equal hashes.
+        Issue #5270
+        """
+        return hash((self.id, self.text, self.done))
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
