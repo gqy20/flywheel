@@ -233,3 +233,99 @@ def test_cli_add_command_with_unicode_passes_through(tmp_path, capsys) -> None:
     # Unicode should be preserved
     assert "café" in captured.out
     assert "日本語" in captured.out
+
+
+def test_cli_add_command_sanitizes_bidi_rlo(tmp_path, capsys) -> None:
+    """add command should escape Bidi RLO (U+202E) to prevent text spoofing.
+
+    The RLO (Right-to-Left Override) character can be used to reverse text
+    direction, causing terminal display to differ from actual content.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "add", "Hello\u202eWorld"])
+
+    result = run_command(args)
+    assert result == 0, "add command should succeed"
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representation
+    assert "\\u202e" in captured.out
+    # Output should NOT contain actual RLO character
+    assert "\u202e" not in captured.out
+
+
+def test_cli_add_command_sanitizes_bidi_lro(tmp_path, capsys) -> None:
+    """add command should escape Bidi LRO (U+202D) to prevent text spoofing.
+
+    The LRO (Left-to-Right Override) character can force text direction.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "add", "Test\u202dValue"])
+
+    result = run_command(args)
+    assert result == 0, "add command should succeed"
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representation
+    assert "\\u202d" in captured.out
+    # Output should NOT contain actual LRO character
+    assert "\u202d" not in captured.out
+
+
+def test_cli_add_command_sanitizes_bidi_pdi(tmp_path, capsys) -> None:
+    """add command should escape Bidi PDI (U+2069) to prevent text spoofing.
+
+    The PDI (Pop Directional Isolate) character is part of Bidi isolate pairs.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "add", "Start\u2069End"])
+
+    result = run_command(args)
+    assert result == 0, "add command should succeed"
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representation
+    assert "\\u2069" in captured.out
+    # Output should NOT contain actual PDI character
+    assert "\u2069" not in captured.out
+
+
+def test_cli_add_command_sanitizes_bidi_lrm(tmp_path, capsys) -> None:
+    """add command should escape Bidi LRM (U+200E) to prevent text spoofing.
+
+    The LRM (Left-to-Right Mark) is an invisible formatting character.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "add", "A\u200eB"])
+
+    result = run_command(args)
+    assert result == 0, "add command should succeed"
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representation
+    assert "\\u200e" in captured.out
+    # Output should NOT contain actual LRM character
+    assert "\u200e" not in captured.out
+
+
+def test_cli_add_command_sanitizes_bidi_rlm(tmp_path, capsys) -> None:
+    """add command should escape Bidi RLM (U+200F) to prevent text spoofing.
+
+    The RLM (Right-to-Left Mark) is an invisible formatting character.
+    """
+    db = tmp_path / "db.json"
+    parser = build_parser()
+    args = parser.parse_args(["--db", str(db), "add", "X\u200fY"])
+
+    result = run_command(args)
+    assert result == 0, "add command should succeed"
+
+    captured = capsys.readouterr()
+    # Output should contain escaped representation
+    assert "\\u200f" in captured.out
+    # Output should NOT contain actual RLM character
+    assert "\u200f" not in captured.out
