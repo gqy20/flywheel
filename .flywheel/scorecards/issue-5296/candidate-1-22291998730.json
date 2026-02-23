@@ -1,0 +1,24 @@
+{
+  "issue_number": 5296,
+  "issue_title": "[Bug] TOCTOU race condition in _ensure_parent_directory: directory existence check and",
+  "candidate_number": 1,
+  "run_id": "22291998730",
+  "branch": "claude/issue-5296-candidate-1-22291998730",
+  "created_at": "2026-02-23T04:00:00Z",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir()",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": [
+    "test_toctou_race_in_directory_creation",
+    "test_concurrent_directory_creation_no_file_exists_error"
+  ],
+  "approach": {
+    "description": "Changed exist_ok=False to exist_ok=True in parent.mkdir() call to handle the race condition where another process creates the directory between the exists() check and mkdir() call. The prior validation of parent components being directories (not files) remains safe because that check happens before mkdir().",
+    "minimal": true,
+    "safe": true
+  },
+  "risks": [],
+  "limitations": []
+}

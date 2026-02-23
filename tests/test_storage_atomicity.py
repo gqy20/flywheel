@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,107 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_toctou_race_in_directory_creation(tmp_path) -> None:
+    """Regression test for issue #5296: TOCTOU race in _ensure_parent_directory.
+
+    Simulates the race condition where another process creates the directory
+    between the exists() check and mkdir() call. This test uses mocking to
+    deterministically trigger the race condition.
+    """
+    # Use a path that requires creating a new parent directory
+    db = tmp_path / "newdir" / "test.json"
+    storage = TodoStorage(str(db))
+
+    # Get reference to the original parent.exists method
+    original_exists = type(db.parent).exists
+
+    def mock_exists_with_race(self):
+        """Mock that returns False, then creates directory (simulating race), then returns True."""
+        # For parent path, simulate: check says "doesn't exist", but another process creates it
+        if self == db.parent:
+            # First call (the exists() check) returns False
+            # Then simulate another process creating the directory
+            self.mkdir(parents=True, exist_ok=True)
+            return False  # Lie and say it doesn't exist to trigger mkdir()
+        return original_exists(self)
+
+    todos = [Todo(id=1, text="test")]
+
+    with patch.object(type(db.parent), "exists", mock_exists_with_race):
+        # With exist_ok=False (the bug), this would raise FileExistsError
+        # With exist_ok=True (the fix), this should succeed
+        storage.save(todos)
+
+    # Verify file was created successfully
+    assert db.exists()
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
+
+
+def test_concurrent_directory_creation_no_file_exists_error(tmp_path) -> None:
+    """Regression test for issue #5296: TOCTOU race in _ensure_parent_directory.
+
+    Tests that concurrent calls to save() with a new parent directory path
+    do not raise FileExistsError when another process creates the directory
+    between the exists() check and mkdir() call.
+    """
+    import multiprocessing
+
+    # Use a path that requires creating a new parent directory
+    db = tmp_path / "newdir" / "concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that saves todos to a path requiring new directory."""
+        try:
+            storage = TodoStorage(str(db))
+            # Each worker creates unique todos
+            todos = [Todo(id=1, text=f"worker-{worker_id}-data")]
+            storage.save(todos)
+
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the TOCTOU bug we're testing for
+            result_queue.put(("file_exists_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, all trying to create the same directory
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers as close together as possible
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+
+    # Start all processes at once
+    for p in processes:
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # No worker should have encountered FileExistsError (the TOCTOU bug)
+    file_exists_errors = [r for r in results if r[0] == "file_exists_error"]
+    assert len(file_exists_errors) == 0, (
+        f"TOCTOU race condition detected! Workers encountered FileExistsError: {file_exists_errors}"
+    )
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+    assert len(errors) == 0, f"Workers encountered unexpected errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +321,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
