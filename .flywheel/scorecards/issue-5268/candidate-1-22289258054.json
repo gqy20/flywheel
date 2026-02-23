@@ -1,0 +1,83 @@
+{
+  "issue_number": 5268,
+  "issue_title": "[Bug] Todo dataclass allows empty text string, but Todo.rename() explicitly rejects it",
+  "candidate": 1,
+  "run_id": "22289258054",
+  "stage": "IMPLEMENT",
+  "created_at": "2026-02-23T00:00:00Z",
+  "plan": {
+    "summary": "Add validation in Todo.__post_init__ to reject empty text, making it consistent with rename() behavior.",
+    "tdd_approach": "RED-GREEN-REFACTOR",
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_5268_todo_empty_text_validation.py",
+        "action": "create",
+        "description": "New test file with regression tests for empty text validation in Todo constructor"
+      },
+      {
+        "path": "src/flywheel/todo.py",
+        "action": "edit",
+        "description": "Add text validation in __post_init__ method"
+      }
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create test_issue_5268_todo_empty_text_validation.py with failing tests",
+        "tests": [
+          "test_todo_constructor_rejects_empty_string - verifies Todo(id=1, text='') raises ValueError",
+          "test_todo_constructor_rejects_whitespace_only - verifies Todo(id=1, text='  ') raises ValueError",
+          "test_todo_constructor_accepts_valid_text - verifies Todo(id=1, text='valid') succeeds"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Modify Todo.__post_init__ to validate text field",
+        "changes": [
+          "Strip text field and check if empty",
+          "Raise ValueError with message 'Todo text cannot be empty' if empty after strip"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run all tests to ensure no regressions"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5268_todo_empty_text_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run pytest tests/ -v --tb=short",
+      "uv run ruff check src/flywheel/todo.py"
+    ],
+    "acceptance_criteria": [
+      "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='   ') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='valid text') succeeds",
+      "Existing tests continue to pass",
+      "Ruff check passes on modified files"
+    ],
+    "risks": [
+      "Some existing tests may use empty text strings and will need updates"
+    ]
+  },
+  "implementation": {
+    "summary": "Added validation in Todo.__post_init__ to reject empty text strings, consistent with rename() behavior. The fix strips whitespace and raises ValueError with the same message 'Todo text cannot be empty' for empty or whitespace-only text.",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_5268_todo_empty_text_validation.py"
+    ],
+    "tests_passed": 116,
+    "acceptance_criteria_met": [
+      "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
+      "Todo(id=1, text='valid') succeeds",
+      "Existing tests continue to pass (116 tests passed)"
+    ],
+    "risks_noted": [
+      "Existing code that creates Todo objects with whitespace-padded text will now have text stripped automatically",
+      "Code that was inadvertently creating Todo objects with empty/whitespace-only text will now fail with ValueError"
+    ]
+  }
+}
