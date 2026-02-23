@@ -39,15 +39,22 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory atomically (exist_ok=True avoids TOCTOU race)
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        # Another process created a file (not directory) at parent path
+        if not parent.is_dir():
+            raise ValueError(
+                f"Path error: '{parent}' exists as a file, not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from None
+        # Directory was created by concurrent process - this is fine
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
