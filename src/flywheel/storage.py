@@ -7,9 +7,25 @@ import json
 import os
 import stat
 import tempfile
+import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from .todo import Todo
+
+
+@dataclass(slots=True)
+class LoadResult:
+    """Result of loading todos with optional timing metadata.
+
+    Attributes:
+        todos: The list of loaded Todo objects.
+        load_time_ms: Time taken to load in milliseconds.
+    """
+
+    todos: list[Todo]
+    load_time_ms: float
+
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,8 +72,22 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, debug: bool = False) -> list[Todo] | LoadResult:
+        """Load todos from the storage file.
+
+        Args:
+            debug: If True, returns a LoadResult with timing metadata.
+                   If False (default), returns just the list of todos.
+
+        Returns:
+            list[Todo] when debug=False, or LoadResult when debug=True.
+        """
+        start_time = time.perf_counter()
+
         if not self.path.exists():
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            if debug:
+                return LoadResult(todos=[], load_time_ms=elapsed_ms)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -74,13 +104,18 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        elapsed_ms = (time.perf_counter() - start_time) * 1000
+
+        if debug:
+            return LoadResult(todos=todos, load_time_ms=elapsed_ms)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.

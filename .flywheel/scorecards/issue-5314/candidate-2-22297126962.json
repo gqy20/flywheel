@@ -1,0 +1,41 @@
+{
+  "issue_number": 5314,
+  "issue_title": "[Enhancement] 添加 load/save 操作的性能计时元数据",
+  "candidate": 2,
+  "run_id": "22297126962",
+  "branch": "claude/issue-5314-candidate-2-22297126962",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5314_load_timing.py"
+    ],
+    "changes_summary": "Added LoadResult dataclass with timing metadata, modified load() method to accept optional debug parameter",
+    "tests_added": 7,
+    "tests_passed": true
+  },
+  "acceptance_criteria": {
+    "debug_parameter": true,
+    "returns_load_result_when_debug_true": true,
+    "returns_list_when_debug_false": true,
+    "load_time_ms_is_positive": true,
+    "backward_compatible": true
+  },
+  "quality_checks": {
+    "ruff_check": "passed",
+    "ruff_format": "passed",
+    "pytest": "passed",
+    "full_test_suite": "119 passed"
+  },
+  "verification_stage": {
+    "status": "completed",
+    "commands_run": [
+      "uv run pytest tests/test_issue_5314_load_timing.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_5314_load_timing.py",
+      "uv run ruff format src/flywheel/storage.py tests/test_issue_5314_load_timing.py"
+    ],
+    "all_tests_passed": true,
+    "all_linting_passed": true
+  }
+}
