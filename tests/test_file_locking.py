@@ -7,11 +7,7 @@ when multiple TodoApp instances write to the same JSON file simultaneously.
 
 from __future__ import annotations
 
-import json
 import multiprocessing
-import os
-import sys
-import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -131,7 +127,9 @@ class TestFileLockingFeature:
         errors = [r for r in results if r[0] == "error"]
 
         assert len(errors) == 0, f"Workers encountered errors: {errors}"
-        assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+        assert len(successes) == num_workers, (
+            f"Expected {num_workers} successes, got {len(successes)}"
+        )
 
         # Final verification: file should contain valid JSON
         storage = TodoStorage(str(db))
@@ -165,6 +163,7 @@ class TestFileLockCrossPlatform:
 
         # The method should be callable and return a context manager
         import tempfile
+
         with tempfile.TemporaryDirectory() as tmpdir:
             db_path = Path(tmpdir) / "lock_test.json"
             storage = TodoStorage(str(db_path), use_locking=True)
