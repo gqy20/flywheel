@@ -39,6 +39,14 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
+    # Explicitly check if parent exists as a file (Issue #5389)
+    # This provides a clearer error message when the immediate parent is a file
+    if parent.exists() and not parent.is_dir():
+        raise ValueError(
+            f"Parent path '{parent}' exists as a file, not a directory. "
+            f"Cannot create database file at '{file_path}'."
+        )
+
     # Create parent directory if it doesn't exist
     if not parent.exists():
         try:

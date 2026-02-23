@@ -122,3 +122,40 @@ def test_cli_succeeds_when_parent_already_exists_as_directory(tmp_path, capsys) 
 
     captured = capsys.readouterr()
     assert "Added" in captured.out
+
+
+def test_ensure_parent_directory_fails_when_parent_is_file(tmp_path) -> None:
+    """Issue #5389: _ensure_parent_directory should explicitly check if parent is a file.
+
+    When path.parent exists as a file (not a directory), the function should raise
+    ValueError with a clear error message. The loop over file_path.parents may not
+    catch this case when path itself is interpreted as a directory path.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a file at the parent location
+    parent_file = tmp_path / "existing_file"
+    parent_file.write_text("I am a file")
+
+    # The path would have this file as its parent
+    # This simulates: db_path = "/tmp/existing_file/todo.json"
+    db_path = parent_file / "todo.json"
+
+    # Should raise ValueError with clear message about "not a directory"
+    with pytest.raises(ValueError, match=r"(?i)(not a directory|exists as a file)"):
+        _ensure_parent_directory(db_path)
+
+
+def test_ensure_parent_directory_succeeds_for_normal_paths(tmp_path) -> None:
+    """Issue #5389: Normal paths with non-existent parents should work."""
+    from flywheel.storage import _ensure_parent_directory
+
+    # Path where parent doesn't exist yet
+    db_path = tmp_path / "new_dir" / "subdir" / "todo.json"
+
+    # Should succeed and create parent directories
+    _ensure_parent_directory(db_path)
+
+    # Verify parent was created
+    assert db_path.parent.exists()
+    assert db_path.parent.is_dir()
