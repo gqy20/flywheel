@@ -1,31 +1,23 @@
 {
-  "issue_number": 5389,
-  "candidate_number": 3,
+  "issue": 5389,
+  "candidate": 3,
   "run_id": "22310906587",
-  "stage": "FINALIZE",
-  "status": "completed",
-  "created_at": "2026-02-23T15:30:00Z",
-  "updated_at": "2026-02-23T16:00:00Z",
-  "test_file": "tests/test_issue_5389_path_is_directory.py",
-  "source_file": "src/flywheel/storage.py",
-  "tests_passed": 115,
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_5389_path_is_directory.py -v",
-      "result": "3 passed"
-    },
-    "pytest_related": {
-      "command": "uv run pytest tests/test_issue_1894_security_mkdir_fix.py -v",
-      "result": "6 passed"
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ -v",
-      "result": "115 passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5389_path_is_directory.py",
-      "result": "All checks passed!"
-    }
-  },
-  "summary": "Fixed _ensure_parent_directory to check if target path is a directory before attempting operations"
+  "branch": "claude/issue-5389-candidate-3-22310906587",
+  "pr_number": 5400,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5400",
+  "generated_at": "2026-02-23T15:59:55.781863+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3395,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 3754,
+    "finalize": 696
+  }
 }
