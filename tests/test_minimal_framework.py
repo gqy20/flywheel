@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_accepts_invalid_date_string() -> None:
+    """Issue #5326: from_dict should accept non-ISO date strings without error."""
+    # Arbitrary non-ISO string should not raise
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": "invalid-date"})
+    assert todo.created_at == "invalid-date"
+
+
+def test_from_dict_coerces_int_timestamp_to_string() -> None:
+    """Issue #5326: from_dict should coerce int timestamps to string via str()."""
+    # Integer timestamp should be coerced to string
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": 12345})
+    assert todo.created_at == "12345"
+    assert isinstance(todo.created_at, str)
+
+
+def test_from_dict_handles_none_timestamp_generates_new() -> None:
+    """Issue #5326: from_dict with None timestamp triggers __post_init__ to generate new."""
+    # None becomes "" via str(), then __post_init__ generates a new ISO timestamp
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": None})
+    assert todo.created_at != ""
+    assert "T" in todo.created_at  # Should be ISO format
+
+
+def test_from_dict_accepts_valid_iso_timestamp() -> None:
+    """Issue #5326: from_dict should still accept valid ISO format timestamps."""
+    iso_time = "2025-01-15T10:30:00+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": iso_time})
+    assert todo.created_at == iso_time

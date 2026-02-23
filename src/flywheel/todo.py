@@ -12,7 +12,13 @@ def _utc_now_iso() -> str:
 
 @dataclass(slots=True)
 class Todo:
-    """Simple todo item."""
+    """Simple todo item.
+
+    Note: The created_at and updated_at fields are free-form string fields.
+    While the class generates ISO 8601 timestamps internally via _utc_now_iso(),
+    from_dict() accepts any string value without format validation. This is
+    intentional to allow flexibility in timestamp representation.
+    """
 
     id: int
     text: str
