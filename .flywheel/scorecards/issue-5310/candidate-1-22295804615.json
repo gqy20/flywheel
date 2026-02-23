@@ -1,0 +1,39 @@
+{
+  "issue_number": 5310,
+  "issue_title": "[Security] load() follows symlinks when reading JSON file, potentially allowing symlink att",
+  "candidate_number": 1,
+  "run_id": "22295804615",
+  "branch_name": "claude/issue-5310-candidate-1-22295804615",
+  "created_at": "2026-02-23T07:30:00Z",
+  "fix_summary": "Add symlink protection to load() method to prevent symlink attacks",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_1999_symlink_protection.py"
+  ],
+  "tests_added": [
+    "test_load_rejects_symlink_db_file",
+    "test_load_succeeds_with_regular_file_after_symlink_fix",
+    "test_load_rejects_symlink_to_nonexistent_file"
+  ],
+  "changes": {
+    "storage.py": {
+      "added": [
+        "SecurityError exception class",
+        "Symlink check in load() method that raises SecurityError if path is a symlink"
+      ]
+    },
+    "tests": {
+      "added": [
+        "test_load_rejects_symlink_db_file - Verifies load() rejects symlinks to sensitive files",
+        "test_load_succeeds_with_regular_file_after_symlink_fix - Verifies normal file loading still works",
+        "test_load_rejects_symlink_to_nonexistent_file - Verifies broken symlinks are also rejected"
+      ]
+    }
+  },
+  "security_fix": {
+    "vulnerability": "Symlink attack in load() method",
+    "cwe": "CWE-59",
+    "fix_approach": "Check is_symlink() before reading the file, raise SecurityError if symlink detected",
+    "verification": "All 9 tests pass including 3 new tests for issue #5310"
+  }
+}

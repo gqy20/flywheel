@@ -15,6 +15,10 @@ from .todo import Todo
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
 
+class SecurityError(Exception):
+    """Raised when a security violation is detected, such as a symlink attack."""
+
+
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
@@ -57,6 +61,15 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        # Security: Reject symlinks to prevent symlink attacks
+        # Check BEFORE exists() because exists() follows symlinks and returns
+        # False for broken symlinks, allowing them to slip through
+        if self.path.is_symlink():
+            raise SecurityError(
+                f"Security violation: '{self.path}' is a symlink. "
+                f"Refusing to follow symlinks to prevent symlink attacks."
+            )
+
         if not self.path.exists():
             return []
 

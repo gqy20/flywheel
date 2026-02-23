@@ -3,6 +3,8 @@
 Issue: The temp file path is predictable (.todo.json.tmp), allowing an attacker
 to pre-create a symlink and cause data to be written to arbitrary locations.
 
+Also covers issue #5310: Symlink protection in load() method.
+
 These tests should FAIL before the fix and PASS after the fix.
 """
 
@@ -12,7 +14,9 @@ import os
 import stat
 from pathlib import Path
 
-from flywheel.storage import TodoStorage
+import pytest
+
+from flywheel.storage import SecurityError, TodoStorage
 from flywheel.todo import Todo
 
 
@@ -224,3 +228,65 @@ def test_temp_file_cleanup_on_error(tmp_path) -> None:
             # Temp files should either be renamed or deleted
             # They should not exist as separate temp files
             assert not temp_file.exists() or temp_file == db, f"Temp file not cleaned up: {temp_file}"
+
+
+# ============================================================================
+# Issue #5310: Symlink protection in load() method
+# ============================================================================
+
+
+def test_load_rejects_symlink_db_file(tmp_path) -> None:
+    """Issue #5310: load() should reject symlinks to prevent symlink attacks.
+
+    Before fix: load() follows symlinks and reads from attacker-controlled file
+    After fix: load() raises SecurityError when db path is a symlink
+    """
+    # Create a file outside the expected location (simulating sensitive data)
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    sensitive_file = outside_dir / "sensitive_data.txt"
+    sensitive_file.write_text('[{"id": 1, "text": "leaked secret data", "done": false}]')
+
+    # Create symlink from db path to the sensitive file
+    db = tmp_path / "todo.json"
+    db.symlink_to(sensitive_file)
+
+    storage = TodoStorage(str(db))
+
+    # Should raise SecurityError, not read the symlink target
+    with pytest.raises(SecurityError, match="symlink"):
+        storage.load()
+
+
+def test_load_succeeds_with_regular_file_after_symlink_fix(tmp_path) -> None:
+    """Issue #5310: Normal load() with regular file should still work."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a regular file with valid JSON
+    todos = [
+        Todo(id=1, text="first todo"),
+        Todo(id=2, text="second todo", done=True),
+    ]
+    storage.save(todos)
+
+    # Should succeed normally
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "first todo"
+    assert loaded[1].text == "second todo"
+    assert loaded[1].done is True
+
+
+def test_load_rejects_symlink_to_nonexistent_file(tmp_path) -> None:
+    """Issue #5310: load() should reject symlink even if target doesn't exist."""
+    # Create a symlink to a non-existent file
+    nonexistent = tmp_path / "does_not_exist.json"
+    db = tmp_path / "todo.json"
+    db.symlink_to(nonexistent)
+
+    storage = TodoStorage(str(db))
+
+    # Should raise SecurityError for symlink, not FileNotFoundError
+    with pytest.raises(SecurityError, match="symlink"):
+        storage.load()
