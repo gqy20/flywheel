@@ -6,10 +6,18 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
+
+# Platform-specific file locking
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +61,61 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, use_locking: bool = False) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            use_locking: If True, use file locking for safe concurrent multi-process
+                writes. Defaults to False for backward compatibility.
+        """
         self.path = Path(path or ".todo.json")
+        self.use_locking = use_locking
+
+    @contextmanager
+    def _acquire_lock(self):
+        """Acquire exclusive file lock for safe concurrent writes.
+
+        This is a no-op when use_locking=False for backward compatibility.
+        On Unix, uses fcntl.flock with LOCK_EX.
+        On Windows, uses msvcrt.locking with LK_NBLCK.
+
+        The lock is held for the duration of the context manager and is
+        automatically released even if an exception occurs.
+        """
+        if not self.use_locking:
+            yield
+            return
+
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self.path)
+
+        # Create/open a lock file (same directory, with .lock suffix)
+        lock_file = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open lock file (create if doesn't exist)
+        fd = os.open(str(lock_file), os.O_CREAT | os.O_RDWR, 0o644)
+
+        try:
+            if sys.platform == "win32":
+                # Windows: use msvcrt.locking
+                # Lock the entire file
+                msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+            else:
+                # Unix: use fcntl.flock
+                fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            try:
+                if sys.platform == "win32":
+                    # Unlock on Windows
+                    os.lseek(fd, 0, os.SEEK_SET)
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                else:
+                    # Unlock on Unix
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -88,9 +149,17 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        When use_locking=True, acquires an exclusive file lock before writing
+        to prevent race conditions in multi-process scenarios.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        with self._acquire_lock():
+            self._save_locked(todos)
+
+    def _save_locked(self, todos: list[Todo]) -> None:
+        """Internal save implementation (must be called with lock held if locking enabled)."""
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 

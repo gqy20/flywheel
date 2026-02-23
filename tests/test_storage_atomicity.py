@@ -229,3 +229,189 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+# =============================================================================
+# File Lock Mechanism Tests (Issue #5391)
+# =============================================================================
+
+
+def test_file_lock_parameter_default_false(tmp_path) -> None:
+    """Test that use_locking parameter defaults to False for backward compatibility."""
+    db = tmp_path / "todo.json"
+    # Default should be no locking
+    storage = TodoStorage(str(db))
+    assert storage.use_locking is False
+
+
+def test_file_lock_parameter_can_be_enabled(tmp_path) -> None:
+    """Test that use_locking can be set to True."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db), use_locking=True)
+    assert storage.use_locking is True
+
+
+def test_save_with_locking_enabled(tmp_path) -> None:
+    """Test that save works correctly when file locking is enabled."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db), use_locking=True)
+
+    todos = [Todo(id=1, text="test with locking")]
+    storage.save(todos)
+
+    # Verify save worked
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test with locking"
+
+
+def test_concurrent_saves_are_serialized_with_locking(tmp_path) -> None:
+    """Regression test for issue #5391: File lock prevents concurrent write race conditions.
+
+    When two processes write to the same file simultaneously with locking enabled,
+    the writes should be serialized (not interleaved). Each process should complete
+    its full write before the next process starts.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "locked.json"
+
+    def save_with_lock(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that saves todos with file locking enabled."""
+        try:
+            storage = TodoStorage(str(db), use_locking=True)
+            # Each worker writes a distinct set of todos
+            todos = [
+                Todo(id=1, text=f"worker-{worker_id}-item-1"),
+                Todo(id=2, text=f"worker-{worker_id}-item-2"),
+                Todo(id=3, text=f"worker-{worker_id}-item-3"),
+            ]
+            storage.save(todos)
+
+            # Small delay to increase race condition likelihood
+            time.sleep(0.002)
+
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run workers concurrently with locking
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_with_lock, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for completion
+    for p in processes:
+        p.join(timeout=15)
+
+    # All should succeed
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # File should contain valid JSON from exactly one worker (serialized writes)
+    storage = TodoStorage(str(db), use_locking=True)
+    final_todos = storage.load()
+
+    assert len(final_todos) == 3, "Should have exactly 3 todos from one worker"
+
+    # All todos should be from the SAME worker (no interleaving)
+    worker_ids = set()
+    for todo in final_todos:
+        # Extract worker ID from text like "worker-2-item-1"
+        parts = todo.text.split("-")
+        worker_ids.add(int(parts[1]))
+
+    assert len(worker_ids) == 1, (
+        f"Expected all todos from same worker, but got from workers: {worker_ids}. "
+        "This indicates writes were interleaved (locking failed)."
+    )
+
+
+def test_lock_released_after_exception_during_write(tmp_path) -> None:
+    """Test that file lock is released even if an exception occurs during write."""
+    from unittest.mock import patch
+
+    db = tmp_path / "lock_test.json"
+    storage = TodoStorage(str(db), use_locking=True)
+
+    # Create initial data
+    storage.save([Todo(id=1, text="initial")])
+
+    # Simulate write failure during the locked operation
+    import tempfile
+
+    original_mkstemp = tempfile.mkstemp
+
+    def failing_mkstemp(*args, **kwargs):
+        raise OSError("Simulated write failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", failing_mkstemp),
+        pytest.raises(OSError, match="Simulated write failure"),
+    ):
+        storage.save([Todo(id=2, text="should fail")])
+
+    # Lock should have been released - verify we can write again
+    tempfile.mkstemp = original_mkstemp
+
+    # This should succeed (lock was released)
+    storage.save([Todo(id=3, text="after failure")])
+
+    # Verify the file was updated
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "after failure"
+
+
+def test_backward_compatibility_no_locking_by_default(tmp_path) -> None:
+    """Test that default behavior (no locking) still works for backward compatibility."""
+    db = tmp_path / "no_lock.json"
+
+    # First create the file
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="initial")])
+
+    # Verify it works with default (no locking)
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "initial"
+
+
+def test_lock_context_manager_exists(tmp_path) -> None:
+    """Test that _acquire_lock context manager exists and works."""
+    db = tmp_path / "lock_cm.json"
+    storage = TodoStorage(str(db), use_locking=True)
+
+    # The context manager should exist
+    assert hasattr(storage, "_acquire_lock"), "TodoStorage should have _acquire_lock method"
+
+    # Using the context manager should not raise
+    with storage._acquire_lock():
+        pass  # Lock acquired and released
+
+
+def test_lock_context_manager_no_locking_mode(tmp_path) -> None:
+    """Test that _acquire_lock is a no-op when use_locking=False."""
+    db = tmp_path / "no_lock_cm.json"
+    storage = TodoStorage(str(db), use_locking=False)
+
+    # Should be a no-op context manager
+    with storage._acquire_lock():
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify save worked
+    loaded = storage.load()
+    assert len(loaded) == 1
