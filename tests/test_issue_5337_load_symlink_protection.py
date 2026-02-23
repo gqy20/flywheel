@@ -36,7 +36,7 @@ def test_load_fails_when_path_is_symlink(tmp_path: Path) -> None:
     storage = TodoStorage(str(db_symlink))
 
     # Should raise ValueError when path is a symlink
-    with pytest.raises(ValueError, match="[Ss]ymlink"):
+    with pytest.raises(ValueError, match=r"[Ss]ymlink"):
         storage.load()
 
 
@@ -54,7 +54,7 @@ def test_load_fails_when_path_is_symlink_to_directory(tmp_path: Path) -> None:
     storage = TodoStorage(str(db_symlink))
 
     # Should raise ValueError when path is a symlink
-    with pytest.raises(ValueError, match="[Ss]ymlink"):
+    with pytest.raises(ValueError, match=r"[Ss]ymlink"):
         storage.load()
 
 
