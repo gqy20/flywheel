@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_unique_id_for_non_contiguous_ids() -> None:
+    """Bug #5376: next_id() must return unique IDs when todos have non-contiguous IDs."""
+    storage = TodoStorage()
+
+    # Case 1: Non-contiguous IDs [1, 5, 10] - next_id should return 11 (max+1)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    assert storage.next_id(todos) == 11
+
+    # Case 2: After removing a todo, next_id should still return unique ID
+    todos_after_remove = [Todo(id=1, text="a"), Todo(id=10, text="c")]  # removed id=5
+    assert storage.next_id(todos_after_remove) == 11  # still max+1, not 5 (to avoid confusion)
+
+    # Case 3: next_id never returns an ID already present in the todos list
+    used_ids = {todo.id for todo in todos}
+    new_id = storage.next_id(todos)
+    assert new_id not in used_ids, f"next_id returned {new_id} which is already in {used_ids}"
+
+    # Case 4: Empty list returns 1
+    assert storage.next_id([]) == 1
