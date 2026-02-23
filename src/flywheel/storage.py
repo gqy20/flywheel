@@ -125,4 +125,7 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        # Only consider positive IDs to handle cases where todos may have
+        # negative IDs (e.g., from manual JSON tampering)
+        used_ids = {todo.id for todo in todos if todo.id > 0}
+        return max(used_ids, default=0) + 1 if used_ids else 1
