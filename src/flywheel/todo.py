@@ -14,6 +14,8 @@ def _utc_now_iso() -> str:
 class Todo:
     """Simple todo item."""
 
+    __hash__ = None  # Explicitly unhashable (mutable class)
+
     id: int
     text: str
     done: bool = False
