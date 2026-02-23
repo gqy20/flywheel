@@ -16,6 +16,46 @@ from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
 
+def test_save_rejects_oversized_payload(tmp_path) -> None:
+    """Security: Save should reject oversized payloads to prevent DoS.
+
+    Regression test for issue #5269: save() should check payload size
+    before serializing to prevent memory exhaustion attacks.
+    """
+    db = tmp_path / "large.json"
+    storage = TodoStorage(str(db))
+
+    # Create a list of todos that will result in JSON > 10MB
+    # Each todo with ~400 chars of text is ~420 bytes in JSON
+    # We need about 25000 todos to exceed 10MB
+    large_todos = [
+        Todo(id=i, text="x" * 400)
+        for i in range(25000)
+    ]
+
+    # Should raise ValueError for oversized payload
+    with pytest.raises(ValueError, match=r"(?i)(too large|size|10.*MB)"):
+        storage.save(large_todos)
+
+
+def test_save_accepts_normal_sized_payload(tmp_path) -> None:
+    """Verify normal-sized payloads are still accepted after size limit fix."""
+    db = tmp_path / "normal.json"
+    storage = TodoStorage(str(db))
+
+    # Create a normal-sized list of todos
+    normal_todos = [
+        Todo(id=i, text=f"todo {i}") for i in range(100)
+    ]
+
+    # Should save successfully without raising
+    storage.save(normal_todos)
+
+    # Verify the data was saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 100
+
+
 def test_save_is_atomic_with_os_replace(tmp_path) -> None:
     """Test that save uses atomic os.replace instead of non-atomic write_text."""
     db = tmp_path / "todo.json"
