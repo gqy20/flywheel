@@ -10,6 +10,23 @@ from .storage import TodoStorage
 from .todo import Todo
 
 
+def _positive_int(value: str) -> int:
+    """Argparse type for validating positive integer IDs.
+
+    Raises:
+        argparse.ArgumentTypeError: If the value is not a positive integer.
+    """
+    try:
+        ivalue = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"ID must be an integer, got '{value}'") from None
+
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError("ID must be a positive integer")
+
+    return ivalue
+
+
 class TodoApp:
     """Simple in-process todo application."""
 
@@ -80,13 +97,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_list.add_argument("--pending", action="store_true", help="Show only pending todos")
 
     p_done = sub.add_parser("done", help="Mark todo done")
-    p_done.add_argument("id", type=int)
+    p_done.add_argument("id", type=_positive_int)
 
     p_undone = sub.add_parser("undone", help="Mark todo undone")
-    p_undone.add_argument("id", type=int)
+    p_undone.add_argument("id", type=_positive_int)
 
     p_rm = sub.add_parser("rm", help="Remove todo")
-    p_rm.add_argument("id", type=int)
+    p_rm.add_argument("id", type=_positive_int)
 
     return parser
 
@@ -128,7 +145,12 @@ def run_command(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit:
+        # argparse raises SystemExit on validation errors (e.g., invalid arguments)
+        # Return 1 to indicate error (argparse already printed the error message)
+        return 1
     return run_command(args)
 
 
