@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,26 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+
+@contextlib.contextmanager
+def _file_lock(lock_path: Path):
+    """Acquire an exclusive file lock for the duration of the context.
+
+    Uses fcntl.flock for cross-process synchronization on Unix systems.
+    Creates the lock file if it doesn't exist.
+    """
+    # Ensure parent directory exists
+    _ensure_parent_directory(lock_path)
+
+    # Open/create lock file and acquire exclusive lock
+    lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)  # Exclusive lock (blocking)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)  # Release lock
+        os.close(lock_fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +76,17 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def _locked(self):
+        """Acquire exclusive lock for the storage file.
+
+        Use this context manager for operations that need atomicity across
+        load-modify-save cycles (e.g., add operations).
+        """
+        with _file_lock(self._lock_path):
+            yield
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +106,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
