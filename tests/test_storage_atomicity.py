@@ -229,3 +229,104 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_parent_directory_creation(tmp_path) -> None:
+    """Regression test for issue #5432: TOCTOU race in _ensure_parent_directory.
+
+    Tests that save() does not raise FileExistsError when the parent directory
+    is created concurrently by another process between the exists() check and
+    the mkdir() call.
+
+    The fix is to use exist_ok=True in mkdir() since the file-as-directory
+    validation is already done in the loop above.
+    """
+    import threading
+
+    # Use a path where the parent doesn't exist yet
+    db = tmp_path / "subdir1" / "subdir2" / "todo.json"
+
+    errors = []
+    successes = []
+
+    def save_worker(worker_id: int) -> None:
+        """Worker function that saves todos, racing to create parent directory."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=1, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            successes.append(worker_id)
+        except Exception as e:
+            errors.append((worker_id, str(e)))
+
+    # Run multiple threads concurrently, all trying to save to the same new path
+    threads = []
+    for i in range(10):
+        t = threading.Thread(target=save_worker, args=(i,))
+        threads.append(t)
+        t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join(timeout=5)
+
+    # With exist_ok=False, at least one worker may get FileExistsError due to race
+    # With exist_ok=True, all workers should succeed
+    assert len(errors) == 0, (
+        f"Workers encountered FileExistsError due to TOCTOU race: {errors}"
+    )
+    assert len(successes) == 10
+
+
+def test_mkdir_with_exist_ok_true_handles_toctou_race(tmp_path) -> None:
+    """Unit test for issue #5432: exist_ok=True handles TOCTOU race gracefully.
+
+    This test simulates the TOCTOU race by having the parent directory created
+    between the exists() check and the mkdir() call. With exist_ok=True, this
+    should succeed without raising FileExistsError.
+    """
+    from unittest.mock import patch
+
+    from flywheel import storage as storage_module
+
+    # Create a path where parent doesn't exist
+    db_path = tmp_path / "subdir1" / "subdir2" / "todo.json"
+    parent = db_path.parent
+
+    # Track calls to mkdir to simulate the race
+    mkdir_calls = []
+    original_mkdir = Path.mkdir
+
+    def mkdir_race_simulator(self, *args, **kwargs):
+        """Simulate race by creating directory before actual mkdir call."""
+        mkdir_calls.append((str(self), args, kwargs))
+        if self == parent and not self.exists():
+            # Simulate another process creating the directory
+            original_mkdir(self, parents=True, exist_ok=True)
+        # Now call actual mkdir - with exist_ok=False this would fail
+        return original_mkdir(self, *args, **kwargs)
+
+    # Patch Path.mkdir globally to intercept the call
+    with patch.object(Path, "mkdir", mkdir_race_simulator):
+        storage_module._ensure_parent_directory(db_path)
+
+    # Should have called mkdir and not raised FileExistsError
+    assert len(mkdir_calls) >= 1, "mkdir should have been called"
+    assert parent.exists(), "Parent directory should exist"
+
+
+def test_save_still_raises_for_file_as_directory(tmp_path) -> None:
+    """Verify that save() still raises ValueError if a parent component is a file.
+
+    This is the remaining validation after the exist_ok=True fix.
+    """
+    # Create a file where we need a directory
+    file_in_path = tmp_path / "myfile.json"
+    file_in_path.write_text("not a directory", encoding="utf-8")
+
+    # Try to use a path that requires myfile.json to be a directory
+    db = tmp_path / "myfile.json" / "subdir" / "todo.json"
+    storage = TodoStorage(str(db))
+
+    with pytest.raises(ValueError, match="exists as a file, not a directory"):
+        storage.save([Todo(id=1, text="test")])
