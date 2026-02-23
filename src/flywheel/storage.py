@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT_SECONDS = 10.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +57,85 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
 
-    def __init__(self, path: str | None = None) -> None:
+    Uses file-based locking (fcntl.flock on Unix) to protect against
+    read-modify-write race conditions that can cause data loss when
+    multiple processes operate on the same file concurrently.
+
+    The lock is advisory and is released automatically when:
+    - The file descriptor is closed (including on process exit/crash)
+    - The transaction context manager exits
+    """
+
+    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT_SECONDS) -> None:
+        """Initialize storage with path and optional lock timeout.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            lock_timeout: Maximum seconds to wait for lock acquisition.
+                         Set to 0 for non-blocking mode.
+        """
         self.path = Path(path or ".todo.json")
+        self._lock_timeout = lock_timeout
+        self._lock_fd: int | None = None
+
+    @contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Context manager for exclusive file locking during transactions.
+
+        Acquires an exclusive lock on the storage file, ensuring that
+        only one process can perform read-modify-write operations at a time.
+
+        Usage:
+            with storage.transaction():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+
+        The lock is automatically released when the context exits,
+        even if an exception occurs.
+
+        Raises:
+            TimeoutError: If lock cannot be acquired within the timeout period.
+            OSError: If lock file cannot be created or accessed.
+        """
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file to avoid conflicts with the data file
+        lock_file = self.path.with_suffix(self.path.suffix + ".lock")
+
+        fd = os.open(str(lock_file), os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            # Try to acquire exclusive lock
+            # fcntl.flock with LOCK_EX blocks until lock is available
+            # Using LOCK_NB for non-blocking + timeout simulation
+            import time
+
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except (BlockingIOError, OSError):
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= self._lock_timeout:
+                        raise TimeoutError(
+                            f"Could not acquire lock on '{lock_file}' within "
+                            f"{self._lock_timeout}s. Another process may be holding the lock."
+                        ) from None
+                    time.sleep(0.01)  # Brief backoff before retry
+
+            self._lock_fd = fd
+            try:
+                yield
+            finally:
+                # Release lock by closing file descriptor
+                # fcntl.flock is automatically released on close
+                self._lock_fd = None
+        finally:
+            with contextlib.suppress(OSError):
+                os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
