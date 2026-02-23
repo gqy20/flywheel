@@ -20,6 +20,11 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    # Explicitly mark as unhashable since this is a mutable dataclass.
+    # This prevents use in sets or as dict keys, which is intentional
+    # because the object state can change after creation.
+    __hash__ = None
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
