@@ -227,10 +227,16 @@ def test_concurrent_add_unique_ids_multiple_iterations(tmp_path) -> None:
     for iteration in range(10):
         db = tmp_path / f"race_test_iter_{iteration}.json"
 
-        def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        # Use default args to bind loop variables and avoid late-binding closure issues
+        def add_worker(
+            worker_id: int,
+            result_queue: multiprocessing.Queue,
+            _db: Path = db,
+            _iteration: int = iteration,
+        ) -> None:
             try:
-                app = TodoApp(db_path=str(db))
-                todo = app.add(f"iter-{iteration}-worker-{worker_id}")
+                app = TodoApp(db_path=str(_db))
+                todo = app.add(f"iter-{_iteration}-worker-{worker_id}")
                 result_queue.put(("success", worker_id, todo.id))
             except Exception as e:
                 result_queue.put(("error", worker_id, str(e)))
