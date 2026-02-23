@@ -1,0 +1,15 @@
+{
+  "issue_number": 5376,
+  "candidate": 3,
+  "run_id": "22306224764",
+  "branch": "claude/issue-5376-candidate-3-22306224764",
+  "status": "implemented",
+  "approach": "set-based-id-generation",
+  "tests_added": 3,
+  "tests_passed": 13,
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "summary": "Refactored next_id() to use explicit set-based approach for ID uniqueness tracking, making the code more defensive and easier to verify. Added comprehensive regression tests for non-contiguous IDs and sparse ID gaps."
+}

@@ -158,3 +158,69 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_unused_id_with_non_contiguous_ids() -> None:
+    """Bug #5376: next_id() must never return an ID that already exists.
+
+    This test verifies that next_id handles non-contiguous IDs correctly
+    and never returns an ID that is already in use, using explicit set-based
+    validation to guarantee uniqueness.
+    """
+    db = TodoStorage()
+    # Create todos with non-contiguous IDs: [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+
+    # next_id should return a value that doesn't conflict with existing IDs
+    next_id = db.next_id(todos)
+
+    # Explicitly verify the returned ID doesn't conflict with existing IDs
+    existing_ids = {todo.id for todo in todos}
+    assert next_id not in existing_ids, (
+        f"next_id returned {next_id} which already exists in {existing_ids}"
+    )
+    # Should be max+1 = 11
+    assert next_id == 11, f"Expected 11 (max+1), got {next_id}"
+
+
+def test_next_id_handles_sparse_id_gaps() -> None:
+    """Bug #5376: next_id() must handle sparse ID gaps correctly.
+
+    After adding and removing todos, next_id should still work correctly
+    and never return an ID that is already in use.
+    """
+    db = TodoStorage()
+    # Simulate scenario where todo was added and then removed
+    # Start with [1, 2, 3], remove 2, leaving [1, 3]
+    todos = [Todo(id=1, text="first"), Todo(id=3, text="third")]
+
+    # next_id should return a value that doesn't conflict with existing IDs
+    next_id = db.next_id(todos)
+
+    # Ensure it doesn't return existing IDs (1 or 3)
+    existing_ids = {todo.id for todo in todos}
+    assert next_id not in existing_ids, (
+        f"next_id returned {next_id} which already exists in {existing_ids}"
+    )
+    # Should be max+1 = 4
+    assert next_id == 4, f"Expected 4 (max+1), got {next_id}"
+
+
+def test_next_id_guarantees_uniqueness_with_large_gaps() -> None:
+    """Bug #5376: next_id() must guarantee uniqueness even with large gaps."""
+    db = TodoStorage()
+    # Create todos with very large IDs and gaps
+    todos = [
+        Todo(id=100, text="a"),
+        Todo(id=500, text="b"),
+        Todo(id=1000, text="c"),
+    ]
+
+    next_id = db.next_id(todos)
+    existing_ids = {todo.id for todo in todos}
+
+    assert next_id not in existing_ids, (
+        f"next_id returned {next_id} which already exists in {existing_ids}"
+    )
+    # Should be max+1 = 1001
+    assert next_id == 1001, f"Expected 1001 (max+1), got {next_id}"
