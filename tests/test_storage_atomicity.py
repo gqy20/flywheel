@@ -229,3 +229,125 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_directory_creation_no_file_exists_error(tmp_path) -> None:
+    """Regression test for issue #5296: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that concurrent calls to save() with new directory paths do not raise
+    FileExistsError. The race condition occurs when:
+    1. Thread A checks if parent.exists() -> False
+    2. Thread B checks if parent.exists() -> False
+    3. Thread A calls mkdir(exist_ok=False) -> succeeds
+    4. Thread B calls mkdir(exist_ok=False) -> raises FileExistsError
+
+    The fix is to use exist_ok=True to handle this race condition gracefully.
+    """
+    import threading
+
+    # Use unique subdirectory path for this test
+    db_path = tmp_path / "race_test" / "subdir" / "test.json"
+
+    errors = []
+    success_count = [0]  # Use list for mutability in nested function
+    lock = threading.Lock()
+
+    def save_worker(worker_id: int) -> None:
+        """Worker that saves to a new directory path."""
+        try:
+            storage = TodoStorage(str(db_path))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            with lock:
+                success_count[0] += 1
+        except Exception as e:
+            with lock:
+                errors.append((worker_id, type(e).__name__, str(e)))
+
+    # Run multiple threads to maximize race condition likelihood
+    threads = []
+    num_threads = 10
+
+    for i in range(num_threads):
+        t = threading.Thread(target=save_worker, args=(i,))
+        threads.append(t)
+
+    # Start all threads nearly simultaneously
+    for t in threads:
+        t.start()
+
+    # Wait for all threads
+    for t in threads:
+        t.join(timeout=10)
+
+    # No thread should have encountered FileExistsError
+    file_exists_errors = [e for e in errors if e[1] == "FileExistsError"]
+    assert len(file_exists_errors) == 0, (
+        f"TOCTOU race condition detected: {len(file_exists_errors)} threads hit FileExistsError. "
+        f"Errors: {file_exists_errors}"
+    )
+
+    # At least some saves should have succeeded
+    assert success_count[0] > 0, "No saves succeeded"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db_path))
+    loaded = storage.load()
+    assert len(loaded) >= 1
+
+
+def test_toctou_directory_creation_race_simulated(tmp_path) -> None:
+    """Regression test for issue #5296: Simulates TOCTOU race condition deterministically.
+
+    This test uses mocking to simulate the exact race condition scenario:
+    - exists() returns False (directory doesn't exist yet)
+    - But then mkdir() is called when directory already exists (another process created it)
+
+    With exist_ok=False, this would raise FileExistsError.
+    With exist_ok=True, it should succeed without error.
+    """
+    from unittest.mock import patch
+
+    from flywheel import storage as storage_module
+
+    db_path = tmp_path / "race_sim" / "test.json"
+
+    # Ensure parent's parent exists so mkdir() only needs to create one level
+    db_path.parent.parent.mkdir(parents=True, exist_ok=True)
+
+    # Create the directory that will "suddenly appear" between exists() and mkdir()
+    db_path.parent.mkdir(exist_ok=True)
+
+    # Mock parent.exists() to return False (simulating race condition window)
+    # but in reality mkdir will find the directory already exists
+    original_exists = type(db_path.parent).exists
+
+    def mock_exists_returning_false(self):
+        # Only return False for the specific parent directory we're testing
+        if self == db_path.parent:
+            return False  # Simulate: directory doesn't exist when we check
+        return original_exists.__get__(self, type(self))()
+
+    # Track if mkdir was called with exist_ok=True
+    mkdir_calls = []
+    original_mkdir = type(db_path.parent).mkdir
+
+    def mock_mkdir(self, *args, **kwargs):
+        mkdir_calls.append({"args": args, "kwargs": kwargs, "exist_ok": kwargs.get("exist_ok", False)})
+        # Actually call the real mkdir - if exist_ok=True, it will succeed
+        # If exist_ok=False and directory exists, it will raise FileExistsError
+        return original_mkdir.__get__(self, type(self))(*args, **kwargs)
+
+    with (
+        patch.object(type(db_path.parent), "exists", mock_exists_returning_false),
+        patch.object(type(db_path.parent), "mkdir", mock_mkdir),
+    ):
+        # This should NOT raise FileExistsError if fix is applied
+        storage_module._ensure_parent_directory(db_path)
+
+    # Verify that mkdir was called with exist_ok=True (the fix)
+    assert len(mkdir_calls) == 1, "mkdir should have been called exactly once"
+    assert mkdir_calls[0]["exist_ok"] is True, (
+        f"mkdir should be called with exist_ok=True to handle TOCTOU race. "
+        f"Got: {mkdir_calls[0]}"
+    )
