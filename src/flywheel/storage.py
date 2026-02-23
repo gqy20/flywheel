@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock acquisition timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 10.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +55,79 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Provides thread-safe and process-safe file access using advisory locking.
+    The lock protects the entire load-modify-save transaction to prevent
+    race conditions that cause data loss.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self, timeout: float = _DEFAULT_LOCK_TIMEOUT) -> int:
+        """Acquire an exclusive advisory lock on the storage file.
+
+        Uses fcntl.flock for cross-process synchronization. The lock is
+        automatically released when the file descriptor is closed.
+
+        Args:
+            timeout: Maximum time to wait for lock acquisition in seconds.
+
+        Returns:
+            File descriptor for the lock file.
+
+        Raises:
+            TimeoutError: If lock cannot be acquired within timeout period.
+        """
+        import time
+
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        start_time = time.monotonic()
+
+        while True:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return lock_fd
+            except (BlockingIOError, OSError):
+                if time.monotonic() - start_time >= timeout:
+                    os.close(lock_fd)
+                    raise TimeoutError(
+                        f"Could not acquire lock on '{self.path}' within {timeout}s. "
+                        f"Another process may be holding the lock."
+                    ) from None
+                time.sleep(0.05)
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release the advisory lock and close the lock file descriptor."""
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
+
+    def lock(self, timeout: float = _DEFAULT_LOCK_TIMEOUT):
+        """Context manager for acquiring the storage lock.
+
+        Usage:
+            with storage.lock():
+                todos = storage.load()
+                # modify todos
+                storage.save(todos)
+
+        Args:
+            timeout: Maximum time to wait for lock acquisition in seconds.
+
+        Yields:
+            None
+
+        Raises:
+            TimeoutError: If lock cannot be acquired within timeout period.
+        """
+        return _StorageLock(self, timeout)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +199,22 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+
+class _StorageLock:
+    """Context manager for storage locking."""
+
+    def __init__(self, storage: TodoStorage, timeout: float) -> None:
+        self._storage = storage
+        self._timeout = timeout
+        self._lock_fd: int | None = None
+
+    def __enter__(self) -> None:
+        self._lock_fd = self._storage._acquire_lock(self._timeout)
+        return None
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._lock_fd is not None:
+            self._storage._release_lock(self._lock_fd)
+            self._lock_fd = None
+        return False  # Don't suppress exceptions
