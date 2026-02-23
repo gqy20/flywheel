@@ -54,11 +54,11 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, int | str | bool]:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> Todo:
+    def from_dict(cls, data: dict[str, int | str | bool]) -> Todo:
         # Validate required fields with clear error messages
         if "id" not in data:
             raise ValueError("Missing required field 'id' in todo data")

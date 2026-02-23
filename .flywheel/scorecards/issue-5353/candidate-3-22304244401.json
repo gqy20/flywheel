@@ -1,0 +1,24 @@
+{
+  "issue_number": 5353,
+  "issue_title": "[Bug] to_dict() 返回类型缺少泛型注解，与 from_dict 类型签名不一致",
+  "candidate_number": 3,
+  "run_id": "22304244401",
+  "branch_name": "claude/issue-5353-candidate-3-22304244401",
+  "created_at": "2026-02-23T11:09:00Z",
+  "model": "glm-5",
+  "fix_summary": "Added proper generic type annotations to to_dict() and from_dict() methods in Todo class. Changed from bare 'dict' to 'dict[str, int | str | bool]' for both methods to ensure type signature consistency.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5353_type_annotations.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": true,
+  "mypy_strict_passed": true,
+  "ruff_check_passed": true,
+  "acceptance_criteria_met": [
+    "mypy --strict src/flywheel/todo.py passes without errors",
+    "to_dict() return type annotation explicitly includes dict[str, int | str | bool]"
+  ],
+  "risks": "None - this is a pure type annotation change with no runtime behavior modification",
+  "limitations": "None"
+}
