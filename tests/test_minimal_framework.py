@@ -158,3 +158,47 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_accepts_missing_timestamp() -> None:
+    """Issue #5326: from_dict should handle missing timestamp fields gracefully.
+
+    When timestamps are not provided, __post_init__ will generate them.
+    """
+    # Missing timestamp should default to empty string (triggers __post_init__)
+    todo = Todo.from_dict({"id": 1, "text": "x"})
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+    assert "T" in todo.created_at  # Should be ISO format
+
+
+def test_from_dict_rejects_non_iso_timestamp() -> None:
+    """Issue #5326: from_dict should validate ISO 8601 format for timestamps.
+
+    When a timestamp is provided but is not in ISO 8601 format, it should
+    raise a clear error to ensure data consistency.
+    """
+    # Valid ISO 8601 format should be accepted
+    valid_iso = "2024-01-15T10:30:00+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": valid_iso})
+    assert todo.created_at == valid_iso
+
+    # Valid ISO 8601 with Z suffix
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": "2024-01-15T10:30:00Z"})
+    assert todo.created_at == "2024-01-15T10:30:00Z"
+
+    # Valid ISO 8601 with microseconds
+    todo = Todo.from_dict({"id": 1, "text": "x", "created_at": "2024-01-15T10:30:00.123456Z"})
+    assert todo.created_at == "2024-01-15T10:30:00.123456Z"
+
+    # Invalid non-ISO format should raise ValueError
+    with pytest.raises(ValueError, match="ISO 8601"):
+        Todo.from_dict({"id": 1, "text": "x", "created_at": "invalid-date"})
+
+    # Integer should raise ValueError
+    with pytest.raises(ValueError, match="ISO 8601"):
+        Todo.from_dict({"id": 1, "text": "x", "created_at": 12345})
+
+    # Invalid format for updated_at should also raise
+    with pytest.raises(ValueError, match="ISO 8601"):
+        Todo.from_dict({"id": 1, "text": "x", "updated_at": "2024/01/15"})

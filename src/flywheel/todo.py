@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from re import fullmatch
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+# ISO 8601 pattern: supports formats like 2024-01-15T10:30:00Z or 2024-01-15T10:30:00+00:00
+_ISO_8601_PATTERN = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?"
+
+
+def _is_valid_iso8601(value: str) -> bool:
+    """Check if a string matches ISO 8601 datetime format."""
+    return bool(fullmatch(_ISO_8601_PATTERN, value))
 
 
 @dataclass(slots=True)
@@ -93,10 +103,33 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp formats if provided (must be ISO 8601 or empty)
+        created_at_raw = data.get("created_at")
+        updated_at_raw = data.get("updated_at")
+
+        created_at: str = ""
+        updated_at: str = ""
+
+        if created_at_raw is not None and created_at_raw != "":
+            created_at = str(created_at_raw)
+            if not _is_valid_iso8601(created_at):
+                raise ValueError(
+                    f"Invalid value for 'created_at': {created_at_raw!r}. "
+                    "'created_at' must be in ISO 8601 format (e.g., 2024-01-15T10:30:00Z)."
+                )
+
+        if updated_at_raw is not None and updated_at_raw != "":
+            updated_at = str(updated_at_raw)
+            if not _is_valid_iso8601(updated_at):
+                raise ValueError(
+                    f"Invalid value for 'updated_at': {updated_at_raw!r}. "
+                    "'updated_at' must be in ISO 8601 format (e.g., 2024-01-15T10:30:00Z)."
+                )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
