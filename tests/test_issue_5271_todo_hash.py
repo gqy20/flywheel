@@ -39,7 +39,7 @@ def test_todo_cannot_be_used_as_dict_key() -> None:
     todo = Todo(id=1, text="test task")
 
     with pytest.raises(TypeError) as exc_info:
-        {todo: "value"}
+        {todo: "value"}  # noqa: B018
 
     assert "unhashable" in str(exc_info.value).lower()
 
@@ -57,6 +57,6 @@ def test_todo_set_with_multiple_todos_raises_immediately() -> None:
 
     # Should fail on set creation, not on adding second item
     with pytest.raises(TypeError) as exc_info:
-        {todo1, todo2}
+        {todo1, todo2}  # noqa: B018
 
     assert "unhashable" in str(exc_info.value).lower()
