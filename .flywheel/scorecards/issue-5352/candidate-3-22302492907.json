@@ -1,0 +1,36 @@
+{
+  "issue_number": 5352,
+  "candidate_number": 3,
+  "run_id": "22302492907",
+  "status": "implemented",
+  "summary": "Fix unfriendly TypeError when load() encounters non-dict elements in JSON array",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_5352_non_dict_array_element.py"]
+  },
+  "implementation": {
+    "approach": "Add isinstance(item, dict) check before calling Todo.from_dict()",
+    "error_message": "Includes element index and expected type (dict/object)",
+    "lines_changed": 8
+  },
+  "tests": {
+    "added": 5,
+    "scenarios_covered": [
+      "Integer array elements [1, 2, 3]",
+      "String array elements [\"string\"]",
+      "Mixed valid and invalid elements",
+      "Verify ValueError not TypeError for int",
+      "Verify ValueError not TypeError for string"
+    ]
+  },
+  "validation": {
+    "pytest_passed": true,
+    "ruff_check_passed": true,
+    "ruff_format_passed": true,
+    "commands": [
+      "uv run pytest tests/test_issue_5352_non_dict_array_element.py -v",
+      "uv run ruff check src/flywheel/storage.py tests/test_issue_5352_non_dict_array_element.py",
+      "uv run ruff format --check src/flywheel/storage.py tests/test_issue_5352_non_dict_array_element.py"
+    ]
+  }
+}
