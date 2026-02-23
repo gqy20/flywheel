@@ -19,5 +19,7 @@
     "uv run pytest tests/test_issue_5403_toctou_mkdir_race.py -v",
     "uv run ruff check src/flywheel/storage.py tests/test_issue_5403_toctou_mkdir_race.py",
     "uv run pytest tests/ -v"
-  ]
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5411",
+  "pr_number": 5411
 }
