@@ -1,0 +1,27 @@
+{
+  "issue_number": 5444,
+  "candidate_number": 3,
+  "run_id": "22322162737",
+  "status": "implemented",
+  "summary": "Added validation in Todo.__post_init__ to reject empty or whitespace-only text strings during construction",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_minimal_framework.py"
+    ]
+  },
+  "tests_run": [
+    "tests/test_minimal_framework.py::test_todo_constructor_rejects_empty_string",
+    "tests/test_minimal_framework.py::test_todo_constructor_rejects_whitespace_only",
+    "tests/test_minimal_framework.py::test_todo_constructor_accepts_valid_text",
+    "tests/test_minimal_framework.py::test_storage_roundtrip"
+  ],
+  "tests_passed": 115,
+  "risks": [
+    "Existing code that creates Todo objects with whitespace in text will have that whitespace stripped automatically",
+    "from_dict() now also validates and strips text, which could affect JSON loading of existing data"
+  ],
+  "mitigation": "Whitespace stripping is consistent with rename() method behavior"
+}
