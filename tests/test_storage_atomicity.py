@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +229,103 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+class TestBackupBeforeOverwrite:
+    """Tests for automatic backup before overwrite feature.
+
+    This test suite verifies that TodoStorage.save() creates a backup
+    file (.bak) before overwriting an existing file, providing a
+    recovery path for accidentally deleted/overwritten data.
+    """
+
+    def test_save_creates_backup_when_file_exists(self, tmp_path) -> None:
+        """Test that save creates .bak file containing previous content."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+        backup_path = tmp_path / "todo.json.bak"
+
+        # First save - creates the file, no backup needed
+        first_todos = [Todo(id=1, text="first save")]
+        storage.save(first_todos)
+
+        # No backup should exist after first save
+        assert not backup_path.exists(), "Backup should not exist after first save"
+
+        # Second save - should create backup
+        second_todos = [Todo(id=1, text="second save"), Todo(id=2, text="more data")]
+        storage.save(second_todos)
+
+        # Backup should now exist
+        assert backup_path.exists(), "Backup should exist after overwrite"
+
+        # Backup should contain first save's content
+        backup_content = json.loads(backup_path.read_text(encoding="utf-8"))
+        assert len(backup_content) == 1
+        assert backup_content[0]["text"] == "first save"
+
+        # Current file should contain second save's content
+        current_content = json.loads(db.read_text(encoding="utf-8"))
+        assert len(current_content) == 2
+        assert current_content[0]["text"] == "second save"
+
+    def test_save_on_new_file_does_not_create_backup(self, tmp_path) -> None:
+        """Test that saving a new file does not create a backup."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+        backup_path = tmp_path / "todo.json.bak"
+
+        # Save to non-existent file
+        todos = [Todo(id=1, text="initial")]
+        storage.save(todos)
+
+        # No backup should be created
+        assert not backup_path.exists()
+
+    def test_backup_retains_permissions(self, tmp_path) -> None:
+        """Test that backup file has same permissions as original."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+        backup_path = tmp_path / "todo.json.bak"
+
+        # Create initial file
+        storage.save([Todo(id=1, text="initial")])
+
+        # Get original permissions
+        original_mode = db.stat().st_mode
+
+        # Save again to create backup
+        storage.save([Todo(id=1, text="updated")])
+
+        # Backup should have same permissions
+        assert backup_path.exists()
+        backup_mode = backup_path.stat().st_mode
+        assert backup_mode == original_mode
+
+    def test_multiple_saves_keep_only_one_backup(self, tmp_path) -> None:
+        """Test that backup rotation keeps only 1 backup file (no .1, .2 etc)."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # First save
+        storage.save([Todo(id=1, text="first")])
+
+        # Second save - creates backup
+        storage.save([Todo(id=1, text="second")])
+
+        # Third save - should replace backup, not create .1, .2
+        storage.save([Todo(id=1, text="third")])
+
+        # Fourth save
+        storage.save([Todo(id=1, text="fourth")])
+
+        # Only one backup file should exist (no rotation files)
+        backup_files = list(tmp_path.glob("todo.json.bak*"))
+        assert len(backup_files) == 1, (
+            f"Expected exactly 1 backup file, got {len(backup_files)}: {backup_files}"
+        )
+
+        # Backup should contain third save's content (from fourth save)
+        backup_path = tmp_path / "todo.json.bak"
+        backup_content = json.loads(backup_path.read_text(encoding="utf-8"))
+        assert backup_content[0]["text"] == "third"
