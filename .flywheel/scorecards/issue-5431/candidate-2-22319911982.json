@@ -1,0 +1,36 @@
+{
+  "issue_number": 5431,
+  "candidate_number": 2,
+  "run_id": "22319911982",
+  "branch_name": "claude/issue-5431-candidate-2-22319911982",
+  "scorecard_version": "1.0",
+  "evaluation": {
+    "test_coverage": {
+      "score": 10,
+      "notes": "Added 4 regression tests covering: concurrent mkdir race, concurrent save race, file-as-directory detection, normal directory creation"
+    },
+    "minimal_scope": {
+      "score": 10,
+      "notes": "Minimal change - only modified the mkdir call in _ensure_parent_directory to use exist_ok=True with proper error handling"
+    },
+    "security_preserved": {
+      "score": 10,
+      "notes": "File-as-directory detection still works - catches FileExistsError and checks if path is actually a file"
+    },
+    "code_quality": {
+      "score": 10,
+      "notes": "Clear comments explaining TOCTOU fix, proper exception handling"
+    },
+    "backward_compatibility": {
+      "score": 10,
+      "notes": "All existing tests pass (116 tests)"
+    }
+  },
+  "total_score": 50,
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_5431_toctou_race_mkdir.py"
+  ],
+  "tests_passed": 116,
+  "ruff_check": "All checks passed"
+}
