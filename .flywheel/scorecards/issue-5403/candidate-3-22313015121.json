@@ -5,6 +5,7 @@
   "run_id": "22313015121",
   "branch_name": "claude/issue-5403-candidate-3-22313015121",
   "created_at": "2026-02-23T16:39:00Z",
+  "verified_at": "2026-02-23T16:45:00Z",
   "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir()",
   "files_changed": [
     "src/flywheel/storage.py",
@@ -12,5 +13,11 @@
   ],
   "tests_added": 3,
   "tests_passed": true,
-  "lint_passed": true
+  "lint_passed": true,
+  "all_tests_passed": 115,
+  "verification_commands": [
+    "uv run pytest tests/test_issue_5403_toctou_mkdir_race.py -v",
+    "uv run ruff check src/flywheel/storage.py tests/test_issue_5403_toctou_mkdir_race.py",
+    "uv run pytest tests/ -v"
+  ]
 }
