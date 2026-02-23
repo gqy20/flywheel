@@ -116,6 +116,44 @@ def test_storage_load_accepts_normal_sized_json(tmp_path) -> None:
     assert loaded[0].text == "normal todo"
 
 
+def test_storage_save_rejects_oversized_payload(tmp_path) -> None:
+    """Security: save() should reject payloads that would exceed 10MB limit.
+
+    This ensures DoS protection works for both read (load) and write (save).
+    The size check should happen before expensive serialization/writing.
+    """
+    db = tmp_path / "large.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos that would produce JSON larger than 10MB
+    # Each todo has ~200 chars of text, so ~50000 todos = ~10MB
+    large_todos = [
+        Todo(id=i, text="x" * 200)
+        for i in range(50000)  # Will produce ~10MB+ of JSON
+    ]
+
+    # Should raise ValueError for oversized payload
+    try:
+        storage.save(large_todos)
+        raise AssertionError("Expected ValueError for oversized payload")
+    except ValueError as e:
+        assert "too large" in str(e).lower() or "size" in str(e).lower()
+
+
+def test_storage_save_accepts_normal_sized_payload(tmp_path) -> None:
+    """Verify normal-sized payloads are still accepted by save()."""
+    db = tmp_path / "normal.json"
+    storage = TodoStorage(str(db))
+
+    # Create a normal small set of todos
+    todos = [Todo(id=i, text=f"todo {i}") for i in range(100)]
+
+    # Should save and load successfully
+    storage.save(todos)
+    loaded = storage.load()
+    assert len(loaded) == 100
+
+
 def test_todo_rename_rejects_empty_string() -> None:
     """Bug #2085: Todo.rename() should reject empty strings after strip."""
     todo = Todo(id=1, text="original")
