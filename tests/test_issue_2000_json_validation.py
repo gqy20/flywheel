@@ -119,3 +119,54 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5352 - validate JSON array elements are dicts
+def test_storage_load_rejects_int_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON arrays containing non-dict elements like ints.
+
+    Issue #5352: When JSON array contains [1, 2, 3], should raise clear ValueError
+    instead of confusing TypeError.
+    """
+    db = tmp_path / "int_array.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array with integer elements instead of dicts
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise ValueError with clear message about element index and expected type
+    with pytest.raises(ValueError, match=r"element.*index|index.*0|expected.*dict|must be a dict"):
+        storage.load()
+
+
+def test_storage_load_rejects_string_array_elements(tmp_path) -> None:
+    """TodoStorage.load should reject JSON arrays containing non-dict elements like strings.
+
+    Issue #5352: When JSON array contains ["string"], should raise clear ValueError
+    instead of confusing TypeError.
+    """
+    db = tmp_path / "string_array.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array with string elements instead of dicts
+    db.write_text('["not a dict", "also not a dict"]', encoding="utf-8")
+
+    # Should raise ValueError with clear message about element index and expected type
+    with pytest.raises(ValueError, match=r"element.*index|index.*0|expected.*dict|must be a dict"):
+        storage.load()
+
+
+def test_storage_load_rejects_mixed_array_with_non_dict(tmp_path) -> None:
+    """TodoStorage.load should reject JSON arrays where some elements are not dicts.
+
+    Issue #5352: Should report the specific index of the invalid element.
+    """
+    db = tmp_path / "mixed_array.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array with mixed valid/invalid elements
+    db.write_text('[{"id": 1, "text": "valid"}, 42]', encoding="utf-8")
+
+    # Should raise ValueError pointing to index 1
+    with pytest.raises(ValueError, match=r"index.*1|element.*1"):
+        storage.load()
