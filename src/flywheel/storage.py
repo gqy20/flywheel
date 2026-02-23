@@ -71,7 +71,9 @@ class TodoStorage:
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
             logger.warning(
                 "JSON file too large: %s (%.1fMB > %.0fMB limit)",
-                self.path, size_mb, limit_mb,
+                self.path,
+                size_mb,
+                limit_mb,
             )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
@@ -83,11 +85,13 @@ class TodoStorage:
         except json.JSONDecodeError as e:
             logger.error(
                 "JSON parse error in %s: %s at line %d, column %d",
-                self.path, e.msg, e.lineno, e.colno,
+                self.path,
+                e.msg,
+                e.lineno,
+                e.colno,
             )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):

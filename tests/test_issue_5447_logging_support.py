@@ -68,8 +68,9 @@ class TestLoadLogging:
         assert result == []
         debug_messages = log_capture.get_messages_by_level_name("DEBUG")
         # Should log that file doesn't exist
-        assert any("not exist" in msg.lower() or "no file" in msg.lower()
-                   for msg in debug_messages), f"Expected DEBUG log about missing file, got: {debug_messages}"
+        assert any(
+            "not exist" in msg.lower() or "no file" in msg.lower() for msg in debug_messages
+        ), f"Expected DEBUG log about missing file, got: {debug_messages}"
 
     def test_load_success_logs_debug(self, tmp_path, log_capture):
         """Test that load() logs DEBUG on successful load."""
@@ -82,8 +83,9 @@ class TestLoadLogging:
         assert len(result) == 1
         debug_messages = log_capture.get_messages_by_level_name("DEBUG")
         # Should log successful load
-        assert any("load" in msg.lower() for msg in debug_messages), \
+        assert any("load" in msg.lower() for msg in debug_messages), (
             f"Expected DEBUG log about load, got: {debug_messages}"
+        )
 
     def test_load_json_parse_error_logs_error(self, tmp_path, log_capture):
         """Test that load() logs ERROR when JSON parsing fails."""
@@ -96,8 +98,9 @@ class TestLoadLogging:
 
         error_messages = log_capture.get_messages_by_level_name("ERROR")
         # Should log JSON parse error
-        assert any("json" in msg.lower() or "parse" in msg.lower()
-                   for msg in error_messages), f"Expected ERROR log about JSON, got: {error_messages}"
+        assert any("json" in msg.lower() or "parse" in msg.lower() for msg in error_messages), (
+            f"Expected ERROR log about JSON, got: {error_messages}"
+        )
 
     def test_load_file_too_large_logs_warning(self, tmp_path, log_capture):
         """Test that load() logs WARNING when file is too large."""
@@ -112,8 +115,9 @@ class TestLoadLogging:
 
         # Should log warning about file size
         warning_or_error = log_capture.get_messages_by_level_name("WARNING")
-        assert any("large" in msg.lower() or "size" in msg.lower()
-                   for msg in warning_or_error), f"Expected WARNING log about size, got: {warning_or_error}"
+        assert any("large" in msg.lower() or "size" in msg.lower() for msg in warning_or_error), (
+            f"Expected WARNING log about size, got: {warning_or_error}"
+        )
 
 
 class TestSaveLogging:
@@ -129,8 +133,9 @@ class TestSaveLogging:
 
         info_messages = log_capture.get_messages_by_level_name("INFO")
         # Should log successful save with file path
-        assert any("save" in msg.lower() for msg in info_messages), \
+        assert any("save" in msg.lower() for msg in info_messages), (
             f"Expected INFO log about save, got: {info_messages}"
+        )
 
     def test_save_logs_debug_for_temp_file_creation(self, tmp_path, log_capture):
         """Test that save() logs DEBUG when creating temp file."""
@@ -142,8 +147,9 @@ class TestSaveLogging:
 
         debug_messages = log_capture.get_messages_by_level_name("DEBUG")
         # Should log about temp file creation
-        assert any("temp" in msg.lower() for msg in debug_messages), \
+        assert any("temp" in msg.lower() for msg in debug_messages), (
             f"Expected DEBUG log about temp file, got: {debug_messages}"
+        )
 
     def test_save_logs_error_on_write_failure(self, tmp_path, log_capture):
         """Test that save() logs ERROR when write fails during temp file operations."""
@@ -167,5 +173,6 @@ class TestSaveLogging:
 
         error_messages = log_capture.get_messages_by_level_name("ERROR")
         # Should log write failure
-        assert any("save" in msg.lower() or "failed" in msg.lower()
-                   for msg in error_messages), f"Expected ERROR log about save failure, got: {error_messages}"
+        assert any("save" in msg.lower() or "failed" in msg.lower() for msg in error_messages), (
+            f"Expected ERROR log about save failure, got: {error_messages}"
+        )
