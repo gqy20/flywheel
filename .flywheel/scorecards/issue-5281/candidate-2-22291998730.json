@@ -18,5 +18,6 @@
     "ruff_check": "All checks passed",
     "ruff_format": "All files formatted",
     "full_suite": "117/117 passed"
-  }
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5303"
 }
