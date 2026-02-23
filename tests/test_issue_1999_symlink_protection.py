@@ -192,6 +192,58 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
     # The important thing is that the file content is valid and complete
 
 
+def test_load_raises_error_when_path_is_symlink(tmp_path) -> None:
+    """Issue #5337: load() should raise ValueError when path is a symlink.
+
+    Security: An attacker could create a symlink at the expected database path
+    pointing to a sensitive file, causing the application to read and potentially
+    expose its contents through error messages or other channels.
+
+    Before fix: load() follows symlink and reads attacker-controlled file
+    After fix: load() raises ValueError with clear security message
+    """
+    # Create a target file that attacker wants us to read
+    attack_target = tmp_path / "sensitive_data.txt"
+    attack_target.write_text('{"secret": "password123"}')
+
+    # Create a symlink at the db path pointing to the attack target
+    db_symlink = tmp_path / "todo.json"
+    db_symlink.symlink_to(attack_target)
+
+    storage = TodoStorage(str(db_symlink))
+
+    # Should raise ValueError when path is a symlink
+    try:
+        storage.load()
+        raise AssertionError("Expected ValueError for symlink path")
+    except ValueError as e:
+        error_msg = str(e)
+        assert "symlink" in error_msg.lower(), f"Error message should mention symlink: {error_msg}"
+        assert "security" in error_msg.lower(), f"Error message should mention security: {error_msg}"
+
+
+def test_load_works_normally_for_regular_files(tmp_path) -> None:
+    """Issue #5337: Verify load() still works for regular files after fix."""
+    db = tmp_path / "todo.json"
+    db.write_text('[{"id": 1, "text": "test todo", "done": false}]')
+
+    storage = TodoStorage(str(db))
+    todos = storage.load()
+
+    assert len(todos) == 1
+    assert todos[0].text == "test todo"
+    assert todos[0].done is False
+
+
+def test_load_returns_empty_list_for_nonexistent_path(tmp_path) -> None:
+    """Issue #5337: Verify load() returns [] for non-existent paths (no regression)."""
+    db = tmp_path / "nonexistent.json"
+    storage = TodoStorage(str(db))
+
+    todos = storage.load()
+    assert todos == []
+
+
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
     """Issue #1999: Temp file should be cleaned up if save fails."""
     db = tmp_path / "todo.json"
