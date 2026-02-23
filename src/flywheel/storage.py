@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock file suffix for concurrent access protection
+_LOCK_SUFFIX = ".lock"
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +59,26 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + _LOCK_SUFFIX)
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> None:
+        """Acquire exclusive file lock for operations requiring atomicity.
+
+        Uses fcntl.flock for cross-process mutual exclusion.
+        Creates lock file if it doesn't exist.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +150,22 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a todo atomically with proper locking to prevent ID collisions.
+
+        This method acquires an exclusive lock before loading, computing the ID,
+        and saving, ensuring no race conditions can cause duplicate IDs.
+
+        Args:
+            text: The todo text.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        with self._exclusive_lock():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
