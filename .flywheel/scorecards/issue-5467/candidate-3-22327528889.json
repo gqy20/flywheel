@@ -1,0 +1,27 @@
+{
+  "issue_number": 5467,
+  "candidate_id": 3,
+  "run_id": "22327528889",
+  "branch": "claude/issue-5467-candidate-3-22327528889",
+  "approach": "file-locking",
+  "summary": "Fix race condition in next_id() by adding exclusive file locking using fcntl.flock to serialize concurrent add() operations across processes",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_concurrent_add_race.py"
+    ]
+  },
+  "test_results": {
+    "total_tests": 114,
+    "passed": 114,
+    "failed": 0
+  },
+  "lint_results": {
+    "status": "passed"
+  },
+  "risk_assessment": "Low risk - uses standard POSIX file locking mechanism. Lock file (.todo.json.lock) is created alongside the database file.",
+  "limitations": "fcntl.flock is Unix-only. Windows support would require a different mechanism (e.g., portalocker or msvcrt.locking)."
+}
