@@ -6,7 +6,10 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -53,8 +56,90 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, use_locking: bool = True) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to ".todo.json".
+            use_locking: Whether to use file locking for concurrent access.
+                         Defaults to True for safe multi-process writes.
+        """
         self.path = Path(path or ".todo.json")
+        self.use_locking = use_locking
+
+    @contextmanager
+    def _acquire_lock(self) -> Generator[None]:
+        """Acquire an exclusive file lock for safe concurrent writes.
+
+        Uses platform-specific locking:
+        - Unix: fcntl.flock with LOCK_EX (exclusive lock)
+        - Windows: msvcrt.locking with LK_NBLCK (non-blocking exclusive lock)
+
+        The lock is automatically released when exiting the context.
+        """
+        if not self.use_locking:
+            yield
+            return
+
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        lock_file_path = self.path.with_suffix(self.path.suffix + ".lock")
+        lock_fd = None
+
+        try:
+            # Open/create lock file
+            lock_fd = os.open(
+                str(lock_file_path),
+                os.O_CREAT | os.O_RDWR,
+                stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+            )
+
+            if sys.platform == "win32":
+                # Windows: use msvcrt.locking
+                import msvcrt
+
+                # Try to acquire lock (blocking)
+                # msvcrt.locking doesn't have a blocking mode, so we poll
+                max_attempts = 100
+                for _ in range(max_attempts):
+                    try:
+                        msvcrt.locking(lock_fd, msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError:
+                        # Lock is held by another process, wait and retry
+                        import time
+
+                        time.sleep(0.01)
+                else:
+                    # Failed to acquire lock after max attempts
+                    raise OSError(f"Could not acquire lock on {lock_file_path}")
+            else:
+                # Unix: use fcntl.flock
+                import fcntl
+
+                fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+            yield
+
+        finally:
+            # Release lock and close file
+            if lock_fd is not None:
+                try:
+                    if sys.platform == "win32":
+                        import msvcrt
+
+                        msvcrt.locking(lock_fd, msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+
+                        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                finally:
+                    os.close(lock_fd)
+
+                    # Clean up lock file (best effort)
+                    with contextlib.suppress(OSError):
+                        os.unlink(lock_file_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -83,46 +168,50 @@ class TodoStorage:
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+        """Save todos to file atomically with optional file locking.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        When use_locking=True (default), uses file locking to serialize
+        concurrent writes from multiple processes.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
-        # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
+        with self._acquire_lock():
+            # Ensure parent directory exists (lazy creation, validated)
+            _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
+            payload = [todo.to_dict() for todo in todos]
+            content = json.dumps(payload, ensure_ascii=False, indent=2)
 
-        # Create temp file in same directory as target for atomic rename
-        # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=f".{self.path.name}.",
-            suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
-        )
+            # Create temp file in same directory as target for atomic rename
+            # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                text=False,  # We'll write binary data to control encoding
+            )
 
-        try:
-            # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            try:
+                # Set restrictive permissions (owner read/write only)
+                # This protects against other users reading temp file before rename
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
-            # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+                # Write content with proper encoding
+                # Use os.write instead of Path.write_text for more control
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
 
-            # Atomic rename (os.replace is atomic on both Unix and Windows)
-            os.replace(temp_path, self.path)
-        except OSError:
-            # Clean up temp file on error
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
-            raise
+                # Atomic rename (os.replace is atomic on both Unix and Windows)
+                os.replace(temp_path, self.path)
+            except OSError:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+                raise
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
