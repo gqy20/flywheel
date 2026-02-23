@@ -1,0 +1,15 @@
+{
+  "issue_number": 5281,
+  "candidate_number": 1,
+  "run_id": "22291998730",
+  "branch": "claude/issue-5281-candidate-1-22291998730",
+  "status": "implemented",
+  "tests_added": [
+    "tests/test_issue_5281_list_item_type_validation.py"
+  ],
+  "source_files_changed": [
+    "src/flywheel/storage.py"
+  ],
+  "summary": "Fixed load() to validate that JSON list items are dict objects before passing to Todo.from_dict(). This prevents unclear errors when JSON files contain primitive types.",
+  "risks": "None - validation is defensive and only adds clarity to error messages."
+}
