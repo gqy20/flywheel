@@ -1,0 +1,44 @@
+{
+  "issue_number": 5391,
+  "issue_title": "[Feature] Add file lock mechanism for safe concurrent multi-process writes",
+  "candidate_number": 3,
+  "run_id": "22313015121",
+  "branch": "claude/issue-5391-candidate-3-22313015121",
+  "created_at": "2026-02-23T15:21:00Z",
+  "implementation_summary": {
+    "approach": "Added optional file locking via use_locking constructor parameter with cross-platform support (fcntl on Unix, msvcrt on Windows)",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_file_locking.py"
+    ],
+    "key_changes": [
+      "Added use_locking parameter to TodoStorage.__init__ (default False for backward compatibility)",
+      "Implemented _acquire_lock() context manager using fcntl.flock (Unix) or msvcrt.locking (Windows)",
+      "Wrapped save() operation with file lock when use_locking=True",
+      "Added comprehensive test suite for file locking feature"
+    ]
+  },
+  "tests": {
+    "new_tests": [
+      "test_use_locking_parameter_exists",
+      "test_lock_released_after_exception_during_write",
+      "test_backward_compatibility_without_locking",
+      "test_concurrent_saves_with_locking_are_serialized",
+      "test_locking_works_on_current_platform",
+      "test_locking_context_manager_exists"
+    ],
+    "tests_passed": 12,
+    "existing_tests_passed": true
+  },
+  "acceptance_criteria": {
+    "serialized_concurrent_writes": true,
+    "lock_released_on_exception": true,
+    "backward_compatibility": true,
+    "cross_platform_support": true
+  },
+  "risks_and_limitations": [
+    "File locking is advisory on Unix - only protects against other processes using the same locking mechanism",
+    "Lock file (.json.lock) is created alongside the data file - may need cleanup in some scenarios",
+    "Windows msvcrt.locking with LK_LOCK blocks indefinitely - could hang if lock is never released"
+  ]
+}
