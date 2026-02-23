@@ -151,6 +151,134 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_concurrent_directory_creation_no_file_exists_error(tmp_path) -> None:
+    """Regression test for issue #5432: TOCTOU race in _ensure_parent_directory.
+
+    Tests that save() does not raise FileExistsError when parent directory
+    is created concurrently between the exists() check and mkdir() call.
+
+    The bug: exist_ok=False in mkdir() causes FileExistsError if another
+    process creates the directory after our exists() check returns False.
+    The fix: use exist_ok=True since we already validated no parent is a file.
+    """
+    import threading
+
+    db = tmp_path / "subdir" / "todo.json"
+    barrier = threading.Barrier(3)  # Synchronize threads
+    errors = []
+    success_count = 0
+    lock = threading.Lock()
+
+    def save_concurrently(thread_id: int) -> None:
+        """Each thread tries to save to the same new location."""
+        nonlocal success_count
+        try:
+            storage = TodoStorage(str(db))
+            barrier.wait()  # Synchronize all threads to start simultaneously
+            todos = [Todo(id=thread_id, text=f"thread-{thread_id}")]
+            storage.save(todos)
+            with lock:
+                success_count += 1
+        except FileExistsError as e:
+            errors.append((thread_id, f"FileExistsError: {e}"))
+        except Exception as e:
+            errors.append((thread_id, f"{type(e).__name__}: {e}"))
+
+    # Start multiple threads that will all try to create the same parent directory
+    threads = [threading.Thread(target=save_concurrently, args=(i,)) for i in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # No thread should encounter FileExistsError from the TOCTOU race
+    file_exists_errors = [e for e in errors if "FileExistsError" in e[1]]
+    assert len(file_exists_errors) == 0, (
+        f"TOCTOU race caused FileExistsError in {len(file_exists_errors)} threads: "
+        f"{file_exists_errors}"
+    )
+
+    # At least one thread should have succeeded
+    assert success_count >= 1, f"Expected at least 1 success, got {success_count}. Errors: {errors}"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db))
+    loaded = storage.load()
+    assert isinstance(loaded, list)
+    assert len(loaded) >= 1
+
+
+def test_mkdir_with_exist_ok_true_handles_concurrent_creation(tmp_path) -> None:
+    """Direct test for issue #5432: mkdir should use exist_ok=True.
+
+    Simulates TOCTOU race where directory is created between exists() check and mkdir().
+    With exist_ok=False, this would raise FileExistsError.
+    With exist_ok=True, the operation succeeds.
+
+    This test verifies the fix by ensuring _ensure_parent_directory handles
+    the case where the directory appears during the exists() -> mkdir() window.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a unique subdirectory path that doesn't exist yet
+    db_path = tmp_path / "race_test" / "todo.json"
+    parent = db_path.parent
+
+    # Verify parent doesn't exist initially
+    assert not parent.exists()
+
+    # Track calls to exists() for the parent directory
+    original_exists = Path.exists
+    exists_call_count = 0
+    exists_called_for_parent = False
+
+    def exists_with_race_detection(self):
+        nonlocal exists_call_count, exists_called_for_parent
+        result = original_exists(self)
+        if self == parent:
+            exists_call_count += 1
+            exists_called_for_parent = True
+            # On the last exists check for parent (before mkdir), simulate race
+            # First call is in the loop checking file-as-directory
+            # Second call is the "if not parent.exists()" check
+            # We want to intercept the second call to simulate the race
+            if exists_call_count == 2:
+                # Simulate TOCTOU race: directory is created by another process
+                # between our check and our mkdir call
+                parent.mkdir(parents=True)  # Another process creates it
+                return False  # But we say it doesn't exist (race window)
+        return result
+
+    with patch.object(Path, "exists", exists_with_race_detection):
+        # This should NOT raise FileExistsError with exist_ok=True
+        # Without the fix (exist_ok=False), this would raise:
+        # FileExistsError: [Errno 17] File exists: '...race_test'
+        _ensure_parent_directory(db_path)
+
+    # Verify the test actually exercised the race condition path
+    assert exists_called_for_parent, "Test did not trigger the expected code path"
+    assert exists_call_count == 2, f"Expected 2 exists calls for parent, got {exists_call_count}"
+
+    # Verify directory exists
+    assert parent.is_dir()
+
+
+def test_ensure_parent_rejects_file_as_parent(tmp_path) -> None:
+    """Test that _ensure_parent_directory still raises ValueError for file-as-directory."""
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a file where we need a directory
+    file_path = tmp_path / "file.json"
+    file_path.write_text("not a directory")
+
+    # Try to use a path that requires file.json to be a directory
+    invalid_path = file_path / "subdir" / "db.json"
+
+    # Should raise ValueError, not silently succeed
+    with pytest.raises(ValueError, match="exists as a file, not a directory"):
+        _ensure_parent_directory(invalid_path)
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
