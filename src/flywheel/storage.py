@@ -60,6 +60,15 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Reject symlinks to prevent symlink attacks
+        # An attacker who can replace the db file with a symlink could read
+        # arbitrary files or cause the application to process attacker-controlled data
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Security error: '{self.path}' is a symlink. "
+                "Symlinks are not allowed for the database file to prevent symlink attacks."
+            )
+
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
@@ -74,8 +83,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):

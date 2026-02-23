@@ -12,6 +12,8 @@ import os
 import stat
 from pathlib import Path
 
+import pytest
+
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -90,6 +92,7 @@ def test_temp_file_has_restrictive_permissions(tmp_path) -> None:
 
     # Patch to track permissions
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -130,6 +133,7 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -142,7 +146,9 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
 
     # All temp file names should be different (unpredictable/random component)
     assert len(temp_file_names) == 3, "Should have created 3 temp files"
-    assert len(set(temp_file_names)) == 3, f"Temp file names should be unique, got: {temp_file_names}"
+    assert len(set(temp_file_names)) == 3, (
+        f"Temp file names should be unique, got: {temp_file_names}"
+    )
 
     # Names should not be the simple predictable pattern
     for name in temp_file_names:
@@ -192,6 +198,76 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
     # The important thing is that the file content is valid and complete
 
 
+def test_load_rejects_symlink_pointing_outside_db_directory(tmp_path) -> None:
+    """Issue #5310: load() should detect and reject symlinks pointing outside db location.
+
+    Security: If an attacker can replace the db file with a symlink to an arbitrary
+    file (e.g., a valid JSON file containing sensitive data), load() should detect
+    and reject it rather than following the symlink and exposing the data.
+
+    Before fix: load() follows symlinks and reads from arbitrary files
+    After fix: load() should raise ValueError when db path is a symlink
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a sensitive file outside the db directory with valid JSON
+    # This demonstrates that an attacker could expose arbitrary JSON data
+    sensitive_dir = tmp_path / "sensitive"
+    sensitive_dir.mkdir()
+    sensitive_file = sensitive_dir / "secret.json"
+    # Using valid JSON so the vulnerability is clearly demonstrated
+    sensitive_file.write_text('[{"id": 999, "text": "stolen sensitive data", "done": false}]')
+
+    # Create a symlink from db path to the sensitive file
+    # This simulates an attacker replacing the db file with a symlink
+    os.symlink(sensitive_file, db)
+
+    # Attempting to load should raise a security error, not follow the symlink
+    # Before fix: load() returns the sensitive data
+    # After fix: load() raises ValueError about symlink
+    with pytest.raises(ValueError, match="symlink"):
+        storage.load()
+
+
+def test_load_rejects_symlink_pointing_to_sibling_file(tmp_path) -> None:
+    """Issue #5310: load() should reject symlinks even to files in same directory.
+
+    Security: Even if the symlink target is in the same directory, following
+    symlinks is a security risk as it could point to any file.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a sibling file with valid JSON
+    sibling_file = tmp_path / "other_data.json"
+    sibling_file.write_text('[{"id": 1, "text": "data from sibling", "done": true}]')
+
+    # Create a symlink from db path to the sibling file
+    os.symlink(sibling_file, db)
+
+    # Attempting to load should raise a security error
+    with pytest.raises(ValueError, match="symlink"):
+        storage.load()
+
+
+def test_load_works_with_regular_file_after_symlink_protection(tmp_path) -> None:
+    """Issue #5310: Regular file load should still work after symlink protection."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a valid todo file
+    todos = [Todo(id=1, text="test todo"), Todo(id=2, text="another todo", done=True)]
+    storage.save(todos)
+
+    # Load should work correctly
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "test todo"
+    assert loaded[1].text == "another todo"
+    assert loaded[1].done is True
+
+
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
     """Issue #1999: Temp file should be cleaned up if save fails."""
     db = tmp_path / "todo.json"
@@ -208,6 +284,7 @@ def test_temp_file_cleanup_on_error(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -223,4 +300,6 @@ def test_temp_file_cleanup_on_error(tmp_path) -> None:
         if temp_file.name.startswith(".todo.json") and temp_file.name.endswith(".tmp"):
             # Temp files should either be renamed or deleted
             # They should not exist as separate temp files
-            assert not temp_file.exists() or temp_file == db, f"Temp file not cleaned up: {temp_file}"
+            assert not temp_file.exists() or temp_file == db, (
+                f"Temp file not cleaned up: {temp_file}"
+            )
