@@ -151,6 +151,75 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_load_handles_toctou_race_condition_file_deleted_after_exists(tmp_path) -> None:
+    """Regression test for issue #5404: TOCTOU race condition in load().
+
+    The load() method previously checked file existence with exists() before
+    calling stat(). If the file was deleted between these calls, stat() would
+    raise FileNotFoundError instead of gracefully returning [].
+
+    This test verifies that load() handles the race condition atomically
+    by catching FileNotFoundError and returning [].
+    """
+    db = tmp_path / "race_test.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with valid content
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Simulate TOCTOU race: exists() returns True, but stat() raises FileNotFoundError
+    original_path_class = type(db)
+    call_count = [0]  # Use list to track state in closure
+
+    def mock_exists(self):
+        call_count[0] += 1
+        # First call (from exists check) returns True
+        if call_count[0] == 1:
+            return True
+        # Subsequent calls use real behavior
+        return original_path_class.exists(self)
+
+    def mock_stat(self):
+        # Simulate file being deleted between exists() and stat()
+        raise FileNotFoundError("File deleted after exists() check")
+
+    with (
+        patch.object(Path, "exists", mock_exists),
+        patch.object(Path, "stat", mock_stat),
+    ):
+        # load() should handle FileNotFoundError gracefully, not propagate it
+        result = storage.load()
+
+    # Should return empty list instead of raising FileNotFoundError
+    assert result == []
+
+
+def test_load_handles_toctou_race_condition_file_deleted_before_read(tmp_path) -> None:
+    """Regression test for issue #5404: TOCTOU race in read_text after stat.
+
+    Even after stat() succeeds, the file could be deleted before read_text().
+    This test verifies load() handles that case gracefully.
+    """
+    db = tmp_path / "race_test2.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file with valid content
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Simulate file being deleted after stat() but before read_text()
+    def mock_read_text(self, *args, **kwargs):
+        raise FileNotFoundError("File deleted after stat()")
+
+    with patch.object(Path, "read_text", mock_read_text):
+        # load() should handle FileNotFoundError gracefully
+        result = storage.load()
+
+    # Should return empty list instead of raising FileNotFoundError
+    assert result == []
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
