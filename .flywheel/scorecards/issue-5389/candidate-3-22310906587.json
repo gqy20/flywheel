@@ -2,12 +2,30 @@
   "issue_number": 5389,
   "candidate_number": 3,
   "run_id": "22310906587",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "status": "completed",
   "created_at": "2026-02-23T15:30:00Z",
-  "updated_at": "2026-02-23T15:45:00Z",
+  "updated_at": "2026-02-23T16:00:00Z",
   "test_file": "tests/test_issue_5389_path_is_directory.py",
   "source_file": "src/flywheel/storage.py",
   "tests_passed": 115,
-  "summary": "Fixed _ensure_parent_directory to check if target path is a directory"
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_5389_path_is_directory.py -v",
+      "result": "3 passed"
+    },
+    "pytest_related": {
+      "command": "uv run pytest tests/test_issue_1894_security_mkdir_fix.py -v",
+      "result": "6 passed"
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ -v",
+      "result": "115 passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5389_path_is_directory.py",
+      "result": "All checks passed!"
+    }
+  },
+  "summary": "Fixed _ensure_parent_directory to check if target path is a directory before attempting operations"
 }
