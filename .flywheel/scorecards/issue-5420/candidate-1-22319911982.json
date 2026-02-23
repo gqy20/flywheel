@@ -1,0 +1,25 @@
+{
+  "issue_number": 5420,
+  "issue_title": "[Feature] 添加 exists() 方法检查存储文件是否存在",
+  "candidate_number": 1,
+  "run_id": "22319911982",
+  "branch": "claude/issue-5420-candidate-1-22319911982",
+  "created_at": "2026-02-23T17:36:00Z",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5420_storage_exists.py"
+    ],
+    "summary": "Added exists() method to TodoStorage class that returns self.path.exists()",
+    "tests_added": 4,
+    "tests_passed": 116
+  },
+  "acceptance_criteria": {
+    "returns_bool": true,
+    "returns_true_when_exists": true,
+    "returns_false_when_not_exists": true,
+    "has_type_annotation": true,
+    "has_docstring": true
+  }
+}
