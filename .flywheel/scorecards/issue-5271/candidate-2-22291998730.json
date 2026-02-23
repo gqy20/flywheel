@@ -1,17 +1,23 @@
 {
-  "issue_number": 5271,
-  "issue_title": "[Enhancement] Add __hash__ method for set/dict usage",
-  "candidate_number": 2,
+  "issue": 5271,
+  "candidate": 2,
   "run_id": "22291998730",
   "branch": "claude/issue-5271-candidate-2-22291998730",
-  "status": "implemented",
-  "approach": "Explicitly mark Todo as unhashable by setting __hash__ = None. This is intentional because Todo is a mutable dataclass with methods like mark_done(), rename() that modify state.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_5271_todo_hash.py"
+  "pr_number": 5308,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5308",
+  "generated_at": "2026-02-23T04:26:11.732562+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 4,
-  "tests_passed": true,
-  "ruff_passed": true,
-  "created_at": "2026-02-23T00:00:00Z"
+  "stage_response_sizes": {
+    "triage": 3533,
+    "plan": 2063,
+    "implement": 3829,
+    "verify": 2792,
+    "finalize": 1411
+  }
 }
