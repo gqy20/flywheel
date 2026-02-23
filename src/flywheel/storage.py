@@ -7,9 +7,18 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
+from typing import TypedDict
 
 from .todo import Todo
+
+
+class LoadResult(TypedDict):
+    """Result type for load() with debug=True."""
+
+    todos: list[Todo]
+    load_time_ms: float
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -56,9 +65,25 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, debug: bool = False) -> list[Todo] | LoadResult:
+        """Load todos from storage.
+
+        Args:
+            debug: If True, return a dict with todos and load_time_ms timing info.
+                   If False (default), return just the list of todos.
+
+        Returns:
+            list[Todo] when debug=False (default)
+            LoadResult dict with 'todos' and 'load_time_ms' when debug=True
+        """
+        start_time = time.perf_counter()
+
         if not self.path.exists():
-            return []
+            todos: list[Todo] = []
+            if debug:
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                return LoadResult(todos=todos, load_time_ms=elapsed_ms)
+            return todos
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +105,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if debug:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            return LoadResult(todos=todos, load_time_ms=elapsed_ms)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
