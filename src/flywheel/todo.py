@@ -20,6 +20,10 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    # Explicitly disable hashing since Todo is mutable (has mark_done, rename, etc.)
+    # This prevents accidental use in sets/dicts which could lead to bugs
+    __hash__ = None  # type: ignore[assignment]
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
