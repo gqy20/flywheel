@@ -90,12 +90,24 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Size limit: Rejects writes that would exceed 10MB to prevent DoS attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Security: Check content size before writing to prevent DoS
+        content_size = len(content.encode("utf-8"))
+        if content_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = content_size / (1024 * 1024)
+            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            raise ValueError(
+                f"JSON content too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                f"This protects against denial-of-service attacks."
+            )
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics

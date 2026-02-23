@@ -1,0 +1,19 @@
+{
+  "issue_number": 5269,
+  "issue_title": "[Perf] save() reads entire file content into memory before size check - for very large",
+  "candidate_number": 2,
+  "run_id": "22289258054",
+  "branch": "claude/issue-5269-candidate-2-22289258054",
+  "approach": "Add size check in save() method before writing to file, matching the load() method's DoS protection pattern",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_5269_save_size_check.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "implementation_summary": "Added size check in save() method that calculates the JSON content size in bytes and raises ValueError if it exceeds the 10MB limit, matching the pattern used in load() for consistent DoS protection."
+}
