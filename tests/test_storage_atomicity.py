@@ -151,6 +151,54 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fchmod_failure_closes_file_descriptor(tmp_path) -> None:
+    """Regression test for issue #5351: fd leak when os.fchmod fails.
+
+    When os.fchmod fails, the except block should close the file descriptor
+    to prevent resource leak.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track the fd that was opened
+    opened_fd = None
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        nonlocal opened_fd
+        fd, path = original_mkstemp(*args, **kwargs)
+        opened_fd = fd
+        return fd, path
+
+    import os
+    original_fchmod = os.fchmod
+
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch.object(os, "fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save(todos)
+
+    # Verify the fd was closed by trying to use it
+    # A closed fd should raise OSError (Bad file descriptor)
+    assert opened_fd is not None, "mkstemp should have been called"
+    try:
+        original_fchmod(opened_fd, 0o600)
+        # If we get here, fd wasn't closed - this is the bug
+        raise AssertionError("File descriptor was not closed after fchmod failure")
+    except OSError:
+        # Expected - fd was properly closed
+        pass
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

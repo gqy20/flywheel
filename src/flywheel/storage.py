@@ -122,6 +122,9 @@ class TodoStorage:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            # Close fd to prevent resource leak when error occurs before fdopen
+            with contextlib.suppress(OSError):
+                os.close(fd)
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
