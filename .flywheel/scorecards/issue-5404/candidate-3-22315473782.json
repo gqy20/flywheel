@@ -1,0 +1,26 @@
+{
+  "issue_number": 5404,
+  "issue_title": "[Bug] TOCTOU race condition in load(): file existence check and stat/read are not atom",
+  "candidate_number": 3,
+  "run_id": "22315473782",
+  "branch": "claude/issue-5404-candidate-3-22315473782",
+  "created_at": "2026-02-23T16:45:00Z",
+  "verification": {
+    "pytest": {
+      "command": "uv run pytest tests/test_storage_atomicity.py -v",
+      "result": "passed",
+      "tests_total": 8,
+      "tests_passed": 8,
+      "tests_failed": 0
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+      "result": "passed"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "fix_summary": "Handle TOCTOU race condition in TodoStorage.load() by catching FileNotFoundError around stat() and read_text() operations, eliminating the non-atomic exists() check that could race with file deletion."
+}
