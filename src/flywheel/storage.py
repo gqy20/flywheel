@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
@@ -56,8 +57,22 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
-    def load(self) -> list[Todo]:
+    def load(self, debug: bool = False) -> list[Todo] | dict:
+        """Load todos from storage.
+
+        Args:
+            debug: If True, return a dict with 'todos' and 'load_time_ms' keys.
+                   If False (default), return just the list of todos.
+
+        Returns:
+            When debug=False: list[Todo]
+            When debug=True: dict with 'todos' (list[Todo]) and 'load_time_ms' (float)
+        """
+        start_time = time.perf_counter()
+
         if not self.path.exists():
+            if debug:
+                return {"todos": [], "load_time_ms": 0.0}
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +95,14 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if debug:
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            return {"todos": todos, "load_time_ms": elapsed_ms}
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
