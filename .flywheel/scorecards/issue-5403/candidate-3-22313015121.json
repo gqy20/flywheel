@@ -1,0 +1,16 @@
+{
+  "issue_number": 5403,
+  "issue_title": "[Bug] TOCTOU race condition in _ensure_parent_directory: check-then-mkdir pattern betw",
+  "candidate_number": 3,
+  "run_id": "22313015121",
+  "branch_name": "claude/issue-5403-candidate-3-22313015121",
+  "created_at": "2026-02-23T16:39:00Z",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir()",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_5403_toctou_mkdir_race.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": true,
+  "lint_passed": true
+}
