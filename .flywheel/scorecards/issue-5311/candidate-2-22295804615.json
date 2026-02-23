@@ -3,11 +3,28 @@
   "candidate_number": 2,
   "run_id": "22295804615",
   "branch": "claude/issue-5311-candidate-2-22295804615",
-  "status": "implemented",
+  "status": "verified",
   "summary": "Fixed Unicode Bidi control character sanitization by extending _sanitize_text to handle U+200E-U+200F, U+202A-U+202E, and U+2066-U+2069 ranges",
   "changes": {
     "source_files": ["src/flywheel/formatter.py"],
     "test_files": ["tests/test_issue_5311_bidi_control_sanitization.py"]
+  },
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_5311_bidi_control_sanitization.py -v",
+      "result": "6 passed in 0.05s"
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ -v",
+      "result": "118 passed in 0.47s"
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/formatter.py tests/test_issue_5311_bidi_control_sanitization.py",
+      "result": "All checks passed!"
+    },
+    "coverage": {
+      "formatter.py": "100%"
+    }
   },
   "tests_passed": 118,
   "risks": [
