@@ -1,26 +1,23 @@
 {
-  "issue_number": 5369,
-  "issue_title": "[Enhancement] Add toggle() method to flip done status conveniently",
-  "candidate_number": 3,
+  "issue": 5369,
+  "candidate": 3,
   "run_id": "22306224764",
   "branch": "claude/issue-5369-candidate-3-22306224764",
-  "created_at": "2026-02-23T12:10:00Z",
-  "implementation": {
-    "files_modified": ["src/flywheel/todo.py"],
-    "files_added": ["tests/test_issue_5369_toggle_method.py"],
-    "approach": "Add toggle() method that calls mark_done() if not done, else mark_undone(). Leverages existing methods for consistency.",
-    "lines_changed": 5
-  },
-  "tests": {
-    "total": 4,
-    "passed": 4,
-    "coverage_pct": 54
-  },
-  "lint_status": "passed",
-  "acceptance_criteria": {
-    "toggle_on_undone_sets_done_true": true,
-    "toggle_on_done_sets_done_false": true,
-    "updated_at_changes_after_toggle": true,
-    "method_testable_in_isolation": true
+  "pr_number": 5384,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5384",
+  "generated_at": "2026-02-23T14:16:49.740571+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2066,
+    "plan": 76,
+    "implement": 0,
+    "verify": 870,
+    "finalize": 963
   }
 }
