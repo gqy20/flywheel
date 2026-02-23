@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,93 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+# ============================================================================
+# Tests for load() debug parameter (issue #5314)
+# ============================================================================
+
+
+def test_load_debug_false_returns_list(tmp_path) -> None:
+    """Test that load() with debug=False returns list[Todo] (default behavior)."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create test data
+    todos = [Todo(id=1, text="test todo")]
+    storage.save(todos)
+
+    # Load with debug=False (default)
+    result = storage.load(debug=False)
+
+    # Should return list[Todo]
+    assert isinstance(result, list)
+    assert len(result) == 1
+    assert result[0].text == "test todo"
+
+
+def test_load_debug_true_returns_dict_with_timing(tmp_path) -> None:
+    """Test that load() with debug=True returns dict with todos and load_time_ms."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create test data
+    todos = [Todo(id=1, text="test todo"), Todo(id=2, text="another todo")]
+    storage.save(todos)
+
+    # Load with debug=True
+    result = storage.load(debug=True)
+
+    # Should return dict with 'todos' and 'load_time_ms'
+    assert isinstance(result, dict)
+    assert "todos" in result
+    assert "load_time_ms" in result
+    assert len(result["todos"]) == 2
+    assert result["todos"][0].text == "test todo"
+    assert result["todos"][1].text == "another todo"
+
+
+def test_load_debug_timing_is_positive(tmp_path) -> None:
+    """Test that load_time_ms is a positive number."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create test data
+    storage.save([Todo(id=1, text="test")])
+
+    # Load with debug=True
+    result = storage.load(debug=True)
+
+    # load_time_ms should be a positive float
+    assert isinstance(result["load_time_ms"], (int, float))
+    assert result["load_time_ms"] >= 0
+
+
+def test_load_debug_default_is_false(tmp_path) -> None:
+    """Test that debug defaults to False (backward compatibility)."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    storage.save([Todo(id=1, text="test")])
+
+    # Call load() without arguments - should return list, not dict
+    result = storage.load()
+    assert isinstance(result, list)
+    assert not isinstance(result, dict)
+
+
+def test_load_debug_empty_file(tmp_path) -> None:
+    """Test that debug=True works with empty/non-existent file."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Load from non-existent file
+    result = storage.load(debug=True)
+
+    # Should return empty todos list but still have timing
+    assert result["todos"] == []
+    assert "load_time_ms" in result
+    assert result["load_time_ms"] >= 0
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +307,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
