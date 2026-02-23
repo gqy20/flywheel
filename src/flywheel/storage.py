@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,42 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _lock_file_path(self) -> Path:
+        """Return the path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a new todo atomically with file locking to prevent ID collisions.
+
+        This method uses exclusive file locking to ensure that concurrent
+        add operations do not result in duplicate IDs (fixes issue #5430).
+
+        The lock is acquired before reading existing todos and held until
+        after the new todo is saved, preventing the TOCTOU race condition.
+
+        Args:
+            text: The text content of the new todo.
+
+        Returns:
+            The newly created Todo with a unique ID.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Create lock file if it doesn't exist
+        lock_path = self._lock_file_path()
+        lock_path.touch(exist_ok=True)
+
+        # Open lock file and acquire exclusive lock
+        with open(lock_path, "w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            try:
+                # Critical section: load -> compute ID -> save
+                todos = self.load()
+                todo = Todo(id=self.next_id(todos), text=text)
+                todos.append(todo)
+                self.save(todos)
+                return todo
+            finally:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
