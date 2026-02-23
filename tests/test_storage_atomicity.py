@@ -151,6 +151,38 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_file_permissions_preserved_after_atomic_rename(tmp_path) -> None:
+    """Regression test for issue #5402: File permissions not set on final destination.
+
+    Verifies that after atomic rename, the destination file has proper permissions.
+    The temp file is set to 0o600 (rw-------) for security, and the final file
+    should retain these restrictive permissions to protect sensitive todo data.
+    """
+    import stat
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="sensitive data")]
+    storage.save(todos)
+
+    # Verify file exists
+    assert db.exists(), "Destination file should exist after save"
+
+    # Get file permissions
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # Expected permissions: 0o600 (rw-------) - owner read/write only
+    # This ensures sensitive todo data is protected from other users
+    expected_mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+
+    assert file_mode == expected_mode, (
+        f"File permissions should be 0o600 (rw-------) for security, "
+        f"but got 0o{file_mode:03o}"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
