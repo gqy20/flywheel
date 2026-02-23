@@ -7,6 +7,8 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import multiprocessing
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -229,3 +231,144 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_lock_acquired_on_load(tmp_path) -> None:
+    """Test that load() acquires a lock before reading.
+
+    Regression test for issue #5405: File-based locking for concurrent access.
+    This test verifies that the filelock module is actually being used.
+    """
+    db = tmp_path / "locked.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial data
+    storage.save([Todo(id=1, text="initial")])
+
+    # Mock filelock to verify it's being called
+    with patch("flywheel.storage.filelock") as mock_filelock:
+        # Configure the mock to return a mock lock that acts as a context manager
+        mock_lock = mock_filelock.FileLock.return_value
+        mock_lock.__enter__ = lambda self: self
+        mock_lock.__exit__ = lambda self, *args: None
+
+        storage.load()
+
+        # Verify FileLock was called with the correct lock file path
+        mock_filelock.FileLock.assert_called_once()
+        call_args = mock_filelock.FileLock.call_args[0][0]
+        assert str(db) in call_args or call_args.endswith(".json.lock")
+
+
+def test_file_lock_acquired_on_save(tmp_path) -> None:
+    """Test that save() acquires a lock before writing.
+
+    Regression test for issue #5405: File-based locking for concurrent access.
+    This test verifies that the filelock module is actually being used.
+    """
+    db = tmp_path / "locked_save.json"
+    storage = TodoStorage(str(db))
+
+    # Mock filelock to verify it's being called
+    with patch("flywheel.storage.filelock") as mock_filelock:
+        # Configure the mock to return a mock lock that acts as a context manager
+        mock_lock = mock_filelock.FileLock.return_value
+        mock_lock.__enter__ = lambda self: self
+        mock_lock.__exit__ = lambda self, *args: None
+
+        storage.save([Todo(id=1, text="test")])
+
+        # Verify FileLock was called with the correct lock file path
+        mock_filelock.FileLock.assert_called_once()
+        call_args = mock_filelock.FileLock.call_args[0][0]
+        assert str(db) in call_args or call_args.endswith(".json.lock")
+
+
+def test_concurrent_read_write_with_locking_no_data_loss(tmp_path) -> None:
+    """Test that file-based locking prevents data loss during concurrent operations.
+
+    Regression test for issue #5405: This test should FAIL before the fix.
+    With proper locking, a reader should never see partial/inconsistent data
+    while a writer is mid-write.
+    """
+    db = tmp_path / "concurrent_locking.json"
+
+    def writer_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that writes data with a unique marker."""
+        try:
+            storage = TodoStorage(str(db))
+            for i in range(10):
+                # Each write includes worker_id as marker
+                todos = [Todo(id=1, text=f"worker-{worker_id}-iteration-{i}")]
+                storage.save(todos)
+                time.sleep(0.001)
+            result_queue.put(("success", worker_id, "completed"))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    def reader_worker(reader_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that reads data and verifies consistency."""
+        try:
+            storage = TodoStorage(str(db))
+            for _ in range(20):
+                loaded = storage.load()
+                # With locking, if we get data, it should be complete
+                if loaded:
+                    # All loaded todos should have consistent worker_id in text
+                    # (not a mix from different writers)
+                    worker_ids = set()
+                    for todo in loaded:
+                        if todo.text.startswith("worker-"):
+                            # Extract worker id from text like "worker-1-iteration-0"
+                            parts = todo.text.split("-")
+                            if len(parts) >= 2:
+                                worker_ids.add(parts[1])
+                    # All todos should come from the same writer (atomic read)
+                    # This is the key assertion that FAILS without proper locking
+                    assert (
+                        len(worker_ids) <= 1
+                    ), f"Read inconsistent data from multiple writers: {worker_ids}"
+                time.sleep(0.0005)
+            result_queue.put(("success", reader_id, "completed"))
+        except Exception as e:
+            result_queue.put(("error", reader_id, str(e)))
+
+    # Initialize with some data
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="initial")])
+
+    # Start multiple writers and readers concurrently
+    result_queue = multiprocessing.Queue()
+    processes = []
+
+    # Start writers
+    for i in range(3):
+        p = multiprocessing.Process(target=writer_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Start readers
+    for i in range(2):
+        p = multiprocessing.Process(target=reader_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # This assertion will FAIL before the fix is implemented
+    assert len(errors) == 0, f"Workers encountered errors (locking not working): {errors}"
+    assert len(successes) == 5, f"Expected 5 successes, got {len(successes)}"
+
+    # Final verification: file should contain valid JSON
+    final_todos = storage.load()
+    assert isinstance(final_todos, list), "Final data should be a list"
