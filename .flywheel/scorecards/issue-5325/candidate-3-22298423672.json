@@ -1,0 +1,20 @@
+{
+  "issue_number": 5325,
+  "candidate_number": 3,
+  "run_id": "22298423672",
+  "branch": "claude/issue-5325-candidate-3-22298423672",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"],
+    "summary": "Added test for Todo.from_dict whitespace handling and fixed implementation to strip leading/trailing whitespace from text field for consistency with Todo.rename()"
+  },
+  "tests": {
+    "added": ["test_todo_from_dict_handles_text_with_leading_trailing_whitespace"],
+    "passed": 113,
+    "failed": 0
+  },
+  "lint": {
+    "ruff": "passed"
+  }
+}

@@ -119,3 +119,13 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Test for Issue #5325 - validate 'text' field whitespace handling
+def test_todo_from_dict_handles_text_with_leading_trailing_whitespace() -> None:
+    """Todo.from_dict should strip leading/trailing whitespace from 'text' field.
+
+    This ensures consistency with Todo.rename() which also strips whitespace.
+    """
+    todo = Todo.from_dict({"id": 1, "text": "  padded  "})
+    assert todo.text == "padded"
