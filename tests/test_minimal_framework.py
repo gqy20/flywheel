@@ -158,3 +158,78 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_from_dict_accepts_valid_iso_timestamps() -> None:
+    """Issue #5326: from_dict should accept valid ISO format timestamps."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "test",
+        "created_at": "2026-02-23T08:30:00+00:00",
+        "updated_at": "2026-02-23T09:00:00Z",
+    })
+
+    assert todo.created_at == "2026-02-23T08:30:00+00:00"
+    assert todo.updated_at == "2026-02-23T09:00:00Z"
+
+
+def test_from_dict_accepts_non_iso_timestamp_strings() -> None:
+    """Issue #5326: from_dict should accept non-ISO timestamp strings gracefully."""
+    # The current implementation uses str() coercion which accepts any string.
+    # This test documents the current behavior: timestamps are free-form strings.
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "test",
+        "created_at": "invalid-date",
+        "updated_at": "2026/02/23",
+    })
+
+    assert todo.created_at == "invalid-date"
+    assert todo.updated_at == "2026/02/23"
+
+
+def test_from_dict_coerces_timestamp_integers_to_strings() -> None:
+    """Issue #5326: from_dict should coerce integer timestamps to strings."""
+    # When storage or external APIs provide numeric timestamps, str() coerces them.
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "test",
+        "created_at": 1739558400,  # Unix timestamp
+        "updated_at": 1739559000,
+    })
+
+    assert todo.created_at == "1739558400"
+    assert todo.updated_at == "1739559000"
+
+
+def test_from_dict_handles_missing_timestamps() -> None:
+    """Issue #5326: from_dict should generate timestamps when not provided."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "test",
+    })
+
+    # __post_init__ should generate ISO format timestamps
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+    # Verify they are ISO format (contain 'T')
+    assert "T" in todo.created_at
+    assert "T" in todo.updated_at
+
+
+def test_from_dict_rejects_invalid_timestamp_types() -> None:
+    """Issue #5326: from_dict should reject non-string/non-numeric timestamps."""
+    # Lists, dicts, and None (when not missing) should raise ValueError
+    with pytest.raises(ValueError, match="'created_at' must be a string or number"):
+        Todo.from_dict({
+            "id": 1,
+            "text": "test",
+            "created_at": ["2026-02-23"],
+        })
+
+    with pytest.raises(ValueError, match="'updated_at' must be a string or number"):
+        Todo.from_dict({
+            "id": 1,
+            "text": "test",
+            "updated_at": {"time": "2026-02-23"},
+        })

@@ -93,10 +93,27 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields (created_at, updated_at)
+        # Accept: strings, numbers (int/float), or None/missing (will generate)
+        # Reject: lists, dicts, or other complex types
+        created_at = data.get("created_at")
+        updated_at = data.get("updated_at")
+
+        if created_at is not None and not isinstance(created_at, str | int | float):
+            raise ValueError(
+                f"Invalid value for 'created_at': {created_at!r}. "
+                "'created_at' must be a string or number."
+            )
+        if updated_at is not None and not isinstance(updated_at, str | int | float):
+            raise ValueError(
+                f"Invalid value for 'updated_at': {updated_at!r}. "
+                "'updated_at' must be a string or number."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=str(created_at or ""),
+            updated_at=str(updated_at or ""),
         )
