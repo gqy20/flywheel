@@ -3,6 +3,8 @@
 Issue: The temp file path is predictable (.todo.json.tmp), allowing an attacker
 to pre-create a symlink and cause data to be written to arbitrary locations.
 
+Also includes tests for issue #5310: load() follows symlinks when reading JSON file.
+
 These tests should FAIL before the fix and PASS after the fix.
 """
 
@@ -11,6 +13,8 @@ from __future__ import annotations
 import os
 import stat
 from pathlib import Path
+
+import pytest
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -190,6 +194,71 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
 
     # Note: inode may change due to atomic replace, which is correct behavior
     # The important thing is that the file content is valid and complete
+
+
+def test_load_rejects_symlink_to_sensitive_file(tmp_path) -> None:
+    """Issue #5310: load() should reject symlinks pointing to files outside db location.
+
+    Security: An attacker who can replace the db file with a symlink could
+    read arbitrary files (e.g., /etc/passwd) through the application.
+
+    Before fix: load() follows symlink and reads from target
+    After fix: load() should detect and reject symlinks
+    """
+    # Create a sensitive file with valid JSON (attacker wants to exfiltrate data)
+    sensitive_file = tmp_path / "sensitive_data.json"
+    sensitive_file.write_text('["STOLEN_DATA", "SECRET_API_KEY=abc123"]')
+
+    # Create a symlink at the db path pointing to the sensitive file
+    db_symlink = tmp_path / "todo.json"
+    db_symlink.symlink_to(sensitive_file)
+
+    storage = TodoStorage(str(db_symlink))
+
+    # load() should reject the symlink and raise an error
+    # Before fix: This would load the sensitive file contents
+    # After fix: Should raise ValueError mentioning symlink
+    with pytest.raises(ValueError, match="symlink"):
+        storage.load()
+
+
+def test_load_rejects_symlink_to_etc_passwd(tmp_path) -> None:
+    """Issue #5310: load() should reject symlinks even to system files.
+
+    This tests the symlink attack scenario mentioned in the issue:
+    Create symlink from db path to /etc/passwd, verify load() rejects it.
+    """
+    # Skip if /etc/passwd doesn't exist (unlikely on Unix, but be safe)
+    etc_passwd = Path("/etc/passwd")
+    if not etc_passwd.exists():
+        pytest.skip("/etc/passwd does not exist")
+
+    # Create a symlink at the db path pointing to /etc/passwd
+    db_symlink = tmp_path / "todo.json"
+    db_symlink.symlink_to(etc_passwd)
+
+    storage = TodoStorage(str(db_symlink))
+
+    # load() should reject the symlink and raise an error
+    with pytest.raises(ValueError, match="symlink"):
+        storage.load()
+
+
+def test_load_works_with_regular_file_after_symlink_protection(tmp_path) -> None:
+    """Issue #5310: load() should still work with regular files after fix."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # First save some data
+    todos = [Todo(id=1, text="test todo"), Todo(id=2, text="another todo", done=True)]
+    storage.save(todos)
+
+    # load() should work normally with regular file
+    loaded = storage.load()
+    assert len(loaded) == 2
+    assert loaded[0].text == "test todo"
+    assert loaded[1].text == "another todo"
+    assert loaded[1].done is True
 
 
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
