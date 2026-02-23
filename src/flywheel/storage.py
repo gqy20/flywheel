@@ -88,6 +88,9 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Creates a backup (.bak) file before overwriting existing data to provide
+        a recovery path when users accidentally delete/overwrite todos.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
@@ -96,6 +99,9 @@ class TodoStorage:
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # Create backup before overwriting (if original exists)
+        self._create_backup()
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -123,6 +129,24 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the existing data file before overwriting.
+
+        Creates {path}.bak containing the current file contents.
+        Only creates backup if the original file exists.
+        Keeps only one backup file (rotation).
+        """
+        if not self.path.exists():
+            return
+
+        backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+
+        # Copy current file to backup (preserves permissions)
+        # Use shutil.copy2 to preserve file metadata including permissions
+        import shutil
+
+        shutil.copy2(self.path, backup_path)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
