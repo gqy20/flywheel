@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,51 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock for atomic operations.
+
+        Creates a companion lock file (.{filename}.lock) and acquires an
+        exclusive lock on it using fcntl.flock. This prevents race conditions
+        when multiple processes try to read-modify-write the same storage.
+
+        Returns:
+            File descriptor of the lock file. Caller must close to release.
+        """
+        _ensure_parent_directory(self.path)
+        lock_path = self.path.parent / f".{self.path.name}.lock"
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock acquired by _acquire_lock()."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    def add_todo(self, todo: Todo) -> Todo:
+        """Atomically add a todo with a unique ID.
+
+        This method uses file locking to prevent race conditions when multiple
+        processes try to add todos concurrently. It loads the current todos,
+        assigns the next available ID, and saves - all while holding an
+        exclusive lock.
+
+        Args:
+            todo: Todo object to add (id will be overwritten with unique ID)
+
+        Returns:
+            The added todo with its assigned ID.
+        """
+        lock_fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            new_id = self.next_id(todos)
+            todo_with_id = Todo(id=new_id, text=todo.text, done=todo.done)
+            todos.append(todo_with_id)
+            self.save(todos)
+            return todo_with_id
+        finally:
+            self._release_lock(lock_fd)
