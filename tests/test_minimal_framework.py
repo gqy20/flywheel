@@ -158,3 +158,39 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_with_identical_values() -> None:
+    """Issue #5270: Todo objects with same id, text, done should be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert todo1 == todo2
+
+
+def test_todo_equality_different_id() -> None:
+    """Issue #5270: Todo objects with different id should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    assert todo1 != todo2
+
+
+def test_todo_equality_different_text() -> None:
+    """Issue #5270: Todo objects with different text should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+    assert todo1 != todo2
+
+
+def test_todo_equality_different_done() -> None:
+    """Issue #5270: Todo objects with different done should not be equal."""
+    todo1 = Todo(id=1, text="a", done=True)
+    todo2 = Todo(id=1, text="a", done=False)
+    assert todo1 != todo2
+
+
+def test_todo_equality_with_non_todo() -> None:
+    """Issue #5270: Todo compared with non-Todo should return False."""
+    todo = Todo(id=1, text="a")
+    assert (todo == "not a todo") is False
+    assert (todo == 1) is False
+    assert (todo == None) is False  # noqa: E711
