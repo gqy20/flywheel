@@ -3,16 +3,23 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock acquisition timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 10.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -74,8 +81,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +132,55 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextmanager
+    def locked_operation(self, timeout: float = _DEFAULT_LOCK_TIMEOUT) -> Iterator[None]:
+        """Context manager for file-based locking during read-modify-write operations.
+
+        Acquires an exclusive advisory lock on a .lock file to prevent concurrent
+        modifications that could lead to data loss.
+
+        Args:
+            timeout: Maximum time to wait for lock acquisition in seconds.
+
+        Raises:
+            TimeoutError: If lock cannot be acquired within timeout period.
+
+        Note:
+            Uses fcntl.flock which releases the lock automatically when the file
+            descriptor is closed (even on process crash).
+        """
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        _ensure_parent_directory(lock_path)
+
+        # Open/create lock file
+        lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+
+        try:
+            # Try to acquire exclusive lock with timeout
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break  # Lock acquired
+                except (BlockingIOError, OSError):
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= timeout:
+                        raise TimeoutError(
+                            f"Could not acquire lock on '{lock_path}' within "
+                            f"{timeout:.1f} seconds. Another process may be holding "
+                            f"the lock."
+                        ) from None
+                    time.sleep(0.01)  # Brief sleep before retry
+
+            yield  # Lock is held, execute the protected operation
+
+        finally:
+            # Release lock and close file descriptor
+            # fcntl.flock is automatically released on close, but we explicitly unlock
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            except OSError:
+                pass  # Lock already released or never acquired
+            finally:
+                os.close(lock_fd)
