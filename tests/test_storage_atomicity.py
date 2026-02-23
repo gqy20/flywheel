@@ -151,6 +151,49 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_load_handles_file_deleted_between_exists_and_stat(tmp_path) -> None:
+    """Regression test for issue #5404: TOCTOU race condition in load().
+
+    Tests that load() handles the case where a file exists when checked
+    but is deleted before stat() is called. This is a Time-of-Check-to-
+    Time-of-Use (TOCTOU) race condition that should be handled gracefully
+    by returning an empty list (treating the missing file as if it never existed).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Mock scenario: path.exists() returns True, but stat() raises FileNotFoundError
+    # This simulates the file being deleted between the exists() check and stat() call
+    with patch.object(Path, "exists", return_value=True):
+        with patch.object(
+            Path, "stat", side_effect=FileNotFoundError("File deleted between exists and stat")
+        ):
+            # Should return [] gracefully instead of propagating FileNotFoundError
+            result = storage.load()
+            assert result == [], "load() should return empty list when file disappears"
+
+
+def test_load_handles_file_deleted_between_exists_and_read(tmp_path) -> None:
+    """Additional test for issue #5404: file deleted after stat but before read.
+
+    Tests that load() handles the case where the file exists for exists() and stat()
+    but is deleted before read_text() is called.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Mock scenario: file exists for exists() and stat() but is deleted before read
+    with patch.object(Path, "exists", return_value=True):
+        mock_stat = type("MockStat", (), {"st_size": 100})()
+        with patch.object(Path, "stat", return_value=mock_stat):
+            with patch.object(
+                Path, "read_text", side_effect=FileNotFoundError("File deleted before read")
+            ):
+                # Should return [] gracefully instead of propagating FileNotFoundError
+                result = storage.load()
+                assert result == [], "load() should return empty list when file disappears during read"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
