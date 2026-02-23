@@ -50,7 +50,7 @@ class TestBidiControlSanitization:
         """Test that RLO (U+202E) attack vector is neutralized.
 
         RLO can be used to display text backwards, e.g.:
-        "Click here\u202Eelga.exe" would display as "Click hereexe.agle"
+        "Click here\u202eelga.exe" would display as "Click hereexe.agle"
         """
         # Simulated attack: making "exe.php" look like "exe.txt"
         attack_string = "readme\u202etxt.exe"
