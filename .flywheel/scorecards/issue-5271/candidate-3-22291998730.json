@@ -1,21 +1,23 @@
 {
-  "issue_number": 5271,
-  "issue_title": "[Enhancement] Add __hash__ method for set/dict usage",
+  "issue": 5271,
   "candidate": 3,
   "run_id": "22291998730",
   "branch": "claude/issue-5271-candidate-3-22291998730",
-  "status": "implemented",
-  "summary": "Added explicit __hash__ = None to Todo class to document and enforce that Todo objects are unhashable (since they are mutable).",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_5271_todo_hash.py"]
-  },
-  "tests_passed": 117,
-  "approach": "Added explicit `__hash__ = None` declaration with comment explaining why. This is Python's standard pattern for mutable classes to prevent accidental use in sets/dicts.",
-  "risks": "None - the behavior is unchanged (dataclass with slots=True already sets __hash__ = None implicitly). This is purely a documentation/defensive change.",
-  "acceptance_criteria_met": [
-    "hash() on Todo raises TypeError with 'unhashable' message",
-    "set([todo]) raises TypeError('unhashable type')",
-    "Explicit __hash__ = None declaration present in source"
-  ]
+  "pr_number": 5305,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5305",
+  "generated_at": "2026-02-23T04:23:56.103280+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2944,
+    "plan": 1659,
+    "implement": 3435,
+    "verify": 557,
+    "finalize": 915
+  }
 }
