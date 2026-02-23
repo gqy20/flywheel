@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 from flywheel.todo import Todo
 
 
@@ -229,3 +229,87 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_load_toctou_protection_file_size_grows_between_check_and_read(tmp_path) -> None:
+    """Regression test for issue #5465: TOCTOU vulnerability in load().
+
+    Tests that load() reads the file content once and then validates size
+    in-memory, rather than checking file size with stat() before reading.
+
+    This prevents a TOCTOU race condition where:
+    1. stat() reports file is under size limit
+    2. Attacker modifies file to grow beyond limit
+    3. read_text() reads the oversized content
+
+    The fix should read once into memory, then check size of in-memory data.
+    """
+    db = tmp_path / "toctou_test.json"
+    storage = TodoStorage(str(db))
+
+    # Create a normal-sized valid file
+    small_content = json.dumps([{"id": 1, "text": "small"}])
+    db.write_text(small_content, encoding="utf-8")
+
+    call_count = {"stat": 0, "read_text": 0}
+
+    # Create a mock that simulates the TOCTOU attack scenario
+    original_stat = db.stat
+    original_read_text = db.read_text
+
+    def malicious_stat(*args, **kwargs):
+        call_count["stat"] += 1
+        # Return a fake stat result with small size
+        result = original_stat()
+        # Create a mock stat_result with small size
+        class FakeStatResult:
+            st_size = 100  # Report small size
+        return FakeStatResult()
+
+    def malicious_read_text(*args, **kwargs):
+        call_count["read_text"] += 1
+        # After stat check, return oversized content (simulating file grew)
+        large_data = [{"id": i, "text": "x" * 1000} for i in range(20000)]
+        return json.dumps(large_data)
+
+    # Patch Path.stat and Path.read_text for this specific path
+    with (
+        patch.object(Path, "stat", malicious_stat),
+        patch.object(Path, "read_text", malicious_read_text),
+    ):
+        # The fix should reject oversized content even if stat reported small size
+        # by checking the size of the in-memory data
+        with pytest.raises(ValueError, match=r"too large|size"):
+            storage.load()
+
+    # Verify our mocks were called (stat should be called, read_text should be called)
+    assert call_count["stat"] >= 1, "stat should have been called"
+    assert call_count["read_text"] >= 1, "read_text should have been called"
+
+
+def test_load_size_check_uses_in_memory_content_not_file_stat(tmp_path) -> None:
+    """Verify that load() checks size of in-memory content, not file stat.
+
+    This is the positive test that the fix works correctly - reading once
+    and checking size of in-memory data.
+    """
+    db = tmp_path / "in_memory_check.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file where the content is under the limit
+    valid_data = [{"id": i, "text": f"task-{i}"} for i in range(100)]
+    db.write_text(json.dumps(valid_data), encoding="utf-8")
+
+    # This should succeed normally
+    result = storage.load()
+    assert len(result) == 100
+
+    # Now create an oversized file (> 10MB)
+    large_data = [{"id": i, "text": "x" * 1000} for i in range(15000)]
+    large_content = json.dumps(large_data)
+    assert len(large_content.encode("utf-8")) > _MAX_JSON_SIZE_BYTES
+    db.write_text(large_content, encoding="utf-8")
+
+    # This should raise ValueError about size being too large
+    with pytest.raises(ValueError, match=r"too large"):
+        storage.load()
