@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,6 +56,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +95,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +118,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +152,36 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fchmod_failure_closes_file_descriptor(tmp_path) -> None:
+    """Regression test for issue #5351: fd leak when os.fchmod fails.
+
+    When os.fchmod fails, the file descriptor opened by mkstemp should be
+    properly closed in the exception handler to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track if fd was closed
+    closed_fds = []
+    original_close = os.close
+
+    def tracking_close(fd: int) -> None:
+        closed_fds.append(fd)
+        original_close(fd)
+
+    # Make os.fchmod fail and track os.close calls
+    with (
+        patch("flywheel.storage.os.fchmod", side_effect=OSError("fchmod failed")),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="fchmod failed"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify the fd was explicitly closed (either via os.close or os.fdopen)
+    # The fd should be closed either in the except block or via contextlib.suppress
+    assert len(closed_fds) >= 1, "File descriptor should be closed when fchmod fails"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +251,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"

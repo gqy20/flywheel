@@ -1,0 +1,34 @@
+{
+  "issue": 5351,
+  "candidate": 2,
+  "run_id": "22302492907",
+  "stage": "verify",
+  "summary": "Fix file descriptor leak when os.fchmod fails in save()",
+  "changes": [
+    {
+      "file": "src/flywheel/storage.py",
+      "type": "fix",
+      "description": "Add os.close(fd) in except block to close fd when fchmod or fdopen fails"
+    },
+    {
+      "file": "tests/test_storage_atomicity.py",
+      "type": "test",
+      "description": "Add regression test for fd leak on fchmod failure"
+    }
+  ],
+  "tests_passed": true,
+  "lint_passed": true,
+  "verification": {
+    "pytest_commands": [
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run pytest tests/ -v -k \"storage\" --tb=short"
+    ],
+    "pytest_results": "16 storage-related tests passed, including test_fchmod_failure_closes_file_descriptor",
+    "ruff_commands": [
+      "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+      "uv run ruff format --check src/flywheel/storage.py tests/test_storage_atomicity.py"
+    ],
+    "ruff_results": "All checks passed, 2 files reformatted and verified"
+  },
+  "timestamp": "2026-02-23T11:15:00Z"
+}

@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -122,6 +121,11 @@ class TodoStorage:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            # Close file descriptor if it wasn't consumed by fdopen
+            # (fdopen takes ownership and closes on success, but on early
+            # failure like fchmod error, we must close manually)
+            with contextlib.suppress(OSError):
+                os.close(fd)
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
