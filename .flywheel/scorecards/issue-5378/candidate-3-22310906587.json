@@ -1,0 +1,60 @@
+{
+  "issue_number": 5378,
+  "issue_title": "[Bug] _ensure_parent_directory TOCTOU race: parent check and mkdir not atomic",
+  "candidate": 3,
+  "run_id": "22310906587",
+  "branch_name": "claude/issue-5378-candidate-3-22310906587",
+  "stage": "FINALIZE",
+  "plan": {
+    "summary": "Fix TOCTOU race condition in _ensure_parent_directory by replacing check-then-act pattern with try/except using exist_ok=True",
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_5378_toctou_race_fix.py",
+        "action": "CREATE",
+        "description": "New regression test file for TOCTOU race fix"
+      },
+      {
+        "path": "src/flywheel/storage.py",
+        "action": "MODIFY",
+        "description": "Fix _ensure_parent_directory function (lines 42-50)"
+      }
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing regression test that demonstrates TOCTOU race condition"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Implement minimal fix in _ensure_parent_directory"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run all verification commands"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5378_toctou_race_fix.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "implementation": {
+    "fix_description": "Fixed TOCTOU race condition in _ensure_parent_directory by using mkdir(parents=True, exist_ok=True) instead of check-then-act pattern. Added FileExistsError exception handling to catch cases where another process creates a file at the parent path.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5378_toctou_race_fix.py"
+    ],
+    "tests_passed": [
+      "test_concurrent_save_to_new_path_no_race_error",
+      "test_ensure_parent_directory_with_exist_ok",
+      "test_file_as_parent_still_raises_valueerror"
+    ],
+    "linter_status": "passed"
+  },
+  "status": "ready_for_pr",
+  "created_at": "2026-02-23T13:25:00Z",
+  "finalized_at": "2026-02-23T15:30:00Z"
+}
