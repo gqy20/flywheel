@@ -158,3 +158,38 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestNextIdNegativeIdHandling:
+    """Regression tests for issue #5388: next_id should return positive integers."""
+
+    def test_next_id_with_negative_id_returns_positive(self) -> None:
+        """When todos contain a negative ID, next_id should return 1 (not 0 or negative)."""
+        storage = TodoStorage(":memory:")  # Path doesn't matter for next_id
+        todos = [Todo(id=-5, text="negative id todo")]
+        # max([-5]) + 1 = -4, but we should return 1 (minimum positive ID)
+        assert storage.next_id(todos) == 1
+
+    def test_next_id_with_mixed_positive_and_negative_ids(self) -> None:
+        """When todos have both negative and positive IDs, use only positive IDs for max."""
+        storage = TodoStorage(":memory:")
+        todos = [Todo(id=-1, text="negative"), Todo(id=2, text="positive")]
+        # Should only consider positive IDs: max([2]) + 1 = 3
+        assert storage.next_id(todos) == 3
+
+    def test_next_id_empty_list_returns_one(self) -> None:
+        """When todos list is empty, next_id should return 1."""
+        storage = TodoStorage(":memory:")
+        assert storage.next_id([]) == 1
+
+    def test_next_id_only_negative_ids_returns_one(self) -> None:
+        """When todos contain only negative IDs, next_id should return 1."""
+        storage = TodoStorage(":memory:")
+        todos = [Todo(id=-1, text="a"), Todo(id=-100, text="b")]
+        assert storage.next_id(todos) == 1
+
+    def test_next_id_normal_positive_ids_unaffected(self) -> None:
+        """When todos have only positive IDs, behavior should remain unchanged."""
+        storage = TodoStorage(":memory:")
+        todos = [Todo(id=1, text="x"), Todo(id=2, text="y", done=True)]
+        assert storage.next_id(todos) == 3
