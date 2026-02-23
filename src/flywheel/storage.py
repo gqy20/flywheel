@@ -20,14 +20,23 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    2. The target file path itself doesn't exist as a directory
+    3. Creates parent directories if needed
+    4. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file,
+                    or if the target path itself exists as a directory
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
+
+    # Check if the target path itself exists as a directory
+    if file_path.exists() and file_path.is_dir():
+        raise ValueError(
+            f"Path error: '{file_path}' exists as a directory, not a file. "
+            f"Cannot use a directory as database path."
+        )
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
     # This handles cases like: /path/to/file.json/subdir/db.json
