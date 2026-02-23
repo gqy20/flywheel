@@ -229,3 +229,80 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_file_permissions_preserved_after_atomic_rename(tmp_path) -> None:
+    """Regression test for issue #5402: File permissions after atomic rename.
+
+    Security: Verifies that the final destination file maintains restrictive
+    permissions (0o600) after atomic rename via os.replace(). This ensures
+    sensitive todo data is protected from other users on the system.
+
+    On Unix-like systems, os.replace() typically preserves permissions, but
+    we explicitly set permissions after rename to ensure cross-platform
+    consistency.
+    """
+    import os
+    import stat
+
+    db = tmp_path / "secure_todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="sensitive data that should be protected")]
+    storage.save(todos)
+
+    # Verify the final file has restrictive permissions
+    # 0o600 = owner read + write only (rw-------)
+    file_stat = os.stat(db)
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    expected_mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+
+    assert file_mode == expected_mode, (
+        f"File permissions should be 0o600 (rw-------) for security, "
+        f"but got {oct(file_mode)}. "
+        f"Sensitive todo data could be exposed to other users."
+    )
+
+
+def test_permissions_set_after_rename_simulating_umask_behavior(tmp_path) -> None:
+    """Regression test for issue #5402: Explicit permissions after rename.
+
+    This test simulates systems where os.replace() may not preserve permissions
+    or where umask affects the final file. The fix should explicitly set
+    permissions after the atomic rename to ensure security guarantees.
+    """
+    import os
+    import stat
+
+    db = tmp_path / "permission_test.json"
+    storage = TodoStorage(str(db))
+
+    # Track whether chmod was called on the final file
+    chmod_calls = []
+    original_chmod = os.chmod
+
+    def tracking_chmod(path: str | bytes | os.PathLike, mode: int) -> None:
+        chmod_calls.append((str(path), mode))
+        original_chmod(path, mode)
+
+    with patch("flywheel.storage.os.chmod", tracking_chmod):
+        todos = [Todo(id=1, text="test")]
+        storage.save(todos)
+
+    # Verify chmod was called on the final destination file with 0o600
+    db_path_str = str(db)
+    final_chmod_calls = [(p, m) for p, m in chmod_calls if db_path_str in p or db.name in p]
+
+    assert len(final_chmod_calls) >= 1, (
+        "os.chmod should be called on the final destination file to ensure "
+        "permissions are set correctly after atomic rename"
+    )
+
+    # Verify the mode was set to 0o600
+    last_mode = final_chmod_calls[-1][1]
+    expected_mode = stat.S_IRUSR | stat.S_IWUSR  # 0o600
+    assert last_mode == expected_mode, (
+        f"Permissions should be explicitly set to 0o600 after rename, "
+        f"but got {oct(last_mode)}"
+    )
