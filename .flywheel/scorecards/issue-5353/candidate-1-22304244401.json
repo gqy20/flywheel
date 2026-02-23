@@ -1,20 +1,23 @@
 {
-  "issue_number": 5353,
-  "candidate_number": 1,
+  "issue": 5353,
+  "candidate": 1,
   "run_id": "22304244401",
   "branch": "claude/issue-5353-candidate-1-22304244401",
-  "created_at": "2026-02-23T12:30:00Z",
-  "status": "ready",
-  "verification": {
-    "mypy_strict": true,
-    "ruff_check": true,
-    "tests_passed": true,
-    "all_tests_count": 116
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_5353_dict_type_annotations.py"],
-    "lines_changed": 2
-  },
-  "summary": "Added generic type annotations dict[str, int | str | bool] to to_dict() and from_dict() methods to satisfy mypy --strict requirements."
+  "pr_number": 5370,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5370",
+  "generated_at": "2026-02-23T12:55:26.023107+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3354,
+    "plan": 241,
+    "implement": 2139,
+    "verify": 1900,
+    "finalize": 1210
+  }
 }
