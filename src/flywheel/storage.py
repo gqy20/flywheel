@@ -60,6 +60,12 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Reject symlinks to prevent symlink attacks
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Security: refusing to read symlink at '{self.path}'"
+            )
+
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
