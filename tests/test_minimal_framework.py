@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_constructor_rejects_negative_id() -> None:
+    """Bug #5446: Todo constructor should reject negative id values."""
+    with pytest.raises(ValueError, match="id must be a positive integer"):
+        Todo(id=-1, text="test")
+
+
+def test_todo_constructor_rejects_zero_id() -> None:
+    """Bug #5446: Todo constructor should reject zero id value."""
+    with pytest.raises(ValueError, match="id must be a positive integer"):
+        Todo(id=0, text="test")
+
+
+def test_todo_constructor_accepts_positive_id() -> None:
+    """Bug #5446: Todo constructor should accept positive id values."""
+    todo = Todo(id=1, text="test")
+    assert todo.id == 1
+
+    todo2 = Todo(id=100, text="test2")
+    assert todo2.id == 100
