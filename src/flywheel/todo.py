@@ -34,6 +34,12 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text is not empty/whitespace (consistent with rename method)
+        text = self.text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        self.text = text
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -93,9 +99,14 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate text is not empty/whitespace (consistent with rename and constructor)
+        text = data["text"].strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=text,
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),

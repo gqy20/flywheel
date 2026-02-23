@@ -1,0 +1,23 @@
+{
+  "issue_number": 5297,
+  "issue_title": "[Bug] Todo constructor and from_dict allow empty/whitespace text while rename rejects",
+  "candidate": 1,
+  "run_id": "22295804615",
+  "status": "implemented",
+  "fix_summary": "Added text validation in Todo.__post_init__ and Todo.from_dict to reject empty/whitespace-only text, ensuring consistency with the rename() method.",
+  "tests_added": [
+    "test_todo_from_dict_rejects_empty_string",
+    "test_todo_from_dict_rejects_whitespace_only",
+    "test_todo_from_dict_strips_whitespace",
+    "test_todo_constructor_rejects_empty_string",
+    "test_todo_constructor_rejects_whitespace_only"
+  ],
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "verification": {
+    "tests_passed": true,
+    "linting_passed": true
+  }
+}
