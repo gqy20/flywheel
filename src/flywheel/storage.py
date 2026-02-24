@@ -69,7 +69,12 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            logger.error("load: file size exceeds limit (path=%s, size=%.1fMB, limit=%.0fMB)", self.path, size_mb, limit_mb)
+            logger.error(
+                "load: file size exceeds limit (path=%s, size=%.1fMB, limit=%.0fMB)",
+                self.path,
+                size_mb,
+                limit_mb,
+            )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -78,10 +83,15 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
-            logger.warning("load: JSON decode error (path=%s, line=%d, col=%d, msg=%s)", self.path, e.lineno, e.colno, e.msg)
+            logger.warning(
+                "load: JSON decode error (path=%s, line=%d, col=%d, msg=%s)",
+                self.path,
+                e.lineno,
+                e.colno,
+                e.msg,
+            )
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -128,7 +138,12 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-            logger.debug("save: successfully wrote %d todos (%d bytes) to %s", len(todos), content_size, self.path)
+            logger.debug(
+                "save: successfully wrote %d todos (%d bytes) to %s",
+                len(todos),
+                content_size,
+                self.path,
+            )
         except OSError as e:
             # Clean up temp file on error
             logger.error("save: failed to write todos (path=%s, error=%s)", self.path, e)
