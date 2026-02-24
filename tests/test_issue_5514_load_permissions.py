@@ -11,12 +11,9 @@ This test FAILS before the fix and PASSES after the fix.
 from __future__ import annotations
 
 import os
-import stat
 import warnings
-from pathlib import Path
 
 from flywheel.storage import TodoStorage
-from flywheel.todo import Todo
 
 
 def test_load_warns_on_world_readable_file(tmp_path) -> None:
