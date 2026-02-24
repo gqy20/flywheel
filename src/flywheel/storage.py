@@ -126,3 +126,16 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def load_stats(self) -> dict[str, int]:
+        """Return statistics about stored todos.
+
+        Returns a dictionary with:
+            - 'total': total number of todos
+            - 'done': number of completed todos
+            - 'pending': number of uncompleted todos
+        """
+        todos = self.load()
+        total = len(todos)
+        done = sum(1 for todo in todos if todo.done)
+        return {"total": total, "done": done, "pending": total - done}
