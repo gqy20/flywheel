@@ -23,15 +23,28 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
+        """Add a new todo.
+
+        Uses file locking to prevent race conditions when multiple processes
+        call add() simultaneously. This ensures that each todo gets a unique ID
+        and no data is lost due to concurrent modifications.
+
+        Args:
+            text: The todo text (must be non-empty after stripping)
+
+        Returns:
+            The newly created Todo with a unique ID
+
+        Raises:
+            ValueError: If text is empty
+        """
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Create a temporary todo (ID will be assigned atomically)
+        temp_todo = Todo(id=0, text=text)
+        return self.storage.atomic_add(temp_todo)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()

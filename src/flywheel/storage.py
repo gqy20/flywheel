@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,9 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Lock file suffix for concurrent access protection
+_LOCK_SUFFIX = ".lock"
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -55,6 +59,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + _LOCK_SUFFIX)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +131,53 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    @contextlib.contextmanager
+    def _file_lock(self):
+        """Acquire exclusive file lock for thread-safe operations.
+
+        Uses fcntl.flock for advisory locking. This prevents race conditions
+        when multiple processes access the same database file concurrently.
+
+        The lock file is separate from the data file to avoid issues with
+        atomic renames overwriting the lock.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file
+        lock_fd = os.open(
+            self._lock_path,
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            # Acquire exclusive lock (blocking)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            # Release lock and close file
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Add a todo atomically with file locking to prevent race conditions.
+
+        This method loads the current todos, appends the new todo, and saves
+        all while holding an exclusive lock. This ensures that concurrent
+        add operations do not result in duplicate IDs or lost data.
+
+        Args:
+            todo: The Todo to add (ID will be recalculated to ensure uniqueness)
+
+        Returns:
+            The added Todo with its assigned unique ID
+        """
+        with self._file_lock():
+            todos = self.load()
+            # Recalculate ID to ensure uniqueness under lock
+            new_id = self.next_id(todos)
+            todo = Todo(id=new_id, text=todo.text, done=todo.done)
+            todos.append(todo)
+            self.save(todos)
+            return todo
