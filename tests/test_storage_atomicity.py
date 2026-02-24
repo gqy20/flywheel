@@ -229,3 +229,65 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_operations_preserve_all_items(tmp_path) -> None:
+    """Regression test for issue #5491: Race condition in add operation.
+
+    Tests that two concurrent add() operations should both succeed and result
+    in both items being persisted. Without locking, load-modify-save pattern
+    causes data loss when interleaved across processes.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "todo.json"
+
+    def add_worker(worker_id: int, count: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds multiple todos via TodoApp."""
+        try:
+            app = TodoApp(db_path=str(db))
+            for i in range(count):
+                app.add(f"worker-{worker_id}-item-{i}")
+            result_queue.put(("success", worker_id, count))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run 2 workers, each adding 10 items
+    num_workers = 2
+    items_per_worker = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, items_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes"
+
+    # Verify final count: both workers' items should be present
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+
+    # Expected: 2 workers * 10 items = 20 total items
+    expected_count = num_workers * items_per_worker
+    assert len(final_todos) == expected_count, (
+        f"Expected {expected_count} todos from concurrent adds, got {len(final_todos)}. "
+        f"Data was lost due to race condition."
+    )

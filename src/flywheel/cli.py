@@ -5,9 +5,14 @@ from __future__ import annotations
 import argparse
 import sys
 
+from filelock import FileLock, Timeout
+
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
+
+# Default timeout for acquiring lock (in seconds)
+_DEFAULT_LOCK_TIMEOUT = 30
 
 
 class TodoApp:
@@ -15,6 +20,7 @@ class TodoApp:
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
+        self._lock = FileLock(str(self.storage.path) + ".lock")
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -27,11 +33,18 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        try:
+            with self._lock.acquire(timeout=_DEFAULT_LOCK_TIMEOUT):
+                todos = self._load()
+                todo = Todo(id=self.storage.next_id(todos), text=text)
+                todos.append(todo)
+                self._save(todos)
+                return todo
+        except Timeout:
+            raise TimeoutError(
+                f"Could not acquire lock on {self.storage.path} after "
+                f"{_DEFAULT_LOCK_TIMEOUT} seconds. Another process may be holding it."
+            ) from None
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +53,52 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        try:
+            with self._lock.acquire(timeout=_DEFAULT_LOCK_TIMEOUT):
+                todos = self._load()
+                for todo in todos:
+                    if todo.id == todo_id:
+                        todo.mark_done()
+                        self._save(todos)
+                        return todo
+                raise ValueError(f"Todo #{todo_id} not found")
+        except Timeout:
+            raise TimeoutError(
+                f"Could not acquire lock on {self.storage.path} after "
+                f"{_DEFAULT_LOCK_TIMEOUT} seconds. Another process may be holding it."
+            ) from None
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        try:
+            with self._lock.acquire(timeout=_DEFAULT_LOCK_TIMEOUT):
+                todos = self._load()
+                for todo in todos:
+                    if todo.id == todo_id:
+                        todo.mark_undone()
+                        self._save(todos)
+                        return todo
+                raise ValueError(f"Todo #{todo_id} not found")
+        except Timeout:
+            raise TimeoutError(
+                f"Could not acquire lock on {self.storage.path} after "
+                f"{_DEFAULT_LOCK_TIMEOUT} seconds. Another process may be holding it."
+            ) from None
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        try:
+            with self._lock.acquire(timeout=_DEFAULT_LOCK_TIMEOUT):
+                todos = self._load()
+                for i, todo in enumerate(todos):
+                    if todo.id == todo_id:
+                        todos.pop(i)
+                        self._save(todos)
+                        return
+                raise ValueError(f"Todo #{todo_id} not found")
+        except Timeout:
+            raise TimeoutError(
+                f"Could not acquire lock on {self.storage.path} after "
+                f"{_DEFAULT_LOCK_TIMEOUT} seconds. Another process may be holding it."
+            ) from None
 
 
 def build_parser() -> argparse.ArgumentParser:
