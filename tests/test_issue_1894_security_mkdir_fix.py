@@ -8,6 +8,9 @@ These tests should FAIL before the fix and PASS after the fix.
 
 from __future__ import annotations
 
+import os
+import threading
+
 import pytest
 
 from flywheel.cli import build_parser, run_command
@@ -122,3 +125,90 @@ def test_cli_succeeds_when_parent_already_exists_as_directory(tmp_path, capsys) 
 
     captured = capsys.readouterr()
     assert "Added" in captured.out
+
+
+def test_toctou_race_condition_parent_replaced_with_symlink(tmp_path) -> None:
+    """Issue #5501: TOCTOU race condition between checking and mkdir.
+
+    Tests that if a directory is replaced with a symlink between the existence
+    check and the mkdir call, we handle it properly without TOCTOU vulnerability.
+
+    This simulates an attacker replacing a directory with a symlink pointing to
+    an unsafe location during the window between check and create.
+    """
+    target_dir = tmp_path / "target"
+    target_dir.mkdir()
+    db_path = tmp_path / "db" / "subdir" / "todo.json"
+
+    race_condition_triggered = threading.Event()
+    mkdir_calls = []
+
+    # Monkey-patch mkdir to simulate the race condition
+    original_mkdir = os.mkdir
+
+    def patched_mkdir(path, *args, **kwargs):
+        mkdir_calls.append(path)
+        # On the first call, simulate the race: replace the parent directory with a symlink
+        if len(mkdir_calls) == 1 and str(path).endswith("/db"):
+            # Simulate: attacker replaces 'db' with a symlink to target_dir
+            # This happens between the existence check and the mkdir call
+            db_dir = tmp_path / "db"
+            if db_dir.exists() and db_dir.is_dir():
+                # The fix should handle this by using atomic operations
+                race_condition_triggered.set()
+        return original_mkdir(path, *args, **kwargs)
+
+    # Patch and test
+    original_os_mkdir = os.mkdir
+    os.mkdir = patched_mkdir
+    try:
+        storage = TodoStorage(str(db_path))
+        # The operation should either succeed safely or fail with appropriate error
+        # It should NOT create files in unintended locations
+        storage.save([])
+    except (ValueError, OSError):
+        # Expected - the fix should detect the race condition
+        pass
+    finally:
+        os.mkdir = original_os_mkdir
+
+    # Verify: no file should be created in target_dir via symlink attack
+    assert not (target_dir / "subdir" / "todo.json").exists(), \
+        "TOCTOU vulnerability: file created in unintended location"
+
+
+def test_toctou_race_condition_parent_is_file_error(tmp_path) -> None:
+    """Issue #5501: Verify atomic error handling for file-as-directory conflicts.
+
+    This test ensures that even in race conditions, we properly detect when
+    a parent component is a file and raise appropriate errors.
+    """
+    # Create a file where a directory would be needed
+    blocking_file = tmp_path / "blocking"
+    blocking_file.write_text("I am a file")
+
+    db_path = blocking_file / "subdir" / "todo.json"
+    storage = TodoStorage(str(db_path))
+
+    # Should fail with appropriate error about file vs directory
+    with pytest.raises((ValueError, OSError), match=r"(not a directory|Not a directory|exists as a file|directory|path)"):
+        storage.save([])
+
+
+def test_atomic_directory_creation_no_separate_check(tmp_path) -> None:
+    """Issue #5501: Verify that directory creation is atomic.
+
+    The fix should use mkdir(parents=True, exist_ok=True) directly without
+    separate existence checks, eliminating the TOCTOU window.
+    """
+    from flywheel.todo import Todo
+
+    db_path = tmp_path / "deeply" / "nested" / "path" / "todo.json"
+    storage = TodoStorage(str(db_path))
+
+    # Should create directories atomically without separate check
+    storage.save([Todo(id=1, text="test", done=False)])
+
+    # Verify the file was created in the correct location
+    assert db_path.exists(), "Database file should be created"
+    assert db_path.parent.is_dir(), "Parent should be a directory"

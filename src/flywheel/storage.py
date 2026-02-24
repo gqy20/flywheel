@@ -18,6 +18,9 @@ _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 def _ensure_parent_directory(file_path: Path) -> None:
     """Safely ensure parent directory exists for file_path.
 
+    Uses atomic mkdir to avoid TOCTOU race condition between checking
+    if a path exists and creating it.
+
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
     2. Creates parent directories if needed
@@ -29,25 +32,27 @@ def _ensure_parent_directory(file_path: Path) -> None:
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
-    # This handles cases like: /path/to/file.json/subdir/db.json
-    # where 'file.json' exists as a file but we need it to be a directory
-    for part in list(file_path.parents):  # Only check parents, not file_path itself
-        if part.exists() and not part.is_dir():
-            raise ValueError(
-                f"Path error: '{part}' exists as a file, not a directory. "
-                f"Cannot use '{file_path}' as database path."
-            )
-
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    try:
+        # Use atomic mkdir with exist_ok=True to avoid TOCTOU race condition
+        # This eliminates the window between checking existence and creating directory
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        # Handle the case where a parent component is a file (NotADirectoryError on some systems)
+        if isinstance(e, NotADirectoryError):
+            # Find which parent component is a file
+            for part in list(file_path.parents):
+                if part.exists() and not part.is_dir():
+                    raise ValueError(
+                        f"Path error: '{part}' exists as a file, not a directory. "
+                        f"Cannot use '{file_path}' as database path."
+                    ) from e
+            # Re-raise if we couldn't identify the specific file
+            raise
+        # Handle permission errors with clear message
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
