@@ -4,17 +4,41 @@ from __future__ import annotations
 
 import argparse
 import sys
+from contextlib import contextmanager
+from pathlib import Path
+
+from filelock import FileLock
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
 
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 30.0
+
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application with file-based locking."""
 
-    def __init__(self, db_path: str | None = None) -> None:
+    def __init__(self, db_path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT) -> None:
         self.storage = TodoStorage(db_path)
+        self._lock_timeout = lock_timeout
+        # Lock file is sibling to db file with .lock extension
+        self._lock_path = Path(self.storage.path).with_suffix(self.storage.path.suffix + ".lock")
+
+    @contextmanager
+    def _with_lock(self):
+        """Acquire file lock for the duration of the context.
+
+        Raises:
+            Timeout: If lock cannot be acquired within timeout period.
+        """
+        lock = FileLock(self._lock_path, timeout=self._lock_timeout)
+        lock.acquire()
+        try:
+            yield
+        finally:
+            lock.release()
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -27,10 +51,11 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with self._with_lock():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,30 +65,33 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with self._with_lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with self._with_lock():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with self._with_lock():
+            todos = self._load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self._save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 
