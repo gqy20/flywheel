@@ -85,8 +85,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -158,8 +157,7 @@ class TodoStorage:
             shutil.copy2(self.path, backup_path)
         except OSError as e:
             logger.warning(
-                "Failed to create backup file '%s': %s. "
-                "Continuing with save operation.",
+                "Failed to create backup file '%s': %s. Continuing with save operation.",
                 backup_path,
                 e,
             )
