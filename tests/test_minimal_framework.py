@@ -158,3 +158,23 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #5530: next_id() should return 1 for an empty list."""
+    storage = TodoStorage(str(tmp_path / "empty.json"))
+    # The redundant 'if todos else 1' check causes this to work,
+    # but we test the expected behavior explicitly
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_returns_max_plus_one(tmp_path) -> None:
+    """Bug #5530: next_id() should return max(id) + 1."""
+    storage = TodoStorage(str(tmp_path / "next_id.json"))
+
+    # Single todo with id=5 should return 6
+    assert storage.next_id([Todo(id=5, text="x")]) == 6
+
+    # Multiple todos should return max + 1
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    assert storage.next_id(todos) == 6
