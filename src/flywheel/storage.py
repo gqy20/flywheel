@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -34,6 +37,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
     # where 'file.json' exists as a file but we need it to be a directory
     for part in list(file_path.parents):  # Only check parents, not file_path itself
         if part.exists() and not part.is_dir():
+            logger.warning("Path '%s' exists as a file, not a directory", part)
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
                 f"Cannot use '{file_path}' as database path."
@@ -43,7 +47,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
     if not parent.exists():
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            logger.debug("Created parent directory: %s", parent)
         except OSError as e:
+            logger.error("Failed to create directory '%s': %s", parent, e)
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"
@@ -65,6 +71,12 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            logger.warning(
+                "JSON file too large: %s (%.1fMB > %.0fMB limit)",
+                self.path,
+                size_mb,
+                limit_mb,
+            )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,14 +85,25 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            logger.warning(
+                "Invalid JSON in '%s': %s (line %d, column %d)",
+                self.path,
+                e.msg,
+                e.lineno,
+                e.colno,
+            )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            logger.warning("Todo storage must be a JSON list, got %s", type(raw).__name__)
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug("Loaded %d todos from %s", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,8 +141,17 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            file_size = self.path.stat().st_size
+            logger.debug(
+                "Saved %d todos to %s (%d bytes)",
+                len(todos),
+                self.path,
+                file_size,
+            )
+        except OSError as e:
             # Clean up temp file on error
+            logger.error("Failed to save todos to %s: %s", self.path, e)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
