@@ -4,7 +4,8 @@
   "candidate": 3,
   "run_id": "22350952703",
   "branch": "claude/issue-5516-candidate-3-22350952703",
-  "status": "implemented",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5536",
+  "status": "finalized",
   "approach": "file_locking",
   "summary": "Added POSIX file locking (fcntl.flock) to TodoStorage with an exclusive_lock() context manager. All mutation operations (add, mark_done, mark_undone, remove) now use this lock to ensure atomic read-modify-write sequences across processes.",
   "files_changed": [
