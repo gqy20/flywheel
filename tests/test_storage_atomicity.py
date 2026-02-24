@@ -229,3 +229,33 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_temp_file_cleaned_on_non_oserror_exception(tmp_path) -> None:
+    """Regression test for issue #5598: temp file cleanup on non-OSError exceptions.
+
+    When any exception (not just OSError) occurs after temp file creation,
+    the temp file should still be cleaned up. Previously, only OSError was caught,
+    leaving temp files orphaned on other exceptions like RuntimeError.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track temp files before and after
+    temp_files_before = set(tmp_path.glob(".*.tmp"))
+
+    # Mock os.fchmod to raise a non-OSError exception after temp file is created
+    with (
+        patch("flywheel.storage.os.fchmod", side_effect=RuntimeError("Simulated non-OSError failure")),
+        pytest.raises(RuntimeError, match="Simulated non-OSError failure"),
+    ):
+        storage.save(todos)
+
+    # Verify no new temp files remain after the error
+    temp_files_after = set(tmp_path.glob(".*.tmp"))
+    assert temp_files_after == temp_files_before, (
+        f"Temp file was not cleaned up after RuntimeError. "
+        f"Before: {temp_files_before}, After: {temp_files_after}"
+    )
