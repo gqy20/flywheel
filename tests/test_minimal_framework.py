@@ -158,3 +158,33 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #5490: next_id should never return an ID that already exists.
+
+    When todos have non-contiguous IDs (e.g., due to deletion),
+    next_id must return a unique ID using max+1, not reuse deleted IDs.
+    """
+    storage = TodoStorage()
+
+    # Test: todos with gaps [1, 5, 10] should return 11 (max+1)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    assert storage.next_id(todos) == 11
+
+    # Test: After deleting todo with max ID, next_id should still return max+1
+    # [1,2,3,4,5] with id=5 deleted -> [1,2,3,4] -> max+1 = 5 (which is fine, 5 is not in list)
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c"), Todo(id=4, text="d")]
+    assert storage.next_id(todos) == 5
+
+    # Test: Empty list returns 1
+    assert storage.next_id([]) == 1
+
+    # Test: Single item returns max+1
+    todos = [Todo(id=5, text="only")]
+    assert storage.next_id(todos) == 6
+
+    # Test: Critical case - IDs [1,3,5] should return 6, not 2 or 4
+    # This ensures next_id never returns an ID that already exists
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 6
