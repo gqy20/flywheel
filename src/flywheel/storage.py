@@ -60,22 +60,39 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+        # Security: Use os.open() + os.read() with size limit to prevent TOCTOU attacks.
+        # Previously, stat() was called before read_text(), allowing an attacker to
+        # replace the file between these operations. Now we open the file once and
+        # limit the read to MAX_JSON_SIZE_BYTES, preventing the file from being
+        # swapped for a larger one.
+        try:
+            fd = os.open(self.path, os.O_RDONLY)
+        except OSError as e:
+            raise ValueError(f"Cannot open file '{self.path}': {e}") from e
+
+        try:
+            # Read at most MAX_JSON_SIZE_BYTES + 1 to detect if file exceeds limit
+            raw_bytes = os.read(fd, _MAX_JSON_SIZE_BYTES + 1)
+        finally:
+            os.close(fd)
+
+        # Check if we read more than the limit (file is too large)
+        if len(raw_bytes) > _MAX_JSON_SIZE_BYTES:
             raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                f"JSON file too large (exceeds {_MAX_JSON_SIZE_BYTES / (1024 * 1024):.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
+            ) from e
+        except UnicodeDecodeError as e:
+            raise ValueError(
+                f"Invalid UTF-8 encoding in '{self.path}': {e}"
             ) from e
 
         if not isinstance(raw, list):
