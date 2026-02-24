@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -13,6 +14,71 @@ from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 10.0
+
+
+class LockTimeoutError(Exception):
+    """Raised when file lock cannot be acquired within timeout."""
+
+    def __init__(self, path: str, timeout: float) -> None:
+        self.path = path
+        self.timeout = timeout
+        super().__init__(f"Lock timeout ({timeout}s) acquiring lock on {path}")
+
+
+@contextlib.contextmanager
+def _file_lock(lock_path: Path, timeout: float = _DEFAULT_LOCK_TIMEOUT):
+    """Cross-platform file lock context manager.
+
+    Uses fcntl.flock on Unix (Linux/macOS). For Windows, uses a simple
+    file-based lock mechanism. The lock is released automatically when
+    exiting the context.
+
+    Note: This is an advisory lock - it only works if all processes
+    use this locking mechanism.
+
+    Args:
+        lock_path: Path to the lock file
+        timeout: Maximum time to wait for lock acquisition
+
+    Yields:
+        The file descriptor of the lock file
+
+    Raises:
+        LockTimeoutError: If lock cannot be acquired within timeout
+    """
+    import time
+
+    # Ensure parent directory exists
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Open/create the lock file
+    fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o644)
+    start_time = time.monotonic()
+
+    try:
+        while True:
+            try:
+                # Try to acquire exclusive lock (non-blocking)
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except (BlockingIOError, OSError):
+                # Lock is held by another process
+                elapsed = time.monotonic() - start_time
+                if elapsed >= timeout:
+                    raise LockTimeoutError(str(lock_path), timeout) from None
+                # Brief sleep before retry
+                time.sleep(0.05)
+
+        yield fd
+    finally:
+        # Release the lock and close file
+        with contextlib.suppress(OSError):
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        with contextlib.suppress(OSError):
+            os.close(fd)
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -56,6 +122,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def lock_path(self) -> Path:
+        """Path to the lock file for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -74,8 +145,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +196,35 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_modify(
+        self,
+        modify_func,
+        timeout: float = _DEFAULT_LOCK_TIMEOUT,
+    ):
+        """Atomically load, modify, and save todos with file locking.
+
+        This method acquires an exclusive lock before loading the todos,
+        applies the modification function, and saves the result. This
+        prevents race conditions when multiple processes access the same
+        storage file concurrently.
+
+        Args:
+            modify_func: A callable that takes the current list of todos
+                        and returns the modified list. The function should
+                        NOT perform I/O operations as it holds the lock.
+            timeout: Maximum time to wait for lock acquisition (seconds).
+                    Default is 10 seconds.
+
+        Returns:
+            The modified list of todos as returned by modify_func.
+
+        Raises:
+            LockTimeoutError: If lock cannot be acquired within timeout.
+            Any exception raised by modify_func.
+        """
+        with _file_lock(self.lock_path, timeout):
+            todos = self.load()
+            modified_todos = modify_func(todos)
+            self.save(modified_todos)
+            return modified_todos

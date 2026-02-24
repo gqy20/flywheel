@@ -229,3 +229,93 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #5544: Race condition causes data loss in add().
+
+    Tests that multiple processes calling TodoApp.add() concurrently do not
+    lose any todos. The race condition occurs because:
+    1. Process A loads todos []
+    2. Process B loads todos []
+    3. Process A adds todo with id=1 and saves [todo1]
+    4. Process B adds todo with id=1 (same!) and saves [todo1'] - OVERWRITES A's todo
+
+    With proper file locking, both todos should be preserved.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds a unique todo."""
+        try:
+            app = TodoApp(db_path=str(db))
+            todo = app.add(f"worker-{worker_id}-todo")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all try to add todos concurrently
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers at nearly the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+
+    for p in processes:
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # If we got lock-related errors (LockTimeout), that's acceptable
+    # as long as we don't silently lose data
+    lock_errors = [r for r in errors if "Lock timeout" in str(r[2])]
+    other_errors = [r for r in errors if "Lock timeout" not in str(r[2])]
+
+    assert len(other_errors) == 0, f"Workers encountered unexpected errors: {other_errors}"
+
+    # Load final state and verify no data loss
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    # Key assertion: all successful adds should have their todo preserved
+    # (no silent data loss from race condition)
+    successful_ids = {r[2] for r in successes}  # todo.id from each success
+    actual_ids = {todo.id for todo in final_todos}
+
+    # Every successful add should have its todo in the final list
+    missing_ids = successful_ids - actual_ids
+    assert len(missing_ids) == 0, (
+        f"Data loss detected! {len(missing_ids)} todos were lost due to race condition. "
+        f"Successful adds: {len(successes)}, Final todos: {len(final_todos)}, "
+        f"Missing IDs: {missing_ids}"
+    )
+
+    # Should have exactly as many todos as successful adds
+    assert len(final_todos) == len(successes), (
+        f"Expected {len(successes)} todos (one per successful add), "
+        f"but got {len(final_todos)}"
+    )
+
+    # All todos should have unique IDs (no duplicate IDs from race)
+    assert len(actual_ids) == len(final_todos), (
+        f"Duplicate IDs detected! Got {len(final_todos)} todos but only "
+        f"{len(actual_ids)} unique IDs"
+    )

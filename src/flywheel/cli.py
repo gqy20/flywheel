@@ -27,11 +27,19 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        created_todo: Todo | None = None
+
+        def do_add(todos: list[Todo]) -> list[Todo]:
+            nonlocal created_todo
+            new_id = self.storage.next_id(todos)
+            created_todo = Todo(id=new_id, text=text)
+            todos.append(created_todo)
+            return todos
+
+        self.storage.atomic_modify(do_add)
+        # mypy: created_todo is guaranteed to be set after atomic_modify
+        assert created_todo is not None
+        return created_todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +48,48 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        updated_todo: Todo | None = None
+
+        def do_mark_done(todos: list[Todo]) -> list[Todo]:
+            nonlocal updated_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    updated_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_modify(do_mark_done)
+        # mypy: updated_todo is guaranteed to be set after atomic_modify
+        assert updated_todo is not None
+        return updated_todo
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        updated_todo: Todo | None = None
+
+        def do_mark_undone(todos: list[Todo]) -> list[Todo]:
+            nonlocal updated_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    updated_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_modify(do_mark_undone)
+        # mypy: updated_todo is guaranteed to be set after atomic_modify
+        assert updated_todo is not None
+        return updated_todo
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        def do_remove(todos: list[Todo]) -> list[Todo]:
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_modify(do_remove)
 
 
 def build_parser() -> argparse.ArgumentParser:
