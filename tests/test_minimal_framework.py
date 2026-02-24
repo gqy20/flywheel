@@ -158,3 +158,58 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Issue #5570: CLI rename command tests
+def test_cli_rename_command_succeeds(tmp_path, capsys) -> None:
+    """Bug #5570: CLI should accept 'todo rename <id> <new_text>' command."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename it
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+    assert "new text" in captured.out
+
+    # Verify the change persisted
+    args = parser.parse_args(["--db", db, "list"])
+    run_command(args)
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_command_returns_error_for_missing_id(tmp_path, capsys) -> None:
+    """Bug #5570: rename command should return 1 and print error for missing id."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Try to rename a non-existent todo
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.err or "not found" in captured.out
+
+
+def test_cli_rename_command_sanitizes_output(tmp_path, capsys) -> None:
+    """Bug #5570: rename command should sanitize output like other commands."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo with potential ANSI-like content
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+    capsys.readouterr()  # clear output
+
+    # Rename with text containing control characters
+    args = parser.parse_args(["--db", db, "rename", "1", "text\x1b[31mred"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    # Should not contain raw escape sequences
+    assert "\x1b[31m" not in captured.out
