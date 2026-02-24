@@ -7,7 +7,11 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+
+import filelock
 
 from .todo import Todo
 
@@ -55,6 +59,27 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+        self._filelock = filelock.FileLock(self._lock_path)
+
+    @contextmanager
+    def lock(self, timeout: float = 10.0) -> Iterator[None]:
+        """Acquire exclusive lock for atomic operations.
+
+        Use this context manager when performing load-modify-save operations
+        to prevent race conditions in concurrent access scenarios.
+
+        Args:
+            timeout: Maximum seconds to wait for lock acquisition.
+
+        Raises:
+            Timeout: If lock cannot be acquired within timeout.
+        """
+        self._filelock.acquire(timeout=timeout)
+        try:
+            yield
+        finally:
+            self._filelock.release()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():

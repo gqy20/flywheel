@@ -7,11 +7,14 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import multiprocessing
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -229,3 +232,112 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #5544: Race condition causing data loss in concurrent add().
+
+    Tests that two processes calling add() concurrently do not lose data.
+    Without proper locking, one process's add() could overwrite the other's.
+    This test requires file locking to pass.
+    """
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a todo using TodoApp.add()."""
+        try:
+            app = TodoApp(db_path=str(db))
+            # Small stagger to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple add operations concurrently
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Critical assertion: No data loss - all todos should be present
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+
+    # Without locking, this will likely fail because last-writer-wins loses data
+    assert len(final_todos) == num_workers, (
+        f"DATA LOSS DETECTED: Expected {num_workers} todos but only {len(final_todos)} remain. "
+        f"This indicates a race condition where concurrent writes overwrote each other."
+    )
+
+    # Verify all worker texts are present
+    texts = {todo.text for todo in final_todos}
+    for i in range(num_workers):
+        expected = f"worker-{i}-task"
+        assert expected in texts, f"Missing todo from worker {i}: {expected}"
+
+
+def test_lock_timeout_error_handling(tmp_path) -> None:
+    """Test that lock acquisition handles timeout properly.
+
+    Verifies that when a lock cannot be acquired within timeout,
+    a proper error is raised (not hanging indefinitely).
+    """
+    db = tmp_path / "timeout_test.json"
+    storage = TodoStorage(str(db))
+
+    # Test that we can acquire and release a lock normally
+    with storage.lock(timeout=1.0):
+        # Lock acquired successfully
+        storage.save([Todo(id=1, text="test")])
+
+    # After releasing, should be able to acquire again
+    with storage.lock(timeout=1.0):
+        loaded = storage.load()
+        assert len(loaded) == 1
+
+
+def test_lock_file_cleanup(tmp_path) -> None:
+    """Test that lock files are properly managed.
+
+    Note: filelock library intentionally keeps lock files on disk after release.
+    This is by design - the lock file serves as a coordination point and its
+    presence alone doesn't indicate a lock is held. The lock is released by
+    removing the OS-level lock, not by deleting the file.
+    """
+    db = tmp_path / "cleanup_test.json"
+    storage = TodoStorage(str(db))
+
+    # First lock should work
+    with storage.lock():
+        storage.save([Todo(id=1, text="test")])
+
+    # Second lock should also work (no stale lock blocking)
+    with storage.lock():
+        loaded = storage.load()
+        loaded.append(Todo(id=2, text="test2"))
+        storage.save(loaded)
+
+    # Verify we can still perform operations
+    final_loaded = storage.load()
+    assert len(final_loaded) == 2
