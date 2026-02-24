@@ -11,7 +11,8 @@
   ],
   "files_changed": [
     "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+    "tests/test_issue_2000_json_validation.py",
+    "tests/test_storage_atomicity.py"
   ],
   "acceptance_criteria_met": [
     "Todo.from_dict({'id': -1, 'text': 'x'}) raises ValueError",
