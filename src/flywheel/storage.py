@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
+import shutil
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +57,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = True) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            backup: If True, create a .bak backup before overwriting existing files.
+        """
         self.path = Path(path or ".todo.json")
+        self._backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -90,9 +101,17 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: If backup is enabled (default), creates a .bak backup of the
+        existing file before overwriting. Backup failures are logged but do not
+        block the main save operation.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if backup is enabled and file exists
+        if self._backup and self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +145,21 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file before overwriting.
+
+        Creates a .bak file in the same directory as the main file.
+        Backup failures are logged as warnings but do not raise exceptions
+        to avoid blocking the main save operation.
+        """
+        backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+        try:
+            shutil.copy2(self.path, backup_path)
+        except OSError as e:
+            logger.warning(
+                "Failed to create backup file '%s': %s. "
+                "Continuing with save operation.",
+                backup_path,
+                e,
+            )
