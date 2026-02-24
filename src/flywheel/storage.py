@@ -60,18 +60,37 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
+        # Security: Use os.open() + os.fstat() + os.read() on the same file descriptor
+        # to prevent TOCTOU attacks where an attacker could swap the file between
+        # stat() and read_text() to bypass the size limit.
+        try:
+            fd = os.open(self.path, os.O_RDONLY)
+        except FileNotFoundError:
+            # File was deleted between exists() and open()
+            return []
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Get file size from the same fd we'll read from
+            file_stat = os.fstat(fd)
+            file_size = file_stat.st_size
+
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            # Read exactly the file size (or limit, whichever is smaller)
+            # This prevents reading more than expected even if file changes
+            read_size = min(file_size, _MAX_JSON_SIZE_BYTES)
+            raw_bytes = os.read(fd, read_size)
+        finally:
+            os.close(fd)
+
+        try:
+            raw = json.loads(raw_bytes.decode("utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
