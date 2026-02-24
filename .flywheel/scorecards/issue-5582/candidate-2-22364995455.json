@@ -1,0 +1,19 @@
+{
+  "issue_number": 5582,
+  "candidate_number": 2,
+  "run_id": "22364995455",
+  "branch": "claude/issue-5582-candidate-2-22364995455",
+  "stage": "IMPLEMENT",
+  "summary": "Add explicit os.chmod after os.replace to ensure final database file has 0o600 permissions",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_5582_final_file_permissions.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "scorecard_created_at": "2026-02-24T19:04:00Z"
+}
