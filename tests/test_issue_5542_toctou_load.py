@@ -10,14 +10,12 @@ These tests should FAIL before the fix and PASS after the fix.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage, _MAX_JSON_SIZE_BYTES
-from flywheel.todo import Todo
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 
 
 def _make_large_json_content(size_bytes: int) -> str:
@@ -82,7 +80,7 @@ def test_load_rejects_file_larger_than_limit_even_if_toctou_attempted(tmp_path) 
     # The fix uses os.open() + os.read() which reads at most _MAX_JSON_SIZE_BYTES + 1
     # and then checks if len(data) > _MAX_JSON_SIZE_BYTES
     # This should raise ValueError because the content is too large
-    with pytest.raises(ValueError, match="too large|exceeds"):
+    with pytest.raises(ValueError, match=r"too large|exceeds"):
         storage.load()
 
 
@@ -127,7 +125,7 @@ def test_load_rejects_oversized_file_directly(tmp_path) -> None:
     large_content = _make_large_json_content(_MAX_JSON_SIZE_BYTES + 1024 * 1024)
     db.write_text(large_content, encoding="utf-8")
 
-    with pytest.raises(ValueError, match="too large"):
+    with pytest.raises(ValueError, match=r"too large"):
         storage.load()
 
 
