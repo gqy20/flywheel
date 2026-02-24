@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +229,67 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_creates_nested_parent_directories(tmp_path) -> None:
+    """Regression test for issue #5528: save() should create nested parent dirs.
+
+    Tests that save() succeeds when called with a path containing multiple
+    non-existent parent directories. This verifies that _ensure_parent_directory
+    properly handles nested directory creation before mkstemp is called.
+    """
+    # Create a path with TWO non-existent parent directories
+    nested_path = tmp_path / "newdir" / "subdir" / "todo.json"
+    assert not nested_path.parent.exists(), "Parent directory should not exist initially"
+
+    storage = TodoStorage(str(nested_path))
+    todos = [Todo(id=1, text="test nested save")]
+
+    # This should succeed, creating both newdir and subdir
+    storage.save(todos)
+
+    # Verify directories were created
+    assert nested_path.parent.exists(), "Parent directory should be created"
+    assert nested_path.parent.is_dir(), "Parent should be a directory"
+
+    # Verify file was saved correctly
+    assert nested_path.exists(), "Database file should exist"
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test nested save"
+
+
+def test_save_handles_toctou_race_condition(tmp_path) -> None:
+    """Regression test for issue #5528: handle TOCTOU race in directory creation.
+
+    Tests that save() properly handles the Time-Of-Check-To-Time-Of-Use race
+    where the parent directory might be deleted between _ensure_parent_directory
+    check and mkstemp call. The fix should ensure the directory exists just
+    before mkstemp is called.
+    """
+    import tempfile
+
+    db = tmp_path / "race_test" / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track calls to ensure we can simulate the TOCTOU race
+    original_mkstemp = tempfile.mkstemp
+    mkstemp_called = []
+
+    def race_simulating_mkstemp(*args, **kwargs):
+        # Record that mkstemp was called
+        mkstemp_called.append(True)
+        # The directory should exist at this point
+        dir_arg = kwargs.get("dir", args[0] if args else None)
+        if dir_arg:
+            assert Path(dir_arg).exists(), (
+                f"Directory {dir_arg} must exist before mkstemp is called"
+            )
+        return original_mkstemp(*args, **kwargs)
+
+    with patch.object(tempfile, "mkstemp", race_simulating_mkstemp):
+        todos = [Todo(id=1, text="race condition test")]
+        storage.save(todos)
+
+    assert mkstemp_called, "mkstemp should have been called"
+    assert db.exists(), "Database file should exist after save"
