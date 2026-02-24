@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -124,5 +125,50 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def atomic_add(self, text: str) -> Todo:
+        """Add a new todo atomically with proper ID generation.
+
+        This method performs load -> next_id -> save as an atomic operation
+        using file-level locking to prevent race conditions with concurrent writes.
+
+        Args:
+            text: The todo text content
+
+        Returns:
+            The newly created Todo with a unique ID
+        """
+        _ensure_parent_directory(self.path)
+
+        # Create or ensure lock file exists
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open lock file and acquire exclusive lock
+        lock_fd = os.open(str(lock_path), os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+
+            # Critical section: load, compute ID, save
+            todos = self.load()
+            next_id = (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+            new_todo = Todo(id=next_id, text=text)
+            todos.append(new_todo)
+            self.save(todos)
+
+            return new_todo
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+
     def next_id(self, todos: list[Todo]) -> int:
+        """Generate the next unique ID for a new todo.
+
+        WARNING: This method is not safe for concurrent use. Use atomic_add()
+        instead for operations that need to be safe with concurrent writes.
+
+        Args:
+            todos: Current list of todos
+
+        Returns:
+            The next ID (max existing ID + 1, or 1 if empty)
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
