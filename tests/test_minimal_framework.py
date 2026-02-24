@@ -158,3 +158,17 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_edge_cases() -> None:
+    """Bug #5530: next_id() should return correct result for empty and non-empty lists."""
+    storage = TodoStorage("/dev/null")  # Path doesn't matter for this test
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Single item should return max_id + 1
+    assert storage.next_id([Todo(id=5, text="x")]) == 6
+
+    # Multiple items with gap should return max_id + 1
+    assert storage.next_id([Todo(id=1, text="a"), Todo(id=5, text="b")]) == 6
