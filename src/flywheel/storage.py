@@ -53,8 +53,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, backup: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self.backup = backup
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +75,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -90,9 +90,27 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: If backup=True (default), creates a .bak file with the previous
+        content before overwriting. Backup failure is logged but does not block save.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if backup is enabled and file exists
+        if self.backup and self.path.exists():
+            backup_path = self.path.with_suffix(self.path.suffix + ".bak")
+            try:
+                import shutil
+
+                shutil.copy2(self.path, backup_path)
+            except OSError:
+                # Backup failure should not block save - just log warning
+                import logging
+
+                logging.getLogger(__name__).warning(
+                    "Failed to create backup file '%s'", backup_path, exc_info=True
+                )
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
