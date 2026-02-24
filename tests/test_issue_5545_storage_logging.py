@@ -85,9 +85,7 @@ class TestStorageLogging:
             storage.load()
 
         # Should have logged a warning or error
-        warning_or_error = [
-            r for r in caplog.records if r.levelno >= logging.WARNING
-        ]
+        warning_or_error = [r for r in caplog.records if r.levelno >= logging.WARNING]
         assert len(warning_or_error) > 0, "Expected WARNING/ERROR log for JSON decode error"
 
     def test_load_oversized_file_logs_warning(
@@ -111,9 +109,7 @@ class TestStorageLogging:
             storage.load()
 
         # Should have logged a warning or error
-        warning_or_error = [
-            r for r in caplog.records if r.levelno >= logging.WARNING
-        ]
+        warning_or_error = [r for r in caplog.records if r.levelno >= logging.WARNING]
         assert len(warning_or_error) > 0, "Expected WARNING/ERROR log for oversized file"
 
     def test_load_missing_file_returns_empty_list(
