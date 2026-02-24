@@ -23,7 +23,9 @@ class TestLoggerSetup:
         import flywheel.storage as storage_module
 
         assert hasattr(storage_module, "logger"), "storage.py should have a module-level logger"
-        assert isinstance(storage_module.logger, logging.Logger), "logger should be a logging.Logger instance"
+        assert isinstance(storage_module.logger, logging.Logger), (
+            "logger should be a logging.Logger instance"
+        )
 
     def test_logger_name_is_correct(self) -> None:
         """Verify logger name follows convention: flywheel.storage."""
@@ -37,7 +39,9 @@ class TestLoggerSetup:
 class TestLoadLogging:
     """Tests for load() operation logging."""
 
-    def test_load_success_logs_debug_with_count(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_success_logs_debug_with_count(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """load() should log DEBUG on success with todo count."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -56,7 +60,9 @@ class TestLoadLogging:
             f"Expected DEBUG log message with todo count '3', got: {debug_messages}"
         )
 
-    def test_load_empty_file_logs_debug(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_empty_file_logs_debug(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """load() should log DEBUG when returning empty list for non-existent file."""
         db = tmp_path / "nonexistent.json"
         storage = TodoStorage(str(db))
@@ -71,34 +77,43 @@ class TestLoadLogging:
             f"Expected DEBUG log message for load, got: {debug_messages}"
         )
 
-    def test_load_json_error_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_json_error_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """load() should log WARNING on JSON decode error."""
         db = tmp_path / "invalid.json"
         db.write_text("{ invalid json", encoding="utf-8")
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises(ValueError):
-                storage.load()
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises(ValueError),
+        ):
+            storage.load()
 
         # Check that we logged a warning/error message
         warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
         assert len(warning_messages) > 0, "Expected WARNING log on JSON decode error"
 
-    def test_load_oversized_file_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_load_oversized_file_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """load() should log WARNING when file exceeds size limit."""
         db = tmp_path / "large.json"
         # Create a file larger than 10MB limit with valid JSON
         # Each item is approximately 125 bytes, need ~80,000 items to exceed 10MB
         large_items = [{"id": i, "text": "x" * 100} for i in range(85000)]
         import json
+
         large_content = json.dumps(large_items)
         db.write_text(large_content, encoding="utf-8")
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises(ValueError, match="too large"):
-                storage.load()
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises(ValueError, match="too large"),
+        ):
+            storage.load()
 
         # Check that we logged a warning/error message about size
         warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
@@ -108,7 +123,9 @@ class TestLoadLogging:
 class TestSaveLogging:
     """Tests for save() operation logging."""
 
-    def test_save_success_logs_debug_with_size(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_success_logs_debug_with_size(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """save() should log DEBUG on success with file size."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -124,7 +141,9 @@ class TestSaveLogging:
             f"Expected DEBUG log message for save, got: {debug_messages}"
         )
 
-    def test_save_creates_directory_logs_debug(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_creates_directory_logs_debug(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """save() should log DEBUG when creating parent directory."""
         db = tmp_path / "subdir" / "todo.json"
         storage = TodoStorage(str(db))
@@ -146,15 +165,19 @@ class TestSaveLogging:
 class TestErrorPathLogging:
     """Tests for error path logging."""
 
-    def test_json_decode_error_logs_with_path(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_json_decode_error_logs_with_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """JSON decode errors should include file path in log."""
         db = tmp_path / "broken.json"
         db.write_text("not valid json at all", encoding="utf-8")
         storage = TodoStorage(str(db))
 
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises(ValueError):
-                storage.load()
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises(ValueError),
+        ):
+            storage.load()
 
         # Check that log includes path information
         warning_messages = [r.message for r in caplog.records if r.levelno >= logging.WARNING]
@@ -163,7 +186,9 @@ class TestErrorPathLogging:
             f"Expected log to include file path, got: {warning_messages}"
         )
 
-    def test_save_error_logs_warning(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_save_error_logs_warning(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """save() errors should be logged."""
         db = tmp_path / "todo.json"
         storage = TodoStorage(str(db))
@@ -174,8 +199,6 @@ class TestErrorPathLogging:
 
         # Make the directory read-only to cause save error
         # Note: This test may not work on all systems
-        import os
-        import stat
 
         # Create a file with the same name as parent directory would have
         # to trigger path validation error
@@ -184,9 +207,11 @@ class TestErrorPathLogging:
         impossible_db = blocked_path / "subdir" / "todo.json"
         storage2 = TodoStorage(str(impossible_db))
 
-        with caplog.at_level(logging.WARNING, logger="flywheel.storage"):
-            with pytest.raises((ValueError, OSError)):
-                storage2.save(todos)
+        with (
+            caplog.at_level(logging.WARNING, logger="flywheel.storage"),
+            pytest.raises((ValueError, OSError)),
+        ):
+            storage2.save(todos)
 
         # Should have logged something at warning level or above
         # (may or may not log depending on error type)
