@@ -1,0 +1,39 @@
+{
+  "issue_number": 5611,
+  "candidate": 1,
+  "run_id": "22370621726",
+  "scorecard_version": "1.0",
+  "evaluation": {
+    "test_coverage": {
+      "score": 5,
+      "notes": "6 comprehensive regression tests covering empty list, contiguous IDs, single gap, multiple gaps, and sequential adds scenarios"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Minimal, focused fix with clear docstring explaining the behavior change"
+    },
+    "minimal_changes": {
+      "score": 5,
+      "notes": "Only modified next_id() method - 8 lines changed in implementation"
+    },
+    "backward_compatibility": {
+      "score": 4,
+      "notes": "Behavior change: IDs now fill gaps instead of always using max+1. This is a semantic change but improves ID uniqueness guarantee"
+    },
+    "documentation": {
+      "score": 4,
+      "notes": "Added docstring to next_id() explaining the new behavior"
+    }
+  },
+  "tests_added": [
+    "tests/test_issue_5611_next_id_gaps.py"
+  ],
+  "files_modified": [
+    "src/flywheel/storage.py"
+  ],
+  "summary": "Fixed next_id() to find first available ID instead of always returning max+1. This ensures IDs remain unique even when there are gaps from deletions.",
+  "risks": [
+    "Semantic behavior change: existing users may expect max+1 pattern"
+  ],
+  "limitations": []
+}
