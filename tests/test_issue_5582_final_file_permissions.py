@@ -55,8 +55,7 @@ def test_final_file_has_restricted_permissions(tmp_path) -> None:
 
     # Verify no execute bit is set
     assert not (file_mode & stat.S_IXUSR), (
-        f"Final file should not have owner execute bit set. "
-        f"Mode: {oct(file_mode)}, File: {db}"
+        f"Final file should not have owner execute bit set. Mode: {oct(file_mode)}, File: {db}"
     )
 
     # Verify group and others have no permissions
@@ -79,10 +78,12 @@ def test_final_file_permissions_after_overwrite(tmp_path) -> None:
     storage.save([Todo(id=1, text="initial todo")])
 
     # Overwrite with new data
-    storage.save([
-        Todo(id=1, text="updated todo"),
-        Todo(id=2, text="new todo"),
-    ])
+    storage.save(
+        [
+            Todo(id=1, text="updated todo"),
+            Todo(id=2, text="new todo"),
+        ]
+    )
 
     # Verify final permissions
     file_stat = db.stat()
@@ -137,7 +138,7 @@ def test_final_file_permissions_explicitly_set_after_rename(tmp_path) -> None:
             os.chmod(dst, 0o644)  # Simulate permissive default
         return result
 
-    with mock.patch.object(os, 'replace', replace_with_lost_permissions):
+    with mock.patch.object(os, "replace", replace_with_lost_permissions):
         storage.save([Todo(id=1, text="test")])
 
     # After the fix, final file should have 0o600 despite rename losing permissions
