@@ -1,23 +1,23 @@
 {
-  "issue_number": 5570,
+  "issue": 5570,
   "candidate": 1,
   "run_id": "22364995455",
-  "status": "implemented",
-  "tests_passed": true,
-  "linter_passed": true,
-  "changes": {
-    "source_files": ["src/flywheel/cli.py"],
-    "test_files": ["tests/test_issue_5570_cli_rename_command.py"]
-  },
-  "acceptance_criteria": {
-    "cli_accepts_rename_command": true,
-    "returns_0_on_success": true,
-    "returns_1_on_error": true,
-    "sanitizes_output": true
-  },
-  "test_results": {
-    "test_cli_rename_command_succeeds": "passed",
-    "test_cli_rename_command_returns_error_for_missing_id": "passed",
-    "test_cli_rename_command_sanitizes_output": "passed"
+  "branch": "claude/issue-5570-candidate-1-22364995455",
+  "pr_number": 5591,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5591",
+  "generated_at": "2026-02-24T19:39:30.388137+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1971,
+    "plan": 3248,
+    "implement": 2148,
+    "verify": 2220,
+    "finalize": 1331
   }
 }
