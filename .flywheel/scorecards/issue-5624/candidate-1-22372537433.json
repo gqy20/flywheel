@@ -110,5 +110,11 @@
       "Zero is now accepted as a valid ID (non-negative validation)",
       "Existing data with negative IDs would fail to load after this fix"
     ]
+  },
+  "finalize": {
+    "status": "completed",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/5637",
+    "pr_number": 5637,
+    "finalized_at": "2026-02-24T23:15:00Z"
   }
 }
