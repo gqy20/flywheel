@@ -4,66 +4,91 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
+
+import filelock
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
 
+# Default timeout for lock acquisition (in seconds)
+DEFAULT_LOCK_TIMEOUT = 30.0
+
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application with file-based locking.
 
-    def __init__(self, db_path: str | None = None) -> None:
+    Uses filelock to prevent race conditions when multiple processes
+    access the same todo file concurrently. The lock ensures that
+    load-modify-save operations are atomic.
+    """
+
+    def __init__(
+        self, db_path: str | None = None, lock_timeout: float = DEFAULT_LOCK_TIMEOUT
+    ) -> None:
         self.storage = TodoStorage(db_path)
+        self._lock_timeout = lock_timeout
+        # Lock file is stored alongside the database file
+        lock_path = Path(self.storage.path).with_suffix(self.storage.path.suffix + ".lock")
+        self._lock = filelock.FileLock(str(lock_path))
 
-    def _load(self) -> list[Todo]:
-        return self.storage.load()
+    def _with_lock(self, operation: str) -> filelock.FileLock:
+        """Get the file lock for the given operation.
 
-    def _save(self, todos: list[Todo]) -> None:
-        self.storage.save(todos)
+        Returns the lock context manager for use in 'with' statements.
+        """
+        return self._lock
 
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with self._lock.acquire(timeout=self._lock_timeout):
+            todos = self.storage.load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self.storage.save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
-        todos = self._load()
+        # Read operations also need locking to ensure consistency
+        # with concurrent write operations
+        with self._lock.acquire(timeout=self._lock_timeout):
+            todos = self.storage.load()
         if show_all:
             return todos
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with self._lock.acquire(timeout=self._lock_timeout):
+            todos = self.storage.load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self.storage.save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with self._lock.acquire(timeout=self._lock_timeout):
+            todos = self.storage.load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self.storage.save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with self._lock.acquire(timeout=self._lock_timeout):
+            todos = self.storage.load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self.storage.save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 
