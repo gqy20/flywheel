@@ -90,8 +90,6 @@ def test_temp_file_cleaned_up_on_value_error_during_write(tmp_path: Path) -> Non
     # Track the file descriptor and mock os.fdopen to return a failing file object
     captured_fd = []
 
-    original_fdopen = os.fdopen
-
     class FailingFile:
         def __init__(self, fd):
             self.fd = fd
