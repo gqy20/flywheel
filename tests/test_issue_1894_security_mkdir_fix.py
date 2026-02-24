@@ -35,7 +35,12 @@ def test_cli_fails_when_parent_is_file_not_directory(tmp_path, capsys) -> None:
 
     # Error message should indicate the path problem (now in stderr)
     captured = capsys.readouterr()
-    assert "Error:" in captured.out or "Error:" in captured.err or "error" in captured.out.lower() or "error" in captured.err.lower()
+    assert (
+        "Error:" in captured.out
+        or "Error:" in captured.err
+        or "error" in captured.out.lower()
+        or "error" in captured.err.lower()
+    )
 
 
 def test_cli_fails_when_immediate_parent_is_file(tmp_path, capsys) -> None:
@@ -122,3 +127,71 @@ def test_cli_succeeds_when_parent_already_exists_as_directory(tmp_path, capsys) 
 
     captured = capsys.readouterr()
     assert "Added" in captured.out
+
+
+def test_concurrent_parent_directory_creation_no_race(tmp_path) -> None:
+    """Issue #5461: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that concurrent creation of the same parent directory by multiple
+    processes does not cause FileExistsError. The race occurs between
+    the parent.exists() check and parent.mkdir(exist_ok=False) call.
+
+    Before fix: FileExistsError when another process creates the directory
+    After fix: Should succeed silently with exist_ok=True
+    """
+    import multiprocessing
+    import time
+
+    # All processes will try to create db at same nested path
+    db_path = tmp_path / "shared" / "nested" / "db.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that tries to save to same nested path concurrently."""
+        try:
+            # Small random delay to synchronize start time
+            time.sleep(0.01 * (worker_id % 3))
+
+            storage = TodoStorage(str(db_path))
+            # This triggers _ensure_parent_directory which has the TOCTOU window
+            storage.save([])
+
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the bug - FileExistsError from mkdir(exist_ok=False)
+            result_queue.put(("race_bug", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently targeting same new directory
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    race_bugs = [r for r in results if r[0] == "race_bug"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # The fix should prevent FileExistsError (race_bugs)
+    assert len(race_bugs) == 0, (
+        f"TOCTOU race detected: {len(race_bugs)} workers hit FileExistsError. Details: {race_bugs}"
+    )
+
+    # At least some should succeed
+    assert len(successes) > 0, f"Expected some successes, got errors: {errors}"
+
+    # No other errors should occur
+    assert len(errors) == 0, f"Workers encountered unexpected errors: {errors}"
