@@ -1,0 +1,96 @@
+{
+  "issue": 5544,
+  "candidate": 2,
+  "run_id": "22354119340",
+  "branch": "claude/issue-5544-candidate-2-22354119340",
+  "stage": "FINALIZE",
+  "summary": "Fix race condition in concurrent writes by implementing file locking using fcntl (Unix) with context manager pattern",
+  "root_cause": {
+    "file": "src/flywheel/cli.py",
+    "lines": [30, 31, 32, 33, 43, 46, 47, 52, 55, 56, 61, 64, 65],
+    "pattern": "check-then-act race condition between load() and save()"
+  },
+  "plan": {
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "test_first": {
+      "description": "Add failing regression test that uses multiprocessing to concurrently add todos and verifies no data loss",
+      "test_name": "test_concurrent_add_no_data_loss",
+      "location": "tests/test_storage_atomicity.py"
+    },
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "action": "Add _file_lock context manager to storage.py",
+        "details": "Implement file locking using fcntl.flock on Unix with timeout support"
+      },
+      {
+        "step": 2,
+        "action": "Add atomic_modify method to TodoStorage",
+        "details": "Create atomic_modify method that acquires lock, loads, applies mutation, and saves within single lock scope"
+      },
+      {
+        "step": 3,
+        "action": "Refactor TodoApp to use atomic_modify",
+        "details": "Update add(), mark_done(), mark_undone(), remove() to use atomic_modify pattern"
+      }
+    ],
+    "acceptance_criteria": [
+      "Two processes calling add() concurrently do not lose data",
+      "File locking works on Linux/macOS (fcntl)",
+      "Lock timeout provides clear error message",
+      "Single-process operation latency increase < 10ms"
+    ]
+  },
+  "risks": [
+    "NFS filesystems may have unreliable file locking",
+    "Orphan lock files if process crashes before cleanup"
+  ],
+  "verification_targets": [
+    {
+      "id": "VT1",
+      "description": "Two processes adding simultaneously must preserve both todos",
+      "test_name": "test_concurrent_add_no_data_loss"
+    }
+  ],
+  "status": "verify_complete",
+  "created_at": "2026-02-24T14:30:00Z",
+  "implemented_at": "2026-02-24T15:00:00Z",
+  "verified_at": "2026-02-24T15:10:00Z",
+  "commit_sha": "b180a9a",
+  "tests_passed": [
+    "test_save_is_atomic_with_os_replace",
+    "test_write_failure_preserves_original_file",
+    "test_temp_file_created_in_same_directory",
+    "test_atomic_write_produces_valid_json",
+    "test_concurrent_write_safety",
+    "test_concurrent_save_from_multiple_processes",
+    "test_concurrent_add_no_data_loss"
+  ],
+  "full_test_suite": {
+    "tests_run": 113,
+    "tests_passed": 113,
+    "tests_failed": 0
+  },
+  "lint_passed": true,
+  "format_passed": true,
+  "verify_commands": {
+    "pytest_atomicity": "uv run pytest tests/test_storage_atomicity.py -v --tb=short",
+    "pytest_full": "uv run pytest tests/ -v --tb=short",
+    "ruff_lint": "uv run ruff check src/flywheel/cli.py src/flywheel/storage.py tests/test_storage_atomicity.py",
+    "ruff_format": "uv run ruff format --check src/flywheel/cli.py src/flywheel/storage.py tests/test_storage_atomicity.py"
+  },
+  "fixes_applied_during_verify": [
+    {
+      "file": "tests/test_storage_atomicity.py",
+      "issue": "F841: Local variable `lock_errors` is assigned to but never used",
+      "fix": "Renamed to `_lock_errors` to indicate intentionally unused"
+    }
+  ],
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5554",
+  "pr_number": 5554,
+  "finalized_at": "2026-02-24T15:15:00Z"
+}
