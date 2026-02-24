@@ -125,10 +125,14 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
     raw_content = db.read_text(encoding="utf-8")
     parsed = json.loads(raw_content)
 
-    assert len(parsed) == 3
-    assert parsed[0]["text"] == "task with unicode: 你好"
-    assert parsed[1]["text"] == 'task with quotes: "test"'
-    assert parsed[1]["done"] is True
+    # New format is an object with "todos" and "_next_id" keys
+    assert "todos" in parsed
+    assert "_next_id" in parsed
+    todo_list = parsed["todos"]
+    assert len(todo_list) == 3
+    assert todo_list[0]["text"] == "task with unicode: 你好"
+    assert todo_list[1]["text"] == 'task with quotes: "test"'
+    assert todo_list[1]["done"] is True
 
 
 def test_concurrent_write_safety(tmp_path) -> None:

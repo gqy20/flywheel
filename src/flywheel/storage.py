@@ -55,9 +55,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._next_id: int | None = None  # Cached next_id counter
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            self._next_id = 1
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -78,9 +80,35 @@ class TodoStorage:
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Support both new object format and legacy list format
+        if isinstance(raw, list):
+            # Legacy format: just a list of todos
+            todos = [Todo.from_dict(item) for item in raw]
+            # Initialize next_id from max id in list
+            self._next_id = (max((t.id for t in todos), default=0) + 1) if todos else 1
+            return todos
+
+        if isinstance(raw, dict):
+            # New format: {"todos": [...], "_next_id": N}
+            if "todos" not in raw:
+                raise ValueError("Todo storage object must have 'todos' key")
+            todo_list = raw["todos"]
+            if not isinstance(todo_list, list):
+                raise ValueError("'todos' must be a JSON list")
+            todos = [Todo.from_dict(item) for item in todo_list]
+
+            # Load or initialize next_id counter
+            stored_next_id = raw.get("_next_id")
+            if isinstance(stored_next_id, int) and stored_next_id > 0:
+                self._next_id = stored_next_id
+            else:
+                # Fallback: initialize from max id in list
+                self._next_id = (
+                    (max((t.id for t in todos), default=0) + 1) if todos else 1
+                )
+            return todos
+
+        raise ValueError("Todo storage must be a JSON list or object with 'todos' key")
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +122,19 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Ensure _next_id is initialized and at least greater than any existing ID
+        if self._next_id is None:
+            self._next_id = (
+                (max((t.id for t in todos), default=0) + 1) if todos else 1
+            )
+        else:
+            # Make sure _next_id is always >= max_id + 1
+            max_id = max((t.id for t in todos), default=0) if todos else 0
+            if self._next_id <= max_id:
+                self._next_id = max_id + 1
+
+        # Save in new format with next_id counter
+        payload = {"todos": [todo.to_dict() for todo in todos], "_next_id": self._next_id}
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
@@ -125,4 +165,25 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next unique ID for a new todo.
+
+        Uses a persistent counter to ensure IDs are never reused,
+        even after deletions. The counter is stored in the JSON file
+        alongside the todos.
+
+        Args:
+            todos: Current list of todos (used for fallback if counter not initialized).
+
+        Returns:
+            The next unique ID that has not been used before.
+        """
+        if self._next_id is None:
+            # Fallback: compute from current list (for when load() wasn't called)
+            self._next_id = (
+                (max((t.id for t in todos), default=0) + 1) if todos else 1
+            )
+
+        result = self._next_id
+        # Increment the counter for next time
+        self._next_id += 1
+        return result
