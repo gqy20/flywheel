@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,53 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock for the storage.
+
+        Returns the lock file descriptor that must be closed to release the lock.
+        Creates the lock file if it doesn't exist.
+
+        Raises:
+            OSError: If the lock cannot be acquired.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        # Using O_CREAT | O_RDWR to create if not exists, read/write access
+        fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600 permissions
+        )
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)  # Exclusive lock (blocking)
+            return fd
+        except OSError:
+            os.close(fd)
+            raise
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock and close the file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)  # Unlock
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def _locked(self):
+        """Context manager that provides exclusive access to the storage.
+
+        Acquires a file lock on entry and releases it on exit.
+        This protects read-modify-write sequences from race conditions.
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
