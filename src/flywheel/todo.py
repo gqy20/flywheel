@@ -93,10 +93,20 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
-        return cls(
-            id=todo_id,
-            text=data["text"],
-            done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
-        )
+        # Normalize timestamps: treat None/missing as empty string
+        created_at_raw = data.get("created_at")
+        updated_at_raw = data.get("updated_at")
+
+        # Handle None explicitly to avoid str(None) -> 'None'
+        created_at = "" if created_at_raw is None else str(created_at_raw)
+        updated_at = "" if updated_at_raw is None else str(updated_at_raw)
+
+        # Create instance and set timestamps directly to bypass __post_init__
+        todo = object.__new__(Todo)
+        object.__setattr__(todo, "id", todo_id)
+        object.__setattr__(todo, "text", data["text"])
+        object.__setattr__(todo, "done", done)
+        object.__setattr__(todo, "created_at", created_at)
+        object.__setattr__(todo, "updated_at", updated_at)
+
+        return todo
