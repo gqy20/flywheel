@@ -229,3 +229,83 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #5516: Concurrent add operations should produce unique IDs.
+
+    Tests that multiple processes calling add() concurrently:
+    1. Produce two todos with different IDs
+    2. Both todos are preserved (no data loss)
+    3. IDs are unique
+
+    This tests the read-modify-write atomicity for the add operation.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_add.json"
+
+    def add_worker(text: str, result_queue: multiprocessing.Queue) -> None:
+        """Worker that uses TodoApp.add() to add a todo."""
+        try:
+            from flywheel.cli import TodoApp
+
+            app = TodoApp(db_path=str(db))
+            # Small staggered delay to increase race condition likelihood
+            time.sleep(0.001 * (hash(text) % 5) / 100)
+            todo = app.add(text)
+            result_queue.put(("success", text, todo.id))
+        except Exception as e:
+            result_queue.put(("error", text, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 3
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    texts = [f"task-{i}" for i in range(num_workers)]
+
+    for text in texts:
+        p = multiprocessing.Process(target=add_worker, args=(text, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Load final state and verify no data loss
+    from flywheel.storage import TodoStorage
+
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    # Critical assertion: all todos should be present (no data loss)
+    assert len(final_todos) == num_workers, (
+        f"Data loss detected! Expected {num_workers} todos, got {len(final_todos)}. "
+        f"Success results: {successes}, Final todos: {[(t.id, t.text) for t in final_todos]}"
+    )
+
+    # Critical assertion: all IDs should be unique
+    ids = [todo.id for todo in final_todos]
+    assert len(set(ids)) == len(ids), f"Duplicate IDs detected! IDs: {ids}"
+
+    # Critical assertion: all expected texts should be present
+    final_texts = {todo.text for todo in final_todos}
+    expected_texts = set(texts)
+    assert final_texts == expected_texts, (
+        f"Missing or extra todos. Expected: {expected_texts}, Got: {final_texts}"
+    )
