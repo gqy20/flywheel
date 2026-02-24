@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int = 0  # Cached max ID for O(1) next_id
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -80,7 +81,13 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+
+        # Update cached max_id for O(1) next_id performance (issue #5492)
+        if todos:
+            self._max_id = max(todo.id for todo in todos)
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -93,6 +100,10 @@ class TodoStorage:
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Update cached max_id for O(1) next_id performance (issue #5492)
+        if todos:
+            self._max_id = max(todo.id for todo in todos)
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -125,4 +136,26 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID in O(1) time.
+
+        Uses cached max_id for constant-time lookup instead of O(n) scan.
+        The cache is updated on load() and save() operations.
+
+        Args:
+            todos: List of todos (used for fallback if cache is stale).
+
+        Returns:
+            The next available ID (max_id + 1).
+        """
+        # If cache is valid, use it for O(1) lookup
+        if self._max_id > 0:
+            return self._max_id + 1
+
+        # Fallback: compute from list if cache not populated
+        # This handles edge cases like direct next_id() calls without load/save
+        if todos:
+            max_id = max(todo.id for todo in todos)
+            self._max_id = max_id  # Update cache
+            return max_id + 1
+
+        return 1
