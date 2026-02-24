@@ -1,28 +1,23 @@
 {
-  "issue_number": 5542,
+  "issue": 5542,
   "candidate": 3,
   "run_id": "22354119340",
   "branch": "claude/issue-5542-candidate-3-22354119340",
-  "summary": "Fix TOCTOU vulnerability in load() method by using os.open() + os.fstat() + os.read() on a single file descriptor instead of separate stat() and read_text() calls",
-  "test_coverage": {
-    "test_file": "tests/test_issue_5542_toctou_load.py",
-    "tests_added": 8,
-    "tests_passed": 8
-  },
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_5542_toctou_load.py"]
-  },
-  "security_fix": {
-    "vulnerability": "TOCTOU (Time-Of-Check-Time-Of-Use)",
-    "attack_vector": "Attacker could swap file between stat() and read_text() to bypass size limit",
-    "fix_approach": "Use single file descriptor for both stat and read operations",
-    "implementation": "os.open() + os.fstat() + os.read() on same fd"
-  },
-  "risks": [
-    "Minor performance impact due to low-level os calls instead of pathlib"
-  ],
-  "limitations": [],
+  "pr_number": 5551,
   "pr_url": "https://github.com/gqy20/flywheel/pull/5551",
-  "status": "finalized"
+  "generated_at": "2026-02-24T15:14:45.537654+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2531,
+    "plan": 3450,
+    "implement": 1980,
+    "verify": 2306,
+    "finalize": 2422
+  }
 }
