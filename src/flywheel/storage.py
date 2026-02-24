@@ -53,12 +53,26 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, *, use_cache: bool = True) -> None:
         self.path = Path(path or ".todo.json")
+        self._use_cache = use_cache
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            # Clear cache if file doesn't exist
+            if self._use_cache:
+                self._cache = None
+                self._cache_mtime = None
             return []
+
+        # Get current file mtime for cache validation
+        current_mtime = self.path.stat().st_mtime
+
+        # Return cached data if cache is valid (same mtime)
+        if self._use_cache and self._cache is not None and self._cache_mtime == current_mtime:
+            return self._cache
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +94,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+
+        # Update cache if caching is enabled
+        if self._use_cache:
+            self._cache = result
+            self._cache_mtime = current_mtime
+
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +140,11 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Update cache with saved data after successful atomic write
+            if self._use_cache:
+                self._cache = todos
+                self._cache_mtime = self.path.stat().st_mtime
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
