@@ -4,17 +4,52 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+
+from filelock import FileLock
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
 
+# Default timeout for lock acquisition (in seconds)
+DEFAULT_LOCK_TIMEOUT = 30.0
+
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application with file-based locking.
 
-    def __init__(self, db_path: str | None = None) -> None:
+    Uses file-based locking to prevent race conditions in concurrent access.
+    The load-modify-save pattern requires exclusive access to prevent data loss.
+    """
+
+    def __init__(self, db_path: str | None = None, lock_timeout: float = DEFAULT_LOCK_TIMEOUT) -> None:
+        """Initialize TodoApp.
+
+        Args:
+            db_path: Path to the JSON database file.
+            lock_timeout: Maximum time to wait for lock acquisition (seconds).
+        """
         self.storage = TodoStorage(db_path)
+        self.lock_timeout = lock_timeout
+        # Create lock file path by appending .lock to the db path
+        db_file = Path(db_path) if db_path else Path(".todo.json")
+        self._lock = FileLock(str(db_file) + ".lock")
+
+    @contextmanager
+    def _locked_operation(self) -> Iterator[None]:
+        """Context manager that acquires the file lock for the operation.
+
+        Raises:
+            Timeout: If lock cannot be acquired within lock_timeout seconds.
+        """
+        self._lock.acquire(timeout=self.lock_timeout)
+        try:
+            yield
+        finally:
+            self._lock.release()
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -27,10 +62,11 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with self._locked_operation():
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,30 +76,33 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with self._locked_operation():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with self._locked_operation():
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with self._locked_operation():
+            todos = self._load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self._save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 
