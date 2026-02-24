@@ -229,3 +229,140 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #5516: concurrent add() should produce unique IDs.
+
+    Tests that multiple processes calling TodoApp.add() concurrently
+    should each produce unique IDs and all todos should be preserved
+    (no last-writer-wins data loss).
+
+    This test exercises the full read-modify-write sequence:
+    1. load todos
+    2. compute next_id
+    3. append new todo
+    4. save todos
+
+    Without file locking, two processes could:
+    - Read the same state
+    - Compute the same next_id
+    - Write with duplicate IDs, causing data loss
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "concurrent_add.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds a todo and reports result."""
+        try:
+            app = TodoApp(db_path=str(db))
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers at roughly the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+
+    for p in processes:
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify final state: all todos should exist with unique IDs
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+
+    # All workers' todos should be present
+    assert len(final_todos) == num_workers, (
+        f"Expected {num_workers} todos after concurrent add(), "
+        f"got {len(final_todos)} - possible data loss from last-writer-wins"
+    )
+
+    # All IDs should be unique
+    ids = [todo.id for todo in final_todos]
+    assert len(ids) == len(set(ids)), f"Duplicate IDs found: {ids}"
+
+    # All worker texts should be present
+    texts = {todo.text for todo in final_todos}
+    for i in range(num_workers):
+        expected_text = f"worker-{i}-task"
+        assert expected_text in texts, f"Missing todo from worker {i}: {expected_text}"
+
+
+def test_concurrent_mark_done_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #5516: concurrent mark_done() should not lose updates.
+
+    Tests that when two processes try to mark different todos as done
+    concurrently, both changes should be preserved.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "concurrent_done.json"
+
+    # Setup: create initial todos
+    app = TodoApp(db_path=str(db))
+    app.add("task-1")
+    app.add("task-2")
+
+    def mark_done_worker(todo_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that marks a todo as done."""
+        try:
+            app = TodoApp(db_path=str(db))
+            todo = app.mark_done(todo_id)
+            result_queue.put(("success", todo_id, todo.done))
+        except Exception as e:
+            result_queue.put(("error", todo_id, str(e)))
+
+    # Run workers concurrently marking different todos
+    result_queue = multiprocessing.Queue()
+    processes = []
+
+    for todo_id in [1, 2]:
+        p = multiprocessing.Process(target=mark_done_worker, args=(todo_id, result_queue))
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    errors = [r for r in results if r[0] == "error"]
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+
+    # Verify both todos exist and are marked done
+    final_todos = app.list()
+    assert len(final_todos) == 2, f"Expected 2 todos, got {len(final_todos)}"
+
+    for todo in final_todos:
+        assert todo.done, f"Todo {todo.id} was not marked done - concurrent update lost"

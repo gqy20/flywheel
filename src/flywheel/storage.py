@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -50,11 +51,56 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+class _FileLock:
+    """Cross-process file lock using fcntl.flock.
+
+    Provides exclusive locking to protect read-modify-write sequences
+    from race conditions when multiple processes access the same storage.
+    """
+
+    def __init__(self, lockfile_path: Path) -> None:
+        self._lockfile_path = lockfile_path
+        self._fd: int | None = None
+
+    def __enter__(self) -> _FileLock:
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lockfile_path)
+
+        # Open/create lock file
+        self._fd = os.open(
+            str(self._lockfile_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        # Block until we get exclusive lock
+        fcntl.flock(self._fd, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._fd is not None:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+                os.close(self._fd)
+            except OSError:
+                pass
+            self._fd = None
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lockfile_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def locked(self):
+        """Context manager for exclusive file access.
+
+        Uses fcntl.flock for cross-process synchronization.
+        This protects read-modify-write sequences from race conditions.
+        """
+        return _FileLock(self._lockfile_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
