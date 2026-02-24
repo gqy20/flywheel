@@ -229,3 +229,46 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+class TestExistsMethod:
+    """Tests for TodoStorage.exists() method - Issue #5483."""
+
+    def test_exists_returns_false_before_any_save(self, tmp_path) -> None:
+        """Test exists() returns False when no database file exists yet."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        assert storage.exists() is False
+
+    def test_exists_returns_true_after_save(self, tmp_path) -> None:
+        """Test exists() returns True after save() creates the database file."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Initially should not exist
+        assert storage.exists() is False
+
+        # Save some todos
+        todos = [Todo(id=1, text="test todo")]
+        storage.save(todos)
+
+        # Now should exist
+        assert storage.exists() is True
+
+    def test_exists_returns_bool_type(self, tmp_path) -> None:
+        """Test exists() returns a boolean type."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        result = storage.exists()
+        assert isinstance(result, bool)
+
+    def test_exists_for_preexisting_file(self, tmp_path) -> None:
+        """Test exists() returns True for a file that already exists."""
+        db = tmp_path / "existing.json"
+        # Create the file manually (not using save())
+        db.write_text("[]", encoding="utf-8")
+
+        storage = TodoStorage(str(db))
+        assert storage.exists() is True

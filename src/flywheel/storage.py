@@ -56,6 +56,17 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    def exists(self) -> bool:
+        """Check if the storage file exists.
+
+        Returns:
+            True if the database file exists and is a file, False otherwise.
+
+        This provides an O(1) way to check storage status without triggering
+        a full load().
+        """
+        return self.path.is_file()
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
