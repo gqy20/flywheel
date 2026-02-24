@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -60,8 +61,21 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Check file permissions to detect potential tampering
+        # The save() method sets 0o600 (owner-only), warn if changed
+        file_stat = self.path.stat()
+        file_mode = stat.S_IMODE(file_stat.st_mode)
+        if file_mode & 0o077:  # Check if group or other have any permissions
+            warnings.warn(
+                f"Insecure file permissions on '{self.path}': {oct(file_mode)}. "
+                f"File should have 0o600 (owner-only) permissions. "
+                f"This could indicate tampering or misconfiguration.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)

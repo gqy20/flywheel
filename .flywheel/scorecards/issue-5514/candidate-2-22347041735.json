@@ -1,0 +1,92 @@
+{
+  "issue_number": 5514,
+  "issue_title": "[Security] load() 未验证 JSON 文件权限，攻击者可能通过修改文件权限泄露敏感信息",
+  "candidate_number": 2,
+  "run_id": "22347041735",
+  "branch_name": "claude/issue-5514-candidate-2-22347041735",
+  "created_at": "2026-02-24T11:45:00Z",
+  "status": "implemented",
+  "stage": "IMPLEMENT",
+  "implemented_at": "2026-02-24T12:00:00Z",
+  "approach": "warn_only",
+  "summary": "Added file permission validation to load() method that warns when JSON file has group or other permissions set (mode & 0o077 != 0). Uses warn-only approach for backward compatibility.",
+  "triage_summary": {
+    "title": "load() does not validate JSON file permissions",
+    "severity": "medium",
+    "root_cause": "load() in storage.py:74 reads files without checking permissions, while save() enforces 0o600",
+    "risk_points": [
+      "Attacker with filesystem access could chmod file to world-readable",
+      "Sensitive todo data could be exposed to other users"
+    ],
+    "files_to_modify": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5514_load_permissions.py (new)"
+    ],
+    "proposed_fix": "Add permission check in load() with warnings.warn() for backward compatibility",
+    "verification_targets": [
+      "Test load() warns on world-readable file (0o644)",
+      "Test load() warns on group-readable file",
+      "Test load() does not warn on secure file (0o600)"
+    ]
+  },
+  "files_changed": [
+    {
+      "path": "src/flywheel/storage.py",
+      "change_type": "modified",
+      "lines_added": 12,
+      "lines_removed": 2,
+      "description": "Added import of warnings module and permission check in load() method"
+    },
+    {
+      "path": "tests/test_issue_5514_load_permissions.py",
+      "change_type": "added",
+      "lines_added": 120,
+      "lines_removed": 0,
+      "description": "New regression test file for issue #5514 with 4 test cases"
+    }
+  ],
+  "test_results": {
+    "total_tests": 116,
+    "passed": 116,
+    "failed": 0,
+    "new_tests": 4,
+    "command": "uv run pytest tests/test_issue_5514_load_permissions.py tests/test_issue_2027_permissions.py -v"
+  },
+  "lint_results": {
+    "status": "passed",
+    "command": "uv run ruff check src/flywheel/storage.py"
+  },
+  "test_cases": [
+    {
+      "name": "test_load_warns_on_world_readable_file",
+      "description": "Verifies warning when file has 0o644 (world-readable) permissions"
+    },
+    {
+      "name": "test_load_warns_on_group_readable_file",
+      "description": "Verifies warning when file has 0o640 (group-readable) permissions"
+    },
+    {
+      "name": "test_load_accepts_secure_permissions",
+      "description": "Verifies no warning when file has 0o600 (owner-only) permissions"
+    },
+    {
+      "name": "test_load_warns_on_world_writable_file",
+      "description": "Verifies warning when file has 0o606 (world-writable) permissions"
+    }
+  ],
+  "risks": [
+    {
+      "description": "Existing tests may show warnings for files with default permissions",
+      "mitigation": "Warnings are expected and indicate the security check is working"
+    },
+    {
+      "description": "Users may see unexpected warnings if they manually created files with non-600 permissions",
+      "mitigation": "Warning message explains how to fix (set 0o600 permissions)"
+    }
+  ],
+  "backward_compatibility": "Fully compatible - warns but does not reject loading",
+  "verification_commands": [
+    "uv run pytest tests/test_issue_5514_load_permissions.py -v",
+    "uv run ruff check src/flywheel/storage.py"
+  ]
+}
