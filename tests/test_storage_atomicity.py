@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -286,7 +286,7 @@ def test_concurrent_add_no_data_loss(tmp_path) -> None:
 
     # If we got lock-related errors (LockTimeout), that's acceptable
     # as long as we don't silently lose data
-    lock_errors = [r for r in errors if "Lock timeout" in str(r[2])]
+    _lock_errors = [r for r in errors if "Lock timeout" in str(r[2])]
     other_errors = [r for r in errors if "Lock timeout" not in str(r[2])]
 
     assert len(other_errors) == 0, f"Workers encountered unexpected errors: {other_errors}"
@@ -310,8 +310,7 @@ def test_concurrent_add_no_data_loss(tmp_path) -> None:
 
     # Should have exactly as many todos as successful adds
     assert len(final_todos) == len(successes), (
-        f"Expected {len(successes)} todos (one per successful add), "
-        f"but got {len(final_todos)}"
+        f"Expected {len(successes)} todos (one per successful add), but got {len(final_todos)}"
     )
 
     # All todos should have unique IDs (no duplicate IDs from race)
