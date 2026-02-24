@@ -1,44 +1,23 @@
 {
-  "issue_number": 5544,
-  "candidate_number": 1,
+  "issue": 5544,
+  "candidate": 1,
   "run_id": "22354119340",
   "branch": "claude/issue-5544-candidate-1-22354119340",
-  "commit_sha": "10888f5",
-  "approach": "file-locking",
-  "summary": "Fixed race condition by implementing file-based locking using fcntl.flock. Added atomic_update() method that wraps read-modify-write operations in an exclusive lock.",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/cli.py",
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_5544_race_condition.py"
-    ]
-  },
-  "tests": {
-    "new_tests": 3,
-    "all_passing": true,
-    "test_names": [
-      "test_concurrent_add_no_data_loss_multiprocess",
-      "test_concurrent_add_no_data_loss_high_contention",
-      "test_concurrent_mark_done_no_data_loss"
-    ]
-  },
-  "implementation_details": {
-    "lock_mechanism": "fcntl.flock with LOCK_EX for exclusive access",
-    "lock_timeout": 10.0,
-    "lock_file_suffix": ".lock",
-    "atomic_pattern": "atomic_update() context manager wrapping load-modify-save"
-  },
-  "acceptance_criteria": {
-    "concurrent_add_no_data_loss": true,
-    "unique_ids_generated": true,
-    "performance_impact_minimal": true
-  },
-  "risks": [
-    "fcntl.flock is Unix-only; Windows would need different implementation",
-    "Lock timeout could cause operations to fail under extreme contention",
-    "Orphan lock files could remain if process is forcefully killed (OS cleans up)"
+  "pr_number": 5552,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5552",
+  "generated_at": "2026-02-24T15:14:30.026895+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "created_at": "2026-02-24T14:26:00Z"
+  "stage_response_sizes": {
+    "triage": 3208,
+    "plan": 2723,
+    "implement": 3816,
+    "verify": 2047,
+    "finalize": 651
+  }
 }
