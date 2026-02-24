@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,6 +61,7 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            logger.debug("load: file does not exist, returning empty list (path=%s)", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -65,6 +69,7 @@ class TodoStorage:
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            logger.error("load: file size exceeds limit (path=%s, size=%.1fMB, limit=%.0fMB)", self.path, size_mb, limit_mb)
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,6 +78,7 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            logger.warning("load: JSON decode error (path=%s, line=%d, col=%d, msg=%s)", self.path, e.lineno, e.colno, e.msg)
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
@@ -80,7 +86,10 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        logger.debug("load: successfully loaded %d todos (path=%s)", len(todos), self.path)
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -96,6 +105,7 @@ class TodoStorage:
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
+        content_size = len(content.encode("utf-8"))
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
@@ -118,8 +128,10 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+            logger.debug("save: successfully wrote %d todos (%d bytes) to %s", len(todos), content_size, self.path)
+        except OSError as e:
             # Clean up temp file on error
+            logger.error("save: failed to write todos (path=%s, error=%s)", self.path, e)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
