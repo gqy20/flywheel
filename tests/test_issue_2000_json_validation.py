@@ -144,6 +144,8 @@ def test_todo_from_dict_handles_empty_string_timestamps() -> None:
 def test_todo_from_dict_handles_valid_iso_timestamps() -> None:
     """Todo.from_dict should preserve valid ISO timestamp strings."""
     iso_timestamp = "2024-01-15T10:30:00+00:00"
-    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": iso_timestamp, "updated_at": iso_timestamp})
+    todo = Todo.from_dict(
+        {"id": 1, "text": "task", "created_at": iso_timestamp, "updated_at": iso_timestamp}
+    )
     assert todo.created_at == iso_timestamp
     assert todo.updated_at == iso_timestamp
