@@ -151,6 +151,39 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_succeeds_with_non_existent_nested_parent_directories(tmp_path) -> None:
+    """Regression test for issue #5528: FileNotFoundError when parent directories don't exist.
+
+    save() should succeed even when saving to a path where multiple parent directories
+    don't exist yet (e.g., /tmp/newdir/subdir/todo.json where neither newdir nor subdir exist).
+
+    The save() method calls tempfile.mkstemp(dir=self.path.parent) which requires the
+    directory to exist. _ensure_parent_directory() must complete before mkstemp is called.
+    """
+    # Create a path with two levels of non-existent parent directories
+    nested_path = tmp_path / "level1" / "level2" / "todo.json"
+
+    # Verify that neither parent directory exists
+    assert not (tmp_path / "level1").exists()
+    assert not (tmp_path / "level1" / "level2").exists()
+
+    storage = TodoStorage(str(nested_path))
+    todos = [Todo(id=1, text="test todo")]
+
+    # This should NOT raise FileNotFoundError
+    storage.save(todos)
+
+    # Verify the directories were created and file was saved
+    assert (tmp_path / "level1").is_dir()
+    assert (tmp_path / "level1" / "level2").is_dir()
+    assert nested_path.exists()
+
+    # Verify we can load the saved data
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test todo"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
