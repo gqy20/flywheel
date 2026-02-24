@@ -81,6 +81,48 @@ def test_temp_file_has_no_execute_bit(tmp_path) -> None:
         assert mode & 0o077 == 0, f"Temp file has overly permissive mode: {oct(mode)}"
 
 
+def test_final_file_has_restricted_permissions(tmp_path) -> None:
+    """Issue #5582: Final database file should have 0o600 permissions after save().
+
+    The temp file is chmod'd to 0o600 before write, but os.replace() may not
+    preserve permissions on all platforms (e.g., some NFS mounts, Windows).
+    We must explicitly set permissions after rename to ensure security.
+
+    Before fix: Final file may inherit umask or have permissive permissions
+    After fix: Final file always has 0o600 (rw-------) permissions
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify final file exists and has correct permissions
+    assert db.exists(), "Database file should exist after save()"
+
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # The mode should be EXACTLY 0o600 (rw-------)
+    assert file_mode == 0o600, (
+        f"Final database file has incorrect permissions: {oct(file_mode)} "
+        f"(expected 0o600, got 0o{file_mode:o}). "
+        f"File: {db}"
+    )
+
+    # Verify no execute bit is set
+    assert not (file_mode & stat.S_IXUSR), (
+        f"Final file should not have owner execute bit set. "
+        f"Mode: {oct(file_mode)}, File: {db}"
+    )
+
+    # Verify owner can read and write
+    assert file_mode & stat.S_IRUSR, f"Final file lacks owner read: {oct(file_mode)}"
+    assert file_mode & stat.S_IWUSR, f"Final file lacks owner write: {oct(file_mode)}"
+
+    # Verify group and others have no permissions
+    assert file_mode & 0o077 == 0, f"Final file has overly permissive mode: {oct(file_mode)}"
+
+
 def test_temp_file_is_not_executable(tmp_path) -> None:
     """Issue #2027: Temp file containing JSON should not be executable.
 
