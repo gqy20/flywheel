@@ -56,6 +56,15 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def backup_path(self) -> Path:
+        """Return the path to the backup file."""
+        return Path(str(self.path) + ".bak")
+
+    def has_backup(self) -> bool:
+        """Check if a backup file exists."""
+        return self.backup_path.exists()
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -90,9 +99,20 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        Backup: Creates a .bak backup of existing file before overwriting.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting
+        if self.path.exists():
+            original_mode = self.path.stat().st_mode
+            # Copy existing file to backup (atomic copy)
+            backup_content = self.path.read_bytes()
+            self.backup_path.write_bytes(backup_content)
+            # Preserve original permissions on backup
+            os.chmod(self.backup_path, stat.S_IMODE(original_mode))
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +146,30 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def restore_backup(self) -> None:
+        """Restore data from the backup file.
+
+        Restores the .bak backup file to the main storage file.
+        This allows recovery from accidental overwrites or deletions.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+        """
+        if not self.backup_path.exists():
+            raise FileNotFoundError(
+                f"No backup file found at '{self.backup_path}'. "
+                f"Backup is only created after the first save() overwrites existing data."
+            )
+
+        # Read backup content and write to main file
+        backup_content = self.backup_path.read_bytes()
+        backup_mode = self.backup_path.stat().st_mode
+
+        # Ensure parent directory exists
+        _ensure_parent_directory(self.path)
+
+        # Write backup content to main file
+        self.path.write_bytes(backup_content)
+        # Preserve permissions from backup
+        os.chmod(self.path, stat.S_IMODE(backup_mode))
