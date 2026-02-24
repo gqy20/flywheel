@@ -22,16 +22,37 @@ class TodoApp:
     def _save(self, todos: list[Todo]) -> None:
         self.storage.save(todos)
 
+    # Maximum retries for optimistic concurrency on ID collision
+    _MAX_ADD_RETRIES = 100
+
     def add(self, text: str) -> Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use file locking to prevent race conditions in concurrent add operations
+        # This ensures only one process can add a todo at a time
+        import fcntl
+
+        lock_path = self.storage.path.with_suffix(self.storage.path.suffix + ".lock")
+
+        # Ensure parent directory exists
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(lock_path, "w") as lock_file:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+
+            try:
+                # Critical section: load, generate ID, save
+                todos = self._load()
+                todo = Todo(id=self.storage.next_id(todos), text=text)
+                todos.append(todo)
+                self._save(todos)
+                return todo
+            finally:
+                # Release lock
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
