@@ -8,9 +8,6 @@ Issue: #5614 - 添加数据备份/恢复功能
 
 from __future__ import annotations
 
-import json
-import os
-import stat
 from pathlib import Path
 
 import pytest
