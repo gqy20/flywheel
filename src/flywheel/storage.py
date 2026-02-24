@@ -9,10 +9,15 @@ import stat
 import tempfile
 from pathlib import Path
 
+from filelock import FileLock
+
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 30.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +56,35 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
 
-    def __init__(self, path: str | None = None) -> None:
+    Uses file-based locking to prevent race conditions when multiple processes
+    access the same storage file concurrently. The lock protects the entire
+    load-modify-save sequence to prevent data loss.
+    """
+
+    def __init__(self, path: str | None = None, lock_timeout: float | None = None) -> None:
+        """Initialize storage with optional lock timeout.
+
+        Args:
+            path: Path to the JSON storage file. Defaults to '.todo.json'.
+            lock_timeout: Maximum time to wait for lock acquisition in seconds.
+                         Defaults to 30 seconds. Set to 0 for non-blocking.
+        """
         self.path = Path(path or ".todo.json")
+        self._lock_timeout = lock_timeout if lock_timeout is not None else _DEFAULT_LOCK_TIMEOUT
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> FileLock:
+        """Acquire file lock for this storage.
+
+        Returns:
+            FileLock instance that should be used as a context manager.
+
+        Raises:
+            Timeout: If lock cannot be acquired within timeout period.
+        """
+        return FileLock(self._lock_path, timeout=self._lock_timeout)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +104,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
