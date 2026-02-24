@@ -12,9 +12,7 @@ The fix uses file-based locking (filelock library) to protect the critical secti
 from __future__ import annotations
 
 import multiprocessing
-import tempfile
 import time
-from pathlib import Path
 
 import pytest
 
@@ -193,7 +191,6 @@ def test_lock_timeout_is_configurable(tmp_path) -> None:
     This verifies the fix allows timeout configuration as per acceptance criteria.
     """
     db = tmp_path / "timeout_test.json"
-    storage = TodoStorage(str(db))
 
     # After fix, TodoStorage should support a lock_timeout parameter
     # Default should be reasonable (e.g., 30 seconds)
@@ -221,12 +218,14 @@ def test_lock_released_on_exception(tmp_path) -> None:
 
     # Simulate an exception during operation
     # After fix, the lock should still be released
-    from unittest.mock import patch
     import json
+    from unittest.mock import patch
 
-    with patch.object(json, "dumps", side_effect=ValueError("Simulated error")):
-        with pytest.raises(ValueError, match="Simulated error"):
-            storage.save([Todo(id=2, text="should fail")])
+    with (
+        patch.object(json, "dumps", side_effect=ValueError("Simulated error")),
+        pytest.raises(ValueError, match="Simulated error"),
+    ):
+        storage.save([Todo(id=2, text="should fail")])
 
     # Lock should be released - we should be able to do another operation
     storage.save([Todo(id=3, text="after error")])
