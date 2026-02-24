@@ -1,0 +1,24 @@
+{
+  "issue_number": 5570,
+  "candidate": 3,
+  "run_id": "22364995455",
+  "branch": "claude/issue-5570-candidate-3-22364995455",
+  "status": "implemented",
+  "tests_added": [
+    "test_cli_rename_command_succeeds",
+    "test_cli_rename_command_returns_error_for_missing_id",
+    "test_cli_rename_command_sanitizes_output"
+  ],
+  "files_modified": [
+    "src/flywheel/cli.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "acceptance_criteria": {
+    "cli_accepts_rename_command": true,
+    "rename_returns_0_on_success": true,
+    "rename_returns_1_on_missing_id": true,
+    "rename_sanitizes_output": true
+  },
+  "risks": [],
+  "limitations": []
+}
