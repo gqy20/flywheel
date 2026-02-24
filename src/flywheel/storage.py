@@ -7,12 +7,19 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+
+from filelock import FileLock
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 30.0
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -51,10 +58,40 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with file-based locking.
 
-    def __init__(self, path: str | None = None) -> None:
+    Uses filelock to prevent race conditions in load-modify-save patterns.
+    The lock file is named `<db_path>.lock` and is created alongside the
+    database file.
+    """
+
+    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT) -> None:
+        """Initialize storage.
+
+        Args:
+            path: Path to the JSON database file.
+            lock_timeout: Maximum time to wait for lock acquisition in seconds.
+        """
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+        self._lock_timeout = lock_timeout
+
+    @contextmanager
+    def _acquire_lock(self) -> Iterator[FileLock]:
+        """Acquire file lock with timeout.
+
+        Yields:
+            FileLock: The acquired lock object.
+
+        Raises:
+            Timeout: If lock cannot be acquired within timeout period.
+        """
+        lock = FileLock(self._lock_path, timeout=self._lock_timeout)
+        lock.acquire()
+        try:
+            yield lock
+        finally:
+            lock.release()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
