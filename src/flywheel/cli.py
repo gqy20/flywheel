@@ -25,7 +25,9 @@ class TodoApp:
     The load-modify-save pattern requires exclusive access to prevent data loss.
     """
 
-    def __init__(self, db_path: str | None = None, lock_timeout: float = DEFAULT_LOCK_TIMEOUT) -> None:
+    def __init__(
+        self, db_path: str | None = None, lock_timeout: float = DEFAULT_LOCK_TIMEOUT
+    ) -> None:
         """Initialize TodoApp.
 
         Args:

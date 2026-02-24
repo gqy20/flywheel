@@ -68,13 +68,15 @@ def test_concurrent_add_operations_preserve_all_todos(tmp_path: Path) -> None:
 
     # All todos should be preserved - this is the main assertion
     expected_count = total_todos
-    assert (
-        len(all_todos) == expected_count
-    ), f"Expected {expected_count} todos, but only {len(all_todos)} were saved. Race condition caused data loss."
+    assert len(all_todos) == expected_count, (
+        f"Expected {expected_count} todos, but only {len(all_todos)} were saved. Race condition caused data loss."
+    )
 
     # Verify all IDs are unique (no ID collisions)
     ids = [todo.id for todo in all_todos]
-    assert len(ids) == len(set(ids)), "ID collision detected - locking failed to prevent duplicate IDs"
+    assert len(ids) == len(set(ids)), (
+        "ID collision detected - locking failed to prevent duplicate IDs"
+    )
 
 
 def test_concurrent_mark_done_operations(tmp_path: Path) -> None:
