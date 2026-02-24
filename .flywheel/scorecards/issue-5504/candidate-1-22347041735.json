@@ -1,17 +1,23 @@
 {
-  "issue_number": 5504,
-  "issue_title": "[Enhancement] 添加 load_stats() 方法返回存储元数据",
-  "candidate_number": 1,
+  "issue": 5504,
+  "candidate": 1,
   "run_id": "22347041735",
   "branch": "claude/issue-5504-candidate-1-22347041735",
-  "created_at": "2026-02-24T10:30:00Z",
-  "status": "implemented",
-  "implementation_summary": "Added load_stats() method to TodoStorage class that returns a dictionary with 'total', 'done', and 'pending' counts. The implementation calls load() once and counts todos efficiently.",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_issue_5504_load_stats.py"
+  "pr_number": 5524,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5524",
+  "generated_at": "2026-02-24T11:58:42.316210+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 117,
-  "tests_added": 5,
-  "ruff_check": "passed"
+  "stage_response_sizes": {
+    "triage": 2359,
+    "plan": 2704,
+    "implement": 1835,
+    "verify": 2118,
+    "finalize": 1097
+  }
 }
