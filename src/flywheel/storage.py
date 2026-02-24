@@ -51,25 +51,64 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with load caching.
 
-    def __init__(self, path: str | None = None) -> None:
+    The cache is invalidated based on file modification time (mtime).
+    When load() is called:
+    - If file hasn't been modified since last load, return cached data
+    - If file has been modified (or cache is empty), read from file
+
+    Cache can be disabled via use_cache=False for debug/testing scenarios.
+    """
+
+    def __init__(self, path: str | None = None, *, use_cache: bool = True) -> None:
+        """Initialize TodoStorage.
+
+        Args:
+            path: Path to the JSON database file. Defaults to '.todo.json'.
+            use_cache: If True (default), cache load() results in memory.
+                       If False, always read from file (for debug mode).
+        """
         self.path = Path(path or ".todo.json")
+        self._use_cache = use_cache
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
 
     def load(self) -> list[Todo]:
+        """Load todos from storage, using cache if available and valid.
+
+        Returns cached data if:
+        - Cache is enabled (use_cache=True)
+        - File exists and hasn't been modified since last load (mtime unchanged)
+
+        Otherwise reads from file and updates cache.
+        """
         if not self.path.exists():
+            # Cache empty result for non-existent file
+            if self._use_cache:
+                self._cache = []
+                self._cache_mtime = None
             return []
 
+        # Get file stats for size check and mtime
+        file_stat = self.path.stat()
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
+        if file_stat.st_size > _MAX_JSON_SIZE_BYTES:
+            size_mb = file_stat.st_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
             )
 
+        # Check if we can use cached data
+        current_mtime = file_stat.st_mtime
+        if self._use_cache and self._cache is not None and self._cache_mtime == current_mtime:
+            # Cache is valid - return cached data
+            return self._cache
+
+        # Cache miss or disabled - read from file
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
@@ -80,7 +119,15 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+
+        # Update cache if enabled
+        if self._use_cache:
+            self._cache = result
+            self._cache_mtime = current_mtime
+
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -90,6 +137,8 @@ class TodoStorage:
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
+
+        After successful save, the cache is automatically updated with the saved data.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
@@ -123,6 +172,11 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        # Update cache after successful save
+        if self._use_cache:
+            self._cache = todos
+            self._cache_mtime = self.path.stat().st_mtime
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
