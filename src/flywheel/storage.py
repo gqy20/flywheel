@@ -8,9 +8,9 @@ import json
 import os
 import stat
 import tempfile
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from .todo import Todo
 
@@ -115,13 +115,11 @@ class TodoStorage:
     def unlock(self) -> None:
         """Release the exclusive lock."""
         if self._lock_fd is not None:
-            try:
+            with contextlib.suppress(OSError):
                 fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
-            except OSError:
-                pass  # Lock may have been released or fd closed
 
     @contextmanager
-    def locked(self) -> Generator[None, None, None]:
+    def locked(self) -> Generator[None, None, None, None]:
         """Context manager for acquiring and releasing the file lock.
 
         Usage:
@@ -158,13 +156,16 @@ class TodoStorage:
         current_mtime = self.path.stat().st_mtime
 
         # Check if we have a recorded load time to compare
-        if hasattr(self, '_last_load_mtime') and self._last_load_mtime is not None:
-            if current_mtime != self._last_load_mtime:
-                raise ConcurrencyError(
-                    f"Concurrent modification detected: '{self.path}' was modified "
-                    "after it was loaded. Use the locked() context manager for safe "
-                    "load-modify-save sequences."
-                )
+        if (
+            hasattr(self, '_last_load_mtime')
+            and self._last_load_mtime is not None
+            and current_mtime != self._last_load_mtime
+        ):
+            raise ConcurrencyError(
+                f"Concurrent modification detected: '{self.path}' was modified "
+                "after it was loaded. Use the locked() context manager for safe "
+                "load-modify-save sequences."
+            )
 
         self.save(todos)
 
