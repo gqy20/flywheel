@@ -229,3 +229,41 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_ensure_parent_directory_race_condition(tmp_path) -> None:
+    """Regression test for issue #5610: Race condition in _ensure_parent_directory.
+
+    Tests that when multiple processes try to save to a new directory path,
+    the race condition between path.exists() check and mkdir() does not
+    cause FileExistsError. The fix should use exist_ok=True to handle
+    the TOCTOU (time-of-check-to-time-of-use) race condition.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path in a non-existent subdirectory
+    new_dir = tmp_path / "new_subdir"
+    file_path = new_dir / "todo.json"
+
+    # Patch Path.mkdir to simulate race condition:
+    # - First call to exists() returns False
+    # - Between exists() check and mkdir(), another process creates the directory
+    # - mkdir is called and should NOT raise FileExistsError
+    original_mkdir = Path.mkdir
+
+    def race_condition_mkdir(self, *args, **kwargs):
+        """Simulate race condition by creating directory before the actual mkdir."""
+        # Create the directory before the actual mkdir call (simulating race)
+        if not self.exists():
+            original_mkdir(self, parents=True, exist_ok=True)
+        # Now call the original mkdir - if exist_ok=False, this would fail
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(Path, "mkdir", race_condition_mkdir):
+        # This should NOT raise FileExistsError despite the race condition
+        # The fix should use exist_ok=True in mkdir
+        _ensure_parent_directory(file_path)
+
+    # Verify directory was created
+    assert new_dir.exists()
+    assert new_dir.is_dir()
