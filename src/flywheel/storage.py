@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -68,6 +69,19 @@ class TodoStorage:
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
+            )
+
+        # Security: Check file permissions to detect potential tampering
+        # The save() function sets 0o600 (owner read/write only).
+        # Warn if file has been modified to be readable by group or others.
+        file_mode = stat.S_IMODE(self.path.stat().st_mode)
+        if file_mode & (stat.S_IRGRP | stat.S_IROTH):
+            warnings.warn(
+                f"File '{self.path}' has insecure permissions ({oct(file_mode)}). "
+                f"Consider restricting to 0o600 (owner read/write only) with: "
+                f"chmod 600 {self.path}",
+                UserWarning,
+                stacklevel=2,
             )
 
         try:
