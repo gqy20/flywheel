@@ -158,3 +158,23 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #5584: next_id() should return 1 for empty list."""
+    storage = TodoStorage()
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_returns_max_plus_one_for_non_contiguous_ids() -> None:
+    """Bug #5584: next_id() should return max+1 even with gaps in IDs."""
+    storage = TodoStorage()
+    # Simulate IDs after deletions: 1, 3, 5 (2 and 4 deleted)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 6
+
+
+def test_next_id_returns_correct_for_single_high_id() -> None:
+    """Bug #5584: next_id() should return max+1 for single high-ID todo."""
+    storage = TodoStorage()
+    assert storage.next_id([Todo(id=10, text="x")]) == 11
