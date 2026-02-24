@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 from .todo import Todo
+
+
+class ConcurrencyError(Exception):
+    """Raised when concurrent modification is detected."""
+    pass
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -51,17 +59,126 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Provides file locking to prevent concurrent modification data loss.
+    Use the `locked()` context manager for safe load-modify-save sequences.
+    """
+
+    # Lock file suffix for exclusive access
+    _LOCK_SUFFIX = ".lock"
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_fd: int | None = None
+        self._lock_path = self.path.with_suffix(self.path.suffix + self._LOCK_SUFFIX)
+
+    def _get_or_create_lock_file(self) -> int:
+        """Get or create the lock file, returning its file descriptor.
+
+        The lock file is created if it doesn't exist. We keep the fd open
+        for use with fcntl.flock.
+        """
+        if self._lock_fd is not None:
+            return self._lock_fd
+
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Create/open lock file (doesn't need content, just needs to exist)
+        # Use O_CREAT | O_RDWR to create if not exists, open for read/write
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        return self._lock_fd
+
+    def try_lock(self) -> bool:
+        """Try to acquire an exclusive lock without blocking.
+
+        Returns:
+            True if lock was acquired, False if lock is held by another process.
+        """
+        fd = self._get_or_create_lock_file()
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except (BlockingIOError, OSError):
+            return False
+
+    def lock(self) -> None:
+        """Acquire an exclusive lock, blocking until available."""
+        fd = self._get_or_create_lock_file()
+        fcntl.flock(fd, fcntl.LOCK_EX)
+
+    def unlock(self) -> None:
+        """Release the exclusive lock."""
+        if self._lock_fd is not None:
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+            except OSError:
+                pass  # Lock may have been released or fd closed
+
+    @contextmanager
+    def locked(self) -> Generator[None, None, None]:
+        """Context manager for acquiring and releasing the file lock.
+
+        Usage:
+            with storage.locked():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+
+        The lock is automatically released even if an exception occurs.
+        """
+        self.lock()
+        try:
+            yield
+        finally:
+            self.unlock()
+
+    def save_with_lock_check(self, todos: list[Todo]) -> None:
+        """Save todos with concurrency detection.
+
+        This method checks if the file has been modified since the last load
+        and raises ConcurrencyError if so. This is for optimistic locking.
+
+        For proper locking, use the `locked()` context manager instead.
+
+        Raises:
+            ConcurrencyError: If the file was modified after it was loaded.
+        """
+        if not self.path.exists():
+            # No existing file, safe to save
+            self.save(todos)
+            return
+
+        # Get current file modification time
+        current_mtime = self.path.stat().st_mtime
+
+        # Check if we have a recorded load time to compare
+        if hasattr(self, '_last_load_mtime') and self._last_load_mtime is not None:
+            if current_mtime != self._last_load_mtime:
+                raise ConcurrencyError(
+                    f"Concurrent modification detected: '{self.path}' was modified "
+                    "after it was loaded. Use the locked() context manager for safe "
+                    "load-modify-save sequences."
+                )
+
+        self.save(todos)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            self._last_load_mtime = None
             return []
 
+        # Record modification time for optimistic locking
+        stat_info = self.path.stat()
+        self._last_load_mtime = stat_info.st_mtime
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = stat_info.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
