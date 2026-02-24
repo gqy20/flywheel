@@ -7,11 +7,13 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import multiprocessing
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
 
@@ -229,3 +231,157 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #5516: Concurrent add operations must produce unique IDs.
+
+    Tests that when two processes simultaneously add todos:
+    1. Both todos should exist in the final file (no data loss)
+    2. The two todos must have different IDs (no ID collision)
+
+    This tests the load-compute-save atomicity, not just single save atomicity.
+
+    Uses a multiprocessing.Barrier to synchronize workers, ensuring they all
+    attempt to add at exactly the same time to reliably trigger the race condition.
+    """
+    db = str(tmp_path / "concurrent_add.json")
+    num_workers = 2
+
+    def add_worker_sync(
+        db_path: str, worker_id: int, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue
+    ) -> None:
+        """Worker function that adds a todo via TodoApp.add() with synchronization."""
+        try:
+            app = TodoApp(db_path=db_path)
+            # Synchronize all workers to start at exactly the same time
+            barrier.wait()
+            # Each worker adds a unique todo
+            todo = app.add(f"worker-{worker_id}-todo")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Use a barrier to synchronize workers
+    barrier = multiprocessing.Barrier(num_workers)
+    result_queue = multiprocessing.Queue()
+    processes = []
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker_sync, args=(db, i, barrier, result_queue))
+        processes.append(p)
+
+    # Start all workers - they will wait at the barrier
+    for p in processes:
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify final file state
+    storage = TodoStorage(db)
+    final_todos = storage.load()
+
+    # CRITICAL: Both todos must exist (no data loss)
+    assert len(final_todos) == num_workers, (
+        f"Expected {num_workers} todos but found {len(final_todos)}. "
+        f"Data loss occurred due to last-writer-wins race condition."
+    )
+
+    # CRITICAL: IDs must be unique (no ID collision)
+    ids = [todo.id for todo in final_todos]
+    assert len(ids) == len(set(ids)), (
+        f"Duplicate IDs found: {ids}. "
+        f"ID collision occurred due to race condition in next_id calculation."
+    )
+
+    # Verify both worker todos are present
+    texts = {todo.text for todo in final_todos}
+    assert "worker-0-todo" in texts, "worker-0 todo is missing (data loss)"
+    assert "worker-1-todo" in texts, "worker-1 todo is missing (data loss)"
+
+
+def test_concurrent_mark_done_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #5516: Concurrent mark_done operations must not lose updates.
+
+    Tests that when two processes simultaneously mark different todos as done,
+    both state changes are preserved (no last-writer-wins data loss).
+
+    Uses a multiprocessing.Barrier to synchronize workers, ensuring they all
+    attempt to modify state at exactly the same time.
+    """
+    db = str(tmp_path / "concurrent_mark_done.json")
+
+    # Setup: create initial todos
+    storage = TodoStorage(db)
+    storage.save([
+        Todo(id=1, text="todo-1", done=False),
+        Todo(id=2, text="todo-2", done=False),
+    ])
+    num_workers = 2
+
+    def mark_done_worker_sync(
+        db_path: str, todo_id: int, barrier: multiprocessing.Barrier, result_queue: multiprocessing.Queue
+    ) -> None:
+        """Worker function that marks a todo as done via TodoApp.mark_done() with synchronization."""
+        try:
+            app = TodoApp(db_path=db_path)
+            # Synchronize all workers
+            barrier.wait()
+            todo = app.mark_done(todo_id)
+            result_queue.put(("success", todo_id, todo.done))
+        except Exception as e:
+            result_queue.put(("error", todo_id, str(e)))
+
+    # Use a barrier to synchronize workers
+    barrier = multiprocessing.Barrier(num_workers)
+    result_queue = multiprocessing.Queue()
+    processes = []
+
+    for todo_id in [1, 2]:
+        p = multiprocessing.Process(target=mark_done_worker_sync, args=(db, todo_id, barrier, result_queue))
+        processes.append(p)
+
+    # Start all workers - they will wait at the barrier
+    for p in processes:
+        p.start()
+
+    # Wait for completion
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should succeed
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify final state: both todos should be marked done
+    final_todos = storage.load()
+
+    assert len(final_todos) == num_workers, f"Expected {num_workers} todos, got {len(final_todos)}"
+
+    for todo in final_todos:
+        assert todo.done is True, (
+            f"Todo {todo.id} should be done but isn't. "
+            f"State change was lost due to last-writer-wins race condition."
+        )
