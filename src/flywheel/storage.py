@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,52 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock for atomic operations.
+
+        Creates a lock file if it doesn't exist and acquires an exclusive lock.
+        Returns the file descriptor for the lock file.
+
+        Raises:
+            OSError: If lock acquisition fails.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file and acquire exclusive lock
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock and close the lock file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def exclusive_lock(self) -> None:
+        """Context manager for exclusive file locking.
+
+        Ensures that load-modify-save operations are atomic across processes.
+        Usage:
+            with storage.exclusive_lock():
+                todos = storage.load()
+                # modify todos
+                storage.save(todos)
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +121,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):

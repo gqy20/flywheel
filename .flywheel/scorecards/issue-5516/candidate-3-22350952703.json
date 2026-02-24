@@ -1,0 +1,30 @@
+{
+  "issue_number": 5516,
+  "issue_title": "[Bug] add() 操作缺乏并发控制：多进程/多线程同时 add 可能导致 ID 重复（last-writer-wins 数据丢失）",
+  "candidate": 3,
+  "run_id": "22350952703",
+  "branch": "claude/issue-5516-candidate-3-22350952703",
+  "status": "implemented",
+  "approach": "file_locking",
+  "summary": "Added POSIX file locking (fcntl.flock) to TodoStorage with an exclusive_lock() context manager. All mutation operations (add, mark_done, mark_undone, remove) now use this lock to ensure atomic read-modify-write sequences across processes.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "src/flywheel/cli.py",
+    "tests/test_issue_5516_concurrent_add.py"
+  ],
+  "tests_added": 2,
+  "tests_passed": 114,
+  "acceptance_criteria_met": {
+    "unique_ids_on_concurrent_add": true,
+    "no_data_loss": true,
+    "both_todos_persist": true
+  },
+  "risks": [
+    "Lock file (.todo.json.lock) is created alongside the database file; users should be aware of this additional file",
+    "fcntl.flock is POSIX-only; Windows would need msvcrt.locking or a cross-platform library like portalocker"
+  ],
+  "limitations": [
+    "Only works on POSIX systems (Linux, macOS); Windows support would require additional work",
+    "Lock files are not automatically cleaned up on abnormal termination, though the lock itself is released"
+  ]
+}
