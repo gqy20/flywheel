@@ -151,6 +151,114 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_ensure_parent_directory_handles_race_condition(tmp_path) -> None:
+    """Regression test for issue #5610: Race condition in _ensure_parent_directory.
+
+    Simulates a TOCTOU race condition where another process creates the parent
+    directory between our exists() check and mkdir() call.
+
+    The bug: Between checking `if not parent.exists()` and calling
+    `parent.mkdir(exist_ok=False)`, another process could create the directory,
+    causing FileExistsError.
+
+    The fix: Use exist_ok=True in mkdir to handle the race condition atomically.
+    """
+    from pathlib import Path
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path to a non-existent subdirectory
+    file_path = tmp_path / "new_subdir" / "nested" / "file.json"
+    parent_dir = file_path.parent
+
+    # Track original mkdir method
+    original_mkdir = Path.mkdir
+
+    # Simulate race: mkdir is called with exist_ok=False and another process
+    # already created the directory
+    def race_condition_mkdir(self, *args, **kwargs):
+        # Only intercept mkdir for our target parent directory
+        # Create the directory first (simulating another process)
+        if self == parent_dir and not parent_dir.exists():
+            original_mkdir(parent_dir, parents=True, exist_ok=True)
+        # Now call the original mkdir - with exist_ok=False, this would fail
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(Path, "mkdir", race_condition_mkdir):
+        # This should NOT raise FileExistsError if fix uses exist_ok=True
+        # With exist_ok=False (bug), this would raise FileExistsError
+        _ensure_parent_directory(file_path)
+
+    # Directory should exist now
+    assert parent_dir.exists()
+
+
+def test_concurrent_ensure_parent_directory_no_race(tmp_path) -> None:
+    """Regression test for issue #5610: Race condition in _ensure_parent_directory.
+
+    Tests that multiple concurrent save() calls to a path in a non-existent
+    parent directory do not raise FileExistsError due to TOCTOU race between
+    parent.exists() check and mkdir() call.
+
+    The bug: Between checking `if not parent.exists()` and calling
+    `parent.mkdir(exist_ok=False)`, another process could create the directory,
+    causing FileExistsError.
+
+    The fix: Use exist_ok=True in mkdir to handle the race condition atomically.
+    """
+    import multiprocessing
+
+    # Use a non-existent subdirectory path to trigger _ensure_parent_directory
+    db = tmp_path / "new_subdir" / "nested" / "concurrent.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that saves todos to trigger parent directory creation."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=1, text=f"worker-{worker_id}")]
+            storage.save(todos)
+            result_queue.put(("success", worker_id, None))
+        except FileExistsError as e:
+            # This is the specific race condition bug we're testing for
+            result_queue.put(("race_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently targeting same new directory
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # Categorize results
+    successes = [r for r in results if r[0] == "success"]
+    race_errors = [r for r in results if r[0] == "race_error"]
+    other_errors = [r for r in results if r[0] == "error"]
+
+    # The key assertion: no FileExistsError should occur
+    assert len(race_errors) == 0, (
+        f"Race condition detected! {len(race_errors)} workers hit FileExistsError: "
+        f"{race_errors}"
+    )
+
+    # Some workers may fail with other errors (e.g., file locked), which is acceptable
+    # but at least some should succeed
+    assert len(successes) > 0, f"No workers succeeded. Errors: {other_errors}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
