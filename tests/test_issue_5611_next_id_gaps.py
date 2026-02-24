@@ -107,7 +107,7 @@ def test_sequential_adds_with_gaps_produce_unique_ids(tmp_path: Path) -> None:
     ]
 
     # Simulate adding multiple todos sequentially
-    ids_used = set(todo.id for todo in todos)
+    ids_used = {todo.id for todo in todos}
 
     for i in range(5):
         new_id = storage.next_id(todos)
