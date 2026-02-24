@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 from .todo import Todo
@@ -55,6 +57,46 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Lock file path: same name with .lock suffix
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _lock_file_path(self) -> Path:
+        """Get the lock file path for this storage."""
+        return self._lock_path
+
+    @contextlib.contextmanager
+    def exclusive_lock(self) -> Iterator[None]:
+        """Acquire exclusive file lock for cross-process synchronization.
+
+        Uses fcntl.flock for advisory locking. The lock is released when
+        the context manager exits, even if an exception occurs.
+
+        This ensures that only one process can perform load→modify→save
+        operations at a time, preventing race conditions in ID generation.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        lock_fd = None
+        try:
+            # Open/create lock file (doesn't need to contain data)
+            lock_fd = os.open(
+                self._lock_path,
+                os.O_CREAT | os.O_RDWR,
+                stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+            )
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                # Release lock
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            # Close file descriptor
+            if lock_fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
