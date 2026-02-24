@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,34 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock for concurrent access protection.
+
+        Returns the lock file descriptor which must be closed to release the lock.
+        """
+        _ensure_parent_directory(self._lock_path)
+        # Open/create lock file
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            # Block until we get an exclusive lock
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(lock_fd)
+            raise
+        return lock_fd
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release the file lock."""
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        finally:
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +155,38 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a todo atomically with file locking to prevent race conditions.
+
+        This method acquires an exclusive lock, loads todos, generates a unique ID,
+        adds the new todo, saves, and releases the lock. This ensures that concurrent
+        add operations do not produce duplicate IDs.
+
+        Args:
+            text: The todo text to add
+
+        Returns:
+            The newly created Todo
+
+        Raises:
+            ValueError: If text is empty
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        lock_fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            todo_id = self.next_id(todos)
+            # Ensure ID is unique (defensive check)
+            existing_ids = {t.id for t in todos}
+            while todo_id in existing_ids:
+                todo_id += 1
+            todo = Todo(id=todo_id, text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(lock_fd)
