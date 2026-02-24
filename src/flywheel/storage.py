@@ -56,6 +56,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def backup_path(self) -> Path:
+        """Return the path to the backup file."""
+        return self.path.parent / f".{self.path.name}.bak"
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -88,11 +93,25 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Backup: Creates a .bak backup of the existing file before overwriting.
+        Only the most recent backup is kept.
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file if it exists
+        if self.path.exists():
+            backup_content = self.path.read_bytes()
+            self.backup_path.write_bytes(backup_content)
+            # Match permissions of original file
+            try:
+                original_mode = self.path.stat().st_mode & 0o777
+                self.backup_path.chmod(original_mode)
+            except OSError:
+                pass  # Permissions may not be settable on all systems
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -126,3 +145,35 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def restore_backup(self) -> None:
+        """Restore data from the backup file.
+
+        Raises:
+            FileNotFoundError: If no backup file exists.
+        """
+        if not self.backup_path.exists():
+            raise FileNotFoundError(
+                f"No backup file found at '{self.backup_path}'. "
+                "Save data at least twice to create a backup."
+            )
+
+        # Read backup content and write to main file atomically
+        backup_content = self.backup_path.read_bytes()
+
+        # Use atomic write pattern (same as save)
+        fd, temp_path = tempfile.mkstemp(
+            dir=self.path.parent,
+            prefix=f".{self.path.name}.restore.",
+            suffix=".tmp",
+            text=False,
+        )
+
+        try:
+            os.write(fd, backup_content)
+            os.close(fd)
+            os.replace(temp_path, self.path)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
