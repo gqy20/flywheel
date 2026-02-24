@@ -1,0 +1,28 @@
+{
+  "issue_number": 5624,
+  "issue_title": "[Bug] next_id does not validate for negative IDs in JSON data, potentially causing une",
+  "candidate_number": 2,
+  "run_id": "22372537433",
+  "branch_name": "claude/issue-5624-candidate-2-22372537433",
+  "created_at": "2026-02-24T22:45:00Z",
+  "scorecard": {
+    "root_cause_identified": true,
+    "root_cause_description": "Todo.from_dict() converts 'id' to int but does not validate that it's a positive integer (>= 1). This allows negative IDs and zero, which can cause next_id() to return non-positive values.",
+    "fix_location": "src/flywheel/todo.py:75-78",
+    "fix_description": "Added validation after int conversion to ensure 'id' is a positive integer (>= 1). Raises ValueError with clear message if id < 1.",
+    "tests_added": 4,
+    "tests_modified": 1,
+    "all_tests_passing": true,
+    "lint_checks_pass": true,
+    "verification_targets": [
+      "Todo.from_dict({\"id\": -1, \"text\": \"task\"}) raises ValueError",
+      "Todo.from_dict({\"id\": 0, \"text\": \"task\"}) raises ValueError",
+      "Todo.from_dict({\"id\": 1, \"text\": \"task\"}) succeeds",
+      "Storage.load() rejects JSON with negative IDs"
+    ],
+    "risks": "Pre-existing tests using id=0 had to be updated to use valid positive IDs. This is expected behavior change.",
+    "scope": "minimal",
+    "follows_tdd": true,
+    "tdd_phases_completed": ["RED", "GREEN", "REFACTOR"]
+  }
+}

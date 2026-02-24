@@ -119,3 +119,38 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5624 - validate 'id' field is positive
+def test_todo_from_dict_rejects_negative_id(tmp_path) -> None:
+    """Todo.from_dict should reject negative IDs (Issue #5624)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*positive|'id'.*must"):
+        Todo.from_dict({"id": -1, "text": "task"})
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Todo.from_dict should reject zero as an ID (IDs should be positive)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*positive|'id'.*must"):
+        Todo.from_dict({"id": 0, "text": "task"})
+
+
+def test_storage_load_rejects_negative_id_in_json(tmp_path) -> None:
+    """Storage.load should reject JSON containing negative IDs (Issue #5624)."""
+    db = tmp_path / "negative_id.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON but with negative ID
+    db.write_text('[{"id": -5, "text": "negative task"}]', encoding="utf-8")
+
+    # Should raise clear error about invalid ID
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*positive|'id'.*must"):
+        storage.load()
+
+
+def test_todo_from_dict_accepts_positive_id() -> None:
+    """Todo.from_dict should accept positive integers as valid IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "valid task"})
+    assert todo.id == 1
+
+    todo_large = Todo.from_dict({"id": 999999, "text": "large id task"})
+    assert todo_large.id == 999999
