@@ -151,6 +151,50 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_temp_file_cleanup_on_non_oserror_exception(tmp_path) -> None:
+    """Regression test for issue #5598: Exception handler only catches OSError.
+
+    Test that temp file is cleaned up when any non-OSError exception occurs
+    inside the try block (e.g., during file write operations).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    storage.save([Todo(id=1, text="original")])
+
+    # Count temp files before the failed save
+    temp_files_before = list(tmp_path.glob(".*.json.*.tmp"))
+
+    # Mock os.fchmod to raise ValueError (simulating unexpected non-OSError exception)
+    # This happens inside the try block, after temp file is created
+    def failing_fchmod(*args, **kwargs):
+        raise ValueError("Simulated non-OSError exception in try block")
+
+    import os as os_module
+    original_fchmod = os_module.fchmod
+
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(ValueError, match="Simulated non-OSError exception"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Restore original
+    os_module.fchmod = original_fchmod
+
+    # Verify no temp files remain after failed save
+    temp_files_after = list(tmp_path.glob(".*.json.*.tmp"))
+    assert len(temp_files_after) == len(temp_files_before), (
+        f"Temp file was not cleaned up. Before: {temp_files_before}, After: {temp_files_after}"
+    )
+
+    # Verify original file is unchanged
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

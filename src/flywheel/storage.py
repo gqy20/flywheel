@@ -118,8 +118,8 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
-            # Clean up temp file on error
+        except Exception:
+            # Clean up temp file on any error (OSError, ValueError, etc.)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
