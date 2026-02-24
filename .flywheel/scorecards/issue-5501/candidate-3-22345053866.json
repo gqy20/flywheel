@@ -1,0 +1,33 @@
+{
+  "issue_number": 5501,
+  "candidate_number": 3,
+  "run_id": "22345053866",
+  "stage": "FINALIZE",
+  "summary": "Fix TOCTOU race condition in _ensure_parent_directory by using atomic mkdir",
+  "files_changed": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_1894_security_mkdir_fix.py"]
+  },
+  "tests_passed": 9,
+  "ruff_check": "passed",
+  "implementation_details": {
+    "approach": "Use atomic mkdir(parents=True, exist_ok=True) instead of separate existence check and mkdir",
+    "key_changes": [
+      "Removed separate existence check loop that created TOCTOU window",
+      "Use atomic mkdir with exist_ok=True",
+      "Handle NotADirectoryError after mkdir to identify file-as-directory conflicts",
+      "Added docstring explaining the atomic pattern"
+    ],
+    "tests_added": [
+      "test_toctou_race_condition_parent_replaced_with_symlink",
+      "test_toctou_race_condition_parent_is_file_error",
+      "test_atomic_directory_creation_no_separate_check"
+    ]
+  },
+  "risks_limitations": "Minimal risk - the fix makes the directory creation atomic and handles errors post-hoc",
+  "acceptance_criteria_met": [
+    "Directory creation is atomic with error handling for file-as-directory conflicts",
+    "No TOCTOU window between existence check and directory creation",
+    "Existing test test_cli_fails_when_parent_is_file_not_directory still passes"
+  ]
+}
