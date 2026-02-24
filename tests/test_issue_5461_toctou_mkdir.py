@@ -96,9 +96,7 @@ def test_concurrent_save_to_same_new_path_no_race_error(tmp_path) -> None:
             or (isinstance(e.__cause__, FileExistsError))
         )
     ]
-    assert len(race_errors) == 0, (
-        f"Got OSError with EEXIST from TOCTOU race: {race_errors}"
-    )
+    assert len(race_errors) == 0, f"Got OSError with EEXIST from TOCTOU race: {race_errors}"
 
     # At least some should have succeeded
     assert success_count >= 1, f"At least one save should succeed, but got {errors}"
