@@ -1,59 +1,23 @@
 {
-  "issue_number": 5614,
-  "issue_title": "[Feature] 添加数据备份/恢复功能",
-  "candidate_number": 3,
+  "issue": 5614,
+  "candidate": 3,
   "run_id": "22372537433",
-  "branch_name": "claude/issue-5614-candidate-3-22372537433",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/5630",
+  "branch": "claude/issue-5614-candidate-3-22372537433",
   "pr_number": 5630,
-  "plan": {
-    "files_to_touch": [
-      "tests/test_issue_5614_backup_restore.py",
-      "src/flywheel/storage.py"
-    ],
-    "tdd_phases": {
-      "red": [
-        "test_save_creates_backup_file",
-        "test_backup_content_matches_original",
-        "test_restore_backup_recovers_data",
-        "test_restore_backup_when_no_backup_raises_error",
-        "test_save_without_existing_file_no_backup",
-        "test_backup_file_permissions_match_original"
-      ],
-      "green": [
-        "Add backup_path property",
-        "Modify save() to create backup before overwrite",
-        "Add restore_backup() method",
-        "Add has_backup() helper"
-      ]
-    },
-    "verification_commands": [
-      "uv run pytest tests/test_issue_5614_backup_restore.py -v",
-      "uv run pytest tests/test_storage*.py -v",
-      "uv run ruff check src/flywheel/storage.py",
-      "uv run pytest tests/ -v --tb=short"
-    ]
-  },
-  "tests": {
-    "total": 11,
-    "passed": 11,
-    "failed": 0
-  },
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_5614_backup_restore.py -v",
-      "result": "passed",
-      "tests_passed": 11,
-      "tests_failed": 0
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5614_backup_restore.py",
-      "result": "passed",
-      "fixes_applied": ["Removed unused imports (json, os, stat) from test file"]
-    }
-  },
-  "status": "verified",
-  "created_at": "2026-02-24T21:38:00Z",
-  "completed_at": "2026-02-24T21:45:00Z",
-  "verified_at": "2026-02-24T21:50:00Z"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5630",
+  "generated_at": "2026-02-24T23:21:12.306995+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2478,
+    "plan": 4000,
+    "implement": 2199,
+    "verify": 2416,
+    "finalize": 1426
+  }
 }
