@@ -1,63 +1,23 @@
 {
-  "issue_number": 5556,
-  "issue_title": "[Bug] Race condition in TodoApp operations: load-modify-save pattern without locking",
-  "candidate_number": 1,
+  "issue": 5556,
+  "candidate": 1,
   "run_id": "22358307058",
-  "branch_name": "claude/issue-5556-candidate-1-22358307058",
-  "commit_sha": "0a55fe6",
-  "created_at": "2026-02-24T16:15:00Z",
-  "status": "finalized",
+  "branch": "claude/issue-5556-candidate-1-22358307058",
   "pr_number": 5560,
   "pr_url": "https://github.com/gqy20/flywheel/pull/5560",
-  "approach": "file_based_locking",
-  "summary": "Implemented file-based locking using the filelock library to prevent race conditions in TodoApp operations. The load-modify-save pattern was not atomic, causing up to 81% data loss in concurrent scenarios (e.g., only 190 of 1000 todos survived when 10 processes each added 100 todos).",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/cli.py",
-      "pyproject.toml",
-      "uv.lock"
-    ],
-    "files_added": [
-      "tests/test_issue_5556_race_condition_locking.py"
-    ],
-    "lines_added": 253,
-    "lines_removed": 25
-  },
-  "tests": {
-    "test_file": "tests/test_issue_5556_race_condition_locking.py",
-    "test_count": 4,
-    "test_names": [
-      "test_concurrent_add_operations_without_locking_causes_data_loss",
-      "test_concurrent_mixed_operations_without_locking_causes_data_loss",
-      "test_lock_timeout_is_configurable",
-      "test_lock_released_on_exception"
-    ],
-    "all_passed": true
-  },
-  "verification": {
-    "stage": "VERIFY",
-    "targeted_tests": {
-      "command": "uv run pytest tests/test_issue_5556_race_condition_locking.py -v",
-      "tests_passed": 4,
-      "tests_failed": 0
-    },
-    "full_suite": {
-      "command": "uv run pytest -v",
-      "tests_passed": 116,
-      "tests_failed": 0,
-      "coverage_percent": 92
-    },
-    "ruff_check": {
-      "command": "uv run ruff check .",
-      "status": "passed"
-    },
-    "all_tests_passed": true,
-    "ruff_check_passed": true,
-    "verified_at": "2026-02-24T16:45:00Z"
-  },
-  "risks_and_limitations": [
-    "Lock files (.lock) are created alongside the database file; users should be aware of this additional file",
-    "If a process crashes while holding the lock, other processes may wait up to the lock_timeout (default 30s) before proceeding",
-    "The filelock library handles stale locks automatically on Unix systems but may require manual cleanup in some edge cases on Windows"
-  ]
+  "generated_at": "2026-02-24T16:44:51.215722+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2235,
+    "plan": 4000,
+    "implement": 1800,
+    "verify": 1896,
+    "finalize": 1235
+  }
 }
