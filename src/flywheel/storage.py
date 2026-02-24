@@ -22,9 +22,10 @@ def _ensure_parent_directory(file_path: Path) -> None:
     1. All parent path components either don't exist or are directories (not files)
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
+    4. Protects against symlink traversal attacks (issue #5596)
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file, or is a symlink
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
@@ -39,15 +40,26 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory using exist_ok=True to eliminate TOCTOU race condition
+    # (issue #5596): Previously, we checked exists() then mkdir(exist_ok=False),
+    # which left a race window where an attacker could create the directory.
+    # Using exist_ok=True is safe because we've already validated no files block the path.
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
+
+    # Post-hoc validation: Verify no symlinks were traversed in the path
+    # This prevents symlink attacks where an attacker creates a symlink in the race window
+    for part in list(file_path.parents):
+        if part.is_symlink():
+            raise ValueError(
+                f"Security error: Symlink detected in path '{part}'. "
+                f"Symlinks are not allowed in database paths to prevent traversal attacks."
+            )
 
 
 class TodoStorage:
@@ -74,8 +86,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
