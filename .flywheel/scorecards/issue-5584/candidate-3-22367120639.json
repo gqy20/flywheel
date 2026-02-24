@@ -1,21 +1,23 @@
 {
-  "issue_number": 5584,
+  "issue": 5584,
   "candidate": 3,
   "run_id": "22367120639",
   "branch": "claude/issue-5584-candidate-3-22367120639",
-  "status": "verified",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_minimal_framework.py"],
-    "summary": "Simplified next_id() by removing redundant 'if todos else 1' conditional since max(default=0)+1 handles empty list case correctly"
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_minimal_framework.py -v",
-    "pytest_result": "13 passed",
-    "ruff_command": "uv run ruff check src/flywheel/storage.py",
-    "ruff_result": "All checks passed"
-  },
-  "scorecard_version": "1.0"
+  "pr_number": 5601,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5601",
+  "generated_at": "2026-02-24T20:27:41.483749+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2779,
+    "plan": 2427,
+    "implement": 2604,
+    "verify": 2071,
+    "finalize": 805
+  }
 }
