@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_next_id_empty_list_returns_one() -> None:
+    """Bug #5584: next_id([]) should return 1."""
+    storage = TodoStorage("/dev/null")
+    assert storage.next_id([]) == 1
+
+
+def test_storage_next_id_non_contiguous_returns_max_plus_one() -> None:
+    """Bug #5584: next_id() should return max + 1 for non-contiguous IDs."""
+    storage = TodoStorage("/dev/null")
+    # After deletions, IDs may be non-contiguous (e.g., 1, 3, 5)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 6
+
+
+def test_storage_next_id_single_high_id() -> None:
+    """Bug #5584: next_id() should work with a single high ID."""
+    storage = TodoStorage("/dev/null")
+    todos = [Todo(id=10, text="x")]
+    assert storage.next_id(todos) == 11
