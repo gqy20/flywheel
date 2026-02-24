@@ -56,6 +56,11 @@ class TodoStorage:
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
 
+    @property
+    def backup_path(self) -> Path:
+        """Return the backup file path for this storage."""
+        return self.path.with_suffix(self.path.suffix + ".bak")
+
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
@@ -88,11 +93,18 @@ class TodoStorage:
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
 
+        Before overwriting, creates a backup of the existing file (if any)
+        to allow recovery via restore_backup().
+
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
+
+        # Create backup of existing file before overwriting
+        if self.path.exists():
+            self._create_backup()
 
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
@@ -123,6 +135,32 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _create_backup(self) -> None:
+        """Create a backup of the current file.
+
+        Copies the existing file to backup_path with same permissions.
+        Only keeps the most recent backup (overwrites previous backup).
+        """
+        import shutil
+
+        # Copy file content
+        shutil.copy2(self.path, self.backup_path)
+
+    def restore_backup(self) -> bool:
+        """Restore data from backup file.
+
+        Returns:
+            True if restore was successful, False if no backup exists.
+        """
+        if not self.backup_path.exists() or not self.path.exists():
+            return False
+
+        import shutil
+
+        # Copy backup to main file
+        shutil.copy2(self.backup_path, self.path)
+        return True
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
