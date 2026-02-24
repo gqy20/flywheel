@@ -124,5 +124,14 @@ class TodoStorage:
                 os.unlink(temp_path)
             raise
 
+    def exists(self) -> bool:
+        """Check if the storage file exists.
+
+        Returns True if the path exists and is a file, False otherwise.
+        This provides an O(1) way to check storage status without triggering
+        a full load().
+        """
+        return self.path.is_file()
+
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
