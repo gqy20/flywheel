@@ -119,3 +119,31 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5569 - None timestamps should convert to empty string
+def test_todo_from_dict_handles_none_created_at() -> None:
+    """Todo.from_dict should convert None created_at to empty string."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": None})
+    assert todo.created_at == ""
+
+
+def test_todo_from_dict_handles_none_updated_at() -> None:
+    """Todo.from_dict should convert None updated_at to empty string."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": None})
+    assert todo.updated_at == ""
+
+
+def test_todo_from_dict_handles_empty_string_timestamps() -> None:
+    """Todo.from_dict should keep empty string timestamps as empty strings."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "", "updated_at": ""})
+    assert todo.created_at == ""
+    assert todo.updated_at == ""
+
+
+def test_todo_from_dict_handles_valid_iso_timestamps() -> None:
+    """Todo.from_dict should preserve valid ISO timestamp strings."""
+    iso_timestamp = "2024-01-15T10:30:00+00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": iso_timestamp, "updated_at": iso_timestamp})
+    assert todo.created_at == iso_timestamp
+    assert todo.updated_at == iso_timestamp

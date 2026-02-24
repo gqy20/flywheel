@@ -10,6 +10,13 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _normalize_timestamp(value: str | None) -> str:
+    """Normalize timestamp value to empty string if None or empty."""
+    if value is None or value == "":
+        return ""
+    return str(value)
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -93,10 +100,30 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Normalize timestamps: convert None to empty string
+        created_at = _normalize_timestamp(data.get("created_at"))
+        updated_at = _normalize_timestamp(data.get("updated_at"))
+
+        # If timestamps are explicitly None or empty string, preserve empty string
+        # (don't auto-generate via __post_init__)
+        # Use __new__ to bypass __post_init__ for explicit None/empty timestamps
+        explicit_created_at = "created_at" in data and data["created_at"] in (None, "")
+        explicit_updated_at = "updated_at" in data and data["updated_at"] in (None, "")
+
+        if explicit_created_at or explicit_updated_at:
+            # At least one timestamp is explicitly None/empty - bypass __post_init__
+            todo = object.__new__(cls)
+            todo.id = todo_id
+            todo.text = data["text"]
+            todo.done = done
+            todo.created_at = created_at
+            todo.updated_at = updated_at
+            return todo
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
