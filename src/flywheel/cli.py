@@ -27,11 +27,19 @@ class TodoApp:
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        # Use atomic_update to prevent race condition in concurrent writes
+        added_todo: Todo | None = None
+
+        def _add_todo(todos: list[Todo]) -> list[Todo]:
+            nonlocal added_todo
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            added_todo = todo
+            return todos
+
+        self.storage.atomic_update(_add_todo)
+        assert added_todo is not None  # Should always be set after atomic_update
+        return added_todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()
@@ -40,31 +48,49 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        # Use atomic_update to prevent race condition in concurrent writes
+        marked_todo: Todo | None = None
+
+        def _mark_done(todos: list[Todo]) -> list[Todo]:
+            nonlocal marked_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    marked_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_update(_mark_done)
+        assert marked_todo is not None  # Should always be set after atomic_update
+        return marked_todo
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
-        raise ValueError(f"Todo #{todo_id} not found")
+        # Use atomic_update to prevent race condition in concurrent writes
+        unmarked_todo: Todo | None = None
+
+        def _mark_undone(todos: list[Todo]) -> list[Todo]:
+            nonlocal unmarked_todo
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    unmarked_todo = todo
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_update(_mark_undone)
+        assert unmarked_todo is not None  # Should always be set after atomic_update
+        return unmarked_todo
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
-        raise ValueError(f"Todo #{todo_id} not found")
+        # Use atomic_update to prevent race condition in concurrent writes
+        def _remove_todo(todos: list[Todo]) -> list[Todo]:
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    return todos
+            raise ValueError(f"Todo #{todo_id} not found")
+
+        self.storage.atomic_update(_remove_todo)
 
 
 def build_parser() -> argparse.ArgumentParser:

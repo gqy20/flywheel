@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -50,11 +55,91 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
-class TodoStorage:
-    """Persistent storage for todos."""
+# Default lock timeout in seconds
+_DEFAULT_LOCK_TIMEOUT = 10.0
 
-    def __init__(self, path: str | None = None) -> None:
+
+class LockAcquisitionError(TimeoutError):
+    """Raised when file lock cannot be acquired within timeout."""
+
+
+class TodoStorage:
+    """Persistent storage for todos with file-based locking for concurrency safety."""
+
+    def __init__(self, path: str | None = None, lock_timeout: float = _DEFAULT_LOCK_TIMEOUT) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_timeout = lock_timeout
+
+    @property
+    def _lock_path(self) -> Path:
+        """Path to the lock file (sibling to data file with .lock suffix)."""
+        return self.path.with_suffix(self.path.suffix + ".lock")
+
+    @contextlib.contextmanager
+    def _acquire_lock(self) -> Generator:
+        """Acquire exclusive file lock with timeout.
+
+        Uses fcntl.flock (LOCK_EX) for cross-process synchronization on Unix.
+        Creates lock file if it doesn't exist.
+
+        Raises:
+            LockAcquisitionError: If lock cannot be acquired within timeout.
+        """
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+
+        try:
+            # Try to acquire exclusive lock with timeout
+            import time
+
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break  # Lock acquired
+                except (BlockingIOError, OSError):
+                    elapsed = time.monotonic() - start_time
+                    if elapsed >= self._lock_timeout:
+                        raise LockAcquisitionError(
+                            f"Could not acquire lock on '{self._lock_path}' within "
+                            f"{self._lock_timeout}s. Another process may be holding the lock."
+                        ) from None
+                    time.sleep(0.01)  # Brief backoff before retry
+
+            yield  # Lock held, execute protected code
+
+        finally:
+            # Always release lock and close file descriptor
+            with contextlib.suppress(OSError):
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
+
+    def atomic_update(self, update_fn) -> list[Todo]:
+        """Atomically load, modify, and save todos with file locking.
+
+        This method provides safe concurrent access by:
+        1. Acquiring an exclusive file lock
+        2. Loading current todos
+        3. Applying the update function
+        4. Saving the modified todos
+        5. Releasing the lock
+
+        Args:
+            update_fn: Function that takes a list of Todo and returns modified list.
+
+        Returns:
+            The final list of todos after the update.
+
+        Raises:
+            LockAcquisitionError: If lock cannot be acquired within timeout.
+        """
+        with self._acquire_lock():
+            todos = self.load()
+            updated_todos = update_fn(todos)
+            self.save(updated_todos)
+            return updated_todos
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
