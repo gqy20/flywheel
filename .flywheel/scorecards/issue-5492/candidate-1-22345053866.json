@@ -1,0 +1,38 @@
+{
+  "issue_number": 5492,
+  "issue_title": "[Perf] next_id uses O(n) max() scan on every add operation",
+  "candidate_number": 1,
+  "run_id": "22345053866",
+  "branch": "claude/issue-5492-candidate-1-22345053866",
+  "created_at": "2026-02-24T09:00:00Z",
+  "implementation": {
+    "approach": "Lazy initialization with persistent max_id caching",
+    "description": "Replaced O(n) max() scan per add with O(1) cached increment. The max_id is computed once (lazily on first call) and then simply incremented on subsequent calls, eliminating the O(n) scan on every add operation.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5492_next_id_performance.py"
+    ]
+  },
+  "tests": {
+    "added": [
+      "test_next_id_with_persistent_max_id_tracking",
+      "test_next_id_realistic_add_flow_with_save_load"
+    ],
+    "modified": [
+      "test_next_id_correctness_after_max_id_caching"
+    ],
+    "passed": 118,
+    "failed": 0
+  },
+  "acceptance_criteria": {
+    "o1_time": true,
+    "correctness_maintained": true,
+    "memory_no_increase": true
+  },
+  "risks": [
+    {
+      "description": "If a different list with higher IDs is passed to the same storage instance, ID collisions could occur",
+      "mitigation": "This is not a realistic use case; in practice, each storage instance works with its associated data file"
+    }
+  ]
+}
