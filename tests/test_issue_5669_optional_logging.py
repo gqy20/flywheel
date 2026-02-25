@@ -82,7 +82,7 @@ class TestOptionalLogging:
 
         # Load with verbose=True
         with caplog.at_level(logging.DEBUG):
-            loaded = storage.load()
+            storage.load()
 
         # Should have debug log from flywheel.storage
         storage_logs = [r for r in caplog.records if r.name == "flywheel.storage"]
