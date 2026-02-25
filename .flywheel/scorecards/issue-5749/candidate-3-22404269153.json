@@ -1,0 +1,21 @@
+{
+  "issue_number": 5749,
+  "issue_title": "[Bug] next_id() returns incorrect ID when todos have non-contiguous IDs",
+  "candidate_number": 3,
+  "run_id": "22404269153",
+  "branch": "claude/issue-5749-candidate-3-22404269153",
+  "status": "implemented",
+  "approach": "gap-filling",
+  "description": "Changed next_id() to fill gaps in the ID sequence instead of always returning max+1. This prevents ID bloat after deletions.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_passed": 11,
+  "ruff_checks": "passed",
+  "risks": [
+    "Existing users may expect max+1 behavior",
+    "Gap-filling may cause confusion if IDs are used as external references"
+  ],
+  "created_at": "2026-02-25T16:30:00Z"
+}

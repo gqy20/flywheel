@@ -125,4 +125,15 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID, filling gaps in the sequence.
+
+        Instead of always returning max+1, this finds the first available
+        gap in the ID sequence. This prevents ID bloat after deletions.
+        """
+        if not todos:
+            return 1
+        existing_ids = {todo.id for todo in todos}
+        candidate = 1
+        while candidate in existing_ids:
+            candidate += 1
+        return candidate
