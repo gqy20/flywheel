@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #5719: next_id() must generate unique IDs with non-contiguous IDs."""
+    storage = TodoStorage(":memory:")  # Path doesn't matter for next_id
+
+    # Test gap-filling: should return 2 (first gap) for [1, 5]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    next_id = storage.next_id(todos)
+    assert next_id == 2, f"Expected 2 (first gap), got {next_id}"
+    assert next_id not in {t.id for t in todos}, "Generated ID must not collide"
+
+    # Test with multiple gaps: [1, 3, 5] should return 2
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    next_id = storage.next_id(todos)
+    assert next_id == 2, f"Expected 2 (first gap), got {next_id}"
+    assert next_id not in {t.id for t in todos}, "Generated ID must not collide"
+
+    # Test with no gaps: [1, 2, 3] should return 4 (max+1)
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    next_id = storage.next_id(todos)
+    assert next_id == 4, f"Expected 4 (max+1), got {next_id}"
+    assert next_id not in {t.id for t in todos}, "Generated ID must not collide"
+
+    # Test with empty list: should return 1
+    next_id = storage.next_id([])
+    assert next_id == 1, f"Expected 1 for empty list, got {next_id}"
+
+    # Test with single todo: [1] should return 2
+    todos = [Todo(id=1, text="a")]
+    next_id = storage.next_id(todos)
+    assert next_id == 2, f"Expected 2, got {next_id}"
