@@ -95,10 +95,12 @@ def test_concurrent_mark_done_operations_no_lost_updates(tmp_path: Path) -> None
 
     # Pre-populate with two todos
     storage = TodoStorage(db_path)
-    storage.save([
-        Todo(id=1, text="todo-1", done=False),
-        Todo(id=2, text="todo-2", done=False),
-    ])
+    storage.save(
+        [
+            Todo(id=1, text="todo-1", done=False),
+            Todo(id=2, text="todo-2", done=False),
+        ]
+    )
 
     def mark_done_worker(todo_id: int, result_queue: multiprocessing.Queue) -> None:
         """Worker that marks a specific todo as done."""
@@ -154,10 +156,12 @@ def test_concurrent_mark_done_and_undone_different_todos(tmp_path: Path) -> None
 
     # Pre-populate
     storage = TodoStorage(db_path)
-    storage.save([
-        Todo(id=1, text="todo-1", done=False),
-        Todo(id=2, text="todo-2", done=True),
-    ])
+    storage.save(
+        [
+            Todo(id=1, text="todo-1", done=False),
+            Todo(id=2, text="todo-2", done=True),
+        ]
+    )
 
     def mark_done_worker(result_queue: multiprocessing.Queue) -> None:
         try:
