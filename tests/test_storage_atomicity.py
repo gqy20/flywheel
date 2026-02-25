@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +229,87 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
+    """Regression test for issue #5667: Race condition in add operation.
+
+    Tests that concurrent add() operations do not produce duplicate IDs
+    and do not lose any todo items. This is the load-compute-save race
+    condition that occurs when:
+    1. Process A loads todos (e.g., [id=1])
+    2. Process B loads todos (e.g., [id=1])
+    3. Process A computes next_id=2 and saves todo with id=2
+    4. Process B computes next_id=2 and saves todo with id=2 (DUPLICATE!)
+
+    Without locking, both processes could get the same ID or overwrite each other.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+
+    def add_worker(worker_id: int, count: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds multiple todos concurrently."""
+        try:
+            app = TodoApp(db_path=str(db))
+            added_ids = []
+            for i in range(count):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                added_ids.append(todo.id)
+            result_queue.put(("success", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run two workers that each add todos concurrently
+    num_workers = 2
+    todos_per_worker = 50
+    expected_total = num_workers * todos_per_worker
+
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, todos_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Verify final state
+    app = TodoApp(db_path=str(db))
+    final_todos = app.list()
+
+    # Acceptance criteria 1: No duplicate IDs
+    all_ids = [todo.id for todo in final_todos]
+    unique_ids = set(all_ids)
+    assert len(all_ids) == len(unique_ids), (
+        f"Duplicate IDs found! Total: {len(all_ids)}, Unique: {len(unique_ids)}. "
+        f"Duplicate IDs: {[id for id in all_ids if all_ids.count(id) > 1]}"
+    )
+
+    # Acceptance criteria 2: No lost todos - should have exactly expected_total
+    assert len(final_todos) == expected_total, (
+        f"Lost todos! Expected {expected_total}, got {len(final_todos)}"
+    )
+
+    # IDs should be consecutive starting from 1
+    expected_ids = set(range(1, expected_total + 1))
+    assert unique_ids == expected_ids, (
+        f"ID sequence is not consecutive. Expected: {expected_ids}, Got: {unique_ids}"
+    )

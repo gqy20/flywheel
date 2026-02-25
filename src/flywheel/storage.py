@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,28 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock.
+
+        Returns the file descriptor of the lock file.
+        """
+        _ensure_parent_directory(self._lock_path)
+        fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock and close the file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +97,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +148,26 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, todo: Todo) -> Todo:
+        """Add a todo atomically with file locking.
+
+        This method acquires an exclusive lock before loading, computing the ID,
+        and saving, preventing race conditions in concurrent scenarios.
+
+        Args:
+            todo: The todo to add (without an ID set, or with a temporary ID).
+
+        Returns:
+            The todo with its assigned ID.
+        """
+        lock_fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            assigned_id = self.next_id(todos)
+            todo.id = assigned_id
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(lock_fd)
