@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from .todo import Todo
@@ -55,6 +58,35 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    @contextmanager
+    def with_lock(self) -> Generator[None]:
+        """Acquire an exclusive file lock for the storage file.
+
+        This prevents race conditions when multiple processes attempt
+        to read-modify-write the same storage file concurrently.
+
+        Uses a separate lock file (.todo.json.lock) to avoid issues
+        with locking the data file itself during atomic rename operations.
+        """
+        # Ensure parent directory exists for lock file
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create the lock file
+        lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            # Release lock and close file descriptor
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
