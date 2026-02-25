@@ -21,6 +21,7 @@ def _is_debug_enabled() -> bool:
     """Check if debug logging is enabled via FLYWHEEL_DEBUG environment variable."""
     return os.environ.get("FLYWHEEL_DEBUG", "").strip() in ("1", "true", "yes")
 
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
 
@@ -95,8 +96,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             error_msg = (
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             )
             if _is_debug_enabled():
                 _logger.error(

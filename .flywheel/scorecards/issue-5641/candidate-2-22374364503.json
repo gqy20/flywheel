@@ -64,5 +64,36 @@
     "uv run pytest tests/ -v",
     "uv run ruff check src/flywheel/storage.py",
     "uv run ruff check tests/test_issue_5641_logging.py"
-  ]
+  ],
+  "verification": {
+    "stage": "VERIFY",
+    "status": "passed",
+    "checks": [
+      {
+        "command": "uv run pytest tests/test_issue_5641_logging.py -v",
+        "status": "passed",
+        "result": "7/7 tests passed"
+      },
+      {
+        "command": "uv run pytest tests/ -v",
+        "status": "passed",
+        "result": "119/119 tests passed"
+      },
+      {
+        "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_5641_logging.py",
+        "status": "passed",
+        "result": "All checks passed"
+      },
+      {
+        "command": "uv run ruff format --check src/flywheel/storage.py tests/test_issue_5641_logging.py",
+        "status": "passed",
+        "result": "2 files already formatted (after auto-formatting)"
+      }
+    ],
+    "coverage": {
+      "storage.py": "90%",
+      "overall": "92%"
+    },
+    "summary": "All targeted pytest and ruff checks passed. Code formatting was applied and verified. Full test suite (119 tests) passes with 92% coverage."
+  }
 }

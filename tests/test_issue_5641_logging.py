@@ -48,7 +48,9 @@ class TestLoggingFeature:
         assert len(debug_records) >= 1, "Expected at least one DEBUG log record"
         # Log should contain file path
         log_messages = [r.message for r in debug_records]
-        assert any("load" in msg.lower() for msg in log_messages), f"Expected 'load' in log messages: {log_messages}"
+        assert any("load" in msg.lower() for msg in log_messages), (
+            f"Expected 'load' in log messages: {log_messages}"
+        )
 
     def test_save_logs_debug_when_flywheel_debug_enabled(self, tmp_path, caplog) -> None:
         """When FLYWHEEL_DEBUG=1, save() should log DEBUG level messages."""
@@ -71,7 +73,9 @@ class TestLoggingFeature:
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         assert len(debug_records) >= 1, "Expected at least one DEBUG log record"
         log_messages = [r.message for r in debug_records]
-        assert any("save" in msg.lower() for msg in log_messages), f"Expected 'save' in log messages: {log_messages}"
+        assert any("save" in msg.lower() for msg in log_messages), (
+            f"Expected 'save' in log messages: {log_messages}"
+        )
 
     def test_load_logs_error_on_json_decode_error(self, tmp_path, caplog) -> None:
         """When load() encounters JSON decode error, it should log ERROR level."""
@@ -94,10 +98,13 @@ class TestLoggingFeature:
 
         # Verify error log was recorded
         error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
-        assert len(error_records) >= 1, "Expected at least one ERROR log record for JSON decode failure"
+        assert len(error_records) >= 1, (
+            "Expected at least one ERROR log record for JSON decode failure"
+        )
         log_messages = [r.message for r in error_records]
-        assert any("json" in msg.lower() or "error" in msg.lower() for msg in log_messages), \
+        assert any("json" in msg.lower() or "error" in msg.lower() for msg in log_messages), (
             f"Expected JSON/error in log messages: {log_messages}"
+        )
 
     def test_save_logs_error_on_permission_denied(self, tmp_path, caplog) -> None:
         """When save() encounters OSError, it should log ERROR level."""
@@ -123,10 +130,13 @@ class TestLoggingFeature:
 
         # Verify error log was recorded
         error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
-        assert len(error_records) >= 1, "Expected at least one ERROR log record for permission error"
+        assert len(error_records) >= 1, (
+            "Expected at least one ERROR log record for permission error"
+        )
         log_messages = [r.message for r in error_records]
-        assert any("error" in msg.lower() for msg in log_messages), \
+        assert any("error" in msg.lower() for msg in log_messages), (
             f"Expected error in log messages: {log_messages}"
+        )
 
     def test_no_logging_when_flywheel_debug_not_set(self, tmp_path, caplog) -> None:
         """When FLYWHEEL_DEBUG is not set, no debug logs should be emitted."""
@@ -152,7 +162,9 @@ class TestLoggingFeature:
         # When FLYWHEEL_DEBUG is not set, debug logs should not be emitted
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         # The logger should not emit debug records when debug mode is off
-        assert len(debug_records) == 0, f"Expected no DEBUG logs when FLYWHEEL_DEBUG not set, got: {[r.message for r in debug_records]}"
+        assert len(debug_records) == 0, (
+            f"Expected no DEBUG logs when FLYWHEEL_DEBUG not set, got: {[r.message for r in debug_records]}"
+        )
 
     def test_log_includes_file_path(self, tmp_path, caplog) -> None:
         """Log messages should include the file path being operated on."""
@@ -174,8 +186,9 @@ class TestLoggingFeature:
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         assert len(debug_records) >= 1
         all_messages = " ".join(r.message for r in debug_records)
-        assert str(db) in all_messages or "todo.json" in all_messages, \
+        assert str(db) in all_messages or "todo.json" in all_messages, (
             f"Expected file path in log messages: {all_messages}"
+        )
 
     def test_log_includes_todo_count(self, tmp_path, caplog) -> None:
         """Log messages should include the count of todos loaded/saved."""
