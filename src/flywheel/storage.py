@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 
 from .todo import Todo
@@ -51,10 +53,72 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Thread/Process Safety:
+        Uses file locking to serialize concurrent writes. The lock is acquired
+        on the lock file (same name as data file with '.lock' suffix) before
+        any write operation to prevent race conditions and data loss.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        self._lock_depth = 0  # Track nested lock acquisition (reentrant locking)
+        self._lock_fd: int | None = None  # File descriptor for the lock
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> Generator:
+        """Context manager that acquires an exclusive file lock.
+
+        This ensures that read-modify-write operations are atomic across
+        multiple processes, preventing race conditions and data loss.
+
+        Uses reentrant locking to allow nested calls within the same thread.
+        """
+        # If we already hold the lock (reentrant), just increment depth
+        if self._lock_depth > 0:
+            self._lock_depth += 1
+            try:
+                yield
+            finally:
+                self._lock_depth -= 1
+            return
+
+        # Acquire the lock
+        _ensure_parent_directory(self._lock_path)
+        lock_fd = None
+        try:
+            lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)  # Blocking exclusive lock
+            self._lock_fd = lock_fd
+            self._lock_depth = 1
+            yield
+        finally:
+            if self._lock_depth > 0:
+                self._lock_depth = 0
+                self._lock_fd = None
+            if lock_fd is not None:
+                with contextlib.suppress(OSError):
+                    fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                with contextlib.suppress(OSError):
+                    os.close(lock_fd)
+
+    def transaction(self) -> contextlib.AbstractContextManager:
+        """Context manager for atomic read-modify-write operations.
+
+        Acquires an exclusive lock for the duration of the context, ensuring
+        that no other process can read or write the data file during the
+        transaction. Use this when performing read-modify-write operations
+        to prevent race conditions.
+
+        Example:
+            with storage.transaction():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+        """
+        return self._exclusive_lock()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -83,10 +147,11 @@ class TodoStorage:
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+        """Save todos to file atomically with file locking.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
-        if the process crashes during write.
+        if the process crashes during write. File locking prevents race conditions
+        when multiple processes write concurrently.
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
@@ -106,23 +171,26 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
-        try:
-            # Set restrictive permissions (owner read/write only)
-            # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+        # Use file locking to serialize concurrent writes
+        # If already in a transaction, _exclusive_lock is reentrant
+        with self._exclusive_lock():
+            try:
+                # Set restrictive permissions (owner read/write only)
+                # This protects against other users reading temp file before rename
+                os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
-            # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+                # Write content with proper encoding
+                # Use os.write instead of Path.write_text for more control
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    f.write(content)
 
-            # Atomic rename (os.replace is atomic on both Unix and Windows)
-            os.replace(temp_path, self.path)
-        except OSError:
-            # Clean up temp file on error
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
-            raise
+                # Atomic rename (os.replace is atomic on both Unix and Windows)
+                os.replace(temp_path, self.path)
+            except OSError:
+                # Clean up temp file on error
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+                raise
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

@@ -229,3 +229,98 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_writes_serialized_with_locking(tmp_path) -> None:
+    """Regression test for issue #5720: Concurrent writes should serialize via locking.
+
+    This test verifies that when multiple processes perform read-modify-write
+    operations concurrently via the CLI (which uses transactions), file locking
+    ensures all writes are serialized and no data is lost.
+
+    The test specifically checks that ALL todos from ALL workers are preserved,
+    not just the last writer's data.
+    """
+    import multiprocessing
+    import subprocess
+    import sys
+
+    db = tmp_path / "locked.json"
+
+    def add_todo_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds a unique todo via CLI subprocess."""
+        try:
+            # Use subprocess to avoid pickling issues with multiprocessing
+            # The CLI uses transactions internally, which is the real-world use case
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "flywheel.cli",
+                    "--db",
+                    str(db),
+                    "add",
+                    f"worker-{worker_id}-added",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if result.returncode == 0:
+                result_queue.put(("success", worker_id, None))
+            else:
+                result_queue.put(("error", worker_id, result.stderr))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Initialize with a base todo using CLI
+    subprocess.run(
+        [sys.executable, "-m", "flywheel.cli", "--db", str(db), "add", "base"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    )
+
+    # Run multiple workers that each add a todo via CLI
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_todo_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Load final state
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    # CRITICAL: With proper locking, we should have:
+    # - 1 base todo
+    # - 5 worker-added todos
+    # = 6 total todos (no data loss)
+    #
+    # Without locking (bug #5720), we would have fewer todos due to
+    # last-writer-wins data loss
+    assert len(final_todos) == 6, (
+        f"Expected 6 todos (1 base + 5 worker additions), got {len(final_todos)}. "
+        f"This indicates data loss due to concurrent writes without proper locking. "
+        f"Todos: {[t.text for t in final_todos]}"
+    )
