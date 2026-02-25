@@ -229,3 +229,111 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_toctou_race_condition_in_ensure_parent_directory(tmp_path) -> None:
+    """Regression test for issue #5733: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that the directory creation is resilient to race conditions where
+    another process creates the directory between our check and mkdir call.
+    The fix should use try/except with exist_ok=True instead of check-then-create.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "race_test" / "nested" / "todo.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that attempts to create parent directories and save."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            # Slight delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+            storage.save(todos)
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the bug - should not happen with proper fix
+            result_queue.put(("toctou_error", worker_id, str(e)))
+        except NotADirectoryError as e:
+            # Another manifestation of the race condition
+            result_queue.put(("toctou_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that all try to create the same new directory structure
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # No worker should encounter TOCTOU errors
+    toctou_errors = [r for r in results if r[0] == "toctou_error"]
+    assert len(toctou_errors) == 0, (
+        f"TOCTOU race condition detected! Workers got FileExistsError/NotADirectoryError: {toctou_errors}"
+    )
+
+    # At least some workers should succeed
+    successes = [r for r in results if r[0] == "success"]
+    assert len(successes) > 0, f"No workers succeeded. Errors: {[r for r in results if r[0] != 'success']}"
+
+
+def test_ensure_parent_directory_handles_file_in_path(tmp_path) -> None:
+    """Test that _ensure_parent_directory raises ValueError when a file blocks the path.
+
+    This verifies that even with the race condition fix, we still properly
+    detect and report when a parent path component is a file instead of a directory.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a file where we need a directory
+    blocking_file = tmp_path / "blocking_file"
+    blocking_file.write_text("I am a file, not a directory")
+
+    # Try to use a path that would require the file to be a directory
+    bad_path = blocking_file / "subdir" / "todo.json"
+
+    with pytest.raises(ValueError, match="exists as a file, not a directory"):
+        _ensure_parent_directory(bad_path)
+
+
+def test_ensure_parent_directory_creates_missing_dirs(tmp_path) -> None:
+    """Test that _ensure_parent_directory creates all missing parent directories."""
+    from flywheel.storage import _ensure_parent_directory
+
+    # Path with multiple levels of non-existent directories
+    new_path = tmp_path / "level1" / "level2" / "level3" / "todo.json"
+
+    # Should not raise
+    _ensure_parent_directory(new_path)
+
+    # Verify all directories were created
+    assert new_path.parent.exists()
+    assert new_path.parent.is_dir()
+
+
+def test_ensure_parent_directory_idempotent(tmp_path) -> None:
+    """Test that _ensure_parent_directory can be called multiple times safely."""
+    from flywheel.storage import _ensure_parent_directory
+
+    new_path = tmp_path / "repeated" / "todo.json"
+
+    # Call multiple times - should not raise
+    for _ in range(5):
+        _ensure_parent_directory(new_path)
+
+    assert new_path.parent.exists()
+    assert new_path.parent.is_dir()

@@ -1,0 +1,39 @@
+{
+  "issue_number": 5733,
+  "candidate_id": 1,
+  "run_id": "22396990644",
+  "branch": "claude/issue-5733-candidate-1-22396990644",
+  "created_at": "2026-02-25T13:30:00Z",
+  "fix_summary": {
+    "title": "Fix TOCTOU race condition in _ensure_parent_directory",
+    "description": "Fixed race condition (TOCTOU) in _ensure_parent_directory by replacing check-then-create pattern with atomic try/except pattern using exist_ok=True",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "approach": "Replace non-atomic `if not parent.exists(): parent.mkdir(exist_ok=False)` with atomic `parent.mkdir(exist_ok=True)` wrapped in try/except to handle race conditions"
+  },
+  "tests": {
+    "added": 4,
+    "passed": 19,
+    "failed": 0,
+    "test_names": [
+      "test_toctou_race_condition_in_ensure_parent_directory",
+      "test_ensure_parent_directory_handles_file_in_path",
+      "test_ensure_parent_directory_creates_missing_dirs",
+      "test_ensure_parent_directory_idempotent"
+    ]
+  },
+  "quality_checks": {
+    "ruff": "passed",
+    "all_storage_tests": "passed (19 tests)"
+  },
+  "risks": {
+    "description": "Low risk. The fix maintains the same error handling behavior while eliminating the race condition window. The exist_ok=True flag is the recommended pattern for this use case.",
+    "breaking_changes": false,
+    "backward_compatible": true
+  },
+  "limitations": {
+    "description": "The fix addresses the TOCTOU between exists() and mkdir(), but the parent component check loop (lines 35-40) still has a minor TOCTOU window between exists() and is_dir() for symlink attacks. This is a lower severity issue and would require more complex handling."
+  }
+}

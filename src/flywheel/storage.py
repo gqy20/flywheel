@@ -23,6 +23,10 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    This function is TOCTOU-safe: it uses try/except with exist_ok=True to handle
+    race conditions where another process might create directories between our
+    check and mkdir operations.
+
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
@@ -39,15 +43,24 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Cannot use '{file_path}' as database path."
             )
 
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory using atomic operation with exist_ok=True
+    # This is TOCTOU-safe: if another process creates the directory between our
+    # check above and this mkdir, exist_ok=True handles it gracefully
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        # Another race: something exists at parent path but it's not a directory
+        # This shouldn't happen since we checked above, but handle defensively
+        if not parent.is_dir():
+            raise ValueError(
+                f"Path error: '{parent}' exists as a file, not a directory. "
+                f"Cannot use '{file_path}' as database path."
+            ) from None
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
