@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,70 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_closed_when_fchmod_fails(tmp_path) -> None:
+    """Regression test for issue #5679: File descriptor leak when os.fchmod fails.
+
+    When os.fchmod fails before os.fdopen takes ownership of the fd,
+    the fd should be explicitly closed to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track if fd was closed
+    fds_closed = []
+    original_close = os.close
+
+    def tracking_close(fd: int) -> None:
+        fds_closed.append(fd)
+        original_close(fd)
+
+    # Mock os.fchmod to fail
+    def failing_fchmod(fd: int, mode: int) -> None:
+        raise OSError("Simulated fchmod failure")
+
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that fd was closed despite the error
+    assert len(fds_closed) > 0, "File descriptor should be closed when fchmod fails"
+
+
+def test_fd_closed_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #5679: File descriptor leak when os.fdopen fails.
+
+    When os.fdopen fails after fchmod succeeds, the fd should be
+    explicitly closed to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track if fd was closed
+    fds_closed = []
+    original_close = os.close
+
+    def tracking_close(fd: int) -> None:
+        fds_closed.append(fd)
+        original_close(fd)
+
+    # Mock os.fdopen to fail
+    def failing_fdopen(fd: int, *args, **kwargs):
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that fd was closed despite the error
+    assert len(fds_closed) > 0, "File descriptor should be closed when fdopen fails"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
