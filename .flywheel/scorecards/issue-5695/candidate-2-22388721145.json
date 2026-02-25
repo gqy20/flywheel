@@ -1,0 +1,23 @@
+{
+  "issue_number": 5695,
+  "issue_title": "[Bug] Todo.rename() method exists but is not exposed via CLI - users cannot rename tod",
+  "candidate": 2,
+  "run_id": "22388721145",
+  "branch": "claude/issue-5695-candidate-2-22388721145",
+  "status": "implemented",
+  "tests_passed": 5,
+  "tests_total": 5,
+  "ruff_checks_passed": true,
+  "changes": {
+    "source_files": ["src/flywheel/cli.py"],
+    "test_files": ["tests/test_issue_5695_cli_rename_command.py"]
+  },
+  "acceptance_criteria_met": {
+    "cli_accepts_rename_command": true,
+    "rename_updates_text_and_updated_at": true,
+    "rename_raises_error_for_non_existent_id": true,
+    "rename_raises_error_for_empty_text": true
+  },
+  "implementation_summary": "Added 'rename' subcommand to CLI exposing the existing Todo.rename() method. The implementation includes: (1) TodoApp.rename() method that finds todo by id, calls todo.rename(), and saves; (2) Parser arguments for 'rename <id> <text>'; (3) Command handler in run_command() that prints confirmation message.",
+  "test_summary": "Added 5 regression tests covering: valid rename, updated_at timestamp change, non-existent id error, empty text error, whitespace-only text error."
+}
