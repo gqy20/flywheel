@@ -30,9 +30,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
     parent = file_path.parent
 
     # Check all parent components (excluding the file itself) for file-as-directory confusion
+    # and symlinks (security: do not follow symlinks to prevent TOCTOU race conditions)
     # This handles cases like: /path/to/file.json/subdir/db.json
     # where 'file.json' exists as a file but we need it to be a directory
     for part in list(file_path.parents):  # Only check parents, not file_path itself
+        # Security: Use lstat() to avoid following symlinks (prevents TOCTOU races)
+        if part.is_symlink():
+            raise ValueError(
+                f"Path error: '{part}' is a symbolic link. "
+                f"Symbolic links are not allowed in database path to prevent security issues. "
+                f"Cannot use '{file_path}' as database path."
+            )
         if part.exists() and not part.is_dir():
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
