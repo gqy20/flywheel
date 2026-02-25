@@ -151,6 +151,33 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fchmod_failure_no_fd_leak(tmp_path) -> None:
+    """Regression test for issue #5639: fd leak on fchmod failure.
+
+    If os.fchmod fails before os.fdopen is called, the fd should still
+    be properly closed, not leaked.
+    """
+    import os as os_module
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track fds before the operation
+    open_fds_before = set(os_module.listdir("/proc/self/fd"))
+
+    # Mock fchmod to fail
+    with (
+        patch("flywheel.storage.os.fchmod", side_effect=OSError("Simulated fchmod failure")),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify no fd leaked
+    open_fds_after = set(os_module.listdir("/proc/self/fd"))
+    leaked_fds = open_fds_after - open_fds_before
+    assert len(leaked_fds) == 0, f"File descriptor(s) leaked: {leaked_fds}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

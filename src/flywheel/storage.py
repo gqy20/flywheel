@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -113,16 +112,23 @@ class TodoStorage:
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
+            # fdopen takes ownership of fd and closes it on success
             with os.fdopen(fd, "w", encoding="utf-8") as f:
+                fd = None  # Mark fd as transferred to file object
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
-            # Clean up temp file on error
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
-            raise
+            temp_path = None  # Mark as successfully renamed
+        finally:
+            # Close fd if still open (e.g., fchmod failed before fdopen)
+            if fd is not None:
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+            # Clean up temp file if still exists
+            if temp_path is not None:
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
