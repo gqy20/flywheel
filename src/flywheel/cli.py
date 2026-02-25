@@ -3,11 +3,37 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import sys
+from contextlib import contextmanager
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
 from .todo import Todo
+
+
+@contextmanager
+def _file_lock(lock_path: str):
+    """Acquire an exclusive file lock for cross-process synchronization.
+
+    Uses fcntl.flock for advisory locking on Unix systems.
+    The lock is released automatically when the context manager exits.
+    """
+    from pathlib import Path
+
+    # Ensure parent directory exists for lock file
+    lock_path_obj = Path(lock_path)
+    lock_path_obj.parent.mkdir(parents=True, exist_ok=True)
+
+    # Open/create lock file and acquire exclusive lock
+    with open(lock_path, "w") as f:
+        # Acquire exclusive lock (blocking)
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            # Release lock
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 class TodoApp:
@@ -15,6 +41,9 @@ class TodoApp:
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
+        self._db_path = db_path or ".todo.json"
+        # Lock file path is based on db path with .lock suffix
+        self._lock_path = f"{self._db_path}.lock"
 
     def _load(self) -> list[Todo]:
         return self.storage.load()
@@ -23,14 +52,20 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
+        """Add a new todo with cross-process safe ID generation.
+
+        Uses file locking to ensure that concurrent add operations from
+        multiple processes produce unique IDs and don't lose data.
+        """
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
+        with _file_lock(self._lock_path):
+            todos = self._load()
+            todo = Todo(id=self.storage.next_id(todos), text=text)
+            todos.append(todo)
+            self._save(todos)
         return todo
 
     def list(self, show_all: bool = True) -> list[Todo]:
@@ -40,30 +75,33 @@ class TodoApp:
         return [todo for todo in todos if not todo.done]
 
     def mark_done(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_done()
-                self._save(todos)
-                return todo
+        with _file_lock(self._lock_path):
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_done()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def mark_undone(self, todo_id: int) -> Todo:
-        todos = self._load()
-        for todo in todos:
-            if todo.id == todo_id:
-                todo.mark_undone()
-                self._save(todos)
-                return todo
+        with _file_lock(self._lock_path):
+            todos = self._load()
+            for todo in todos:
+                if todo.id == todo_id:
+                    todo.mark_undone()
+                    self._save(todos)
+                    return todo
         raise ValueError(f"Todo #{todo_id} not found")
 
     def remove(self, todo_id: int) -> None:
-        todos = self._load()
-        for i, todo in enumerate(todos):
-            if todo.id == todo_id:
-                todos.pop(i)
-                self._save(todos)
-                return
+        with _file_lock(self._lock_path):
+            todos = self._load()
+            for i, todo in enumerate(todos):
+                if todo.id == todo_id:
+                    todos.pop(i)
+                    self._save(todos)
+                    return
         raise ValueError(f"Todo #{todo_id} not found")
 
 
