@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids_fills_gaps(tmp_path) -> None:
+    """Bug #5719: next_id() should generate unique IDs with non-contiguous IDs."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # Test case 1: Non-contiguous IDs [1, 5] should return 2 (first gap)
+    todos_gap = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    next_id = storage.next_id(todos_gap)
+    assert next_id not in {t.id for t in todos_gap}, (
+        f"next_id={next_id} collides with existing IDs {[t.id for t in todos_gap]}"
+    )
+    assert next_id == 2, f"Expected first gap (2), got {next_id}"
+
+    # Test case 2: IDs [2, 3] should return 1 (first gap at beginning)
+    todos_start_gap = [Todo(id=2, text="c"), Todo(id=3, text="d")]
+    next_id = storage.next_id(todos_start_gap)
+    assert next_id not in {t.id for t in todos_start_gap}, (
+        f"next_id={next_id} collides with existing IDs"
+    )
+    assert next_id == 1, f"Expected first gap (1), got {next_id}"
+
+    # Test case 3: IDs [1, 2, 4] should return 3 (middle gap)
+    todos_middle_gap = [Todo(id=1, text="e"), Todo(id=2, text="f"), Todo(id=4, text="g")]
+    next_id = storage.next_id(todos_middle_gap)
+    assert next_id not in {t.id for t in todos_middle_gap}, (
+        f"next_id={next_id} collides with existing IDs"
+    )
+    assert next_id == 3, f"Expected middle gap (3), got {next_id}"
+
+    # Test case 4: Contiguous IDs [1, 2, 3] should return 4 (max+1)
+    todos_contiguous = [Todo(id=1, text="h"), Todo(id=2, text="i"), Todo(id=3, text="j")]
+    next_id = storage.next_id(todos_contiguous)
+    assert next_id == 4, f"Expected max+1 (4), got {next_id}"
+
+    # Test case 5: Empty list should return 1
+    next_id = storage.next_id([])
+    assert next_id == 1, f"Expected 1 for empty list, got {next_id}"

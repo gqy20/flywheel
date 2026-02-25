@@ -125,4 +125,13 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the smallest positive integer ID not already used.
+
+        Uses Set-based O(1) lookup to find the first available gap,
+        ensuring unique IDs even when existing IDs are non-contiguous.
+        """
+        existing_ids = {todo.id for todo in todos}
+        next_id = 1
+        while next_id in existing_ids:
+            next_id += 1
+        return next_id
