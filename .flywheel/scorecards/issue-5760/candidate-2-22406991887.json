@@ -1,0 +1,17 @@
+{
+  "issue_number": 5760,
+  "issue_title": "[Bug] Todo.rename() does not reject non-string text argument, may cause AttributeError",
+  "candidate_id": 2,
+  "run_id": "22406991887",
+  "branch": "claude/issue-5760-candidate-2-22406991887",
+  "status": "implemented",
+  "test_first": true,
+  "tests_added": ["tests/test_issue_5760_rename_type_validation.py"],
+  "files_changed": ["src/flywheel/todo.py"],
+  "checks_passed": {
+    "pytest": true,
+    "ruff": true
+  },
+  "summary": "Added type validation at the start of rename() method to raise TypeError with clear message when text argument is not a string, matching the validation pattern used in from_dict().",
+  "risks": "None - minimal change that adds defensive validation consistent with existing codebase patterns."
+}
