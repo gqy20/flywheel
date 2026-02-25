@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +229,77 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #5652: Race condition in next_id().
+
+    Tests that multiple processes concurrently adding todos via add_todo()
+    should produce unique IDs without duplicates. This verifies that the
+    file-level locking makes the load-compute_id-save sequence atomic.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_add.json"
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds a todo using atomic add_todo method."""
+        try:
+            storage = TodoStorage(str(db))
+            # Small delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+
+            # Use the atomic add_todo method
+            todo = storage.add_todo(f"worker-{worker_id}-task")
+
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=15)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Extract all IDs from successful results
+    generated_ids = [r[2] for r in successes]
+
+    # All IDs should be unique - this is the core assertion for issue #5652
+    unique_ids = set(generated_ids)
+    assert len(unique_ids) == num_workers, (
+        f"Duplicate IDs detected! Got {len(unique_ids)} unique IDs "
+        f"from {num_workers} workers. IDs: {sorted(generated_ids)}"
+    )
+
+    # Final verification: file should contain exactly num_workers todos
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert len(final_todos) == num_workers, f"Expected {num_workers} todos, got {len(final_todos)}"
+
+    # All todos should have unique IDs matching our tracked IDs
+    final_ids = [todo.id for todo in final_todos]
+    assert len(set(final_ids)) == num_workers, (
+        f"Final file contains duplicate IDs: {sorted(final_ids)}"
+    )
