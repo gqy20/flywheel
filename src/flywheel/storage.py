@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
 
 from .todo import Todo
+
+# Configure module-level logger
+_logger = logging.getLogger("flywheel.storage")
+
+
+def _is_debug_enabled() -> bool:
+    """Check if debug logging is enabled via FLYWHEEL_DEBUG environment variable."""
+    return os.environ.get("FLYWHEEL_DEBUG", "").strip() in ("1", "true", "yes")
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -58,13 +68,22 @@ class TodoStorage:
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            if _is_debug_enabled():
+                _logger.debug("Load: file '%s' does not exist, returning empty list", self.path)
             return []
+
+        start_time = time.perf_counter() if _is_debug_enabled() else 0
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            if _is_debug_enabled():
+                _logger.error(
+                    "Load failed: file '%s' too large (%.1fMB > %.0fMB limit)",
+                    self.path, size_mb, limit_mb
+                )
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
@@ -73,14 +92,31 @@ class TodoStorage:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
+            if _is_debug_enabled():
+                _logger.error(
+                    "Load failed: invalid JSON in '%s' at line %d, column %d: %s",
+                    self.path, e.lineno, e.colno, e.msg
+                )
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
                 f"Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
+            if _is_debug_enabled():
+                _logger.error("Load failed: '%s' does not contain a JSON list", self.path)
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+
+        if _is_debug_enabled():
+            elapsed_ms = (time.perf_counter() - start_time) * 1000
+            _logger.debug(
+                "Load: loaded %d todos from '%s' in %.2fms",
+                len(todos), self.path, elapsed_ms
+            )
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -91,6 +127,8 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        start_time = time.perf_counter() if _is_debug_enabled() else 0
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
@@ -118,10 +156,19 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+
+            if _is_debug_enabled():
+                elapsed_ms = (time.perf_counter() - start_time) * 1000
+                _logger.debug(
+                    "Save: saved %d todos to '%s' in %.2fms",
+                    len(todos), self.path, elapsed_ms
+                )
+        except OSError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+            if _is_debug_enabled():
+                _logger.error("Save failed: could not write to '%s': %s", self.path, e)
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
