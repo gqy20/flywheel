@@ -158,3 +158,25 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_rename_rejects_non_string_text() -> None:
+    """Bug #5760: Todo.rename() should reject non-string arguments with TypeError."""
+    todo = Todo(id=1, text="original")
+    original_updated_at = todo.updated_at
+
+    # None should raise TypeError
+    with pytest.raises(TypeError, match="text must be a string"):
+        todo.rename(None)
+
+    # Integer should raise TypeError
+    with pytest.raises(TypeError, match="text must be a string"):
+        todo.rename(123)
+
+    # List should raise TypeError
+    with pytest.raises(TypeError, match="text must be a string"):
+        todo.rename(["not", "a", "string"])
+
+    # Verify state unchanged after failed validation
+    assert todo.text == "original"
+    assert todo.updated_at == original_updated_at
