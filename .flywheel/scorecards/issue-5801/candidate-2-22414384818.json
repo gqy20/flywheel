@@ -1,0 +1,23 @@
+{
+  "issue_number": 5801,
+  "candidate_number": 2,
+  "run_id": "22414384818",
+  "status": "implemented",
+  "summary": "Add validation in Todo.__post_init__ to strip text and raise ValueError if empty, consistent with rename() method",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_minimal_framework.py"]
+  },
+  "tests_passed": [
+    "test_todo_construction_rejects_empty_string",
+    "test_todo_construction_rejects_whitespace_only",
+    "test_todo_construction_strips_whitespace",
+    "test_todo_from_dict_rejects_whitespace_only",
+    "All 14 existing tests"
+  ],
+  "risks": "Minimal - changes are consistent with existing rename() method validation",
+  "verification": {
+    "pytest": "14 passed",
+    "ruff": "All checks passed"
+  }
+}
