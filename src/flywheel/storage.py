@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +60,47 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self, exclusive: bool = True) -> int:
+        """Acquire a file-based lock for the storage file.
+
+        Uses fcntl.flock for advisory locking on Unix systems.
+        Returns the file descriptor of the lock file.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Open lock file (create if doesn't exist)
+        fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,
+        )
+        try:
+            # LOCK_EX for exclusive (write) access, LOCK_SH for shared (read) access
+            lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+            fcntl.flock(fd, lock_type)
+            return fd
+        except OSError:
+            os.close(fd)
+            raise
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file-based lock."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def _exclusive_lock(self) -> Iterator[int]:
+        """Context manager for exclusive locking."""
+        fd = self._acquire_lock(exclusive=True)
+        try:
+            yield fd
+        finally:
+            self._release_lock(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +172,31 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_modify(self, modify_func) -> None:
+        """Atomically load, modify, and save todos with file-based locking.
+
+        Args:
+            modify_func: A callable that takes a list[Todo] and modifies it in place.
+                         The function should not return anything; changes are made
+                         directly to the todo list.
+
+        This method acquires an exclusive lock before loading the todos,
+        calls the modify function, then saves the todos while still holding
+        the lock. This prevents race conditions where concurrent processes
+        could lose updates.
+
+        Example:
+            def mark_done(todos, todo_id):
+                for todo in todos:
+                    if todo.id == todo_id:
+                        todo.mark_done()
+                        return
+                raise ValueError(f"Todo #{todo_id} not found")
+
+            storage.atomic_modify(lambda todos: mark_done(todos, 1))
+        """
+        with self._exclusive_lock():
+            todos = self.load()
+            modify_func(todos)
+            self.save(todos)
