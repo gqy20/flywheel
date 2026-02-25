@@ -1,0 +1,27 @@
+{
+  "issue_number": 5747,
+  "issue_title": "[Security] os.fchmod is Unix-only, will raise AttributeError on Windows",
+  "candidate": 1,
+  "run_id": "22404269153",
+  "branch": "claude/issue-5747-candidate-1-22404269153",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_5747_windows_compat.py"
+    ]
+  },
+  "fix_summary": "Wrap os.fchmod call in hasattr check to gracefully skip on Windows platforms where fchmod is unavailable",
+  "tests_passed": [
+    "tests/test_issue_5747_windows_compat.py::TestWindowsCompatibility::test_save_succeeds_without_fchmod",
+    "tests/test_issue_5747_windows_compat.py::TestWindowsCompatibility::test_save_succeeds_with_mocked_no_fchmod",
+    "tests/test_issue_5747_windows_compat.py::TestWindowsCompatibility::test_save_still_sets_permissions_on_unix",
+    "tests/test_issue_5747_windows_compat.py::TestWindowsCompatibility::test_hasattr_fchmod_detection",
+    "tests/test_issue_2027_permissions.py::test_temp_file_has_no_execute_bit",
+    "tests/test_issue_2027_permissions.py::test_temp_file_is_not_executable"
+  ],
+  "risks": "None - fix is minimal and only affects Windows platform behavior",
+  "limitations": "Windows users will not get the 0o600 file permissions, but this is a platform limitation"
+}
