@@ -8,8 +8,6 @@ These tests should FAIL before the fix and PASS after the fix.
 
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from flywheel.storage import TodoStorage
