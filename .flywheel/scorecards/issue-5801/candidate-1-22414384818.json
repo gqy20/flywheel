@@ -1,47 +1,23 @@
 {
-  "issue_id": 5801,
-  "candidate_id": 1,
+  "issue": 5801,
+  "candidate": 1,
   "run_id": "22414384818",
-  "triage": {
-    "root_cause": "Todo text field had no validation on construction, allowing whitespace-only or empty text via direct instantiation or from_dict deserialization",
-    "affected_files": ["src/flywheel/todo.py"],
-    "risk_level": "low",
-    "fix_strategy": "Add validation in __post_init__ to strip text and raise ValueError if empty, consistent with rename() method"
-  },
-  "tests": {
-    "test_file": "tests/test_issue_5801_todo_text_validation.py",
-    "test_count": 8,
-    "tests_passed": 8,
-    "coverage": {
-      "construction_empty": true,
-      "construction_whitespace": true,
-      "construction_strip": true,
-      "from_dict_empty": true,
-      "from_dict_whitespace": true,
-      "from_dict_strip": true
-    }
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_passed": true,
-    "regression_tests_passed": true,
-    "verification_commands": [
-      "uv run pytest tests/test_issue_5801_todo_text_validation.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_5801_todo_text_validation.py",
-      "uv run ruff format --check src/flywheel/todo.py tests/test_issue_5801_todo_text_validation.py",
-      "uv run pytest tests/ -v --tb=short"
-    ],
-    "verification_outcomes": {
-      "targeted_tests": "8/8 passed",
-      "ruff_check": "All checks passed",
-      "ruff_format": "2 files already formatted",
-      "full_test_suite": "120 passed in 0.47s"
-    }
-  },
-  "acceptance_criteria": {
-    "empty_text_raises": true,
-    "whitespace_only_raises": true,
-    "valid_text_stripped": true,
-    "from_dict_validated": true
+  "branch": "claude/issue-5801-candidate-1-22414384818",
+  "pr_number": 5814,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5814",
+  "generated_at": "2026-02-25T21:26:58.015431+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2211,
+    "plan": 3170,
+    "implement": 1798,
+    "verify": 1791,
+    "finalize": 1119
   }
 }
