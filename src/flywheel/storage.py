@@ -20,27 +20,48 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
     Validates that:
     1. All parent path components either don't exist or are directories (not files)
-    2. Creates parent directories if needed
-    3. Provides clear error messages for permission issues
+    2. No parent path component is a symlink (security: prevents symlink attacks)
+    3. Creates parent directories if needed
+    4. Provides clear error messages for permission issues
 
     Raises:
-        ValueError: If any parent path component exists but is a file
+        ValueError: If any parent path component exists but is a file or symlink
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
+    # Check all parent components (excluding the file itself) for:
+    # 1. File-as-directory confusion
+    # 2. Symlinks (security: prevent symlink traversal attacks)
     # This handles cases like: /path/to/file.json/subdir/db.json
     # where 'file.json' exists as a file but we need it to be a directory
     for part in list(file_path.parents):  # Only check parents, not file_path itself
-        if part.exists() and not part.is_dir():
+        # Security: Use lstat() to check without following symlinks
+        # This prevents TOCTOU race conditions and symlink attacks
+        try:
+            part_lstat = part.lstat()
+        except OSError:
+            # Path component doesn't exist, which is fine
+            continue
+
+        # Check if this is a symlink (security issue)
+        if stat.S_ISLNK(part_lstat.st_mode):
+            raise ValueError(
+                f"Security error: '{part}' is a symbolic link. "
+                f"Symlinks are not allowed in database path. "
+                f"Cannot use '{file_path}' as database path."
+            )
+
+        # Check if this is a file (not a directory)
+        if not stat.S_ISDIR(part_lstat.st_mode):
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
                 f"Cannot use '{file_path}' as database path."
             )
 
     # Create parent directory if it doesn't exist
-    if not parent.exists():
+    # Security: Use os.path.lexists() to check without following symlinks
+    if not os.path.lexists(parent):
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
         except OSError as e:
