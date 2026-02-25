@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +127,67 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Generate the next sequential ID for a new todo.
+
+        Note: This method calculates the next ID based on the provided list.
+        For concurrent-safe ID generation, use acquire_lock() and release_lock()
+        to protect the entire load-next_id-save sequence.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def acquire_lock(self, timeout: float = 10.0) -> int:
+        """Acquire an exclusive file lock for safe concurrent access.
+
+        This should be called before any operation that needs to read-modify-write
+        the database atomically (e.g., adding a new todo).
+
+        Args:
+            timeout: Maximum time to wait for the lock in seconds.
+
+        Returns:
+            File descriptor for the lock file (must be passed to release_lock).
+
+        Raises:
+            TimeoutError: If the lock cannot be acquired within the timeout.
+        """
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file
+        fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            # Try to acquire exclusive lock with timeout
+            import time
+
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return fd
+                except (BlockingIOError, OSError):
+                    if time.monotonic() - start_time >= timeout:
+                        raise TimeoutError(
+                            f"Could not acquire lock on {self._lock_path} within {timeout}s"
+                        ) from None
+                    time.sleep(0.01)
+        except Exception:
+            # Clean up on failure
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            raise
+
+    def release_lock(self, fd: int) -> None:
+        """Release the file lock acquired by acquire_lock().
+
+        Args:
+            fd: File descriptor returned by acquire_lock().
+        """
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
