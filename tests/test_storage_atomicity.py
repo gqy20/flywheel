@@ -151,6 +151,104 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_os_replace_permission_error_preserves_type(tmp_path) -> None:
+    """Regression test for issue #5694: OSError catch hides specific error types.
+
+    When os.replace() fails with PermissionError, the original PermissionError
+    should be raised (not generic OSError), and temp file should be cleaned up.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track temp files for cleanup verification
+    temp_files_created = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        temp_files_created.append(Path(path))
+        return fd, path
+
+    # Mock os.replace to fail with PermissionError
+    def failing_replace(src, dst):
+        raise PermissionError("Simulated permission denied")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(PermissionError, match="Simulated permission denied"),
+    ):
+        storage.save(todos)
+
+    # Verify temp file was cleaned up
+    for temp_file in temp_files_created:
+        assert not temp_file.exists(), f"Temp file {temp_file} should be cleaned up"
+
+
+def test_os_replace_file_not_found_error_preserves_type(tmp_path) -> None:
+    """Regression test for issue #5694: OSError catch hides specific error types.
+
+    When os.replace() fails with FileNotFoundError, the original error type
+    should be preserved.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Mock os.replace to fail with FileNotFoundError
+    def failing_replace(src, dst):
+        raise FileNotFoundError("Simulated file not found")
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(FileNotFoundError, match="Simulated file not found"),
+    ):
+        storage.save(todos)
+
+
+def test_temp_file_cleanup_failure_is_logged(tmp_path, caplog) -> None:
+    """Regression test for issue #5694: cleanup failures should not be silently suppressed.
+
+    When os.replace() fails AND temp file cleanup also fails, the cleanup
+    failure should be logged rather than silently suppressed.
+    """
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Mock os.replace to fail with PermissionError
+    def failing_replace(src, dst):
+        raise PermissionError("Simulated permission denied")
+
+    # Mock os.unlink to also fail (simulating cleanup failure)
+    def failing_unlink(path):
+        raise OSError("Simulated cleanup failure")
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        patch("flywheel.storage.os.unlink", failing_unlink),
+        pytest.raises(PermissionError, match="Simulated permission denied"),
+    ):
+        storage.save(todos)
+
+    # Verify that cleanup failure was logged (not silently suppressed)
+    # The log should contain a message about the cleanup failure
+    log_messages = [record.message for record in caplog.records]
+    assert any(
+        "cleanup" in msg.lower() or "temp" in msg.lower() for msg in log_messages
+    ), f"Expected cleanup failure to be logged, got: {log_messages}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

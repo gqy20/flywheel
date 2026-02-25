@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -119,9 +121,15 @@ class TodoStorage:
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
-            # Clean up temp file on error
-            with contextlib.suppress(OSError):
+            # Clean up temp file on error, logging any cleanup failures
+            try:
                 os.unlink(temp_path)
+            except OSError as cleanup_error:
+                _logger.warning(
+                    "Failed to clean up temp file %s: %s",
+                    temp_path,
+                    cleanup_error,
+                )
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
