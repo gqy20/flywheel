@@ -119,3 +119,58 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5776 - validate list elements are dict type
+def test_storage_load_rejects_non_dict_list_elements_int(tmp_path) -> None:
+    """load() should raise ValueError when list contains integers instead of dicts."""
+    db = tmp_path / "invalid_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list but elements are integers, not dicts
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|must be.*object|list element"):
+        storage.load()
+
+
+def test_storage_load_rejects_non_dict_list_elements_string(tmp_path) -> None:
+    """load() should raise ValueError when list contains strings instead of dicts."""
+    db = tmp_path / "invalid_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list but elements are strings, not dicts
+    db.write_text('["todo1", "todo2"]', encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|must be.*object|list element"):
+        storage.load()
+
+
+def test_storage_load_rejects_non_dict_list_elements_null(tmp_path) -> None:
+    """load() should raise ValueError when list contains null instead of dicts."""
+    db = tmp_path / "invalid_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list but elements are null, not dicts
+    db.write_text("[null, null]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"must be.*dict|must be.*object|list element"):
+        storage.load()
+
+
+def test_storage_load_accepts_valid_dict_list_elements(tmp_path) -> None:
+    """load() should successfully load valid dict elements."""
+    db = tmp_path / "valid_elements.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list with proper dict elements
+    db.write_text('[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2"}]', encoding="utf-8")
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 2
+    assert todos[0].text == "task1"
+    assert todos[1].text == "task2"
