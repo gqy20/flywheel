@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,6 +56,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +95,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +118,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +221,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -229,3 +230,94 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_fd_closed_when_fchmod_fails(tmp_path) -> None:
+    """Regression test for issue #5679: File descriptor leak when os.fchmod fails.
+
+    When os.fchmod fails before os.fdopen takes ownership, the fd must be
+    explicitly closed to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track the fd returned by mkstemp
+    leaked_fds = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    # Mock os.fchmod to fail
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save(todos)
+
+    # Verify the fd was closed (no longer valid)
+    for fd in leaked_fds:
+        try:
+            # Try to use fstat - if fd is closed, this will raise OSError
+            os.fstat(fd)
+            # If we get here, fd is still open - that's a leak!
+            pytest.fail(f"File descriptor {fd} was not closed (leaked)")
+        except OSError:
+            # Expected: fd is closed
+            pass
+
+
+def test_fd_closed_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #5679: File descriptor leak when os.fdopen fails.
+
+    When os.fdopen fails after fchmod succeeds, the fd must be explicitly
+    closed to prevent resource leaks.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track the fd returned by mkstemp
+    leaked_fds = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    import tempfile
+
+    # Mock os.fdopen to fail
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save(todos)
+
+    # Verify the fd was closed (no longer valid)
+    for fd in leaked_fds:
+        try:
+            # Try to use fstat - if fd is closed, this will raise OSError
+            os.fstat(fd)
+            # If we get here, fd is still open - that's a leak!
+            pytest.fail(f"File descriptor {fd} was not closed (leaked)")
+        except OSError:
+            # Expected: fd is closed
+            pass
