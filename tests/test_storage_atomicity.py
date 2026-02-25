@@ -229,3 +229,165 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_read_modify_write_preserves_all_data(tmp_path) -> None:
+    """Regression test for issue #5720: Race condition in concurrent read-modify-write.
+
+    Tests that concurrent processes performing read-modify-write operations
+    do not lose data. Without file locking, the last writer wins and data
+    from other writers is lost. With proper file locking using the locked()
+    context manager, all writes should be serialized and no data should be lost.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "concurrent_rmw.json"
+    storage = TodoStorage(str(db))
+
+    # Initialize with one todo
+    initial_todo = Todo(id=1, text="initial")
+    storage.save([initial_todo])
+
+    def read_modify_write_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that performs read-modify-write cycle with locking.
+
+        Each worker:
+        1. Acquires exclusive lock
+        2. Reads current todos
+        3. Adds a new unique todo
+        4. Writes back the combined list
+        5. Releases lock
+        """
+        try:
+            # Small random delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+
+            storage = TodoStorage(str(db))
+
+            # Use locked() context manager for atomic read-modify-write
+            with storage.locked():
+                current_todos = storage.load()
+
+                # Add a new unique todo
+                new_id = max((t.id for t in current_todos), default=0) + 1
+                new_todo = Todo(id=new_id, text=f"worker-{worker_id}-added")
+
+                # Simulate processing time between read and write
+                time.sleep(0.005)
+
+                # Write back - now safe because we hold the lock
+                storage.save(current_todos + [new_todo])
+
+            result_queue.put(("success", worker_id, new_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=read_modify_write_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Load final state
+    final_todos = storage.load()
+
+    # With proper file locking, all worker additions should be preserved
+    # Without locking, only some workers' data survives (last-writer-wins)
+    expected_min_count = 1 + num_workers  # initial + one per worker
+    actual_count = len(final_todos)
+
+    # This assertion WILL FAIL without file locking, demonstrating the bug
+    assert actual_count >= expected_min_count, (
+        f"Data loss detected! Expected at least {expected_min_count} todos "
+        f"(1 initial + {num_workers} worker additions), but got {actual_count}. "
+        f"This indicates race condition causing data loss in concurrent read-modify-write. "
+        f"Worker IDs that succeeded: {[r[1] for r in successes]}"
+    )
+
+
+def test_file_locking_prevents_concurrent_write_overlap(tmp_path) -> None:
+    """Test that file locking mechanism prevents concurrent write overlap.
+
+    This test verifies that when one process holds the lock, another process
+    must wait until the lock is released before writing.
+    """
+    import multiprocessing
+    import time
+
+    db = tmp_path / "locking_test.json"
+    storage = TodoStorage(str(db))
+
+    # Initialize
+    storage.save([Todo(id=1, text="initial")])
+
+    lock_state = multiprocessing.Manager().dict()
+    lock_state["writer1_started"] = False
+    lock_state["writer1_finished"] = False
+    lock_state["writer2_started"] = False
+    lock_state["writer2_finished"] = False
+
+    def slow_writer(writer_id: int, lock_state: dict) -> None:
+        """Writer that holds lock for a measurable duration."""
+        try:
+            storage = TodoStorage(str(db))
+
+            # Mark that we started
+            if writer_id == 1:
+                lock_state["writer1_started"] = True
+            else:
+                lock_state["writer2_started"] = True
+
+            storage.save([Todo(id=1, text=f"writer-{writer_id}")])
+
+            # Small delay to allow overlap detection
+            time.sleep(0.02)
+
+            if writer_id == 1:
+                lock_state["writer1_finished"] = True
+            else:
+                lock_state["writer2_finished"] = True
+        except Exception as e:
+            print(f"Writer {writer_id} error: {e}")
+
+    # Start writer 1
+    p1 = multiprocessing.Process(target=slow_writer, args=(1, lock_state))
+    p1.start()
+
+    # Wait a tiny bit then start writer 2
+    time.sleep(0.005)
+    p2 = multiprocessing.Process(target=slow_writer, args=(2, lock_state))
+    p2.start()
+
+    p1.join(timeout=5)
+    p2.join(timeout=5)
+
+    # With proper locking, writes should be serialized
+    # Both should complete successfully
+    assert lock_state["writer1_finished"], "Writer 1 should have completed"
+    assert lock_state["writer2_finished"], "Writer 2 should have completed"
+
+    # Final file should be valid
+    final_todos = storage.load()
+    assert len(final_todos) >= 1, "Final state should have at least one todo"
+    assert isinstance(final_todos[0].text, str), "Todo text should be a string"

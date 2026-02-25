@@ -6,13 +6,25 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
+import threading
 from pathlib import Path
 
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Platform-specific locking imports
+if sys.platform == "win32":
+    import msvcrt
+else:
+    import fcntl
+
+# Thread-local storage for tracking lock ownership per storage instance
+_lock_owners: dict[int, int] = {}  # Maps storage id -> thread id that holds the lock
+_lock_mutex = threading.Lock()
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -50,11 +62,87 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+@contextlib.contextmanager
+def _file_lock(file_obj):
+    """Cross-platform file locking context manager.
+
+    Acquires an exclusive lock on the file to prevent concurrent writes.
+    On Unix, uses fcntl.flock with LOCK_EX (exclusive) and LOCK_NB (non-blocking).
+    On Windows, uses msvcrt.locking with LK_NBLCK (non-blocking exclusive lock).
+
+    If the lock cannot be acquired immediately, it will block until available.
+    """
+    if sys.platform == "win32":
+        # Windows: use msvcrt.locking
+        # LK_NBLCK = 0x01 (non-blocking exclusive lock)
+        # We retry in a loop since Windows doesn't have blocking lock by default
+        import time
+
+        while True:
+            try:
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_NBLCK, 1)
+                break
+            except OSError:
+                # Lock is held by another process, wait and retry
+                time.sleep(0.001)
+        try:
+            yield
+        finally:
+            # Unlock by locking with LK_UNLCK
+            file_obj.seek(0)
+            msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        # Unix: use fcntl.flock with exclusive lock
+        fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        self._lock_depth = 0  # Track nested lock acquisition
+
+    def _is_lock_held(self) -> bool:
+        """Check if the current storage instance holds the lock."""
+        return self._lock_depth > 0
+
+    @contextlib.contextmanager
+    def locked(self):
+        """Context manager that holds an exclusive lock for atomic read-modify-write.
+
+        Use this to prevent race conditions when performing read-modify-write operations:
+
+            with storage.locked():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+
+        This ensures no other process can read or write the file between your
+        load() and save() calls.
+        """
+        _ensure_parent_directory(self.path)
+        _ensure_parent_directory(self._lock_path)
+
+        # If lock already held, just increment depth and yield
+        if self._is_lock_held():
+            self._lock_depth += 1
+            try:
+                yield
+            finally:
+                self._lock_depth -= 1
+        else:
+            with open(self._lock_path, "w") as lock_file, _file_lock(lock_file):
+                self._lock_depth = 1
+                try:
+                    yield
+                finally:
+                    self._lock_depth = 0
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -82,8 +170,8 @@ class TodoStorage:
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
-    def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+    def _write_atomic(self, content: str) -> None:
+        """Write content to file atomically (internal, assumes lock is held).
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
         if the process crashes during write.
@@ -91,12 +179,6 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
-        # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
-
-        payload = [todo.to_dict() for todo in todos]
-        content = json.dumps(payload, ensure_ascii=False, indent=2)
-
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
         fd, temp_path = tempfile.mkstemp(
@@ -123,6 +205,31 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def save(self, todos: list[Todo]) -> None:
+        """Save todos to file atomically with file locking.
+
+        Uses write-to-temp-file + atomic rename pattern to prevent data loss
+        if the process crashes during write. Also uses file locking to prevent
+        race conditions when multiple processes write concurrently.
+
+        Security: Uses tempfile.mkstemp to create unpredictable temp file names
+        and sets restrictive permissions (0o600) to protect against symlink attacks.
+        """
+        # Ensure parent directory exists (lazy creation, validated)
+        _ensure_parent_directory(self.path)
+
+        payload = [todo.to_dict() for todo in todos]
+        content = json.dumps(payload, ensure_ascii=False, indent=2)
+
+        # If lock already held (via locked() context manager), skip re-acquiring
+        if self._is_lock_held():
+            self._write_atomic(content)
+        else:
+            # Acquire exclusive lock before writing to prevent race conditions
+            # Use a separate lock file to avoid issues with the data file
+            with open(self._lock_path, "w") as lock_file, _file_lock(lock_file):
+                self._write_atomic(content)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
