@@ -158,3 +158,28 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #5734: next_id([]) should return 1."""
+    storage = TodoStorage("/nonexistent/path.json")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_returns_next_id_for_nonempty_list() -> None:
+    """Bug #5734: next_id([Todo(id=5,...)]) should return 6."""
+    storage = TodoStorage("/nonexistent/path.json")
+    todos = [Todo(id=5, text="test")]
+    assert storage.next_id(todos) == 6
+
+
+def test_next_id_handles_zero_id_gracefully() -> None:
+    """Bug #5734: next_id should handle list with only id=0 items correctly.
+
+    The issue title mentions that next_id() returns 1 for both empty list
+    and list with only id=0 items. This test verifies that id=0 items are
+    handled correctly - max id is 0, so next should be 1.
+    """
+    storage = TodoStorage("/nonexistent/path.json")
+    todos = [Todo(id=0, text="zero id")]
+    assert storage.next_id(todos) == 1
