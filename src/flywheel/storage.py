@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import Self
 
 from .todo import Todo
 
@@ -53,11 +55,46 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(
+        self,
+        path: str | None = None,
+        *,
+        verbose: bool = False,
+        logger: logging.Logger | None = None,
+    ) -> None:
+        """Initialize storage with optional logging.
+
+        Args:
+            path: Path to the JSON file. Defaults to '.todo.json'.
+            verbose: If True, log debug messages for load/save operations.
+            logger: Custom logger to use. If not provided and verbose=True,
+                uses the default 'flywheel.storage' logger.
+        """
         self.path = Path(path or ".todo.json")
+        self._verbose = verbose
+        self._logger: logging.Logger | None = None
+
+        if logger is not None:
+            self._logger = logger
+        elif verbose:
+            self._logger = logging.getLogger("flywheel.storage")
+
+    @classmethod
+    def with_logging(cls, path: str | None = None) -> Self:
+        """Create a storage instance with logging enabled.
+
+        Args:
+            path: Path to the JSON file. Defaults to '.todo.json'.
+
+        Returns:
+            TodoStorage instance with verbose logging enabled.
+        """
+        return cls(path, verbose=True)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            if self._logger:
+                self._logger.debug("load: file not found '%s', returning empty list", self.path)
             return []
 
         # Security: Check file size before loading to prevent DoS
@@ -80,7 +117,11 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        result = [Todo.from_dict(item) for item in raw]
+        if self._logger:
+            self._logger.debug("load: loaded %d items from '%s'", len(result), self.path)
+        return result
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +159,13 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            if self._logger:
+                self._logger.debug(
+                    "save: wrote %d items to '%s' (atomic write complete)",
+                    len(todos),
+                    self.path,
+                )
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
