@@ -1,0 +1,42 @@
+{
+  "issue_number": 5720,
+  "candidate_number": 1,
+  "run_id": "22394917381",
+  "branch": "claude/issue-5720-candidate-1-22394917381",
+  "status": "implemented",
+  "summary": "Fixed race condition by adding cross-platform file locking to TodoStorage",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py"
+    ],
+    "files_added": [
+      "tests/test_issue_5720_concurrent_write_locking.py"
+    ]
+  },
+  "tests_passed": [
+    "tests/test_issue_5720_concurrent_write_locking.py::test_save_uses_file_locking",
+    "tests/test_issue_5720_concurrent_write_locking.py::test_concurrent_writes_preserve_all_data_with_locking",
+    "tests/test_issue_5720_concurrent_write_locking.py::test_file_lock_prevents_concurrent_write_overlap",
+    "tests/test_issue_5720_concurrent_write_locking.py::test_locking_works_on_unix_and_windows",
+    "tests/test_storage_atomicity.py (all 6 tests)"
+  ],
+  "implementation_details": {
+    "approach": "Added cross-platform file locking using fcntl (Unix) and msvcrt (Windows)",
+    "key_changes": [
+      "Added _lock_file and _unlock_file functions for cross-platform file locking",
+      "Added exclusive_access() context manager for atomic read-modify-write operations",
+      "Modified save() to acquire exclusive lock before writing",
+      "Added thread-local tracking for reentrant lock support"
+    ],
+    "lock_file": "Uses separate .lock file (e.g., .todo.json.lock) to avoid issues with atomic rename"
+  },
+  "risks": [
+    "Lock files are not automatically cleaned up if process crashes (but locks are released by OS)",
+    "Windows msvcrt.locking has different semantics than Unix fcntl.flock"
+  ],
+  "acceptance_criteria_met": [
+    "Concurrent writes now serialize via file locking",
+    "No data corruption occurs under concurrent access",
+    "Lock acquisition and release are tested"
+  ]
+}

@@ -6,10 +6,44 @@ import contextlib
 import json
 import os
 import stat
+import sys
 import tempfile
+import threading
+import typing
 from pathlib import Path
 
 from .todo import Todo
+
+# Cross-platform file locking support
+if sys.platform == "win32":
+    import msvcrt
+
+    def _lock_file(fd: int, exclusive: bool = True) -> None:
+        """Lock file on Windows using msvcrt.locking."""
+        mode = msvcrt.LK_NBLCK if exclusive else msvcrt.LK_NBRLCK
+        try:
+            msvcrt.locking(fd, mode, 1)
+        except OSError:
+            # If lock fails, retry with blocking (LK_LOCK)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+
+    def _unlock_file(fd: int) -> None:
+        """Unlock file on Windows."""
+        # Move to beginning of file for unlock
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+
+else:
+    import fcntl
+
+    def _lock_file(fd: int, exclusive: bool = True) -> None:
+        """Lock file on Unix using fcntl.flock."""
+        lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
+        fcntl.flock(fd, lock_type)
+
+    def _unlock_file(fd: int) -> None:
+        """Unlock file on Unix."""
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -55,6 +89,8 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Thread-local storage to track lock state for reentrant locking
+        self._lock_state = threading.local()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,26 +110,108 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
         return [Todo.from_dict(item) for item in raw]
 
+    @contextlib.contextmanager
+    def exclusive_access(self) -> typing.Iterator[None]:
+        """Context manager for exclusive access to the storage file.
+
+        Acquires an exclusive lock that is held for the duration of the context.
+        Use this when performing read-modify-write operations to prevent race
+        conditions where concurrent processes could overwrite each other's changes.
+
+        Example:
+            with storage.exclusive_access():
+                todos = storage.load()
+                todos.append(new_todo)
+                storage.save(todos)
+        """
+        # Check if we already hold the lock (reentrant locking)
+        already_locked = getattr(self._lock_state, "held", False)
+
+        if not already_locked:
+            lock_fd = self._acquire_lock()
+            self._lock_state.held = True
+            try:
+                yield
+            finally:
+                self._lock_state.held = False
+                self._release_lock(lock_fd)
+        else:
+            # Lock already held, just execute the block
+            yield
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive lock on the storage file.
+
+        Creates a lock file and acquires an exclusive lock on it.
+        The lock is held until _release_lock is called.
+
+        Returns:
+            File descriptor of the lock file (must be passed to _release_lock).
+        """
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        # Use a separate lock file to avoid issues with the main data file
+        # being replaced during atomic rename
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open/create the lock file
+        lock_fd = os.open(
+            str(lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        try:
+            _lock_file(lock_fd, exclusive=True)
+        except OSError:
+            # If we can't acquire the lock, close the fd and re-raise
+            os.close(lock_fd)
+            raise
+
+        return lock_fd
+
+    def _release_lock(self, lock_fd: int) -> None:
+        """Release the lock acquired by _acquire_lock."""
+        try:
+            _unlock_file(lock_fd)
+        finally:
+            os.close(lock_fd)
+
     def save(self, todos: list[Todo]) -> None:
-        """Save todos to file atomically.
+        """Save todos to file atomically with file locking.
 
         Uses write-to-temp-file + atomic rename pattern to prevent data loss
-        if the process crashes during write.
+        if the process crashes during write. Also uses file locking to prevent
+        data loss from concurrent writes (last-writer-wins problem).
 
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
-        # Ensure parent directory exists (lazy creation, validated)
-        _ensure_parent_directory(self.path)
+        # Check if we already hold the lock (from exclusive_access context)
+        already_locked = getattr(self._lock_state, "held", False)
 
+        if not already_locked:
+            lock_fd = self._acquire_lock()
+            self._lock_state.held = True
+            try:
+                self._save_with_lock(todos)
+            finally:
+                self._lock_state.held = False
+                self._release_lock(lock_fd)
+        else:
+            # Lock already held by exclusive_access, just do the save
+            self._save_with_lock(todos)
+
+    def _save_with_lock(self, todos: list[Todo]) -> None:
+        """Internal save implementation that assumes lock is already held."""
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
