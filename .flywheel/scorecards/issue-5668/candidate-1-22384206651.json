@@ -1,0 +1,37 @@
+{
+  "issue_number": 5668,
+  "issue_title": "[Bug] Race condition in mark_done/mark_undone/remove: load-modify-save pattern without",
+  "candidate_number": 1,
+  "run_id": "22384206651",
+  "branch": "claude/issue-5668-candidate-1-22384206651",
+  "created_at": "2026-02-25T06:11:00Z",
+  "scorecard": {
+    "test_coverage": {
+      "score": 5,
+      "notes": "Comprehensive test file with 4 concurrent operation tests covering add, mark_done, remove scenarios"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Minimal, focused fix using existing lock infrastructure in storage.py"
+    },
+    "minimal_changes": {
+      "score": 5,
+      "notes": "Only 4 methods modified (add, mark_done, mark_undone, remove) with identical locking pattern"
+    },
+    "risk_assessment": {
+      "score": 5,
+      "notes": "Low risk - uses existing well-tested _FileLock class, no new dependencies"
+    },
+    "acceptance_criteria": {
+      "score": 5,
+      "notes": "All acceptance criteria met: concurrent mods to different todos preserved, no corruption, valid JSON"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_5668_race_condition_locking.py"
+  ],
+  "tests_passed": 116,
+  "tests_total": 116,
+  "summary": "Fixed race condition by wrapping load-modify-save sequences with file-based locking in add, mark_done, mark_undone, and remove methods."
+}

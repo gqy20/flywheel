@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -50,11 +51,42 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+class _FileLock:
+    """File-based lock using fcntl for inter-process synchronization."""
+
+    def __init__(self, lock_path: Path) -> None:
+        self._lock_path = lock_path
+        self._fd: int | None = None
+
+    def __enter__(self) -> "_FileLock":
+        # Ensure parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Open/create lock file
+        self._fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+
+        # Acquire exclusive lock (blocks until available)
+        fcntl.flock(self._fd, fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._fd is not None:
+            # Release lock and close file descriptor
+            fcntl.flock(self._fd, fcntl.LOCK_UN)
+            os.close(self._fd)
+            self._fd = None
+
+
 class TodoStorage:
     """Persistent storage for todos."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +158,17 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def lock(self) -> _FileLock:
+        """Return a file lock for inter-process synchronization.
+
+        Use this as a context manager to protect load-modify-save sequences:
+
+            with storage.lock():
+                todos = storage.load()
+                # modify todos
+                storage.save(todos)
+
+        This ensures that concurrent processes don't lose updates.
+        """
+        return _FileLock(self._lock_path)
