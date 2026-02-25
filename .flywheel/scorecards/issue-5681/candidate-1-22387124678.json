@@ -1,52 +1,23 @@
 {
-  "issue_number": 5681,
-  "issue_title": "[Bug] CLI 'rename' command is missing - Todo.rename() method exists but no CLI interfa",
-  "candidate_number": 1,
+  "issue": 5681,
+  "candidate": 1,
   "run_id": "22387124678",
-  "branch_name": "claude/issue-5681-candidate-1-22387124678",
-  "created_at": "2026-02-25T08:30:00Z",
-  "status": "ready_for_pr",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/cli.py"
-    ],
-    "files_added": [
-      "tests/test_issue_5681_cli_rename_command.py"
-    ],
-    "summary": "Added 'rename' subcommand to CLI interface with proper argument parsing and command handling"
-  },
-  "test_results": {
-    "total_tests": 117,
-    "passed": 117,
-    "failed": 0,
-    "rename_specific_tests": 9
-  },
-  "lint_results": {
-    "status": "passed",
-    "tool": "ruff"
-  },
-  "implementation_details": {
-    "cli_subparser_added": {
-      "command": "rename",
-      "arguments": ["id (int)", "text (str)"],
-      "help": "Rename todo"
-    },
-    "cli_handler_added": {
-      "calls": "app.rename(args.id, args.text)",
-      "success_message": "Renamed #{todo.id}: {sanitized_text}"
-    },
-    "app_method_exists": {
-      "method": "TodoApp.rename(todo_id, text)",
-      "calls": "todo.rename(text)",
-      "error_handling": "Raises ValueError if todo not found"
-    }
-  },
-  "acceptance_criteria_met": [
-    "CLI has 'rename <id> <text>' subcommand",
-    "run_command() handles 'rename' and calls TodoApp.rename()",
-    "Error message when todo not found matches existing pattern 'Todo #{id} not found'",
-    "Success message sanitizes text output with _sanitize_text()"
+  "branch": "claude/issue-5681-candidate-1-22387124678",
+  "pr_number": 5689,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5689",
+  "generated_at": "2026-02-25T09:01:18.675753+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2141,
+    "plan": 3508,
+    "implement": 1490,
+    "verify": 1944,
+    "finalize": 1544
+  }
 }
