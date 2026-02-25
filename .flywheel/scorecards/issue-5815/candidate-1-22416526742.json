@@ -1,0 +1,18 @@
+{
+  "issue_number": 5815,
+  "candidate": 1,
+  "run_id": "22416526742",
+  "branch": "claude/issue-5815-candidate-1-22416526742",
+  "status": "implemented",
+  "test_first": true,
+  "tests_added": 2,
+  "tests_passed": true,
+  "lint_passed": true,
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "summary": "Added explicit boolean type check in Todo.from_dict to reject True/False as 'id' values before int conversion, preventing silent conversion of True→1 and False→0.",
+  "risks": "Minimal - adds additional validation that rejects invalid input which was previously accepted (incorrectly).",
+  "limitations": "None - this is a straightforward validation fix."
+}
