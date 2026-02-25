@@ -1,0 +1,26 @@
+{
+  "issue_number": 5680,
+  "candidate_number": 1,
+  "run_id": "22387124678",
+  "branch": "claude/issue-5680-candidate-1-22387124678",
+  "summary": "Fix: Add validation in Todo.from_dict to reject negative and zero IDs",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Added validation to ensure 'id' is a positive integer (>= 1)"
+    },
+    {
+      "file": "tests/test_issue_2000_json_validation.py",
+      "change_type": "modified",
+      "description": "Added regression tests for negative, zero, and positive ID validation"
+    }
+  ],
+  "tests": [
+    "test_todo_from_dict_rejects_negative_id",
+    "test_todo_from_dict_rejects_zero_id",
+    "test_todo_from_dict_accepts_positive_id"
+  ],
+  "risks": [],
+  "limitations": []
+}
