@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import stat
@@ -118,10 +117,19 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
-            # Clean up temp file on error
-            with contextlib.suppress(OSError):
+        except OSError as e:
+            # Clean up temp file on error.
+            # We catch OSError broadly because many operations can fail here
+            # (fchmod, fdopen write, os.replace), each with different subtypes.
+            # We track cleanup status on the exception for debugging purposes.
+            cleanup_succeeded = False
+            try:
                 os.unlink(temp_path)
+                cleanup_succeeded = True
+            except OSError:
+                pass  # Cleanup failure is secondary to main error
+            # Add cleanup status to exception for debugging context
+            e._tempfile_cleanup = cleanup_succeeded
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
