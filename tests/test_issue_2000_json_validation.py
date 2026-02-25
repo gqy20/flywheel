@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5815 - reject boolean values for 'id' field
+def test_todo_from_dict_rejects_true_as_id() -> None:
+    """Todo.from_dict should reject True as 'id' to prevent silent True→1 conversion."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*boolean"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_rejects_false_as_id() -> None:
+    """Todo.from_dict should reject False as 'id' to prevent silent False→0 conversion."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*boolean"):
+        Todo.from_dict({"id": False, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should continue to accept valid integer id values."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
