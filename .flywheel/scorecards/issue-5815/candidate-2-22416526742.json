@@ -1,28 +1,23 @@
 {
-  "issue_number": 5815,
-  "candidate_number": 2,
+  "issue": 5815,
+  "candidate": 2,
   "run_id": "22416526742",
   "branch": "claude/issue-5815-candidate-2-22416526742",
-  "created_at": "2026-02-25T22:00:00Z",
-  "status": "verified",
-  "checks": {
-    "tests_pass": true,
-    "lint_pass": true,
-    "has_regression_test": true
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "pytest_result": "15 passed in 0.07s",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-    "ruff_result": "All checks passed!",
-    "acceptance_criteria": {
-      "id_true_raises_error": true,
-      "id_false_raises_error": true,
-      "id_integer_works": true
-    }
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  "pr_number": 5820,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5820",
+  "generated_at": "2026-02-25T22:12:06.928604+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2245,
+    "plan": 2672,
+    "implement": 1700,
+    "verify": 2114,
+    "finalize": 912
   }
 }
