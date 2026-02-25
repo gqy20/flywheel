@@ -23,15 +23,12 @@ class TodoApp:
         self.storage.save(todos)
 
     def add(self, text: str) -> Todo:
-        text = text.strip()
-        if not text:
-            raise ValueError("Todo text cannot be empty")
+        """Add a new todo atomically with file locking.
 
-        todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
-        todos.append(todo)
-        self._save(todos)
-        return todo
+        Uses storage.atomic_add() which holds an exclusive lock during
+        the load-compute-save sequence to prevent race conditions.
+        """
+        return self.storage.atomic_add(text)
 
     def list(self, show_all: bool = True) -> list[Todo]:
         todos = self._load()

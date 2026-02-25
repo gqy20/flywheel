@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,29 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive file lock for the storage file.
+
+        Returns the file descriptor of the lock file. Caller must close it.
+        Uses fcntl.flock for cross-process mutual exclusion.
+        """
+        _ensure_parent_directory(self._lock_path)
+        fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the file lock and close the lock file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +150,32 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def atomic_add(self, text: str) -> Todo:
+        """Add a new todo atomically with file locking.
+
+        This method holds an exclusive lock during the entire load-compute-save
+        sequence, preventing race conditions in concurrent scenarios.
+
+        Args:
+            text: The todo text (must not be empty after stripping)
+
+        Returns:
+            The newly created Todo object
+
+        Raises:
+            ValueError: If text is empty after stripping
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        lock_fd = self._acquire_lock()
+        try:
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+            return todo
+        finally:
+            self._release_lock(lock_fd)
