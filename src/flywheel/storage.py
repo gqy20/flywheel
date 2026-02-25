@@ -7,9 +7,14 @@ import json
 import os
 import stat
 import tempfile
+import time
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -53,8 +58,9 @@ def _ensure_parent_directory(file_path: Path) -> None:
 class TodoStorage:
     """Persistent storage for todos."""
 
-    def __init__(self, path: str | None = None) -> None:
+    def __init__(self, path: str | None = None, logger: Logger | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self.logger = logger
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -70,6 +76,7 @@ class TodoStorage:
                 f"This protects against denial-of-service attacks."
             )
 
+        start_time = time.perf_counter()
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
@@ -80,7 +87,19 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        elapsed = time.perf_counter() - start_time
+
+        if self.logger:
+            self.logger.debug(
+                "Loaded %d todos from %s in %.3fms",
+                len(todos),
+                self.path,
+                elapsed * 1000,
+            )
+
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,6 +113,7 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
+        start_time = time.perf_counter()
         payload = [todo.to_dict() for todo in todos]
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -123,6 +143,15 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+        elapsed = time.perf_counter() - start_time
+        if self.logger:
+            self.logger.debug(
+                "Saved %d todos to %s in %.3fms",
+                len(todos),
+                self.path,
+                elapsed * 1000,
+            )
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
