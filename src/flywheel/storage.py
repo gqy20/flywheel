@@ -41,14 +41,15 @@ def _ensure_parent_directory(file_path: Path) -> None:
                 f"Symbolic links are not allowed in database path to prevent security issues. "
                 f"Cannot use '{file_path}' as database path."
             )
-        if part.exists() and not part.is_dir():
+        if os.path.lexists(part) and not part.is_dir():
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
                 f"Cannot use '{file_path}' as database path."
             )
 
     # Create parent directory if it doesn't exist
-    if not parent.exists():
+    # Security: Use lexists() to avoid following symlinks
+    if not os.path.lexists(parent):
         try:
             parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
         except OSError as e:

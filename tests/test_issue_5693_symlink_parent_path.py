@@ -9,7 +9,6 @@ These tests should FAIL before the fix and PASS after the fix.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 
