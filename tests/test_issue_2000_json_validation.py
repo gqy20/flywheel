@@ -119,3 +119,58 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5735 - validate list items are dictionaries before passing to Todo
+def test_storage_load_rejects_list_of_integers(tmp_path) -> None:
+    """Storage.load should reject JSON arrays with non-dict items (e.g., [1, 2, 3])."""
+    db = tmp_path / "list_of_ints.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but items are integers, not objects
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"All items.*JSON objects"):
+        storage.load()
+
+
+def test_storage_load_rejects_list_of_strings(tmp_path) -> None:
+    """Storage.load should reject JSON arrays with string items."""
+    db = tmp_path / "list_of_strings.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but items are strings, not objects
+    db.write_text('["task1", "task2", "task3"]', encoding="utf-8")
+
+    # Should raise ValueError with clear message
+    with pytest.raises(ValueError, match=r"All items.*JSON objects"):
+        storage.load()
+
+
+def test_storage_load_rejects_mixed_list_with_non_dict(tmp_path) -> None:
+    """Storage.load should reject mixed arrays with non-dict items."""
+    db = tmp_path / "mixed_list.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array with mix of dict and non-dict items
+    db.write_text('[{"id": 1, "text": "valid"}, 123]', encoding="utf-8")
+
+    # Should raise ValueError with clear message
+    with pytest.raises(ValueError, match=r"All items.*JSON objects"):
+        storage.load()
+
+
+def test_storage_load_accepts_valid_list_of_dicts(tmp_path) -> None:
+    """Storage.load should accept JSON arrays with valid dict items."""
+    db = tmp_path / "valid_list.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array with proper dict items
+    db.write_text('[{"id": 1, "text": "task1"}]', encoding="utf-8")
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 1
+    assert todos[0].id == 1
+    assert todos[0].text == "task1"

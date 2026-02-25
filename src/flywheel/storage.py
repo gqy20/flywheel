@@ -74,12 +74,15 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
+
+        if not all(isinstance(item, dict) for item in raw):
+            raise ValueError("All items in todo storage must be JSON objects")
+
         return [Todo.from_dict(item) for item in raw]
 
     def save(self, todos: list[Todo]) -> None:
