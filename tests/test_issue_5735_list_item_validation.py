@@ -57,7 +57,9 @@ def test_storage_load_accepts_list_of_dicts(tmp_path) -> None:
     storage = TodoStorage(str(db))
 
     # Create a valid JSON file with dict items
-    db.write_text('[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2", "done": true}]', encoding="utf-8")
+    db.write_text(
+        '[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2", "done": true}]', encoding="utf-8"
+    )
 
     # Should load successfully
     loaded = storage.load()
