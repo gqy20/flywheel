@@ -158,3 +158,28 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_fills_gaps_in_non_contiguous_ids() -> None:
+    """Bug #5749: next_id() should fill gaps when IDs are non-contiguous.
+
+    Given todos with IDs [1, 5, 10], next_id() should return 2 (first gap),
+    not 11 (max+1). This ensures IDs don't grow unnecessarily when there
+    are gaps in the sequence.
+    """
+    storage = TodoStorage()
+
+    # Test with non-contiguous IDs [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    assert storage.next_id(todos) == 2  # First gap is 2
+
+    # Test with contiguous IDs [1, 2] - should return 3
+    todos_contiguous = [Todo(id=1, text="x"), Todo(id=2, text="y")]
+    assert storage.next_id(todos_contiguous) == 3
+
+    # Test with empty list - should return 1
+    assert storage.next_id([]) == 1
+
+    # Test with gap at start [2, 3] - should return 1
+    todos_gap_at_start = [Todo(id=2, text="a"), Todo(id=3, text="b")]
+    assert storage.next_id(todos_gap_at_start) == 1
