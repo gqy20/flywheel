@@ -1,28 +1,23 @@
 {
-  "issue_number": 5639,
-  "candidate_id": 3,
+  "issue": 5639,
+  "candidate": 3,
   "run_id": "22374364503",
-  "branch_name": "claude/issue-5639-candidate-3-22374364503",
-  "status": "IMPLEMENTED",
-  "plan": {
-    "title": "Fix file descriptor leak on OSError during os.fdopen write",
-    "files_to_touch": [
-      "tests/test_storage_atomicity.py",
-      "src/flywheel/storage.py"
-    ],
-    "approach": "Refactor save() method to use try-finally pattern ensuring fd is always closed even if fchmod fails before fdopen takes ownership",
-    "test_strategy": "Mock os.fchmod to raise OSError and verify no fd leak using /proc/self/fd"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_storage_atomicity.py -v",
-    "uv run ruff check src/flywheel/storage.py",
-    "uv run ruff format --check src/flywheel/storage.py"
+  "branch": "claude/issue-5639-candidate-3-22374364503",
+  "pr_number": 5646,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5646",
+  "generated_at": "2026-02-25T00:20:57.268253+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification_results": {
-    "pytest": "7 passed",
-    "ruff_check": "All checks passed",
-    "ruff_format": "All checks passed"
-  },
-  "created_at": "2026-02-25T00:00:00Z",
-  "updated_at": "2026-02-25T00:00:00Z"
+  "stage_response_sizes": {
+    "triage": 1765,
+    "plan": 4000,
+    "implement": 2208,
+    "verify": 1962,
+    "finalize": 787
+  }
 }
