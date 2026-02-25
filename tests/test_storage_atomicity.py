@@ -151,6 +151,82 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_ensure_parent_directory_toctou_race_condition(tmp_path) -> None:
+    """Regression test for issue #5733: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles race conditions correctly by:
+    1. Using exist_ok=True in mkdir to avoid FileExistsError when directory is created
+       between the exists() check and mkdir() call
+    2. Catching FileExistsError and checking if path is a directory after failed mkdir
+
+    The original bug had a classic TOCTOU window:
+        if not parent.exists():  # Time of check
+            parent.mkdir(...)     # Time of use - another process could have created it
+    """
+    import multiprocessing
+    import tempfile
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path where parent directory doesn't exist yet
+    db = tmp_path / "race_test" / "subdir" / "db.json"
+
+    def mkdir_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that calls _ensure_parent_directory on the same path."""
+        try:
+            _ensure_parent_directory(db)
+            result_queue.put(("success", worker_id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently to trigger race condition
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=mkdir_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should succeed - no FileExistsError from race condition
+    errors = [r for r in results if r[0] == "error"]
+    assert len(errors) == 0, (
+        f"Workers encountered errors (likely TOCTOU race condition): {errors}"
+    )
+
+
+def test_ensure_parent_directory_file_as_parent_error(tmp_path) -> None:
+    """Test that _ensure_parent_directory raises ValueError if parent is a file.
+
+    Even with race condition fix, if a file exists where a directory should be,
+    the function should still raise a clear error.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a file where a directory would be needed
+    file_as_parent = tmp_path / "iam_a_file.json"
+    file_as_parent.write_text("not a directory", encoding="utf-8")
+
+    # Try to use a path that would require file_as_parent to be a directory
+    invalid_path = file_as_parent / "subdir" / "db.json"
+
+    # Should raise ValueError about path being a file
+    import pytest
+
+    with pytest.raises(ValueError, match="exists as a file, not a directory"):
+        _ensure_parent_directory(invalid_path)
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
