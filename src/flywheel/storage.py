@@ -58,7 +58,7 @@ class _FileLock:
         self._lock_path = lock_path
         self._fd: int | None = None
 
-    def __enter__(self) -> "_FileLock":
+    def __enter__(self) -> _FileLock:
         # Ensure parent directory exists
         _ensure_parent_directory(self._lock_path)
 
