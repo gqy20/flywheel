@@ -4,7 +4,7 @@
   "run_id": "22406991887",
   "branch": "claude/issue-5751-candidate-1-22406991887",
   "created_at": "2026-02-25T16:30:00Z",
-  "status": "implemented",
+  "status": "verified",
   "tests_passed": 7,
   "tests_total": 7,
   "ruff_check": "passed",
@@ -13,5 +13,13 @@
     "files_added": ["tests/test_issue_5751_todo_copy.py"],
     "lines_added": 65,
     "lines_removed": 0
+  },
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_5751_todo_copy.py -v",
+    "pytest_result": "7 passed in 0.07s",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_5751_todo_copy.py",
+    "ruff_result": "All checks passed!",
+    "regression_test_command": "uv run pytest tests/ -k todo -v",
+    "regression_test_result": "41 passed, 78 deselected in 0.37s"
   }
 }
