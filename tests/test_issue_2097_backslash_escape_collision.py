@@ -95,7 +95,9 @@ class TestBackslashEscapeCollision:
         assert actual_newline_output == r"\n", f"Expected r'\\n' but got {actual_newline_output!r}"
 
         # Literal text should be r"\\n" (3 chars: escaped backslash + n)
-        assert literal_newline_output == r"\\n", f"Expected r'\\\\n' but got {literal_newline_output!r}"
+        assert literal_newline_output == r"\\n", (
+            f"Expected r'\\\\n' but got {literal_newline_output!r}"
+        )
 
     def test_normal_text_with_backslashes(self):
         """Normal text containing backslashes should have them escaped."""
@@ -132,8 +134,8 @@ class TestBackslashEscapeCollision:
         todo = Todo(id=1, text=r"C:\path\to\file", done=False)
         result = TodoFormatter.format_todo(todo)
 
-        # Backslashes should be escaped
-        assert result == r"[ ]   1 C:\\path\\to\\file"
+        # Backslashes should be escaped (no fixed width for single todo)
+        assert result == r"[ ] 1 C:\\path\\to\\file"
 
     def test_empty_string(self):
         """Empty string should remain empty."""
