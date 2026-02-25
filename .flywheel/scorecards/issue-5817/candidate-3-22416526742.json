@@ -1,0 +1,32 @@
+{
+  "issue_number": 5817,
+  "candidate_number": 3,
+  "run_id": "22416526742",
+  "branch_name": "claude/issue-5817-candidate-3-22416526742",
+  "created_at": "2026-02-25T22:00:00Z",
+  "status": "ready_for_pr",
+  "summary": "Add validation in Todo.__post_init__ to reject empty/whitespace-only text, matching rename() behavior",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5817_empty_text_validation.py"
+  ],
+  "tests_added": 12,
+  "tests_passed": 124,
+  "verification_commands": [
+    "uv run pytest tests/test_issue_5817_empty_text_validation.py -v",
+    "uv run pytest tests/ -v",
+    "uv run ruff check src/flywheel/todo.py",
+    "uv run ruff format --check src/flywheel/todo.py"
+  ],
+  "acceptance_criteria_met": [
+    "Todo(id=1, text='') raises ValueError in __post_init__",
+    "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError",
+    "Todo.from_dict({'id': 1, 'text': '   '}) raises ValueError",
+    "Todo(id=1, text='valid') continues to work"
+  ],
+  "risks": [
+    "Existing code that relies on empty text being accepted will now raise ValueError",
+    "Text is now stripped of leading/trailing whitespace - this is a normalization change"
+  ],
+  "limitations": []
+}
