@@ -119,3 +119,47 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5721 - validate each item is a dict before calling from_dict
+def test_storage_load_rejects_list_of_integers(tmp_path) -> None:
+    """load() should reject JSON list containing integers instead of objects."""
+    db = tmp_path / "list_of_ints.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list but items are integers, not dicts
+    db.write_text("[1, 2, 3]", encoding="utf-8")
+
+    # Should raise clear error about item type
+    with pytest.raises(ValueError, match=r"json object|dict|object"):
+        storage.load()
+
+
+def test_storage_load_rejects_list_of_strings(tmp_path) -> None:
+    """load() should reject JSON list containing strings instead of objects."""
+    db = tmp_path / "list_of_strings.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list but items are strings, not dicts
+    db.write_text('["string1", "string2"]', encoding="utf-8")
+
+    # Should raise clear error about item type
+    with pytest.raises(ValueError, match=r"json object|dict|object"):
+        storage.load()
+
+
+def test_storage_load_accepts_list_of_valid_dicts(tmp_path) -> None:
+    """load() should accept JSON list containing valid todo objects."""
+    db = tmp_path / "valid_todos.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON list with valid todo items
+    db.write_text('[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2"}]', encoding="utf-8")
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 2
+    assert todos[0].id == 1
+    assert todos[0].text == "task1"
+    assert todos[1].id == 2
+    assert todos[1].text == "task2"
