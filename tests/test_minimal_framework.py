@@ -158,3 +158,40 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_fills_gaps_in_non_contiguous_ids(tmp_path) -> None:
+    """Bug #5749: next_id() should fill gaps when todos have non-contiguous IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    # next_id should return 2 (first gap), not 11 (max+1)
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #5749: next_id() should return 1 for an empty todo list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_handles_single_gap_at_start(tmp_path) -> None:
+    """Bug #5749: next_id() should return 1 if first ID is not 1."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos starting from ID 5
+    todos = [Todo(id=5, text="a"), Todo(id=10, text="b")]
+    storage.save(todos)
+
+    # next_id should return 1 (first available)
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 1
