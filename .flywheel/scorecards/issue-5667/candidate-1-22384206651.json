@@ -1,41 +1,23 @@
 {
-  "issue_number": 5667,
-  "issue_title": "[Bug] Race condition in add operation: load-compute-save pattern without locking leads",
-  "candidate_number": 1,
+  "issue": 5667,
+  "candidate": 1,
   "run_id": "22384206651",
   "branch": "claude/issue-5667-candidate-1-22384206651",
-  "status": "implemented",
-  "summary": "Fixed race condition in add operation by implementing file-based locking using fcntl.flock around the load-compute-save sequence",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "implementation_details": {
-    "approach": "Added file-based exclusive locking (fcntl.flock) around the load-compute-save sequence in atomic_add method",
-    "key_changes": [
-      "Added _acquire_lock() and _release_lock() methods to TodoStorage class",
-      "Added atomic_add() method that acquires lock, loads, assigns ID, saves, and releases lock",
-      "Modified TodoApp.add() to use storage.atomic_add() instead of direct load-compute-save pattern",
-      "Added regression test test_concurrent_add_no_duplicate_ids() to verify no duplicate IDs or lost todos in concurrent scenarios"
-    ]
-  },
-  "tests_run": [
-    "tests/test_storage_atomicity.py - 7 tests passed",
-    "Full test suite - 113 tests passed"
+  "pr_number": 5672,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5672",
+  "generated_at": "2026-02-25T06:57:50.343195+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria": {
-    "no_duplicate_ids": true,
-    "no_lost_todos": true,
-    "all_existing_tests_pass": true
-  },
-  "risks_limitations": [
-    "Uses Unix-specific fcntl.flock - not portable to Windows (would need msvcrt.locking or portalocker)",
-    "Lock file (.json.lock) is created alongside data file",
-    "If process crashes while holding lock, stale lock file may remain (but will be overwritten on next operation)"
-  ]
+  "stage_response_sizes": {
+    "triage": 2477,
+    "plan": 2800,
+    "implement": 2332,
+    "verify": 2181,
+    "finalize": 1308
+  }
 }
