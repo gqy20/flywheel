@@ -62,7 +62,7 @@ def test_todo_copy_original_unchanged() -> None:
     original = Todo(id=1, text="buy milk", done=False)
     original_updated_at = original.updated_at
 
-    copied = original.copy(text="buy bread", done=True)
+    _ = original.copy(text="buy bread", done=True)
 
     # Original should remain unchanged
     assert original.text == "buy milk"
