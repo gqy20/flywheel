@@ -93,9 +93,7 @@ def test_concurrent_add_operations_produce_unique_ids(tmp_path) -> None:
 
     # All IDs in file should also be unique
     file_ids = [todo["id"] for todo in parsed]
-    assert len(set(file_ids)) == num_workers, (
-        f"Duplicate IDs in file! File IDs: {file_ids}"
-    )
+    assert len(set(file_ids)) == num_workers, f"Duplicate IDs in file! File IDs: {file_ids}"
 
     # Each worker's todo should be present
     file_texts = {todo["text"] for todo in parsed}
@@ -142,8 +140,7 @@ def test_concurrent_add_preserves_all_todos_under_contention(tmp_path) -> None:
     generated_ids = [r[2] for r in successes]
     unique_ids = set(generated_ids)
     assert len(unique_ids) == num_workers, (
-        f"Duplicate IDs detected under heavy contention! "
-        f"Generated IDs: {generated_ids}"
+        f"Duplicate IDs detected under heavy contention! Generated IDs: {generated_ids}"
     )
 
     # Verify all todos are in the file
