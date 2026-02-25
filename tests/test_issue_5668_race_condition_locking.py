@@ -12,8 +12,6 @@ from __future__ import annotations
 
 import multiprocessing
 
-import pytest
-
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
@@ -125,7 +123,6 @@ def test_concurrent_add_operations_both_todos_preserved(tmp_path) -> None:
     while not result_queue.empty():
         results.append(result_queue.get())
 
-    errors = [r for r in results if r[0] == "error"]
     # Some errors may occur due to race condition (id collision), which is acceptable
     # What's NOT acceptable is data corruption
 
