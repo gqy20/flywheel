@@ -1,0 +1,17 @@
+{
+  "issue_number": 5751,
+  "candidate_id": 1,
+  "run_id": "22406991887",
+  "branch": "claude/issue-5751-candidate-1-22406991887",
+  "created_at": "2026-02-25T16:30:00Z",
+  "status": "implemented",
+  "tests_passed": 7,
+  "tests_total": 7,
+  "ruff_check": "passed",
+  "changes": {
+    "files_modified": ["src/flywheel/todo.py"],
+    "files_added": ["tests/test_issue_5751_todo_copy.py"],
+    "lines_added": 65,
+    "lines_removed": 0
+  }
+}
