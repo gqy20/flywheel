@@ -158,3 +158,30 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_storage_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Bug #5734: next_id() should return 1 for empty list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    assert storage.next_id([]) == 1
+
+
+def test_storage_next_id_returns_6_for_list_with_id_5(tmp_path) -> None:
+    """Bug #5734: next_id() should return max(id) + 1 for non-empty list."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=5, text="test")]
+    assert storage.next_id(todos) == 6
+
+
+def test_storage_next_id_returns_1_for_list_with_only_id_0(tmp_path) -> None:
+    """Bug #5734: next_id() should return 1 when list contains only id=0 items."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Edge case: list with only id=0 items should return 1 (0+1)
+    todos = [Todo(id=0, text="test")]
+    assert storage.next_id(todos) == 1
