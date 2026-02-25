@@ -1,28 +1,23 @@
 {
-  "issue_number": 5679,
-  "issue_title": "[Bug] File descriptor leak when os.fchmod fails before os.fdopen takes ownership",
-  "candidate_number": 2,
+  "issue": 5679,
+  "candidate": 2,
   "run_id": "22387124678",
   "branch": "claude/issue-5679-candidate-2-22387124678",
-  "created_at": "2026-02-25T00:00:00Z",
-  "status": "implemented",
-  "summary": "Fixed file descriptor leak in TodoStorage.save() when os.fchmod or os.fdopen fails",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_storage_atomicity.py"],
-    "lines_changed": 6
-  },
-  "tests": {
-    "added": 2,
-    "passed": 8,
-    "failed": 0
-  },
-  "fix_description": "Added explicit os.close(fd) call in the exception handler of the save() method to ensure the file descriptor is closed when os.fchmod or os.fdopen fails. This prevents resource leaks as fdopen only takes ownership of the fd when it succeeds.",
-  "risks": [
-    "Calling os.close(fd) after fdopen has taken ownership will fail with OSError, but this is safely suppressed with contextlib.suppress(OSError)"
+  "pr_number": 5692,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5692",
+  "generated_at": "2026-02-25T09:04:48.061538+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": [
-    "test_fd_closed_when_fchmod_fails - verifies fd is closed when fchmod fails",
-    "test_fd_closed_when_fdopen_fails - verifies fd is closed when fdopen fails"
-  ]
+  "stage_response_sizes": {
+    "triage": 2425,
+    "plan": 2534,
+    "implement": 4000,
+    "verify": 2367,
+    "finalize": 883
+  }
 }
