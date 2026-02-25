@@ -151,6 +151,59 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_not_leaked_on_fchmod_failure(tmp_path) -> None:
+    """Regression test for issue #5639: File descriptor leak on OSError during os.fdopen write.
+
+    If os.fchmod fails before os.fdopen takes ownership of the fd, the fd should still be closed.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Track the fd that mkstemp creates
+    leaked_fds = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)
+        return fd, path
+
+    # Mock os.fchmod to raise OSError - this happens BEFORE os.fdopen
+    def failing_fchmod(*args, **kwargs):
+        raise OSError("Simulated fchmod failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Verify that the fd is now closed (no leak)
+    # On Unix, we can check if the fd is still valid by trying to use os.fstat
+    for fd in leaked_fds:
+        try:
+            os.fstat(fd)
+            # If we get here, fd is still open - this is the bug!
+            pytest.fail(f"File descriptor {fd} was leaked (still open after OSError)")
+        except OSError:
+            # fd is closed - this is expected behavior
+            pass
+
+    # Verify original file is unchanged
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
