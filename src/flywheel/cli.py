@@ -28,7 +28,7 @@ class TodoApp:
             raise ValueError("Todo text cannot be empty")
 
         todos = self._load()
-        todo = Todo(id=self.storage.next_id(todos), text=text)
+        todo = Todo(id=self.storage.next_id_for_save(), text=text)
         todos.append(todo)
         self._save(todos)
         return todo
