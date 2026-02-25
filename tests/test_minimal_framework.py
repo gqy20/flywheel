@@ -158,3 +158,50 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids_returns_first_available() -> None:
+    """Bug #5719: next_id() should return first available ID, not max+1.
+
+    When todos have non-contiguous IDs (e.g., after deletions),
+    next_id() should fill the gaps by returning the first available ID
+    rather than always returning max+1.
+    """
+    storage = TodoStorage()
+
+    # Test with non-contiguous IDs: [1, 5] should return 2 (first gap), not 6
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    next_id = storage.next_id(todos)
+    assert next_id == 2, f"Expected 2 (first gap), got {next_id}"
+
+    # Test with larger gap: [1, 10] should return 2
+    todos = [Todo(id=1, text="a"), Todo(id=10, text="b")]
+    assert storage.next_id(todos) == 2
+
+    # Test with multiple gaps: [1, 3, 5] should return 2
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Test with gap at end: [2, 3] should return 1 (first available)
+    todos = [Todo(id=2, text="a"), Todo(id=3, text="b")]
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_never_collides_with_existing() -> None:
+    """Bug #5719: next_id() must never return an ID that already exists."""
+    storage = TodoStorage()
+
+    # Test with various non-contiguous patterns
+    test_cases = [
+        [Todo(id=1, text="a"), Todo(id=5, text="b")],
+        [Todo(id=2, text="a"), Todo(id=3, text="b")],
+        [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=100, text="c")],
+        [Todo(id=5, text="a")],  # Single todo with non-1 ID
+    ]
+
+    for todos in test_cases:
+        existing_ids = {t.id for t in todos}
+        next_id = storage.next_id(todos)
+        assert next_id not in existing_ids, (
+            f"next_id={next_id} collides with existing IDs {existing_ids}"
+        )
