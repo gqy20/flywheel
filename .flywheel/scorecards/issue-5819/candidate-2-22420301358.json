@@ -1,0 +1,14 @@
+{
+  "issue_number": 5819,
+  "candidate": 2,
+  "run_id": "22420301358",
+  "status": "implemented",
+  "tests_added": 3,
+  "tests_passed": true,
+  "linting_passed": true,
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5819_toggle_method.py"
+  ],
+  "implementation_summary": "Added toggle() method to Todo class that flips the done state between True and False and updates the updated_at timestamp."
+}
