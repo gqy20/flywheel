@@ -1,0 +1,36 @@
+{
+  "issue_number": 5801,
+  "candidate_number": 3,
+  "run_id": "22414384818",
+  "scorecard_version": "1.0",
+  "created_at": "2026-02-25T21:00:00Z",
+  "implementation": {
+    "approach": "Add validation in __post_init__ to strip text and raise ValueError if empty",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_5801_todo_text_validation.py"
+    ],
+    "test_coverage": {
+      "new_tests": 6,
+      "existing_tests_passing": 18
+    }
+  },
+  "tests": {
+    "red_phase": "All 6 new tests initially failed",
+    "green_phase": "All 6 new tests passed after fix",
+    "regression": "All 18 existing tests passed"
+  },
+  "quality": {
+    "ruff_check": "passed",
+    "minimal_changes": true,
+    "follows_conventions": true
+  },
+  "verification": {
+    "todo_construction_rejects_empty": true,
+    "todo_construction_rejects_whitespace_only": true,
+    "todo_construction_strips_whitespace": true,
+    "todo_from_dict_rejects_whitespace_only": true,
+    "todo_from_dict_rejects_empty_string": true,
+    "todo_from_dict_strips_whitespace": true
+  }
+}
