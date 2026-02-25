@@ -1,0 +1,14 @@
+{
+  "issue_number": 5790,
+  "candidate": 3,
+  "run_id": "22412968307",
+  "branch": "claude/issue-5790-candidate-3-22412968307",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": 14,
+  "lint_passed": true,
+  "summary": "Add validation in Todo.from_dict() to reject empty or whitespace-only text, consistent with rename() method"
+}
