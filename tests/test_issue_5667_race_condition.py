@@ -8,10 +8,7 @@ This test suite verifies that concurrent add() operations:
 from __future__ import annotations
 
 import multiprocessing
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
