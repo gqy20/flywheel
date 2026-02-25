@@ -1,18 +1,23 @@
 {
-  "issue_number": 5761,
+  "issue": 5761,
   "candidate": 3,
   "run_id": "22408857276",
   "branch": "claude/issue-5761-candidate-3-22408857276",
-  "status": "implemented",
-  "test_file": "tests/test_issue_5761_todo_text_validation.py",
-  "source_file": "src/flywheel/todo.py",
-  "tests_passed": 117,
-  "ruff_passed": true,
-  "implementation_summary": "Added validation in Todo.__post_init__ to ensure text is a non-empty string after stripping whitespace",
-  "validation_criteria_met": [
-    "Todo(id=1, text='') raises ValueError with message about empty text",
-    "Todo(id=1, text=' ') raises ValueError with message about empty text",
-    "Todo(id=1, text=None) raises appropriate error (TypeError from isinstance check)",
-    "Todo(id=1, text='valid') succeeds"
-  ]
+  "pr_number": 5787,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5787",
+  "generated_at": "2026-02-25T19:03:21.062413+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2257,
+    "plan": 2234,
+    "implement": 2509,
+    "verify": 2294,
+    "finalize": 843
+  }
 }
