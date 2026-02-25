@@ -18,7 +18,9 @@ from flywheel.todo import Todo
 class TestStorageLogging:
     """Tests for optional logging in TodoStorage."""
 
-    def test_verbose_false_produces_no_logs(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_false_produces_no_logs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that verbose=False produces no debug logs."""
         caplog.set_level(logging.DEBUG)
 
@@ -33,7 +35,9 @@ class TestStorageLogging:
         assert len(caplog.records) == 0
         assert len(loaded) == 1
 
-    def test_verbose_true_logs_load_operation(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_true_logs_load_operation(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that verbose=True logs load operations with file path and item count."""
         caplog.set_level(logging.DEBUG)
 
@@ -57,7 +61,9 @@ class TestStorageLogging:
         log_messages = [r.getMessage() for r in caplog.records]
         assert any("load" in msg.lower() for msg in log_messages)
 
-    def test_verbose_true_logs_save_operation(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_true_logs_save_operation(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that verbose=True logs save operations with file path."""
         caplog.set_level(logging.DEBUG)
 
@@ -72,7 +78,9 @@ class TestStorageLogging:
         log_messages = [r.getMessage() for r in caplog.records]
         assert any("save" in msg.lower() for msg in log_messages)
 
-    def test_verbose_true_logs_file_path(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_true_logs_file_path(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that logged messages include the file path."""
         caplog.set_level(logging.DEBUG)
 
@@ -88,7 +96,9 @@ class TestStorageLogging:
         all_logs = " ".join(log_messages).lower()
         assert "my_todos.json" in all_logs
 
-    def test_verbose_true_logs_item_count_on_load(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_true_logs_item_count_on_load(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that load logs include item count."""
         caplog.set_level(logging.DEBUG)
 
@@ -110,7 +120,9 @@ class TestStorageLogging:
         # Should include count (3) somewhere
         assert "3" in all_logs
 
-    def test_verbose_defaults_to_false(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_verbose_defaults_to_false(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that verbose defaults to False (backward compatible)."""
         caplog.set_level(logging.DEBUG)
 
@@ -125,7 +137,9 @@ class TestStorageLogging:
         # No logs should be produced by default
         assert len(caplog.records) == 0
 
-    def test_custom_logger_can_be_injected(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    def test_custom_logger_can_be_injected(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         """Test that a custom logger can be injected."""
         caplog.set_level(logging.DEBUG)
 
