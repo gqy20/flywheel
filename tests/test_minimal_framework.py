@@ -158,3 +158,48 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_negative_id_returns_1() -> None:
+    """Bug #5705: next_id should return 1 when todos have negative IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=-5, text="negative id")]
+    # Should return 1 (first positive ID) instead of -4
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_negative_ids_returns_1() -> None:
+    """Bug #5705: next_id should return 1 when all todos have negative IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=-5, text="negative"), Todo(id=-10, text="also negative")]
+    # Should return 1 (first positive ID) instead of -4
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_non_contiguous_ids_returns_next_positive() -> None:
+    """Bug #5705: next_id should return the next positive integer after max positive ID."""
+    storage = TodoStorage(":memory:")
+    # Non-contiguous IDs: 1, 100 (missing 2-99)
+    todos = [Todo(id=1, text="first"), Todo(id=100, text="hundredth")]
+    # Should return 101 (max positive + 1), not 2
+    assert storage.next_id(todos) == 101
+
+
+def test_next_id_with_zero_id_returns_1() -> None:
+    """Bug #5705: next_id should handle ID=0 correctly."""
+    storage = TodoStorage(":memory:")
+    todos = [Todo(id=0, text="zero id")]
+    # Should return 1 since max positive is 0 (not positive)
+    assert storage.next_id(todos) == 1
+
+
+def test_next_id_with_mixed_positive_and_negative() -> None:
+    """Bug #5705: next_id should only consider positive IDs."""
+    storage = TodoStorage(":memory:")
+    todos = [
+        Todo(id=-10, text="negative"),
+        Todo(id=5, text="positive"),
+        Todo(id=-1, text="also negative"),
+    ]
+    # Should return 6 (max positive 5 + 1)
+    assert storage.next_id(todos) == 6
