@@ -119,3 +119,29 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5788 - reject float id that would be truncated
+def test_todo_from_dict_rejects_non_integer_float_id() -> None:
+    """Todo.from_dict should reject float ids that would be truncated (e.g., 1.9 -> 1)."""
+    with pytest.raises(ValueError, match=r"'id'.*integer|'id'.*float|'id'.*whole"):
+        Todo.from_dict({"id": 1.9, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_float_id() -> None:
+    """Todo.from_dict should accept float ids that are whole numbers (e.g., 1.0 -> 1)."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+
+
+def test_storage_load_rejects_non_integer_float_id(tmp_path) -> None:
+    """Storage.load should reject float ids that would be truncated."""
+    db = tmp_path / "float_id.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON but 'id' is a non-integer float
+    db.write_text('[{"id": 1.9, "text": "task"}]', encoding="utf-8")
+
+    # Should raise clear error about float id truncation
+    with pytest.raises(ValueError, match=r"'id'.*integer|'id'.*float|'id'.*whole"):
+        storage.load()
