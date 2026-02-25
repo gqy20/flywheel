@@ -1,0 +1,20 @@
+{
+  "issue": 5817,
+  "candidate": 2,
+  "run_id": "22416526742",
+  "status": "ready",
+  "approach": "Add validation in __post_init__ to reject empty/whitespace-only text, matching rename() behavior",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "description": "Added text validation in __post_init__ to reject empty or whitespace-only text"
+    },
+    {
+      "file": "tests/test_issue_5817_empty_text_validation.py",
+      "description": "Added regression tests for empty/whitespace-only text validation"
+    }
+  ],
+  "tests_passed": 118,
+  "tests_added": 6,
+  "risks": "None - minimal change that adds consistent validation"
+}
