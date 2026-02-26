@@ -2,23 +2,22 @@
   "issue": 5833,
   "candidate": 2,
   "run_id": "22422973396",
-  "status": "FINALIZED",
-  "created_at": "2026-02-26T00:00:00Z",
+  "branch": "claude/issue-5833-candidate-2-22422973396",
+  "pr_number": 5854,
   "pr_url": "https://github.com/gqy20/flywheel/pull/5854",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_5833_todo_copy.py -v",
-      "result": "8 passed",
-      "full_suite": "uv run pytest tests/ --tb=short",
-      "full_result": "120 passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_5833_todo_copy.py",
-      "result": "All checks passed!"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_5833_todo_copy.py",
-      "result": "2 files already formatted"
-    }
+  "generated_at": "2026-02-26T01:57:37.158202+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2262,
+    "plan": 3571,
+    "implement": 2276,
+    "verify": 2160,
+    "finalize": 856
   }
 }
