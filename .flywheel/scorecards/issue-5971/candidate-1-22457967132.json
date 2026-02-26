@@ -1,0 +1,63 @@
+{
+  "issue": 5971,
+  "candidate": 1,
+  "run_id": "22457967132",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Wrap os.fchmod() in hasattr/try-except to handle Windows compatibility",
+    "files_to_touch": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5971_windows_fchmod.py"
+    ],
+    "test_first": true,
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "action": "Create failing regression test that mocks Windows environment where os.fchmod raises AttributeError",
+        "file": "tests/test_issue_5971_windows_fchmod.py"
+      },
+      {
+        "step": 2,
+        "action": "Implement fix: wrap os.fchmod in hasattr check or try/except AttributeError",
+        "file": "src/flywheel/storage.py"
+      },
+      {
+        "step": 3,
+        "action": "Run tests to verify fix passes",
+        "command": "uv run pytest tests/test_issue_5971_windows_fchmod.py -v"
+      },
+      {
+        "step": 4,
+        "action": "Run existing permission tests to ensure Unix behavior preserved",
+        "command": "uv run pytest tests/test_issue_2027_permissions.py -v"
+      },
+      {
+        "step": 5,
+        "action": "Run linter to ensure code quality",
+        "command": "uv run ruff check src/flywheel/storage.py"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_5971_windows_fchmod.py tests/test_issue_2027_permissions.py tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "save() works on Windows without AttributeError",
+    "Temp file permissions remain 0o600 on Unix",
+    "Graceful fallback on Windows (no exception)"
+  ],
+  "risks": [
+    "Windows temp file permissions may be less restrictive than Unix - this is acceptable as Windows has different security model"
+  ],
+  "status": "implemented",
+  "implementation_summary": {
+    "fix_description": "Wrapped os.fchmod() call with contextlib.suppress(AttributeError) to gracefully handle Windows where the function doesn't exist. tempfile.mkstemp already creates files with secure defaults on Windows.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5971_windows_fchmod.py"
+    ],
+    "tests_passed": true,
+    "linter_passed": true
+  }
+}
