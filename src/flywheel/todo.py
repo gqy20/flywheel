@@ -57,6 +57,24 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **kwargs) -> Todo:
+        """Create a copy of this Todo, optionally overriding specific fields.
+
+        Args:
+            **kwargs: Fields to override in the copy (e.g., text='new text', id=2)
+
+        Returns:
+            A new Todo instance with the same fields as this one, except for
+            any fields specified in kwargs.
+
+        Example:
+            todo = Todo(id=1, text="buy milk")
+            copy = todo.copy(text="buy bread")  # copy.text == "buy bread"
+        """
+        data = self.to_dict()
+        data.update(kwargs)
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
