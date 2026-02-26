@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -51,10 +52,32 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Thread-safe and process-safe for concurrent access. Uses file-based locking
+    (fcntl.flock) to prevent race conditions when multiple processes access
+    the same storage file.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    @contextlib.contextmanager
+    def _lock(self):
+        """Acquire exclusive file lock for safe concurrent access.
+
+        Uses fcntl.flock for cross-process synchronization. Creates a separate
+        lock file to avoid issues with the main data file.
+        """
+        _ensure_parent_directory(self._lock_path)
+        lock_fd = os.open(self._lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            os.close(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,8 +97,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -126,3 +148,27 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_with_lock(self, text: str) -> Todo:
+        """Add a new todo with proper locking to prevent ID collisions.
+
+        This method provides atomic load-add-save semantics using file-based
+        locking, ensuring that concurrent processes cannot generate duplicate IDs.
+
+        Args:
+            text: The todo text content
+
+        Returns:
+            The newly created Todo with a unique ID
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._lock():
+            todos = self.load()
+            todo_id = self.next_id(todos)
+            todo = Todo(id=todo_id, text=text)
+            todos.append(todo)
+            self.save(todos)
+        return todo

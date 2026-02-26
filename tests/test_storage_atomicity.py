@@ -229,3 +229,85 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_duplicate_ids(tmp_path) -> None:
+    """Regression test for issue #5914: Race condition causing duplicate IDs.
+
+    Tests that multiple processes adding todos concurrently do not generate
+    duplicate IDs. Each process should get a unique ID even when racing.
+    """
+    import multiprocessing
+
+    db = tmp_path / "race.json"
+    db_path = str(db)
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that adds a todo and reports the generated ID."""
+        try:
+            from flywheel.cli import TodoApp
+
+            app = TodoApp(db_path=db_path)
+            todo = app.add(f"worker-{worker_id}-task")
+            result_queue.put(("success", worker_id, todo.id))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently to trigger race condition
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers roughly at the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+
+    # Start all processes to maximize race condition
+    for p in processes:
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=15)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without errors
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # Report errors if any
+    if errors:
+        error_details = "\n".join(f"  Worker {r[1]}: {r[2]}" for r in errors)
+        raise AssertionError(f"Workers encountered errors:\n{error_details}")
+
+    assert len(successes) == num_workers, (
+        f"Expected {num_workers} successes, got {len(successes)}"
+    )
+
+    # Extract all generated IDs
+    generated_ids = [r[2] for r in successes]
+
+    # Critical assertion: no duplicate IDs should exist
+    unique_ids = set(generated_ids)
+    assert len(unique_ids) == len(generated_ids), (
+        f"Duplicate IDs detected! Generated: {generated_ids}, "
+        f"Unique: {unique_ids}"
+    )
+
+    # Verify file contains all todos with unique IDs
+    storage = TodoStorage(db_path)
+    final_todos = storage.load()
+    assert len(final_todos) == num_workers, (
+        f"Expected {num_workers} todos, got {len(final_todos)}"
+    )
+
+    # All IDs in file should be unique
+    file_ids = [todo.id for todo in final_todos]
+    assert len(set(file_ids)) == len(file_ids), (
+        f"File contains duplicate IDs: {file_ids}"
+    )
