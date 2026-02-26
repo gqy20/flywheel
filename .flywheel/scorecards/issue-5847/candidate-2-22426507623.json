@@ -1,42 +1,23 @@
 {
-  "issue_number": 5847,
+  "issue": 5847,
   "candidate": 2,
   "run_id": "22426507623",
   "branch": "claude/issue-5847-candidate-2-22426507623",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_5847_json_convenience_methods.py"
-    ],
-    "lines_added": 61,
-    "lines_removed": 1,
-    "approach": "Added to_json() and from_json() convenience methods to the Todo dataclass that wrap existing to_dict/from_dict logic with json.dumps/loads"
-  },
-  "tests": {
-    "total": 7,
-    "passed": 7,
-    "failed": 0,
-    "coverage": {
-      "new_code_lines": 26,
-      "covered_lines": 25,
-      "percentage": 96.15
-    }
-  },
-  "quality_checks": {
-    "ruff": "passed",
-    "type_check": "not_run",
-    "full_test_suite": {
-      "total": 119,
-      "passed": 119,
-      "failed": 0
-    }
-  },
-  "score": {
-    "correctness": 1.0,
-    "test_coverage": 1.0,
-    "code_quality": 1.0,
-    "minimal_changes": 1.0,
-    "total": 1.0
+  "pr_number": 5862,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5862",
+  "generated_at": "2026-02-26T04:06:48.897059+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2899,
+    "plan": 4000,
+    "implement": 2510,
+    "verify": 2652,
+    "finalize": 1160
   }
 }
