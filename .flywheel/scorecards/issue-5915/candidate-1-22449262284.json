@@ -1,0 +1,27 @@
+{
+  "issue_number": 5915,
+  "candidate_number": 1,
+  "run_id": "22449262284",
+  "created_at": "2026-02-26T13:00:00Z",
+  "status": "implemented",
+  "fix_summary": "Handle case where file_path has no parent directory (e.g., 'todo.json')",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_5915_current_dir_path.py"
+    ]
+  },
+  "tests_passed": 116,
+  "linting_passed": true,
+  "acceptance_criteria_met": [
+    "TodoStorage.save() works correctly when path is a simple filename like 'todo.json'",
+    "No errors when parent directory is the current directory (exists by definition)"
+  ],
+  "implementation_details": {
+    "approach": "Added early return in _ensure_parent_directory when parent is Path('.') (current directory). This prevents unnecessary mkdir call on '.' which would raise FileExistsError.",
+    "lines_changed": 6,
+    "risk_level": "low"
+  }
+}
