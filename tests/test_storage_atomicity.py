@@ -229,3 +229,146 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_ensure_parent_directory_uses_exist_ok_true(tmp_path) -> None:
+    """Unit test for issue #5858: Verify _ensure_parent_directory uses exist_ok=True.
+
+    This test verifies that the TOCTOU race condition fix is in place by checking
+    that mkdir is called with exist_ok=True, not exist_ok=False.
+    """
+    from unittest.mock import patch
+
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path with a non-existent parent
+    test_path = tmp_path / "nonexistent" / "subdir" / "file.json"
+
+    # Track mkdir calls from our code (not recursive calls from parents=True)
+    mkdir_calls = []
+    original_mkdir = Path.mkdir
+
+    def tracking_mkdir(self, *args, **kwargs):
+        mkdir_calls.append({
+            "path": str(self),
+            "parents": kwargs.get("parents", args[0] if args else False),
+            "exist_ok": kwargs.get("exist_ok", False),
+        })
+        # Actually create the directory
+        original_mkdir(self, *args, **kwargs)
+
+    with patch.object(Path, "mkdir", tracking_mkdir):
+        _ensure_parent_directory(test_path)
+
+    # Find the call that was made by our code (the one with parents=True)
+    # This is the call that should have exist_ok=True
+    parent_calls = [c for c in mkdir_calls if c["parents"] is True]
+
+    assert len(parent_calls) >= 1, (
+        f"Expected at least one mkdir with parents=True, got: {mkdir_calls}"
+    )
+
+    # The key assertion: exist_ok should be True to avoid TOCTOU race condition
+    first_parent_call = parent_calls[0]
+    assert first_parent_call["exist_ok"] is True, (
+        f"mkdir(parents=True) should be called with exist_ok=True to prevent "
+        f"TOCTOU race condition. Got exist_ok={first_parent_call['exist_ok']}"
+    )
+
+
+def test_ensure_parent_directory_handles_existing_directory_gracefully(tmp_path) -> None:
+    """Test that _ensure_parent_directory doesn't fail when directory already exists.
+
+    This simulates what happens when another process creates the directory
+    between our check and mkdir call - with exist_ok=True, this should succeed.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create the parent directory beforehand
+    test_path = tmp_path / "existing_parent" / "file.json"
+    test_path.parent.mkdir(parents=True)
+
+    # This should NOT raise an error even though parent exists
+    _ensure_parent_directory(test_path)
+
+    # Verify parent still exists
+    assert test_path.parent.exists()
+
+
+def test_concurrent_directory_creation_no_file_exists_error(tmp_path) -> None:
+    """Regression test for issue #5858: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that multiple processes saving to a non-existent parent directory
+    concurrently do NOT raise FileExistsError. The _ensure_parent_directory
+    function previously used exists() check followed by mkdir() with exist_ok=False,
+    which creates a race window where another process could create the directory
+    between the check and mkdir(), causing FileExistsError.
+
+    The fix uses exist_ok=True to handle concurrent directory creation safely.
+    """
+    import multiprocessing
+    import time
+
+    # Use a subdirectory that doesn't exist yet
+    db = tmp_path / "deeply" / "nested" / "newdir" / "todo.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that saves todos to non-existent parent directory."""
+        try:
+            storage = TodoStorage(str(db))
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}-data")]
+            storage.save(todos)
+
+            # Small delay to increase race condition likelihood
+            time.sleep(0.001 * (worker_id % 3))
+
+            result_queue.put(("success", worker_id, None))
+        except FileExistsError as e:
+            # This is the specific error we're testing against
+            result_queue.put(("file_exists_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently targeting the same non-existent parent
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    file_exists_errors = [r for r in results if r[0] == "file_exists_error"]
+    other_errors = [r for r in results if r[0] == "error"]
+
+    # No worker should have encountered FileExistsError (the TOCTOU bug)
+    assert len(file_exists_errors) == 0, (
+        f"TOCTOU race condition detected! Workers got FileExistsError: "
+        f"{file_exists_errors}"
+    )
+
+    # All workers should have succeeded
+    assert len(other_errors) == 0, f"Workers encountered other errors: {other_errors}"
+    assert len(successes) == num_workers, (
+        f"Expected {num_workers} successes, got {len(successes)}"
+    )
+
+    # Final verification: directory should exist and file should be valid
+    assert db.parent.exists(), "Parent directory should have been created"
+    assert db.exists(), "Database file should have been created"
+
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list), "Final data should be a list"
+    assert len(final_todos) == 1, "Should have exactly one todo (last writer wins)"
