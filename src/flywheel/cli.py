@@ -120,7 +120,7 @@ def run_command(args: argparse.Namespace) -> int:
             print(f"Removed #{args.id}")
             return 0
 
-        raise ValueError(f"Unsupported command: {args.command}")
+        raise AssertionError(f"Unreachable: {args.command}")  # argparse guarantees valid command
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
