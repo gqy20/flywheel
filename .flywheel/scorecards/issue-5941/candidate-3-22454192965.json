@@ -1,35 +1,23 @@
 {
-  "issue_number": 5941,
-  "candidate_number": 3,
+  "issue": 5941,
+  "candidate": 3,
   "run_id": "22454192965",
-  "branch_name": "claude/issue-5941-candidate-3-22454192965",
-  "created_at": "2026-02-26T17:10:00Z",
-  "scorecard_version": "1.0",
-  "checks": {
-    "test_first": {
-      "status": "passed",
-      "description": "Failing regression tests added before implementation"
-    },
-    "tests_pass": {
-      "status": "passed",
-      "description": "All tests pass after implementation"
-    },
-    "lint_pass": {
-      "status": "passed",
-      "description": "Ruff linting passes on modified files"
-    },
-    "minimal_scope": {
-      "status": "passed",
-      "description": "Changes are minimal and focused on the issue"
-    }
-  },
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "branch": "claude/issue-5941-candidate-3-22454192965",
+  "pr_number": 5968,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5968",
+  "generated_at": "2026-02-26T18:29:32.590691+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_todo_constructor_rejects_empty_string",
-    "test_todo_constructor_rejects_whitespace_only",
-    "test_todo_constructor_accepts_valid_text"
-  ]
+  "stage_response_sizes": {
+    "triage": 2403,
+    "plan": 3207,
+    "implement": 2103,
+    "verify": 1996,
+    "finalize": 1743
+  }
 }
