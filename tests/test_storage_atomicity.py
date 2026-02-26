@@ -151,6 +151,56 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_in_directory_creation_is_handled(tmp_path) -> None:
+    """Regression test for issue #5858: TOCTOU race in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the race condition between
+    exists() check and mkdir() call by using exist_ok=True.
+
+    The race occurs when:
+    1. Process A checks parent.exists() -> False
+    2. Process B creates the directory
+    3. Process A calls mkdir() -> would fail with FileExistsError if exist_ok=False
+
+    This test simulates the race condition by mocking mkdir() to first create
+    the directory (simulating another process), then trying to create it again.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path with non-existent parent directories
+    db = tmp_path / "new_subdir" / "todo.json"
+    parent = db.parent
+
+    # Track the original mkdir method
+    original_mkdir = Path.mkdir
+    mkdir_call_count = 0
+
+    def mock_mkdir_race(self, mode=0o777, parents=False, exist_ok=False):
+        """Mock mkdir() that simulates race by creating directory before actual mkdir."""
+        nonlocal mkdir_call_count
+        # Only intercept calls for our specific parent directory
+        if self == parent and mkdir_call_count == 0:
+            mkdir_call_count += 1
+            # Simulate race: another process creates the directory just before our mkdir
+            # Create the directory using the original method with exist_ok=True
+            original_mkdir(self, mode=mode, parents=parents, exist_ok=True)
+            # Now call the original mkdir again - this simulates the actual race:
+            # we checked exists() -> False, but now the dir exists
+            # If exist_ok=False, this will raise FileExistsError
+            return original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+        return original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    # Patch mkdir to simulate the race condition
+    with patch.object(Path, "mkdir", mock_mkdir_race):
+        # With the bug (exist_ok=False), this would raise FileExistsError
+        # With the fix (exist_ok=True), this should succeed
+        _ensure_parent_directory(db)
+
+    # Verify the directory was created successfully
+    assert parent.exists()
+    assert parent.is_dir()
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
