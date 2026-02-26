@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -110,7 +109,7 @@ class TodoStorage:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
             # Note: os.fchmod is Unix-only; use hasattr check for Windows compatibility
-            if hasattr(os, 'fchmod'):
+            if hasattr(os, "fchmod"):
                 os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
             # Write content with proper encoding

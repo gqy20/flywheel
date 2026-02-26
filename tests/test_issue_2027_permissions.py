@@ -50,6 +50,7 @@ def test_temp_file_has_no_execute_bit(tmp_path) -> None:
 
     # Patch to track permissions
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -71,8 +72,7 @@ def test_temp_file_has_no_execute_bit(tmp_path) -> None:
 
         # Specifically verify no execute bit is set
         assert not (mode & stat.S_IXUSR), (
-            f"Temp file should not have owner execute bit set. "
-            f"Mode: {oct(mode)}, File: {path}"
+            f"Temp file should not have owner execute bit set. Mode: {oct(mode)}, File: {path}"
         )
 
         # Verify owner can read and write
@@ -103,6 +103,7 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 

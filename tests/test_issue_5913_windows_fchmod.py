@@ -30,11 +30,11 @@ def test_save_works_when_fchmod_unavailable(tmp_path: Path) -> None:
     storage = TodoStorage(str(db))
 
     # Simulate Windows environment by hiding fchmod
-    original_fchmod = getattr(os, 'fchmod', None)
+    original_fchmod = getattr(os, "fchmod", None)
 
     # Create a mock os module without fchmod
     if original_fchmod is not None:
-        delattr(os, 'fchmod')
+        delattr(os, "fchmod")
 
     try:
         # This should NOT raise AttributeError
@@ -56,7 +56,7 @@ def test_save_uses_fchmod_on_unix(tmp_path: Path) -> None:
     This ensures the fix doesn't remove the security benefit on Unix platforms.
     """
     # Skip this test if fchmod is not available (i.e., we're on Windows)
-    if not hasattr(os, 'fchmod'):
+    if not hasattr(os, "fchmod"):
         pytest.skip("os.fchmod not available on this platform")
 
     db = tmp_path / "todo.json"
@@ -70,7 +70,7 @@ def test_save_uses_fchmod_on_unix(tmp_path: Path) -> None:
         fchmod_calls.append((fd, mode))
         return original_fchmod(fd, mode)
 
-    with patch.object(os, 'fchmod', tracking_fchmod):
+    with patch.object(os, "fchmod", tracking_fchmod):
         storage.save([Todo(id=1, text="test")])
 
     # Verify fchmod was called with correct permissions
