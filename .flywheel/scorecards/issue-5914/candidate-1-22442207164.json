@@ -1,34 +1,23 @@
 {
-  "issue_number": 5914,
-  "issue_title": "[Bug] Race condition: next_id() may generate duplicate IDs under concurrent access",
-  "candidate_number": 1,
+  "issue": 5914,
+  "candidate": 1,
   "run_id": "22442207164",
   "branch": "claude/issue-5914-candidate-1-22442207164",
-  "created_at": "2026-02-26T00:00:00Z",
-  "status": "implemented",
-  "fix_summary": {
-    "root_cause": "The `next_id()` method calculated IDs based on an in-memory list without file locking, causing TOCTOU race conditions when multiple processes called `add()` concurrently.",
-    "solution": "Added file-based locking using `fcntl.flock` to serialize access. Introduced `add_todo()` method in TodoStorage that performs load → next_id → save as an atomic operation protected by an exclusive file lock.",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "lines_added": 98,
-    "lines_removed": 6
-  },
-  "test_coverage": {
-    "regression_test": "test_concurrent_add_no_duplicate_ids",
-    "test_file": "tests/test_storage_atomicity.py",
-    "all_tests_passed": true,
-    "total_tests": 113
-  },
-  "code_quality": {
-    "linting_passed": true,
-    "linter": "ruff"
-  },
-  "risks_limitations": [
-    "File locking uses fcntl.flock which works on Unix/Linux but may have different behavior on Windows",
-    "Lock file (.lock suffix) may remain if process crashes during lock acquisition, but this is harmless as flock is advisory"
-  ]
+  "pr_number": 5921,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5921",
+  "generated_at": "2026-02-26T13:35:28.455063+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2187,
+    "plan": 3424,
+    "implement": 3406,
+    "verify": 2500,
+    "finalize": 1246
+  }
 }
