@@ -1,0 +1,21 @@
+{
+  "issue_number": 5889,
+  "candidate_number": 1,
+  "run_id": "22442207164",
+  "branch": "claude/issue-5889-candidate-1-22442207164",
+  "created_at": "2026-02-26T11:00:00Z",
+  "implementation": {
+    "approach": "Add copy method using dataclasses.replace for immutable-style updates",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_5889_todo_copy.py"
+    ],
+    "tests_added": 6,
+    "tests_passed": 6
+  },
+  "acceptance_criteria": {
+    "todo_copy_returns_new_instance": true,
+    "todo_copy_with_overrides": true,
+    "original_unchanged_after_copy": true
+  }
+}
