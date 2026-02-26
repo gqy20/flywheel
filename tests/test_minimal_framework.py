@@ -158,3 +158,24 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_duplicate_ids() -> None:
+    """Bug #5927: next_id should handle duplicate IDs correctly.
+
+    When todos contain duplicate IDs (e.g., from external file editing),
+    next_id should still return a unique ID that doesn't collide.
+    """
+    storage = TodoStorage("/dev/null")  # Path doesn't matter for next_id
+
+    # Case 1: Duplicates at start - [1, 1, 3] should return 4
+    todos = [Todo(id=1, text="a"), Todo(id=1, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+    # Case 2: Multiple duplicates - [1, 2, 2, 2] should return 3
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=2, text="c"), Todo(id=2, text="d")]
+    assert storage.next_id(todos) == 3
+
+    # Case 3: All same IDs - [5, 5, 5] should return 6
+    todos = [Todo(id=5, text="a"), Todo(id=5, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 6
