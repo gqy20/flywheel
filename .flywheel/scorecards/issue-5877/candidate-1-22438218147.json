@@ -1,0 +1,25 @@
+{
+  "issue_number": 5877,
+  "issue_title": "[Bug] Todo 构造函数未验证 text 为非空字符串，允许创建 text 为空的 Todo",
+  "candidate_number": 1,
+  "run_id": "22438218147",
+  "branch": "claude/issue-5877-candidate-1-22438218147",
+  "commit_sha": "c37ff71",
+  "status": "ready_for_pr",
+  "fix_summary": "Added validation in Todo.__post_init__() to reject empty or whitespace-only text, and strip whitespace from valid text",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": [
+    "test_todo_constructor_rejects_empty_text",
+    "test_todo_constructor_rejects_whitespace_only_text",
+    "test_todo_constructor_strips_whitespace_from_text",
+    "test_from_dict_rejects_empty_text"
+  ],
+  "verification": {
+    "tests_passed": true,
+    "linting_passed": true
+  },
+  "created_at": "2026-02-26T09:56:00Z"
+}
