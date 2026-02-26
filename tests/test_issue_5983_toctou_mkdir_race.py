@@ -52,9 +52,10 @@ def test_toctou_race_file_created_between_check_and_mkdir(tmp_path) -> None:
     # The race condition should be handled gracefully
     # Before fix: FileExistsError is raised but caught as generic OSError with unclear message
     # After fix: ValueError with clear message about file-as-directory conflict
-    with patch.object(Path, "mkdir", racing_mkdir), pytest.raises(
-        (ValueError, OSError)
-    ) as exc_info:
+    with (
+        patch.object(Path, "mkdir", racing_mkdir),
+        pytest.raises((ValueError, OSError)) as exc_info,
+    ):
         storage.save([Todo(id=1, text="test")])
 
     # Verify error message is clear about the path issue
