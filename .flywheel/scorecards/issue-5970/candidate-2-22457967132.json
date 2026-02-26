@@ -1,36 +1,23 @@
 {
-  "issue_number": 5970,
-  "candidate_number": 2,
+  "issue": 5970,
+  "candidate": 2,
   "run_id": "22457967132",
   "branch": "claude/issue-5970-candidate-2-22457967132",
-  "status": "verified",
-  "implementation": {
-    "approach": "file_locking",
-    "description": "Added exclusive file locking using fcntl.flock to protect the load->next_id->save sequence in TodoApp.add()",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py",
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "tests": {
-    "regression_test_added": true,
-    "test_name": "test_concurrent_add_produces_unique_ids",
-    "all_tests_pass": true,
-    "total_tests": 113
-  },
-  "verification": {
-    "ruff_check": "passed",
-    "pytest": "passed",
-    "verification_commands": [
-      "uv run ruff check src/flywheel/storage.py src/flywheel/cli.py tests/test_storage_atomicity.py",
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run pytest --tb=short -q"
-    ],
-    "verification_outcomes": {
-      "ruff_check": "All checks passed!",
-      "targeted_pytest": "7 tests passed in test_storage_atomicity.py",
-      "full_pytest": "113 tests passed, 92% coverage"
-    }
+  "pr_number": 5980,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5980",
+  "generated_at": "2026-02-26T20:21:41.707691+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2319,
+    "plan": 3079,
+    "implement": 3721,
+    "verify": 2674,
+    "finalize": 1109
   }
 }
