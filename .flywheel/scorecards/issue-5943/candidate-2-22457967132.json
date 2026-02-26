@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "22457967132",
   "branch_name": "claude/issue-5943-candidate-2-22457967132",
-  "stage": "IMPLEMENT",
+  "stage": "VERIFY",
   "plan": {
     "files_to_touch": [
       "tests/test_issue_2087_todo_repr.py"
@@ -34,5 +34,5 @@
     "linting_passed": true,
     "all_tests_count": 10
   },
-  "status": "implemented"
+  "status": "verified"
 }
