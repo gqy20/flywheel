@@ -20,6 +20,40 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todos by id, text, and done status only."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on id, text, and done status for set/dict usage."""
+        return hash((self.id, self.text, self.done))
+
+    def __lt__(self, other: object) -> bool:
+        """Compare Todos by id for ordering."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id < other.id
+
+    def __le__(self, other: object) -> bool:
+        """Compare Todos by id for less than or equal ordering."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id <= other.id
+
+    def __gt__(self, other: object) -> bool:
+        """Compare Todos by id for greater than ordering."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id > other.id
+
+    def __ge__(self, other: object) -> bool:
+        """Compare Todos by id for greater than or equal ordering."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id >= other.id
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
