@@ -1,0 +1,38 @@
+{
+  "issue_number": 5943,
+  "candidate_number": 2,
+  "run_id": "22457967132",
+  "branch_name": "claude/issue-5943-candidate-2-22457967132",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_2087_todo_repr.py"
+    ],
+    "implementation_sequence": [
+      "Add stricter regression test test_todo_repr_no_literal_newlines()",
+      "Verify existing !r specifier handles newlines correctly",
+      "Run pytest and ruff to validate"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2087_todo_repr.py"
+    ]
+  },
+  "implementation": {
+    "approach": "The existing implementation already correctly escapes newlines in Todo.__repr__ using Python's !r format specifier which calls repr() on the string. This automatically escapes control characters including newlines.",
+    "tests_added": [
+      "test_todo_repr_escapes_newlines_single_line_output",
+      "test_todo_repr_escapes_newlines_in_truncated_text"
+    ],
+    "source_files_changed": [],
+    "test_files_changed": [
+      "tests/test_issue_2087_todo_repr.py"
+    ]
+  },
+  "verification": {
+    "tests_passed": true,
+    "linting_passed": true,
+    "all_tests_count": 10
+  },
+  "status": "implemented"
+}

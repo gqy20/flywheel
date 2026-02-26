@@ -81,6 +81,49 @@ def test_todo_repr_handles_special_characters() -> None:
     assert "\n" not in result2 or repr(result2).count("\\n") > 0
 
 
+def test_todo_repr_escapes_newlines_single_line_output() -> None:
+    """repr(Todo) should escape newlines, producing single-line output.
+
+    Regression test for issue #5943: __repr__ must not contain literal newlines
+    to ensure single-line output for debuggers and log viewers.
+    """
+    # Text with newline should produce escaped \n, not literal newline
+    todo = Todo(id=1, text="a\nb")
+    result = repr(todo)
+
+    # The repr output must be a single line (no literal newlines)
+    assert "\n" not in result, (
+        f"repr should not contain literal newlines: {result!r}"
+    )
+
+    # The escaped newline sequence should be visible
+    assert "\\n" in result, (
+        f"repr should contain escaped newline sequence: {result!r}"
+    )
+
+    # Verify output is single-line
+    lines = result.split("\n")
+    assert len(lines) == 1, (
+        f"repr output should be single line, got {len(lines)} lines: {result!r}"
+    )
+
+
+def test_todo_repr_escapes_newlines_in_truncated_text() -> None:
+    """repr(Todo) should escape newlines even when text is truncated.
+
+    When text is truncated (> 50 chars), newlines within the truncated
+    portion should still be escaped to maintain single-line output.
+    """
+    # Create text longer than 50 chars with embedded newlines
+    todo = Todo(id=1, text="start\nmiddle\n" + "x" * 60)
+    result = repr(todo)
+
+    # The repr output must be a single line (no literal newlines)
+    assert "\n" not in result, (
+        f"repr should not contain literal newlines in truncated text: {result!r}"
+    )
+
+
 def test_todo_repr_eval_able_optional() -> None:
     """repr(Todo) output should ideally be eval-able or at least informative."""
     todo = Todo(id=1, text="simple task", done=True)
