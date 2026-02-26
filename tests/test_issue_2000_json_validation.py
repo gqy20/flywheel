@@ -119,3 +119,17 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5843 - reject non-integer float IDs
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float IDs like 1.5 to prevent precision loss."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_float_id() -> None:
+    """Todo.from_dict should accept float IDs that are whole numbers (e.g., 2.0)."""
+    todo = Todo.from_dict({"id": 2.0, "text": "task"})
+    assert todo.id == 2
+    assert isinstance(todo.id, int)
