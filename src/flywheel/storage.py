@@ -22,6 +22,7 @@ def _ensure_parent_directory(file_path: Path) -> None:
     1. All parent path components either don't exist or are directories (not files)
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
+    4. Handles TOCTOU race conditions gracefully
 
     Raises:
         ValueError: If any parent path component exists but is a file
@@ -40,9 +41,22 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle TOCTOU race: another process might create
+    # the directory between our check above and this mkdir call.
+    # If a FILE exists at the path (not a directory), FileExistsError will be raised
+    # and we catch it to provide a clear error message.
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as e:
+            # A file exists at the path where we need a directory (TOCTOU race)
+            # Re-check to provide a clear error message
+            if not parent.is_dir():
+                raise ValueError(
+                    f"Path error: '{parent}' exists as a file, not a directory. "
+                    f"Cannot use '{file_path}' as database path."
+                ) from e
+            # Directory was created by another process (legitimate race), this is fine
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
@@ -74,8 +88,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
