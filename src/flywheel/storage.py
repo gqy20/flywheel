@@ -29,6 +29,11 @@ def _ensure_parent_directory(file_path: Path) -> None:
     """
     parent = file_path.parent
 
+    # If parent is current directory (e.g., 'todo.json' has no directory component),
+    # it always exists by definition - no need to create it
+    if str(parent) == ".":
+        return
+
     # Check all parent components (excluding the file itself) for file-as-directory confusion
     # This handles cases like: /path/to/file.json/subdir/db.json
     # where 'file.json' exists as a file but we need it to be a directory
