@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+import logging
 import os
 import stat
 import tempfile
 from pathlib import Path
 
 from .todo import Todo
+
+_logger = logging.getLogger(__name__)
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
@@ -60,8 +63,22 @@ class TodoStorage:
         if not self.path.exists():
             return []
 
+        # Security: Check file permissions to warn about potential data exposure
+        file_stat = self.path.stat()
+        file_mode = stat.S_IMODE(file_stat.st_mode)
+        # Warn if group or others have any read permission
+        if file_mode & (stat.S_IRGRP | stat.S_IROTH):
+            _logger.warning(
+                "Insecure file permissions on '%s': %s. "
+                "File is readable by group or others, which may expose sensitive data. "
+                "Consider running: chmod 600 '%s'",
+                self.path,
+                oct(file_mode),
+                self.path,
+            )
+
         # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
