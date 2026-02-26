@@ -1,46 +1,23 @@
 {
-  "issue_number": 5931,
-  "issue_title": "[Feature] 添加 Todo.copy() 方法支持创建副本",
-  "candidate_number": 3,
+  "issue": 5931,
+  "candidate": 3,
   "run_id": "22454192965",
-  "branch_name": "claude/issue-5931-candidate-3-22454192965",
-  "created_at": "2026-02-26T18:12:00Z",
-  "status": "verified",
-  "verified_at": "2026-02-26T18:15:00Z",
-  "implementation_summary": {
-    "description": "Added Todo.copy() method to support creating copies of Todo objects",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_5931_todo_copy.py"
-    ],
-    "key_changes": [
-      "Added copy(text: str | None = None) -> Todo method to Todo class",
-      "Method creates new Todo with same id, done status, and optional new text",
-      "New timestamps are auto-generated via __post_init__"
-    ]
-  },
-  "tests": {
-    "test_file": "tests/test_issue_5931_todo_copy.py",
-    "test_count": 6,
-    "all_passed": true,
-    "test_names": [
-      "test_todo_copy_creates_new_instance",
-      "test_todo_copy_with_new_text",
-      "test_todo_copy_has_new_timestamps",
-      "test_todo_copy_preserves_done_status",
-      "test_todo_copy_with_empty_text_uses_original",
-      "test_todo_copy_from_completed_todo"
-    ]
-  },
-  "quality_checks": {
-    "ruff_check": "passed",
-    "all_existing_tests_pass": true,
-    "total_tests_passed": 118
-  },
-  "acceptance_criteria": {
-    "copy_returns_new_object": true,
-    "copy_with_new_text": true,
-    "new_timestamps": true,
-    "different_identity": true
+  "branch": "claude/issue-5931-candidate-3-22454192965",
+  "pr_number": 5965,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5965",
+  "generated_at": "2026-02-26T18:27:57.858536+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2636,
+    "plan": 3714,
+    "implement": 3086,
+    "verify": 1837,
+    "finalize": 895
   }
 }
