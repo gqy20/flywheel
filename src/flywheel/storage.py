@@ -40,9 +40,11 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Note: parent == Path('.') when file_path is a simple filename like 'todo.json'
+    # Path('.').exists() is always True, so mkdir is skipped in that case
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
