@@ -119,3 +119,58 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5928 - error messages should include file path context
+def test_storage_load_error_includes_file_path_context(tmp_path) -> None:
+    """When from_dict raises ValueError, error message should include file path."""
+    db = tmp_path / "bad_data.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON with multiple records, where the 3rd one (index 2) is missing 'text'
+    db.write_text(
+        '[{"id": 1, "text": "ok"}, {"id": 2, "text": "ok"}, {"id": 3}]',
+        encoding="utf-8",
+    )
+
+    # Error message should include the file path
+    with pytest.raises(ValueError, match=r"bad_data\.json") as exc_info:
+        storage.load()
+
+    # The original error message should still be present
+    err_msg = str(exc_info.value)
+    assert "text" in err_msg.lower()
+
+
+def test_storage_load_error_includes_record_index(tmp_path) -> None:
+    """When from_dict raises ValueError, error message should include record index."""
+    db = tmp_path / "bad_record.json"
+    storage = TodoStorage(str(db))
+
+    # Create JSON where record at index 2 (3rd item) is missing 'text'
+    db.write_text(
+        '[{"id": 1, "text": "ok"}, {"id": 2, "text": "ok"}, {"id": 3}]',
+        encoding="utf-8",
+    )
+
+    # Error message should indicate which record (index 2)
+    with pytest.raises(ValueError, match=r"record 2|index 2"):
+        storage.load()
+
+
+def test_storage_load_error_for_first_record(tmp_path) -> None:
+    """Error for first record should also include file path and index."""
+    db = tmp_path / "first_bad.json"
+    storage = TodoStorage(str(db))
+
+    # First record missing 'text'
+    db.write_text('[{"id": 1}]', encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        storage.load()
+
+    err_msg = str(exc_info.value)
+    # Should include file path
+    assert "first_bad.json" in err_msg
+    # Should indicate record 0
+    assert "record 0" in err_msg
