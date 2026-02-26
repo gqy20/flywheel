@@ -5,8 +5,6 @@ Issue #5889: Add copy/clone method to Todo for immutable-style updates
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
