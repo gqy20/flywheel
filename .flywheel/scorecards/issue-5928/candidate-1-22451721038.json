@@ -1,22 +1,23 @@
 {
-  "issue_number": 5928,
-  "candidate_id": 1,
+  "issue": 5928,
+  "candidate": 1,
   "run_id": "22451721038",
   "branch": "claude/issue-5928-candidate-1-22451721038",
-  "status": "implemented",
-  "summary": "Fixed load() to include file path and record index in error messages when Todo.from_dict raises ValueError",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py"
-    ],
-    "test_files": [
-      "tests/test_issue_5928_error_context.py"
-    ]
-  },
-  "tests_passed": 116,
-  "risks": "None - minimal change that only enhances error messages with context",
-  "implementation_details": {
-    "approach": "Replaced list comprehension with explicit for loop to catch ValueError from Todo.from_dict and re-raise with file path and record index context",
-    "lines_changed": 10
+  "pr_number": 5950,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5950",
+  "generated_at": "2026-02-26T17:34:33.049257+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1821,
+    "plan": 3576,
+    "implement": 2288,
+    "verify": 2460,
+    "finalize": 1363
   }
 }
