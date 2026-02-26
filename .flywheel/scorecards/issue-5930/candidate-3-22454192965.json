@@ -1,22 +1,23 @@
 {
-  "issue_number": 5930,
+  "issue": 5930,
   "candidate": 3,
   "run_id": "22454192965",
   "branch": "claude/issue-5930-candidate-3-22454192965",
   "pr_number": 5966,
   "pr_url": "https://github.com/gqy20/flywheel/pull/5966",
-  "created_at": "2026-02-26T18:23:00Z",
-  "status": "pr_created",
-  "tests_added": 1,
-  "files_modified": 2,
-  "changes": {
-    "source": "src/flywheel/todo.py",
-    "tests": ["tests/test_issue_5930_todo_equality.py"]
-  },
-  "acceptance_criteria": {
-    "equality_by_id": true,
-    "hash_by_id": true,
-    "set_support": true,
-    "dict_key_support": true
+  "generated_at": "2026-02-26T18:28:51.559179+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1927,
+    "plan": 2168,
+    "implement": 1042,
+    "verify": 2169,
+    "finalize": 994
   }
 }
