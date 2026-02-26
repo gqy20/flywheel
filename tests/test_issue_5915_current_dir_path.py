@@ -13,8 +13,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import pytest
-
 from flywheel.storage import TodoStorage, _ensure_parent_directory
 from flywheel.todo import Todo
 
