@@ -1,15 +1,23 @@
 {
-  "issue_number": 5955,
+  "issue": 5955,
   "candidate": 3,
   "run_id": "22459676742",
   "branch": "claude/issue-5955-candidate-3-22459676742",
-  "status": "implemented",
-  "tests_added": 4,
-  "tests_passed": 116,
-  "linter_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 5991,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5991",
+  "generated_at": "2026-02-26T21:13:42.940376+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added text validation in Todo.from_dict() to reject empty and whitespace-only text, matching the validation in rename() and add() methods."
+  "stage_response_sizes": {
+    "triage": 2146,
+    "plan": 2150,
+    "implement": 2315,
+    "verify": 2315,
+    "finalize": 898
+  }
 }
