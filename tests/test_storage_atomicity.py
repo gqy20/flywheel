@@ -264,7 +264,6 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     # Run 5 workers each adding 10 todos = 50 total todos
     num_workers = 5
     todos_per_worker = 10
-    expected_total = num_workers * todos_per_worker
 
     processes = []
     result_queue = multiprocessing.Queue()
