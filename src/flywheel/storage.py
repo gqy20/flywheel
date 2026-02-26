@@ -42,7 +42,24 @@ def _ensure_parent_directory(file_path: Path) -> None:
     # Create parent directory if it doesn't exist
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            # Use exist_ok=True to handle benign race where another process
+            # creates the directory concurrently. This is safe because we
+            # already validated that no parent is a file above.
+            parent.mkdir(parents=True, exist_ok=True)
+        except FileExistsError as e:
+            # FileExistsError with exist_ok=True means a file (not directory)
+            # was created at the path during the TOCTOU race window.
+            # Check if the path is a file and provide a clear error message.
+            if parent.exists() and not parent.is_dir():
+                raise ValueError(
+                    f"Path error: '{parent}' exists as a file, not a directory. "
+                    f"Cannot use '{file_path}' as database path."
+                ) from e
+            # If it's now a directory (race), that's fine - re-raise as generic error
+            raise OSError(
+                f"Failed to create directory '{parent}': {e}. "
+                f"Check permissions or specify a different location with --db=path/to/db.json"
+            ) from e
         except OSError as e:
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "

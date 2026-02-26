@@ -1,0 +1,46 @@
+{
+  "issue_number": 5983,
+  "issue_title": "[Security] Potential TOCTOU race between _ensure_parent_directory check and mkdir",
+  "candidate_number": 3,
+  "run_id": "22459676742",
+  "branch_name": "claude/issue-5983-candidate-3-22459676742",
+  "created_at": "2026-02-26T20:48:00Z",
+  "status": "implemented",
+  "summary": {
+    "problem": "TOCTOU race condition between validation loop and mkdir in _ensure_parent_directory. An attacker could create a file at a parent path between the check and mkdir, causing unclear error messages.",
+    "solution": "Changed exist_ok=False to exist_ok=True to handle benign races, and added specific FileExistsError handling to detect file-as-directory conditions with clear error messages.",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "tests/test_issue_5983_toctou_race.py"
+    ]
+  },
+  "test_coverage": {
+    "new_tests_added": 7,
+    "tests_passed": 19,
+    "test_file": "tests/test_issue_5983_toctou_race.py"
+  },
+  "changes": {
+    "src/flywheel/storage.py": {
+      "type": "modified",
+      "lines_changed": 18,
+      "description": "Modified _ensure_parent_directory to handle TOCTOU race: use exist_ok=True for benign races, catch FileExistsError specifically to detect file-as-directory with clear error message"
+    },
+    "tests/test_issue_5983_toctou_race.py": {
+      "type": "created",
+      "lines_added": 234,
+      "description": "New regression tests for TOCTOU race condition in _ensure_parent_directory"
+    }
+  },
+  "risks": {
+    "breaking_changes": false,
+    "backward_compatible": true,
+    "limitations": [
+      "Cannot completely eliminate TOCTOU race due to OS limitations, but provides graceful error handling"
+    ]
+  },
+  "validation": {
+    "linting_passed": true,
+    "tests_passed": true,
+    "existing_tests_passed": true
+  }
+}
