@@ -1,0 +1,42 @@
+{
+  "issue_number": 5986,
+  "issue_title": "[Feature] Add Todo.__eq__ and __hash__ methods for proper comparison",
+  "candidate_number": 2,
+  "run_id": "22461747331",
+  "branch": "claude/issue-5986-candidate-2-22461747331",
+  "status": "verified",
+  "verification": {
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_issue_5986_todo_eq_hash.py -v",
+      "result": "10 passed"
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ -v",
+      "result": "122 passed"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/ tests/",
+      "result": "All checks passed"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5986_todo_eq_hash.py"
+  ],
+  "implementation": {
+    "__eq__": "Compares Todo objects by id, text, and done status. Timestamps excluded from equality.",
+    "__hash__": "Hash based on id for use in sets and dicts."
+  },
+  "tests_covered": [
+    "test_todo_equality_same_data",
+    "test_todo_equality_different_id",
+    "test_todo_equality_different_text",
+    "test_todo_equality_different_done",
+    "test_todo_equality_with_non_todo",
+    "test_todo_hash_same_id",
+    "test_todo_hash_different_id",
+    "test_todo_can_be_added_to_set",
+    "test_todo_set_deduplication",
+    "test_todo_can_be_dict_key"
+  ]
+}
