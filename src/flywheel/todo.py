@@ -57,6 +57,20 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **kwargs) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        Args:
+            **kwargs: Fields to override in the copy (e.g., text='new', id=2)
+
+        Returns:
+            A new Todo instance with the same fields as this one,
+            with any specified fields overridden.
+        """
+        data = self.to_dict()
+        data.update(kwargs)
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
