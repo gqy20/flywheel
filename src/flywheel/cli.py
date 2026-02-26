@@ -119,11 +119,12 @@ def run_command(args: argparse.Namespace) -> int:
             app.remove(args.id)
             print(f"Removed #{args.id}")
             return 0
-
-        raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
+
+    # This line is unreachable: argparse guarantees a valid command
+    raise AssertionError(f"Unreachable: invalid command {args.command!r}")
 
 
 def main(argv: list[str] | None = None) -> int:
