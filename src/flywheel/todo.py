@@ -20,6 +20,26 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id, text, and done status.
+
+        Timestamps are excluded from equality comparison as they are
+        metadata about when the todo was created/modified, not part of
+        the todo's identity.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash based on id for use in sets and dicts.
+
+        The hash is based solely on id per the issue requirements, which
+        allows todos with the same id to be considered equivalent for
+        set/dict operations even if other fields differ.
+        """
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
