@@ -1,0 +1,23 @@
+{
+  "issue_number": 5955,
+  "candidate_number": 2,
+  "run_id": "22459676742",
+  "branch": "claude/issue-5955-candidate-2-22459676742",
+  "created_at": "2026-02-26T18:30:00Z",
+  "status": "ready",
+  "test_results": {
+    "passed": 13,
+    "failed": 0,
+    "total": 13
+  },
+  "lint_results": {
+    "passed": true,
+    "errors": 0,
+    "warnings": 0
+  },
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_minimal_framework.py"]
+  },
+  "summary": "Fix: Add text validation in Todo.from_dict() to reject empty/whitespace-only text, matching the validation in rename() and add() methods."
+}
