@@ -3,8 +3,10 @@
   "candidate": 3,
   "run_id": "22454192965",
   "branch": "claude/issue-5930-candidate-3-22454192965",
+  "pr_number": 5966,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5966",
   "created_at": "2026-02-26T18:23:00Z",
-  "status": "implemented",
+  "status": "pr_created",
   "tests_added": 1,
   "files_modified": 2,
   "changes": {
