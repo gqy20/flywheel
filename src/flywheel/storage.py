@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -126,3 +127,49 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive lock on the storage file.
+
+        Creates a lock file alongside the database file and acquires an
+        exclusive lock on it. This prevents race conditions when multiple
+        processes try to read-modify-write concurrently.
+
+        Returns:
+            File descriptor of the lock file (must be closed to release lock).
+        """
+        _ensure_parent_directory(self.path)
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+
+        # Open/create lock file and acquire exclusive lock
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the lock and close the lock file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def locked(self):
+        """Context manager that holds an exclusive lock during operations.
+
+        Usage:
+            with storage.locked():
+                todos = storage.load()
+                todo = Todo(id=storage.next_id(todos), text=text)
+                todos.append(todo)
+                storage.save(todos)
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
