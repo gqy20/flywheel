@@ -89,7 +89,9 @@ def test_final_file_permissions_fixed_when_initially_permissive(tmp_path) -> Non
 
     # Verify the file starts with permissive permissions
     initial_mode = stat.S_IMODE(db.stat().st_mode)
-    assert initial_mode == 0o644, f"Setup failed: file should start as 0o644, got {oct(initial_mode)}"
+    assert initial_mode == 0o644, (
+        f"Setup failed: file should start as 0o644, got {oct(initial_mode)}"
+    )
 
     # Now save through TodoStorage
     storage = TodoStorage(str(db))
