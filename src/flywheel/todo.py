@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
@@ -100,3 +101,34 @@ class Todo:
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
+
+    def to_json(self) -> str:
+        """Serialize this Todo to a JSON string.
+
+        Returns:
+            A JSON string representation of this Todo.
+        """
+        return json.dumps(self.to_dict(), ensure_ascii=False)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> Todo:
+        """Deserialize a Todo from a JSON string.
+
+        Args:
+            json_str: A JSON string representing a Todo object.
+
+        Returns:
+            A Todo instance with data from the JSON string.
+
+        Raises:
+            ValueError: If the JSON is invalid or doesn't represent a Todo object.
+        """
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {e.msg}") from e
+
+        if not isinstance(data, dict):
+            raise ValueError(f"JSON must be a JSON object, got {type(data).__name__}")
+
+        return cls.from_dict(data)
