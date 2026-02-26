@@ -119,3 +119,35 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #5843 - reject float IDs that would cause precision loss
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs like 1.5 that would lose precision."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_float_id() -> None:
+    """Todo.from_dict should reject negative float IDs like -2.7."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": -2.7, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_that_equals_int() -> None:
+    """Todo.from_dict should reject float IDs like 2.0 even if they equal an integer."""
+    # This is stricter: 2.0 equals 2, but we still reject to be consistent
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 2.0, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject bool IDs (True/False) since bool is subclass of int."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept proper integer IDs."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
