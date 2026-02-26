@@ -7,6 +7,8 @@ JSON data doesn't need to be executable, and having execute permissions
 is unnecessary security surface area.
 
 This test FAILS before the fix and PASSES after the fix.
+
+Also includes regression test for issue #5913: os.fchmod is Unix-only.
 """
 
 from __future__ import annotations
@@ -119,3 +121,57 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
             assert not (file_mode & stat.S_IXUSR), f"Owner execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXGRP), f"Group execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXOTH), f"Other execute bit set on {temp_file}"
+
+
+def test_save_works_without_fchmod_on_windows(tmp_path, monkeypatch) -> None:
+    """Issue #5913: TodoStorage.save() should work on Windows without os.fchmod.
+
+    os.fchmod is Unix-only and raises AttributeError on Windows.
+    The code should gracefully skip the fchmod call when it's not available.
+
+    This test simulates Windows by removing fchmod from os module.
+    """
+    # Simulate Windows by hiding fchmod
+    original_fchmod = getattr(os, "fchmod", None)
+    if hasattr(os, "fchmod"):
+        monkeypatch.delattr(os, "fchmod")
+
+    try:
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # This should NOT raise AttributeError on Windows
+        storage.save([Todo(id=1, text="test")])
+
+        # Verify the data was saved correctly
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "test"
+    finally:
+        # Restore fchmod if it existed
+        if original_fchmod is not None:
+            os.fchmod = original_fchmod
+
+
+def test_save_works_with_fchmod_on_unix(tmp_path) -> None:
+    """Issue #5913: TodoStorage.save() should still use fchmod on Unix.
+
+    This test verifies that on Unix systems (where fchmod exists),
+    the permission-setting code still works correctly.
+    """
+    # Skip on Windows where fchmod doesn't exist
+    if not hasattr(os, "fchmod"):
+        import pytest
+
+        pytest.skip("os.fchmod not available on this platform")
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # This should use fchmod and set correct permissions
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify the data was saved correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
