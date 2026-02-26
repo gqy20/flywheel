@@ -15,8 +15,6 @@ from __future__ import annotations
 import multiprocessing
 from pathlib import Path
 
-import pytest
-
 from flywheel.storage import TodoStorage, _ensure_parent_directory
 from flywheel.todo import Todo
 
@@ -28,7 +26,6 @@ def test_ensure_parent_directory_handles_race_condition(tmp_path) -> None:
     1. Creating the parent directory after the exists() check but before mkdir()
     2. Verifying that _ensure_parent_directory doesn't fail with FileExistsError
     """
-    import os
     import threading
 
     target_path = tmp_path / "subdir" / "todo.json"
