@@ -10,8 +10,6 @@ before run_command() is ever called.
 
 from __future__ import annotations
 
-import argparse
-
 from flywheel.cli import build_parser, run_command
 
 
@@ -26,7 +24,7 @@ def test_argparse_blocks_invalid_command() -> None:
     # Invalid command should cause argparse to raise SystemExit
     try:
         parser.parse_args(["invalid_command"])
-        assert False, "argparse should have raised SystemExit for invalid command"
+        raise AssertionError("argparse should have raised SystemExit for invalid command")
     except SystemExit:
         # Expected behavior - argparse blocks invalid commands
         pass
@@ -39,7 +37,7 @@ def test_argparse_requires_command() -> None:
     # No command should cause argparse to raise SystemExit
     try:
         parser.parse_args([])
-        assert False, "argparse should have raised SystemExit for missing command"
+        raise AssertionError("argparse should have raised SystemExit for missing command")
     except SystemExit:
         # Expected behavior - argparse requires a command
         pass
@@ -101,11 +99,13 @@ def test_unreachable_code_path_needs_assertion_error() -> None:
     # Verify there's a `raise AssertionError(...)` pattern marking unreachable code
     has_unreachable_marker = False
     for raise_node in raise_nodes:
-        if isinstance(raise_node.exc, ast.Call):
-            if isinstance(raise_node.exc.func, ast.Name):
-                if raise_node.exc.func.id == "AssertionError":
-                    has_unreachable_marker = True
-                    break
+        if (
+            isinstance(raise_node.exc, ast.Call)
+            and isinstance(raise_node.exc.func, ast.Name)
+            and raise_node.exc.func.id == "AssertionError"
+        ):
+            has_unreachable_marker = True
+            break
 
     assert has_unreachable_marker, (
         "Expected `raise AssertionError` pattern to mark unreachable code path. "
@@ -114,25 +114,28 @@ def test_unreachable_code_path_needs_assertion_error() -> None:
 
     # Also verify there are no `raise ValueError` patterns for unsupported commands
     for raise_node in raise_nodes:
-        if isinstance(raise_node.exc, ast.Call):
-            if isinstance(raise_node.exc.func, ast.Name):
-                if raise_node.exc.func.id == "ValueError":
-                    if raise_node.exc.args:
-                        arg = raise_node.exc.args[0]
-                        if isinstance(arg, ast.JoinedStr):
-                            for value in arg.values:
-                                if isinstance(value, ast.Constant):
-                                    if "Unsupported command" in str(value.value):
-                                        assert False, (
-                                            "Found `raise ValueError` for unsupported command. "
-                                            "This code path is unreachable and should use "
-                                            "`raise AssertionError` or be removed."
-                                        )
-                        elif isinstance(arg, ast.Constant):
-                            msg = arg.value
-                            if "Unsupported command" in str(msg):
-                                assert False, (
-                                    "Found `raise ValueError` for unsupported command. "
-                                    "This code path is unreachable and should use "
-                                    "`raise AssertionError` or be removed."
-                                )
+        if (
+            isinstance(raise_node.exc, ast.Call)
+            and isinstance(raise_node.exc.func, ast.Name)
+            and raise_node.exc.func.id == "ValueError"
+            and raise_node.exc.args
+        ):
+            arg = raise_node.exc.args[0]
+            if isinstance(arg, ast.JoinedStr):
+                for value in arg.values:
+                    if isinstance(value, ast.Constant) and "Unsupported command" in str(
+                        value.value
+                    ):
+                        raise AssertionError(
+                            "Found `raise ValueError` for unsupported command. "
+                            "This code path is unreachable and should use "
+                            "`raise AssertionError` or be removed."
+                        )
+            elif isinstance(arg, ast.Constant):
+                msg = arg.value
+                if "Unsupported command" in str(msg):
+                    raise AssertionError(
+                        "Found `raise ValueError` for unsupported command. "
+                        "This code path is unreachable and should use "
+                        "`raise AssertionError` or be removed."
+                    )
