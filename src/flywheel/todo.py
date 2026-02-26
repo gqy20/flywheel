@@ -54,6 +54,21 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, text: str | None = None) -> Todo:
+        """Create a copy of this Todo with new id and timestamps.
+
+        Args:
+            text: Optional new text for the copy. If None, uses original text.
+
+        Returns:
+            A new Todo instance with the same properties but fresh timestamps.
+        """
+        return Todo(
+            id=0,  # New id will be assigned by storage layer
+            text=text if text is not None else self.text,
+            done=self.done,
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
