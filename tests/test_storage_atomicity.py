@@ -151,6 +151,97 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_file_as_directory_blocked(tmp_path) -> None:
+    """Regression test for issue #5983: Block file-as-directory path traversal.
+
+    Tests that if a file exists where a directory should be created,
+    the operation is blocked with a clear error message.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a file where a directory should be created
+    db_path = tmp_path / "subdir" / "db.json"
+    blocker_file = tmp_path / "subdir"
+    blocker_file.write_text("I am a file, not a directory")
+
+    # This should raise an error because subdir is a file, not a directory
+    with pytest.raises((ValueError, OSError, FileExistsError)):
+        _ensure_parent_directory(db_path)
+
+
+def test_toctou_race_handled_with_exist_ok(tmp_path) -> None:
+    """Regression test for issue #5983: Handle race with exist_ok=True.
+
+    Tests that when two processes try to create the same directory concurrently,
+    the function handles FileExistsError gracefully using exist_ok=True.
+    This prevents TOCTOU race between "check if exists" and "create directory".
+    """
+    import pathlib
+    from unittest.mock import patch
+
+    from flywheel.storage import _ensure_parent_directory
+
+    db_path = tmp_path / "race" / "db.json"
+
+    # Simulate race condition: mkdir is called but directory already exists
+    # (created by another process between our check and mkdir)
+    original_mkdir = pathlib.Path.mkdir
+    call_count = [0]  # Use list to track state across calls
+
+    def race_simulating_mkdir(self, *args, **kwargs):
+        call_count[0] += 1
+        # On the first call (for parent "race"), simulate race by creating dir first
+        if call_count[0] == 1 and not self.exists():
+            # Another process creates the directory between our check and mkdir
+            original_mkdir(self, parents=kwargs.get("parents", False), exist_ok=True)
+        # Now call original with the actual arguments
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(pathlib.Path, "mkdir", race_simulating_mkdir):
+        # Should not raise - race condition should be handled with exist_ok=True
+        _ensure_parent_directory(db_path)
+
+    # Verify directory was created
+    assert db_path.parent.exists()
+    assert db_path.parent.is_dir()
+
+
+def test_toctou_race_clear_error_when_file_blocks_directory(tmp_path) -> None:
+    """Regression test for issue #5983: Clear error when file blocks directory creation.
+
+    Tests that if a file is created in the path between check and mkdir,
+    the error message is clear about what went wrong.
+    """
+    import pathlib
+    from unittest.mock import patch
+
+    from flywheel.storage import _ensure_parent_directory
+
+    db_path = tmp_path / "blocked" / "db.json"
+
+    # Simulate race: mkdir will fail because a file was created there
+    original_mkdir = pathlib.Path.mkdir
+
+    def blocking_mkdir(self, *args, **kwargs):
+        # Create a file at the target path before mkdir
+        if not self.exists():
+            self.write_text("attacker file")
+        # Call original - this should fail with FileExistsError
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(pathlib.Path, "mkdir", blocking_mkdir):
+        # Should raise a clear error
+        with pytest.raises((FileExistsError, OSError, ValueError)) as exc_info:
+            _ensure_parent_directory(db_path)
+
+        # Error message should be informative
+        error_msg = str(exc_info.value).lower()
+        assert any(
+            keyword in error_msg
+            for keyword in ["exists", "file", "directory", "failed", "not a directory"]
+        ), f"Error message should be clear, got: {exc_info.value}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
