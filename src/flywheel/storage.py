@@ -7,6 +7,7 @@ import json
 import os
 import stat
 import tempfile
+import warnings
 from pathlib import Path
 
 from .todo import Todo
@@ -59,6 +60,19 @@ class TodoStorage:
     def load(self) -> list[Todo]:
         if not self.path.exists():
             return []
+
+        # Security: Check file permissions for overly permissive access
+        # The file should only be readable by owner (0o600) for security
+        file_stat = self.path.stat()
+        file_mode = stat.S_IMODE(file_stat.st_mode)
+        if file_mode & (stat.S_IRGRP | stat.S_IROTH):
+            warnings.warn(
+                f"Insecure file permissions on '{self.path}': "
+                f"file is readable by group or others ({oct(file_mode)}). "
+                f"Consider running 'chmod 600 {self.path}' to restrict access.",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
