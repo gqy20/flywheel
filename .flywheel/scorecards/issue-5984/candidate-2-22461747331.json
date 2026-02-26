@@ -1,0 +1,31 @@
+{
+  "issue_number": 5984,
+  "issue_title": "[Bug] Broad exception handling catches and hides unexpected errors without logging",
+  "candidate_number": 2,
+  "run_id": "22461747331",
+  "branch": "claude/issue-5984-candidate-2-22461747331",
+  "status": "ready",
+  "created_at": "2026-02-26T21:00:00Z",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_5984_exception_type_in_error.py"
+    ],
+    "source_files": [
+      "src/flywheel/cli.py"
+    ]
+  },
+  "test_results": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8
+  },
+  "lint_results": {
+    "ruff": "passed"
+  },
+  "implementation_summary": "Modified exception handling in cli.py to include exception type name in error output using type(exc).__name__",
+  "verification_criteria": {
+    "exception_type_in_output": true,
+    "stderr_output": true,
+    "backward_compatible": true
+  }
+}
