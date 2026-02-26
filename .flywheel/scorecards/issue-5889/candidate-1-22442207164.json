@@ -1,21 +1,23 @@
 {
-  "issue_number": 5889,
-  "candidate_number": 1,
+  "issue": 5889,
+  "candidate": 1,
   "run_id": "22442207164",
   "branch": "claude/issue-5889-candidate-1-22442207164",
-  "created_at": "2026-02-26T11:00:00Z",
-  "implementation": {
-    "approach": "Add copy method using dataclasses.replace for immutable-style updates",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_5889_todo_copy.py"
-    ],
-    "tests_added": 6,
-    "tests_passed": 6
-  },
-  "acceptance_criteria": {
-    "todo_copy_returns_new_instance": true,
-    "todo_copy_with_overrides": true,
-    "original_unchanged_after_copy": true
+  "pr_number": 5918,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5918",
+  "generated_at": "2026-02-26T13:23:04.012641+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2210,
+    "plan": 2313,
+    "implement": 1332,
+    "verify": 1616,
+    "finalize": 616
   }
 }
