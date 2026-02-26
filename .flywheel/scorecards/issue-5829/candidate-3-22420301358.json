@@ -1,39 +1,23 @@
 {
-  "issue_number": 5829,
-  "candidate_number": 3,
+  "issue": 5829,
+  "candidate": 3,
   "run_id": "22420301358",
   "branch": "claude/issue-5829-candidate-3-22420301358",
-  "status": "verified",
-  "summary": "Add validation for Todo ID to reject zero and negative values",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_5829_todo_id_validation.py",
-      "tests/test_issue_1999_symlink_protection.py",
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "tests_passed": 119,
-  "ruff_check": "passed",
-  "verification": {
-    "commands": [
-      "uv run pytest tests/test_issue_5829_todo_id_validation.py -v",
-      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2087_todo_repr.py -v",
-      "uv run pytest tests/test_storage*.py -v",
-      "uv run ruff check src/flywheel/todo.py",
-      "uv run ruff check tests/test_issue_5829_todo_id_validation.py",
-      "uv run ruff check src/flywheel/ tests/"
-    ],
-    "outcomes": [
-      "7 tests passed - issue-specific ID validation tests",
-      "18 tests passed - related Todo tests",
-      "6 tests passed - storage integration tests",
-      "All checks passed",
-      "All checks passed",
-      "All checks passed"
-    ],
-    "total_tests_verified": 31
+  "pr_number": 5837,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5837",
+  "generated_at": "2026-02-26T00:04:38.617674+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2620,
+    "plan": 2353,
+    "implement": 2735,
+    "verify": 2406,
+    "finalize": 1495
   }
 }
