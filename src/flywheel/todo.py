@@ -20,6 +20,20 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id for equality.
+
+        Since id is the unique identifier, two Todo objects are equal
+        if they have the same id, regardless of other fields.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash Todo objects by id for use in sets and dict keys."""
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 

@@ -1,0 +1,14 @@
+{
+  "issue_number": 5958,
+  "candidate_number": 3,
+  "run_id": "22459676742",
+  "branch": "claude/issue-5958-candidate-3-22459676742",
+  "status": "implemented",
+  "tests_passed": 7,
+  "tests_total": 7,
+  "implementation_summary": "Added __eq__ and __hash__ methods to Todo class to support object comparison and set operations based on the unique id field",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_5958_todo_eq_hash.py"
+  ]
+}
