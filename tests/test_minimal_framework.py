@@ -158,3 +158,25 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_handles_duplicate_ids(tmp_path) -> None:
+    """Bug #5927: next_id should return unique ID not present in any todo."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Simulate todos with duplicate IDs (e.g., from manual editing or data corruption)
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=2, text="second"),
+        Todo(id=2, text="duplicate of second"),  # Duplicate ID!
+        Todo(id=3, text="third"),
+    ]
+
+    # next_id should return 4 (max unique ID + 1), which is not in existing IDs
+    next_id = storage.next_id(todos)
+    existing_ids = {todo.id for todo in todos}
+    assert next_id not in existing_ids, (
+        f"next_id returned {next_id} which already exists in {existing_ids}"
+    )
+    assert next_id == 4, f"Expected 4 (max unique ID + 1), got {next_id}"
