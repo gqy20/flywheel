@@ -54,6 +54,24 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, text: str | None = None) -> Todo:
+        """Create a copy of this Todo with optional new text.
+
+        The copy gets a new id (0), fresh timestamps, and done=False.
+        Use this for template-style todo creation.
+
+        Args:
+            text: Optional new text. If None, keeps original text.
+
+        Returns:
+            A new Todo object that is a copy of this one.
+        """
+        return Todo(
+            id=0,
+            text=text if text is not None else self.text,
+            done=False,
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 

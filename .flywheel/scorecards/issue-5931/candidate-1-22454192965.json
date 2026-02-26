@@ -1,0 +1,25 @@
+{
+  "issue_number": 5931,
+  "candidate_number": 1,
+  "run_id": "22454192965",
+  "branch": "claude/issue-5931-candidate-1-22454192965",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5960",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_5931_todo_copy.py"
+    ],
+    "approach": "Add copy(text: str | None = None) method to Todo class that creates a new Todo with fresh timestamps and optional new text"
+  },
+  "tests": {
+    "test_file": "tests/test_issue_5931_todo_copy.py",
+    "test_count": 5,
+    "tests_passed": 5
+  },
+  "checklist": {
+    "test_file_added": true,
+    "source_file_changed": true,
+    "linter_passed": true,
+    "pr_created": true
+  }
+}
