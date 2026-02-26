@@ -1,28 +1,23 @@
 {
-  "issue_number": 5958,
-  "candidate_number": 3,
+  "issue": 5958,
+  "candidate": 3,
   "run_id": "22459676742",
   "branch": "claude/issue-5958-candidate-3-22459676742",
-  "status": "verified",
-  "tests_passed": 119,
-  "tests_total": 119,
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo class to support object comparison and set operations based on the unique id field",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_5958_todo_eq_hash.py"
+  "pr_number": 5992,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5992",
+  "generated_at": "2026-02-26T21:15:22.136839+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_5958_todo_eq_hash.py -v",
-      "outcome": "7/7 tests passed"
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ -v",
-      "outcome": "119/119 tests passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/ tests/",
-      "outcome": "All checks passed"
-    }
+  "stage_response_sizes": {
+    "triage": 2717,
+    "plan": 2072,
+    "implement": 1788,
+    "verify": 2024,
+    "finalize": 861
   }
 }
