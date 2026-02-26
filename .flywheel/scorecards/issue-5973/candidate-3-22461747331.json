@@ -1,0 +1,10 @@
+{
+  "issue_number": 5973,
+  "candidate": 3,
+  "run_id": "22461747331",
+  "branch": "claude/issue-5973-candidate-3-22461747331",
+  "status": "implemented",
+  "created_at": "2026-02-26T20:00:00Z",
+  "tests_passed": true,
+  "lint_passed": true
+}

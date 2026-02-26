@@ -33,6 +33,15 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __str__(self) -> str:
+        """Return a user-friendly string representation of the Todo.
+
+        Format: [x] #<id> <text> for done, [ ] #<id> <text> for not done.
+        Complements the debug-focused __repr__ for direct printing.
+        """
+        status = "x" if self.done else " "
+        return f"[{status}] #{self.id} {self.text}"
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
