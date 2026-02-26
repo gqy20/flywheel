@@ -1,0 +1,26 @@
+{
+  "issue_number": 5970,
+  "candidate_number": 2,
+  "run_id": "22457967132",
+  "branch": "claude/issue-5970-candidate-2-22457967132",
+  "status": "ready",
+  "implementation": {
+    "approach": "file_locking",
+    "description": "Added exclusive file locking using fcntl.flock to protect the load->next_id->save sequence in TodoApp.add()",
+    "files_changed": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_storage_atomicity.py"
+    ]
+  },
+  "tests": {
+    "regression_test_added": true,
+    "test_name": "test_concurrent_add_produces_unique_ids",
+    "all_tests_pass": true,
+    "total_tests": 113
+  },
+  "verification": {
+    "ruff_check": "passed",
+    "pytest": "passed"
+  }
+}
