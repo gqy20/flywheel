@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -218,9 +220,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
@@ -249,11 +249,13 @@ def test_ensure_parent_directory_uses_exist_ok_true(tmp_path) -> None:
     original_mkdir = Path.mkdir
 
     def tracking_mkdir(self, *args, **kwargs):
-        mkdir_calls.append({
-            "path": str(self),
-            "parents": kwargs.get("parents", args[0] if args else False),
-            "exist_ok": kwargs.get("exist_ok", False),
-        })
+        mkdir_calls.append(
+            {
+                "path": str(self),
+                "parents": kwargs.get("parents", args[0] if args else False),
+                "exist_ok": kwargs.get("exist_ok", False),
+            }
+        )
         # Actually create the directory
         original_mkdir(self, *args, **kwargs)
 
@@ -354,15 +356,12 @@ def test_concurrent_directory_creation_no_file_exists_error(tmp_path) -> None:
 
     # No worker should have encountered FileExistsError (the TOCTOU bug)
     assert len(file_exists_errors) == 0, (
-        f"TOCTOU race condition detected! Workers got FileExistsError: "
-        f"{file_exists_errors}"
+        f"TOCTOU race condition detected! Workers got FileExistsError: {file_exists_errors}"
     )
 
     # All workers should have succeeded
     assert len(other_errors) == 0, f"Workers encountered other errors: {other_errors}"
-    assert len(successes) == num_workers, (
-        f"Expected {num_workers} successes, got {len(successes)}"
-    )
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
 
     # Final verification: directory should exist and file should be valid
     assert db.parent.exists(), "Parent directory should have been created"
