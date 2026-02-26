@@ -1,24 +1,23 @@
 {
-  "issue_number": 5819,
-  "candidate_number": 1,
+  "issue": 5819,
+  "candidate": 1,
   "run_id": "22420301358",
   "branch": "claude/issue-5819-candidate-1-22420301358",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_5819_toggle_method.py"
-    ],
-    "test_file": "tests/test_issue_5819_toggle_method.py",
-    "tests_added": 4
-  },
-  "verification": {
-    "tests_passed": true,
-    "test_count": 116,
-    "linter_passed": true
-  },
-  "acceptance_criteria": {
-    "toggle_sets_done_true": true,
-    "toggle_sets_done_false": true,
-    "updated_at_updated": true
+  "pr_number": 5836,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/5836",
+  "generated_at": "2026-02-26T00:04:53.670713+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1534,
+    "plan": 2550,
+    "implement": 1538,
+    "verify": 2059,
+    "finalize": 1449
   }
 }
