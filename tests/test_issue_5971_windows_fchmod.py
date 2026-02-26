@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import os
 import unittest.mock as mock
-from pathlib import Path
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
