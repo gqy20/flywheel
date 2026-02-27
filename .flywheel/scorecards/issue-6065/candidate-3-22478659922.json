@@ -2,7 +2,7 @@
   "issue_number": 6065,
   "candidate": 3,
   "run_id": "22478659922",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Fix os.fchmod Unix-only issue by adding hasattr guard for Windows compatibility",
     "files_to_touch": [
