@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_is_hashable() -> None:
+    """Feature #6095: Todo should be hashable to support set and dict operations."""
+    todo = Todo(id=1, text="test")
+    # Should not raise TypeError
+    hash_value = hash(todo)
+    # Hash should be an integer
+    assert isinstance(hash_value, int)
+
+
+def test_todo_set_deduplication() -> None:
+    """Feature #6095: Todo objects with same id should be deduplicated in a set."""
+    todo1 = Todo(id=1, text="first")
+    todo2 = Todo(id=1, text="second")  # Same id, different text
+    todo3 = Todo(id=2, text="third")
+
+    # Set should deduplicate based on id
+    todo_set = {todo1, todo2, todo3}
+    # Two unique ids, so set should have 2 elements
+    assert len(todo_set) == 2
+
+
+def test_todo_as_dict_key() -> None:
+    """Feature #6095: Todo objects should be usable as dict keys."""
+    todo1 = Todo(id=1, text="first")
+    todo2 = Todo(id=2, text="second")
+
+    # Should be able to use Todo as dict key
+    todo_dict = {todo1: "value1", todo2: "value2"}
+    assert todo_dict[todo1] == "value1"
+    assert todo_dict[todo2] == "value2"
