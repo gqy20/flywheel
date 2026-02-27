@@ -67,7 +67,7 @@ def test_todo_eq_with_non_todo() -> None:
     assert todo != "not a todo"
     assert todo != 1
     assert todo != {"id": 1, "text": "buy milk", "done": False}
-    assert todo != None
+    assert not todo.__eq__(None)  # type: ignore[arg-type]
 
 
 def test_todo_eq_explicit_method() -> None:
