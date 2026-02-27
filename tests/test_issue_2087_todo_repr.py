@@ -105,3 +105,46 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_newlines_bounded_length() -> None:
+    """repr(Todo) should produce bounded output when text contains newlines.
+
+    Issue #6200: When text contains newlines, the truncation logic was applied
+    to raw text, but escaping expands newlines (\\n -> \\\\n), causing repr
+    to exceed expected length bounds.
+
+    Acceptance criteria:
+    - For text with 100+ chars containing newlines, repr output is bounded
+    - repr never exceeds 120 chars total for any input
+    - '...' appears when original text exceeds limit
+    """
+    # Create Todo with text='a\n' * 60 (120 chars, 60 newlines)
+    text_with_newlines = ("a\n" * 60)
+    todo = Todo(id=1, text=text_with_newlines)
+    result = repr(todo)
+
+    # repr should never exceed 120 chars total
+    assert len(result) < 120, f"repr exceeded 120 chars: {len(result)} - {result}"
+
+    # Should contain ellipsis indicating truncation
+    assert "..." in result, f"Expected '...' in repr for long text: {result}"
+
+
+def test_todo_repr_with_all_newlines_bounded_length() -> None:
+    """repr(Todo) should produce bounded output when text is all newlines.
+
+    Issue #6200: Edge case where text is entirely newlines.
+    Each \\n becomes \\\\n when escaped, doubling in length.
+    Truncation on escaped version ensures bounded output.
+    """
+    # 100 newlines - when escaped becomes 200 chars before truncation
+    text_all_newlines = "\n" * 100
+    todo = Todo(id=1, text=text_all_newlines)
+    result = repr(todo)
+
+    # repr should never exceed 120 chars total
+    assert len(result) < 120, f"repr exceeded 120 chars: {len(result)} - {result}"
+
+    # Should contain ellipsis indicating truncation
+    assert "..." in result, f"Expected '...' in repr for long text: {result}"
