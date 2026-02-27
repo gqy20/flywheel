@@ -158,3 +158,28 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #6145: Todo.from_dict should reject negative IDs."""
+    with pytest.raises(ValueError, match="'id' must be a positive integer"):
+        Todo.from_dict({"id": -1, "text": "test"})
+
+    with pytest.raises(ValueError, match="'id' must be a positive integer"):
+        Todo.from_dict({"id": -5, "text": "another test"})
+
+
+def test_next_id_returns_positive_with_negative_todos() -> None:
+    """Bug #6145: next_id should return positive ID >= 1 regardless of existing IDs."""
+    storage = TodoStorage()
+
+    # Create todos with negative IDs directly (bypassing from_dict validation)
+    # to test the next_id behavior with invalid data that might exist in storage
+    todos = [Todo(id=-5, text="x"), Todo(id=-3, text="y")]
+
+    # next_id should return 1, not -4 (which is max(-5, -3) + 1)
+    assert storage.next_id(todos) == 1
+
+    # With mixed IDs, next_id should return max positive + 1
+    todos_mixed = [Todo(id=-5, text="x"), Todo(id=3, text="y")]
+    assert storage.next_id(todos_mixed) == 4
