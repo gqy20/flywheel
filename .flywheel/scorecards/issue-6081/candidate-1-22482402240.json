@@ -1,20 +1,31 @@
 {
   "issue_number": 6081,
+  "issue_title": "[Enhancement] Add __eq__ and __hash__ methods to Todo dataclass for proper equality comparison",
   "candidate_number": 1,
   "run_id": "22482402240",
-  "branch": "claude/issue-6081-candidate-1-22482402240",
-  "created_at": "2026-02-27T11:12:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
+  "branch_name": "claude/issue-6081-candidate-1-22482402240",
+  "created_at": "2026-02-27T09:44:00Z",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
       "tests/test_issue_6081_todo_equality_hash.py"
-    ]
+    ],
+    "description": "Added __eq__ and __hash__ methods to Todo dataclass for id-based equality comparison and set/dict usage"
   },
-  "tests_passed": 117,
-  "lint_passed": true,
-  "summary": "Added __eq__ and __hash__ methods to Todo dataclass for proper equality comparison based on id field",
-  "risks": "Minimal - equality now based on id only instead of all fields. This is the expected behavior for entity objects."
+  "tests": {
+    "test_file": "tests/test_issue_6081_todo_equality_hash.py",
+    "test_count": 5,
+    "all_passed": true
+  },
+  "lint": {
+    "tool": "ruff",
+    "status": "passed"
+  },
+  "acceptance_criteria": {
+    "equality_based_on_id": true,
+    "hash_based_on_id": true,
+    "usable_in_sets": true,
+    "usable_as_dict_keys": true,
+    "existing_tests_pass": true
+  }
 }
