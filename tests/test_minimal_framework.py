@@ -158,3 +158,22 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids(tmp_path) -> None:
+    """Bug #5999: next_id() should return correct ID with non-contiguous IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs: [1, 5, 10]
+    todos = [Todo(id=1, text="first"), Todo(id=5, text="fifth"), Todo(id=10, text="tenth")]
+    storage.save(todos)
+
+    # next_id should return max(existing_ids) + 1 = 11, not a duplicate
+    loaded = storage.load()
+    new_id = storage.next_id(loaded)
+
+    # Verify new_id doesn't collide with any existing ID
+    existing_ids = {todo.id for todo in loaded}
+    assert new_id not in existing_ids, f"next_id returned {new_id} which collides with existing IDs {existing_ids}"
+    assert new_id == 11, f"next_id should return 11 for IDs [1, 5, 10], got {new_id}"
