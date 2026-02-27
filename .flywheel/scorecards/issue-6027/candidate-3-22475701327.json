@@ -1,13 +1,23 @@
 {
-  "issue_number": 6027,
-  "candidate_number": 3,
+  "issue": 6027,
+  "candidate": 3,
   "run_id": "22475701327",
   "branch": "claude/issue-6027-candidate-3-22475701327",
-  "status": "implemented",
-  "test_file": "tests/test_issue_2000_json_validation.py",
-  "source_file": "src/flywheel/todo.py",
-  "tests_added": 3,
-  "tests_passed": 15,
-  "linter_passed": true,
-  "summary": "Added validation in Todo.from_dict to ensure 'id' is non-negative. Added 3 regression tests covering negative id rejection, zero id acceptance, and positive id acceptance."
+  "pr_number": 6063,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6063",
+  "generated_at": "2026-02-27T07:38:54.592128+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2633,
+    "plan": 2155,
+    "implement": 1821,
+    "verify": 1672,
+    "finalize": 1219
+  }
 }
