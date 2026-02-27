@@ -158,3 +158,60 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids(tmp_path) -> None:
+    """Bug #5999: next_id() should return max(existing_ids) + 1 for non-contiguous IDs.
+
+    When todos have IDs like [1, 5, 10], next_id() should return 11, not 2 or 6.
+    This ensures no duplicate IDs are generated after deletions.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save todos with non-contiguous IDs (simulating deletions)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 11 (max of [1,5,10] + 1), not a duplicate
+    assert storage.next_id(loaded) == 11
+
+
+def test_next_id_with_single_large_id(tmp_path) -> None:
+    """Bug #5999: next_id() should handle large ID values correctly."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save a single todo with a large ID
+    todos = [Todo(id=100, text="large id todo")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 101
+    assert storage.next_id(loaded) == 101
+
+
+def test_next_id_preserves_no_duplicates(tmp_path) -> None:
+    """Bug #5999: Verify that using next_id() multiple times produces unique IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Start with non-contiguous IDs
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b")]
+    storage.save(todos)
+
+    # Get next_id and add a new todo
+    loaded = storage.load()
+    new_id = storage.next_id(loaded)
+    assert new_id == 4
+
+    # Add the new todo and verify no duplicate
+    todos.append(Todo(id=new_id, text="new"))
+    storage.save(todos)
+
+    # Load again and verify next_id is still unique
+    loaded = storage.load()
+    all_ids = {t.id for t in loaded}
+    assert len(all_ids) == 3  # No duplicates
+    assert storage.next_id(loaded) == 5
