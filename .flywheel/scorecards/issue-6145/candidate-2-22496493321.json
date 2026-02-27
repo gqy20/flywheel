@@ -1,29 +1,23 @@
 {
-  "issue_number": 6145,
-  "issue_title": "[Bug] next_id returns incorrect ID when todos contain negative IDs (max+1 returns unex",
-  "candidate_number": 2,
+  "issue": 6145,
+  "candidate": 2,
   "run_id": "22496493321",
   "branch": "claude/issue-6145-candidate-2-22496493321",
-  "created_at": "2026-02-27T16:42:00Z",
-  "model": "glm-5",
-  "approach": {
-    "summary": "Fix bug #6145 by adding validation in Todo.from_dict to reject negative IDs and ensuring next_id always returns positive ID >= 1",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "src/flywheel/storage.py"
-    ],
-    "tests_added": [
-      "tests/test_minimal_framework.py::test_todo_from_dict_rejects_negative_id",
-      "tests/test_minimal_framework.py::test_next_id_returns_positive_with_negative_todos"
-    ]
-  },
-  "validation": {
-    "tests_passed": true,
-    "lint_passed": true,
-    "test_count": 2
-  },
-  "acceptance_criteria": {
-    "todo_from_dict_rejects_negative_id": true,
-    "next_id_returns_positive": true
+  "pr_number": 6164,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6164",
+  "generated_at": "2026-02-27T18:09:12.768883+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2531,
+    "plan": 2017,
+    "implement": 2071,
+    "verify": 3239,
+    "finalize": 983
   }
 }
