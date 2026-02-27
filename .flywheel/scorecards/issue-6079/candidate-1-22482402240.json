@@ -1,18 +1,23 @@
 {
-  "issue_number": 6079,
-  "candidate_number": 1,
+  "issue": 6079,
+  "candidate": 1,
   "run_id": "22482402240",
-  "status": "implemented",
-  "summary": "Fix security issue by sanitizing Unicode line separator (U+2028) and paragraph separator (U+2029) in todo text output",
-  "changes": {
-    "source_files": [
-      "src/flywheel/formatter.py"
-    ],
-    "test_files": [
-      "tests/test_issue_1924_format_todo_sanitization.py"
-    ]
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "implementation_notes": "Added handling for U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) in the _sanitize_text function. These Unicode characters can cause log injection or format disruption similar to newline characters but were not previously being escaped."
+  "branch": "claude/issue-6079-candidate-1-22482402240",
+  "pr_number": 6096,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6096",
+  "generated_at": "2026-02-27T11:10:03.980364+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2190,
+    "plan": 2922,
+    "implement": 1989,
+    "verify": 1489,
+    "finalize": 1243
+  }
 }
