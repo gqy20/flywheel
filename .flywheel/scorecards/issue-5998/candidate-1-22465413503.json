@@ -1,27 +1,23 @@
 {
-  "issue_number": 5998,
-  "candidate_number": 1,
+  "issue": 5998,
+  "candidate": 1,
   "run_id": "22465413503",
-  "status": "completed",
-  "approach": "verification",
-  "summary": "Added regression tests to verify that Todo.__repr__ correctly handles multi-byte UTF-8 characters. Python 3 strings are Unicode strings and slicing by character index is inherently UTF-8 safe - it never cuts multi-byte characters in half.",
-  "changes": [
-    {
-      "file": "tests/test_issue_5998_utf8_truncation.py",
-      "type": "added",
-      "description": "New test file with 5 regression tests verifying UTF-8 handling in Todo.__repr__"
-    }
+  "branch": "claude/issue-5998-candidate-1-22465413503",
+  "pr_number": 6016,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6016",
+  "generated_at": "2026-02-27T00:13:04.985880+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 5,
-  "tests_passed": 13,
-  "lint_status": "passed",
-  "risks": "None - the original code was already correct. Python 3 string slicing operates on Unicode code points, not bytes.",
-  "verification_steps": [
-    "Created tests for emoji text (4-byte UTF-8 characters)",
-    "Created tests for CJK text (3-byte UTF-8 characters)",
-    "Created tests for accented characters (2-byte UTF-8 characters)",
-    "Created tests for mixed ASCII and multi-byte text",
-    "Created tests for complex emoji (surrogate pairs)",
-    "All tests verify UTF-8 round-trip encoding/decoding"
-  ]
+  "stage_response_sizes": {
+    "triage": 2291,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 1869,
+    "finalize": 973
+  }
 }
