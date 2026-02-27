@@ -75,9 +75,7 @@ class Todo:
         try:
             todo_id = int(raw_id)
         except (ValueError, TypeError) as e:
-            raise ValueError(
-                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer."
-            ) from e
+            raise ValueError(f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer.") from e
 
         # Validate 'text' is a string
         if not isinstance(data["text"], str):
