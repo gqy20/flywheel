@@ -1,0 +1,27 @@
+{
+  "issue_number": 6158,
+  "candidate_number": 2,
+  "run_id": "22498533820",
+  "status": "verified",
+  "approach": "Add validation in Todo.__post_init__ to reject empty or whitespace-only text, consistent with rename() method",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_6158_empty_text_validation.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_6158_empty_text_validation.py -v",
+    "pytest_result": "9 tests passed",
+    "full_test_command": "uv run pytest tests/ -v",
+    "full_test_result": "121 tests passed",
+    "ruff_command": "uv run ruff check src/flywheel/ tests/",
+    "ruff_result": "All checks passed"
+  },
+  "summary": "Added validation in Todo.__post_init__ to raise ValueError when text is empty or contains only whitespace. This makes the validation consistent with the rename() method which already performs this check.",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6176"
+}
