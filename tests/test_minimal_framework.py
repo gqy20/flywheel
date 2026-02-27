@@ -158,3 +158,49 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_same_core_fields() -> None:
+    """Issue #6174: Todo objects with same id, text, done should be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+
+    assert todo1 == todo2
+
+
+def test_todo_equality_different_done_status() -> None:
+    """Issue #6174: Todo objects with different done status should not be equal."""
+    todo1 = Todo(id=1, text="a", done=False)
+    todo2 = Todo(id=1, text="a", done=True)
+
+    assert todo1 != todo2
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #6174: Timestamps should not affect equality comparison."""
+    import time
+
+    todo1 = Todo(id=1, text="a", done=False)
+    time.sleep(0.01)  # Ensure different timestamp
+    todo2 = Todo(id=1, text="a", done=False)
+
+    # Timestamps should be different
+    assert todo1.created_at != todo2.created_at
+    # But objects should still be equal
+    assert todo1 == todo2
+
+
+def test_todo_equality_different_id() -> None:
+    """Issue #6174: Todo objects with different id should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+
+    assert todo1 != todo2
+
+
+def test_todo_equality_different_text() -> None:
+    """Issue #6174: Todo objects with different text should not be equal."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+
+    assert todo1 != todo2
