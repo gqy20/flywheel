@@ -1,37 +1,23 @@
 {
-  "issue_number": 6056,
-  "issue_title": "[Enhancement] Add __eq__ and __hash__ methods for proper equality comparison",
-  "candidate_number": 1,
+  "issue": 6056,
+  "candidate": 1,
   "run_id": "22477250373",
   "branch": "claude/issue-6056-candidate-1-22477250373",
-  "status": "finalized",
-  "stage": "FINALIZE",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/6073",
   "pr_number": 6073,
-  "summary": "Added custom __eq__ and __hash__ methods to the Todo dataclass to enable proper equality comparison and set/dict usage. Equality is based on id only for hash consistency.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6056_equality_hash.py"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6073",
+  "generated_at": "2026-02-27T09:07:29.895696+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passed": 118,
-  "implementation_details": {
-    "approach": "Modified @dataclass decorator with eq=False and added custom __eq__ and __hash__ methods",
-    "equality_logic": "Compares Todo instances by id only",
-    "hash_logic": "Hashes based on id for set/dict usage"
-  },
-  "acceptance_criteria_met": [
-    "Todo(id=1, text='a') == Todo(id=1, text='a') returns True",
-    "Todo instances with same id can be used in sets",
-    "Existing tests pass without modification"
-  ],
-  "risks": "None - minimal change with clear semantics",
-  "verification": {
-    "pytest_command": "uv run pytest tests/ -v",
-    "pytest_result": "118 passed in 0.42s",
-    "ruff_command": "uv run ruff check src/flywheel/ tests/",
-    "ruff_result": "All checks passed"
-  },
-  "created_at": "2026-02-27T08:31:00Z",
-  "updated_at": "2026-02-27T08:45:00Z"
+  "stage_response_sizes": {
+    "triage": 2131,
+    "plan": 4000,
+    "implement": 2144,
+    "verify": 1329,
+    "finalize": 854
+  }
 }
