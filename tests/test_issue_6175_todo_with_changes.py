@@ -67,24 +67,22 @@ def test_with_changes_text_stripped() -> None:
 
 def test_with_changes_empty_text_raises() -> None:
     """with_changes(text="") should raise ValueError like rename()."""
+    import pytest
+
     original = Todo(id=1, text="task", done=False)
 
-    try:
+    with pytest.raises(ValueError, match="empty"):
         original.with_changes(text="")
-        assert False, "Expected ValueError for empty text"
-    except ValueError as e:
-        assert "empty" in str(e).lower()
 
 
 def test_with_changes_whitespace_only_text_raises() -> None:
     """with_changes(text="   ") should raise ValueError after stripping."""
+    import pytest
+
     original = Todo(id=1, text="task", done=False)
 
-    try:
+    with pytest.raises(ValueError, match="empty"):
         original.with_changes(text="   ")
-        assert False, "Expected ValueError for whitespace-only text"
-    except ValueError as e:
-        assert "empty" in str(e).lower()
 
 
 def test_with_changes_no_args_returns_copy() -> None:
