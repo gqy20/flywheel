@@ -1,0 +1,53 @@
+{
+  "issue_number": 6065,
+  "candidate": 3,
+  "run_id": "22478659922",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Fix os.fchmod Unix-only issue by adding hasattr guard for Windows compatibility",
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_6065_windows_fchmod.py",
+        "action": "create",
+        "purpose": "Regression test verifying graceful handling of missing os.fchmod on Windows"
+      },
+      {
+        "path": "src/flywheel/storage.py",
+        "action": "edit",
+        "line": 112,
+        "purpose": "Add hasattr guard before calling os.fchmod"
+      }
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing test that mocks os.fchmod to raise AttributeError and expects save() to succeed"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add hasattr guard: if hasattr(os, 'fchmod'): os.fchmod(fd, ...)"
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "description": "Run pytest and ruff to verify fix and code quality"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6065_windows_fchmod.py -v",
+      "uv run pytest tests/test_issue_2027_permissions.py -v",
+      "uv run pytest tests/test_storage_atomicity.py -v",
+      "uv run ruff check src/flywheel/storage.py"
+    ],
+    "branch_name": "claude/issue-6065-candidate-3-22478659922"
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_6065_windows_fchmod.py",
+    "source_file": "src/flywheel/storage.py",
+    "fix_summary": "Added getattr check for os.fchmod and wrapped call in contextlib.suppress for Windows compatibility"
+  },
+  "created_at": "2026-02-27T00:00:00Z",
+  "implemented_at": "2026-02-27T00:00:00Z"
+}
