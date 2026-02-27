@@ -13,8 +13,12 @@ from flywheel.todo import Todo
 
 def test_todo_eq_same_core_fields_equal() -> None:
     """Two Todo objects with same id/text/done should be equal."""
-    todo1 = Todo(id=1, text="buy milk", done=False, created_at="2024-01-01", updated_at="2024-01-01")
-    todo2 = Todo(id=1, text="buy milk", done=False, created_at="2024-12-31", updated_at="2024-12-31")
+    todo1 = Todo(
+        id=1, text="buy milk", done=False, created_at="2024-01-01", updated_at="2024-01-01"
+    )
+    todo2 = Todo(
+        id=1, text="buy milk", done=False, created_at="2024-12-31", updated_at="2024-12-31"
+    )
 
     assert todo1 == todo2
 
