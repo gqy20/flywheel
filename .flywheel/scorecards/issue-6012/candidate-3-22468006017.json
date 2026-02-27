@@ -1,0 +1,20 @@
+{
+  "issue_number": 6012,
+  "candidate_number": 3,
+  "run_id": "22468006017",
+  "branch": "claude/issue-6012-candidate-3-22468006017",
+  "status": "ready",
+  "tests_added": 5,
+  "tests_passed": 117,
+  "implementation": {
+    "files_changed": ["src/flywheel/todo.py", "tests/test_minimal_framework.py"],
+    "lines_added": 37,
+    "approach": "Add validation in __post_init__ to strip text and ensure non-empty"
+  },
+  "acceptance_criteria": {
+    "empty_string_raises": true,
+    "whitespace_raises": true,
+    "whitespace_stripped": true,
+    "existing_tests_pass": true
+  }
+}
