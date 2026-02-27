@@ -1,0 +1,15 @@
+{
+  "issue_number": 6107,
+  "candidate_number": 3,
+  "run_id": "22486200533",
+  "branch": "claude/issue-6107-candidate-3-22486200533",
+  "status": "ready",
+  "tests_passed": true,
+  "lint_passed": true,
+  "all_tests_count": 116,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "summary": "Fix: Reject non-integer floats for 'id' field in Todo.from_dict to prevent silent data truncation"
+}
