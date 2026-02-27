@@ -158,3 +158,43 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_constructor_rejects_negative_id() -> None:
+    """Bug #6011: Todo constructor should reject negative IDs."""
+    with pytest.raises(ValueError, match="id"):
+        Todo(id=-1, text="test")
+
+
+def test_todo_constructor_rejects_zero_id() -> None:
+    """Bug #6011: Todo constructor should reject zero ID."""
+    with pytest.raises(ValueError, match="id"):
+        Todo(id=0, text="test")
+
+
+def test_todo_constructor_accepts_positive_id() -> None:
+    """Bug #6011: Todo constructor should accept positive IDs."""
+    # Positive IDs should still work
+    todo = Todo(id=1, text="test")
+    assert todo.id == 1
+
+    todo2 = Todo(id=100, text="test2")
+    assert todo2.id == 100
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #6011: Todo.from_dict should reject negative IDs."""
+    with pytest.raises(ValueError, match="id"):
+        Todo.from_dict({"id": -1, "text": "test"})
+
+
+def test_todo_from_dict_rejects_zero_id() -> None:
+    """Bug #6011: Todo.from_dict should reject zero ID."""
+    with pytest.raises(ValueError, match="id"):
+        Todo.from_dict({"id": 0, "text": "test"})
+
+
+def test_todo_from_dict_accepts_positive_id() -> None:
+    """Bug #6011: Todo.from_dict should accept positive IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "test"})
+    assert todo.id == 1

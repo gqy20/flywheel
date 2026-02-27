@@ -1,0 +1,22 @@
+{
+  "issue_number": 6011,
+  "candidate_number": 1,
+  "run_id": "22468006017",
+  "branch": "claude/issue-6011-candidate-1-22468006017",
+  "status": "implemented",
+  "summary": "Added validation in Todo.__post_init__ to ensure id > 0, raising ValueError for invalid IDs (negative or zero).",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": true,
+  "linting_passed": true,
+  "acceptance_criteria": {
+    "todo_constructor_negative_id": true,
+    "todo_constructor_zero_id": true,
+    "todo_from_dict_negative_id": true,
+    "todo_from_dict_zero_id": true,
+    "todo_positive_id_works": true
+  }
+}
