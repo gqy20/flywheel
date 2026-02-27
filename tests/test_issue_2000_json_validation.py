@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6013 - reject float IDs to prevent silent truncation
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float IDs to prevent silent truncation."""
+    with pytest.raises(ValueError, match=r"float|non-integer|'id'.*integer"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_whole_number() -> None:
+    """Todo.from_dict should reject float IDs even if they are whole numbers."""
+    with pytest.raises(ValueError, match=r"float|non-integer|'id'.*integer"):
+        Todo.from_dict({"id": 1.0, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should accept integer IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_string_integer_id() -> None:
+    """Todo.from_dict should accept string integers for IDs."""
+    todo = Todo.from_dict({"id": "1", "text": "task"})
+    assert todo.id == 1
