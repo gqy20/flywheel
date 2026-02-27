@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6066 - from_dict should strip whitespace from text
+def test_todo_from_dict_strips_leading_whitespace() -> None:
+    """Todo.from_dict should strip leading whitespace from text field."""
+    todo = Todo.from_dict({"id": 1, "text": "  padded task"})
+    assert todo.text == "padded task"
+
+
+def test_todo_from_dict_strips_trailing_whitespace() -> None:
+    """Todo.from_dict should strip trailing whitespace from text field."""
+    todo = Todo.from_dict({"id": 1, "text": "padded task  "})
+    assert todo.text == "padded task"
+
+
+def test_todo_from_dict_strips_both_whitespace() -> None:
+    """Todo.from_dict should strip both leading and trailing whitespace from text."""
+    todo = Todo.from_dict({"id": 1, "text": "  padded task  "})
+    assert todo.text == "padded task"
+
+
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject text that becomes empty after stripping."""
+    with pytest.raises(ValueError, match=r"cannot be empty|empty"):
+        Todo.from_dict({"id": 1, "text": "   "})
