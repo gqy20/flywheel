@@ -1,41 +1,23 @@
 {
-  "issue_number": 6078,
-  "candidate_number": 2,
+  "issue": 6078,
+  "candidate": 2,
   "run_id": "22478659922",
-  "branch_name": "claude/issue-6078-candidate-2-22478659922",
-  "created_at": "2026-02-27T09:50:00Z",
-  "status": "implemented",
-  "fix_summary": {
-    "title": "BIDI control character sanitization",
-    "description": "Extended _sanitize_text function to escape BIDI (Bi-Directional Text) control characters that enable text direction spoofing attacks",
-    "files_changed": [
-      "src/flywheel/formatter.py",
-      "tests/test_issue_6078_bidi_sanitization.py"
-    ],
-    "characters_sanitized": [
-      "U+200E (LRM - Left-to-Right Mark)",
-      "U+200F (RLM - Right-to-Left Mark)",
-      "U+202A (LRE - Left-to-Right Embedding)",
-      "U+202B (RLE - Right-to-Left Embedding)",
-      "U+202C (PDF - Pop Directional Format)",
-      "U+202D (LRO - Left-to-Right Override)",
-      "U+202E (RLO - Right-to-Left Override)",
-      "U+2066 (LRI - Left-to-Right Isolate)",
-      "U+2067 (RLI - Right-to-Left Isolate)",
-      "U+2068 (FSI - First Strong Isolate)",
-      "U+2069 (PDI - Pop Directional Isolate)"
-    ]
-  },
-  "test_results": {
-    "new_tests_passed": 10,
-    "existing_tests_passed": 36,
-    "total_tests_run": 46,
-    "ruff_check": "passed"
-  },
-  "acceptance_criteria_met": [
-    "Input '\\u202e' + 'ABC' outputs '\\u202eABC' (escaped)",
-    "All BIDI override characters are escaped",
-    "Existing tests continue to pass",
-    "New test cases for BIDI spoofing prevention added"
-  ]
+  "branch": "claude/issue-6078-candidate-2-22478659922",
+  "pr_number": 6086,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6086",
+  "generated_at": "2026-02-27T10:15:37.057780+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2964,
+    "plan": 2601,
+    "implement": 2867,
+    "verify": 2065,
+    "finalize": 1117
+  }
 }
