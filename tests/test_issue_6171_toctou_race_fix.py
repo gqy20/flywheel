@@ -75,11 +75,8 @@ class TestTOCTOURaceCondition:
         assert not parent.exists()
 
         # Simulate race: create the directory right when mkdir is called
-        original_mkdir = Path.mkdir
-        call_count = [0]
 
         def mkdir_with_race(self, *args, **kwargs):
-            call_count[0] += 1
             # Before mkdir, create the directory to simulate another process winning
             if not self.exists():
                 import os
