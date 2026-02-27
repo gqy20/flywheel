@@ -119,3 +119,49 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6187 - load() should reject non-dict items in JSON list
+def test_storage_load_rejects_string_item_in_list(tmp_path) -> None:
+    """Storage.load should reject JSON arrays containing non-dict items like strings."""
+    db = tmp_path / "invalid_item.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but first element is a string, not a dict
+    db.write_text('["not a dict", {"id": 1, "text": "test"}]', encoding="utf-8")
+
+    # Should raise ValueError with clear message about expected type
+    with pytest.raises(ValueError, match=r"expected.*dict|must be.*dict|invalid.*type"):
+        storage.load()
+
+
+def test_storage_load_rejects_int_item_in_list(tmp_path) -> None:
+    """Storage.load should reject JSON arrays containing non-dict items like integers."""
+    db = tmp_path / "invalid_int.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array but contains an integer
+    db.write_text('[{"id": 1, "text": "test"}, 42]', encoding="utf-8")
+
+    # Should raise ValueError with clear message about expected type
+    with pytest.raises(ValueError, match=r"expected.*dict|must be.*dict|invalid.*type"):
+        storage.load()
+
+
+def test_storage_load_accepts_valid_list_of_dicts(tmp_path) -> None:
+    """Storage.load should accept valid JSON arrays containing only dict items."""
+    db = tmp_path / "valid.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array with all dict items
+    db.write_text('[{"id": 1, "text": "test1"}, {"id": 2, "text": "test2", "done": true}]',
+                  encoding="utf-8")
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 2
+    assert todos[0].id == 1
+    assert todos[0].text == "test1"
+    assert todos[1].id == 2
+    assert todos[1].text == "test2"
+    assert todos[1].done is True
