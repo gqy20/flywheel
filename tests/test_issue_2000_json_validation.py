@@ -119,3 +119,29 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6093 - reject float/non-int types for 'id' field
+def test_todo_from_dict_rejects_float_id_with_fractional_part() -> None:
+    """Todo.from_dict should reject float values with fractional part for 'id' field."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_integer_equivalent_float_id() -> None:
+    """Todo.from_dict should reject even integer-equivalent floats like 1.0 for 'id'."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": 2.0, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject boolean values for 'id' field (bool is int subclass)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*int"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_accepts_valid_int_id() -> None:
+    """Todo.from_dict should accept valid integer id values."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
+    assert isinstance(todo.id, int)
