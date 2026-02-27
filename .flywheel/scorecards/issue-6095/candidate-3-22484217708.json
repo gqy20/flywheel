@@ -1,0 +1,26 @@
+{
+  "issue_number": 6095,
+  "issue_title": "[Feature] 添加 Todo 哈希支持以支持集合和字典操作",
+  "candidate_number": 3,
+  "run_id": "22484217708",
+  "branch": "claude/issue-6095-candidate-3-22484217708",
+  "status": "implemented",
+  "summary": "Added __hash__ and __eq__ methods to Todo dataclass to support set and dict operations",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6095_todo_hash.py"]
+  },
+  "tests_passed": 119,
+  "ruff_checks": "passed",
+  "acceptance_criteria": {
+    "hash_returns_integer": true,
+    "todo_in_set": true,
+    "todo_as_dict_key": true,
+    "set_deduplication_by_id": true
+  },
+  "implementation_details": {
+    "hash_based_on": "id field",
+    "eq_based_on": "id field comparison",
+    "rationale": "Using id as the hash basis ensures consistent behavior for set operations and dict keys while maintaining the ability to identify todos uniquely"
+  }
+}
