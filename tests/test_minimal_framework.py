@@ -182,8 +182,20 @@ def test_todo_inequality_different_done_status() -> None:
 def test_todo_equality_ignores_timestamps() -> None:
     """Issue #6174: Timestamps should not affect equality comparison."""
     # Create todos with different timestamps but same core fields
-    todo1 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
-    todo2 = Todo(id=1, text="a", done=False, created_at="2025-12-31T23:59:59Z", updated_at="2025-12-31T23:59:59Z")
+    todo1 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2024-01-01T00:00:00Z",
+        updated_at="2024-01-01T00:00:00Z",
+    )
+    todo2 = Todo(
+        id=1,
+        text="a",
+        done=False,
+        created_at="2025-12-31T23:59:59Z",
+        updated_at="2025-12-31T23:59:59Z",
+    )
     assert todo1 == todo2
 
 
