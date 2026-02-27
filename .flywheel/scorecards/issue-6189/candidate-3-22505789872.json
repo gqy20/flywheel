@@ -1,0 +1,56 @@
+{
+  "issue_number": 6189,
+  "candidate": 3,
+  "run_id": "22505789872",
+  "stage": "PLAN",
+  "plan": {
+    "summary": "Add __eq__ and __hash__ methods to Todo class for id-based equality and set/dict support",
+    "files_to_touch": [
+      "tests/test_issue_6189_todo_eq_hash.py",
+      "src/flywheel/todo.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Create failing test file tests/test_issue_6189_todo_eq_hash.py with tests for __eq__ and __hash__",
+        "details": [
+          "test_eq_same_id_returns_true: Todo(1,'a') == Todo(1,'b') should be True",
+          "test_eq_different_id_returns_false: Todo(1,'a') == Todo(2,'a') should be False",
+          "test_hash_based_on_id: hash(Todo(1,'a')) == hash(Todo(1,'b')) should be True",
+          "test_set_deduplication: len({Todo(1,'a'), Todo(1,'b')}) should be 1",
+          "test_dict_key_usage: {Todo(1,'a'): 'value'} should work"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Add __eq__ and __hash__ methods to Todo class in src/flywheel/todo.py",
+        "details": [
+          "__eq__(self, other): return isinstance(other, Todo) and self.id == other.id",
+          "__hash__(self): return hash(self.id)"
+        ]
+      },
+      {
+        "step": 3,
+        "phase": "VERIFY",
+        "action": "Run targeted tests and linting",
+        "details": []
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6189_todo_eq_hash.py -v",
+      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "risks": [
+    "Breaking change: existing code that compares Todo objects by all fields will now compare only by id"
+  ],
+  "acceptance_criteria": [
+    "Two Todo objects with same id are equal (== returns True)",
+    "Todo objects can be placed in set and deduplicated by id",
+    "hash(todo) == hash(todo.id)",
+    "All existing tests still pass"
+  ]
+}
