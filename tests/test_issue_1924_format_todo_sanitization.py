@@ -110,3 +110,36 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_todo_escapes_unicode_line_separator() -> None:
+    """Unicode line separator (U+2028) should be escaped to prevent log injection."""
+    # U+2028 is a Unicode line separator that creates line breaks in JSON and some displays
+    todo = Todo(id=1, text="Before\u2028After")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2028" in result
+    # Should not contain actual U+2028 character
+    assert "\u2028" not in result
+
+
+def test_format_todo_escapes_unicode_paragraph_separator() -> None:
+    """Unicode paragraph separator (U+2029) should be escaped to prevent log injection."""
+    # U+2029 is a Unicode paragraph separator that creates line breaks in JSON and some displays
+    todo = Todo(id=1, text="Before\u2029After")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2029" in result
+    # Should not contain actual U+2029 character
+    assert "\u2029" not in result
+
+
+def test_format_todo_escapes_both_unicode_separators() -> None:
+    """Both U+2028 and U+2029 should be escaped in the same string."""
+    todo = Todo(id=1, text="Line1\u2028Line2\u2029Para2")
+    result = TodoFormatter.format_todo(todo)
+    assert "\\u2028" in result
+    assert "\\u2029" in result
+    # Should not contain actual separator characters
+    assert "\u2028" not in result
+    assert "\u2029" not in result
