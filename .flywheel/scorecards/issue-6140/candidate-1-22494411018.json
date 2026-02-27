@@ -1,0 +1,25 @@
+{
+  "issue_number": 6140,
+  "candidate_number": 1,
+  "run_id": "22494411018",
+  "branch": "claude/issue-6140-candidate-1-22494411018",
+  "status": "implemented",
+  "test_results": {
+    "passed": 13,
+    "failed": 0,
+    "total": 13
+  },
+  "lint_results": {
+    "ruff": "passed"
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "lines_added": 69,
+    "lines_removed": 0
+  },
+  "implementation_summary": "Added 'rename' command to CLI by adding TodoApp.rename() method, 'rename' subparser with id and text arguments, and handler in run_command(). Added 3 regression tests for rename command success, error handling, and TodoApp.rename() method.",
+  "created_at": "2026-02-27T16:00:00Z"
+}
