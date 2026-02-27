@@ -1,16 +1,23 @@
 {
-  "issue_number": 6213,
-  "candidate_number": 1,
+  "issue": 6213,
+  "candidate": 1,
   "run_id": "22505789872",
   "branch": "claude/issue-6213-candidate-1-22505789872",
-  "status": "implemented",
-  "approach": "regression_tests_only",
-  "summary": "Added comprehensive regression tests for Todo.__repr__ sanitization. Python's !r format specifier already handles control character escaping correctly, so no source code changes were needed. The tests verify this behavior is maintained.",
-  "files_changed": [
-    "tests/test_issue_6213_repr_sanitization.py"
+  "pr_number": 6221,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6221",
+  "generated_at": "2026-02-27T22:56:42.998514+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 8,
-  "tests_passing": true,
-  "ruff_check": "passed",
-  "timestamp": "2026-02-27T22:30:00Z"
+  "stage_response_sizes": {
+    "triage": 3743,
+    "plan": 3323,
+    "implement": 3066,
+    "verify": 2574,
+    "finalize": 1446
+  }
 }
