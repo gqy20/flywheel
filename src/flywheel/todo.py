@@ -25,8 +25,13 @@ class Todo:
 
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
+
+        Note: String slicing in Python 3 is Unicode-safe, so multi-byte UTF-8
+        characters (emoji, CJK, etc.) are never split in the middle of a character.
         """
         # Truncate text if longer than 50 characters
+        # Python 3 string slicing is Unicode-safe - it operates on characters,
+        # not bytes, so multi-byte UTF-8 characters are preserved intact.
         display_text = self.text
         if len(display_text) > 50:
             display_text = display_text[:47] + "..."
