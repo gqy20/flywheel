@@ -57,6 +57,23 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id only.
+
+        This enables proper equality testing and set operations based on todo id.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash based on id only.
+
+        This allows Todo instances to be used in sets and as dict keys.
+        Two todos with the same id will hash to the same value.
+        """
+        return hash(self.id)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
