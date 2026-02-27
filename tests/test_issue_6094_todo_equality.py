@@ -135,6 +135,4 @@ def test_todo_hash_consistency() -> None:
 
     # If __eq__ is defined, __hash__ should be consistent
     if todo1 == todo2:
-        assert hash(todo1) == hash(todo2), (
-            "Equal objects must have equal hashes for set/dict usage"
-        )
+        assert hash(todo1) == hash(todo2), "Equal objects must have equal hashes for set/dict usage"
