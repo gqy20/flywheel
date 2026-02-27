@@ -54,6 +54,16 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def __eq__(self, other: object) -> bool:
+        """Two Todo objects are equal if they have the same id."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash based on id for set/dict usage."""
+        return hash(self.id)
+
     def to_dict(self) -> dict:
         return asdict(self)
 

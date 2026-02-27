@@ -1,0 +1,20 @@
+{
+  "issue_number": 6081,
+  "candidate_number": 1,
+  "run_id": "22482402240",
+  "branch": "claude/issue-6081-candidate-1-22482402240",
+  "created_at": "2026-02-27T11:12:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_6081_todo_equality_hash.py"
+    ]
+  },
+  "tests_passed": 117,
+  "lint_passed": true,
+  "summary": "Added __eq__ and __hash__ methods to Todo dataclass for proper equality comparison based on id field",
+  "risks": "Minimal - equality now based on id only instead of all fields. This is the expected behavior for entity objects."
+}
