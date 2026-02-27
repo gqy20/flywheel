@@ -72,6 +72,10 @@ class TodoStorage:
 
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except PermissionError as e:
+            raise ValueError(
+                f"Cannot read file '{self.path}': permission denied"
+            ) from e
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "
