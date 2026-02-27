@@ -1,0 +1,33 @@
+{
+  "issue_number": 6139,
+  "candidate": 3,
+  "run_id": "22494411018",
+  "scorecard_version": "1.0",
+  "evaluation": {
+    "root_cause_analysis": {
+      "score": 5,
+      "notes": "Identified that from_dict() validates text type but not content - empty strings and whitespace-only text were allowed"
+    },
+    "test_coverage": {
+      "score": 5,
+      "notes": "Added 3 regression tests: empty text rejection, whitespace-only rejection, text stripping verification"
+    },
+    "fix_minimality": {
+      "score": 5,
+      "notes": "Minimal 4-line change: strip text and validate non-empty, reuse stripped text in constructor"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Consistent with existing rename() method pattern that already does strip+empty check"
+    },
+    "verification": {
+      "score": 5,
+      "notes": "All 115 tests pass, ruff check passes"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "tests_added": 3
+}
