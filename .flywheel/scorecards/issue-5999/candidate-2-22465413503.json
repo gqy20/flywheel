@@ -1,0 +1,17 @@
+{
+  "issue_number": 5999,
+  "candidate_number": 2,
+  "run_id": "22465413503",
+  "status": "implemented",
+  "approach": "regression_tests_only",
+  "summary": "The existing next_id() implementation correctly returns max(existing_ids) + 1, which handles non-contiguous IDs properly. Added regression tests to verify this behavior and prevent future regressions.",
+  "tests_added": [
+    "test_next_id_with_non_contiguous_ids",
+    "test_next_id_avoids_collision_after_deletion"
+  ],
+  "files_changed": [
+    "tests/test_minimal_framework.py"
+  ],
+  "code_changes_needed": false,
+  "rationale": "Analysis showed the existing max()+1 implementation is correct for non-contiguous IDs. The issue was a false positive from the scanner. Tests verify the correct behavior."
+}

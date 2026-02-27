@@ -158,3 +158,34 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_non_contiguous_ids() -> None:
+    """Bug #5999: next_id should return max+1 for non-contiguous IDs."""
+    storage = TodoStorage("/tmp/test.json")
+
+    # Non-contiguous IDs: [1, 5, 10] should return 11
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    assert storage.next_id(todos) == 11
+
+    # Another non-contiguous case: [2, 7] should return 8
+    todos = [Todo(id=2, text="x"), Todo(id=7, text="y")]
+    assert storage.next_id(todos) == 8
+
+    # Single high ID: [100] should return 101
+    todos = [Todo(id=100, text="z")]
+    assert storage.next_id(todos) == 101
+
+
+def test_next_id_avoids_collision_after_deletion() -> None:
+    """Bug #5999: next_id should not return duplicate IDs after deletion."""
+    storage = TodoStorage("/tmp/test.json")
+
+    # Start with [1, 2, 3], delete middle one to get [1, 3]
+    # next_id should return 4, not 2 (which would collide if we later re-added)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+    # After deleting all but first: [1] should return 2
+    todos = [Todo(id=1, text="a")]
+    assert storage.next_id(todos) == 2
