@@ -1,0 +1,15 @@
+{
+  "issue_number": 6040,
+  "candidate_number": 1,
+  "run_id": "22475701327",
+  "branch": "claude/issue-6040-candidate-1-22475701327",
+  "created_at": "2026-02-27T03:48:00Z",
+  "status": "implemented",
+  "tests_passed": true,
+  "lint_passed": true,
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6040_todo_text_validation.py"]
+  },
+  "summary": "Added validation in Todo.__post_init__ to reject empty or whitespace-only text, consistent with the rename() method."
+}
