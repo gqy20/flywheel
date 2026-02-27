@@ -119,3 +119,65 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6187 - validate list items are dicts before from_dict
+def test_storage_load_rejects_string_item_in_list(tmp_path) -> None:
+    """TodoStorage.load should reject string items in JSON list.
+
+    Regression test for issue #6187: load() silently coerces non-dict items
+    in JSON list to Todo via from_dict, causing confusing TypeError instead
+    of clear ValueError.
+    """
+    db = tmp_path / "string_item.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array containing a string as first element
+    db.write_text('["not a dict", {"id": 1, "text": "test"}]', encoding="utf-8")
+
+    # Should raise ValueError with clear message, not TypeError
+    with pytest.raises(ValueError, match=r"expected.*dict|item.*must be.*dict|not a dict"):
+        storage.load()
+
+
+def test_storage_load_rejects_int_item_in_list(tmp_path) -> None:
+    """TodoStorage.load should reject integer items in JSON list."""
+    db = tmp_path / "int_item.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array containing an integer as element
+    db.write_text('[{"id": 1, "text": "test"}, 42]', encoding="utf-8")
+
+    # Should raise ValueError with clear message
+    with pytest.raises(ValueError, match=r"expected.*dict|item.*must be.*dict|int"):
+        storage.load()
+
+
+def test_storage_load_rejects_list_item_in_list(tmp_path) -> None:
+    """TodoStorage.load should reject nested list items in JSON list."""
+    db = tmp_path / "nested_list.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array containing a nested list
+    db.write_text('[{"id": 1, "text": "test"}, [1, 2, 3]]', encoding="utf-8")
+
+    # Should raise ValueError with clear message
+    with pytest.raises(ValueError, match=r"expected.*dict|item.*must be.*dict|list"):
+        storage.load()
+
+
+def test_storage_load_accepts_valid_list_of_dicts(tmp_path) -> None:
+    """TodoStorage.load should accept valid list of dicts."""
+    db = tmp_path / "valid.json"
+    storage = TodoStorage(str(db))
+
+    # Valid JSON array of dicts
+    db.write_text('[{"id": 1, "text": "task1"}, {"id": 2, "text": "task2", "done": true}]', encoding="utf-8")
+
+    # Should load successfully
+    todos = storage.load()
+    assert len(todos) == 2
+    assert todos[0].id == 1
+    assert todos[0].text == "task1"
+    assert todos[1].id == 2
+    assert todos[1].done is True
