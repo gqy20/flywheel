@@ -11,7 +11,6 @@ This test FAILS before the fix and PASSES after the fix.
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 
