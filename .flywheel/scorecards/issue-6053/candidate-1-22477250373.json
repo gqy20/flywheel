@@ -1,0 +1,24 @@
+{
+  "issue_number": 6053,
+  "candidate_number": 1,
+  "run_id": "22477250373",
+  "status": "implemented",
+  "created_at": "2026-02-27T08:30:00Z",
+  "implementation": {
+    "test_file": "tests/test_issue_6053_rename_cli_command.py",
+    "source_files": ["src/flywheel/cli.py"],
+    "changes_summary": [
+      "Added TodoApp.rename() method to cli.py",
+      "Added 'rename' subparser with id and text arguments to build_parser()",
+      "Added rename command handler in run_command()",
+      "Added comprehensive regression tests for rename CLI functionality"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "acceptance_criteria": {
+    "cli_supports_rename_command": true,
+    "rename_updates_text_and_updated_at": true,
+    "rename_validates_non_empty_text": true
+  }
+}
