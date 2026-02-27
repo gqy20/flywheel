@@ -27,6 +27,9 @@ class Todo:
         Timestamps are excluded to keep the output concise and useful in debuggers.
         """
         # Truncate text if longer than 50 characters
+        # Note: Python 3 string slicing operates on Unicode code points, not bytes.
+        # This ensures that multi-byte UTF-8 characters (emoji, CJK, etc.) are never
+        # split in the middle, and the output is always valid UTF-8.
         display_text = self.text
         if len(display_text) > 50:
             display_text = display_text[:47] + "..."
