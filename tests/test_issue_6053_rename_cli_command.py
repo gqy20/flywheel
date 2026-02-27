@@ -100,7 +100,7 @@ class TestTodoAppRename:
         """TodoApp should have a rename method."""
         app = TodoApp(str(tmp_path / "db.json"))
         assert hasattr(app, "rename")
-        assert callable(getattr(app, "rename"))
+        assert callable(app.rename)
 
     def test_app_rename_updates_todo(self, tmp_path) -> None:
         """TodoApp.rename should update todo text and return the todo."""
