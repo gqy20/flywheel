@@ -1,41 +1,23 @@
 {
-  "issue_number": 6012,
-  "candidate_number": 2,
+  "issue": 6012,
+  "candidate": 2,
   "run_id": "22468006017",
   "branch": "claude/issue-6012-candidate-2-22468006017",
-  "status": "plan_complete",
-  "plan": {
-    "summary": "Add validation in Todo.__post_init__ to strip text and ensure it's non-empty, matching the behavior in rename() method",
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "approach": "TDD - add failing tests first, then implement minimal fix",
-    "acceptance_criteria": [
-      "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
-      "Todo(id=1, text=' ') raises ValueError after stripping whitespace",
-      "Todo(id=1, text=' valid ') strips to 'valid' and stores the stripped value",
-      "Todo.from_dict also rejects empty/whitespace text",
-      "Existing tests continue to pass"
-    ]
-  },
-  "tests": {
-    "added": [
-      "test_todo_constructor_rejects_empty_string",
-      "test_todo_constructor_rejects_whitespace_only",
-      "test_todo_constructor_strips_whitespace",
-      "test_todo_from_dict_rejects_empty_text"
-    ],
-    "total_passed": 116,
-    "commands_run": [
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run pytest",
-      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
-    ]
-  },
-  "risks": [
-    "Breaking change: Any code that currently creates Todos with empty or whitespace text will now fail",
-    "from_dict affected: Loading from JSON with empty text will now fail"
+  "pr_number": 6037,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6037",
+  "generated_at": "2026-02-27T01:47:39.358089+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "created_at": "2026-02-27T00:00:00Z"
+  "stage_response_sizes": {
+    "triage": 2018,
+    "plan": 1930,
+    "implement": 3964,
+    "verify": 1748,
+    "finalize": 684
+  }
 }
