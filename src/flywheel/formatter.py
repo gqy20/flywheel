@@ -8,9 +8,10 @@ from .todo import Todo
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
 
-    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
-    C1 control characters (0x80-0x9f) with their escaped representations
-    to prevent injection attacks via todo text.
+    Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), C1 control
+    characters (0x80-0x9f), and Unicode line/paragraph separators (U+2028,
+    U+2029) with their escaped representations to prevent injection attacks
+    via todo text.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -24,6 +25,14 @@ def _sanitize_text(text: str) -> str:
         ("\t", "\\t"),
     ]
     for char, escaped in replacements:
+        text = text.replace(char, escaped)
+
+    # Unicode line/paragraph separators that can cause log injection
+    unicode_separators = [
+        ("\u2028", "\\u2028"),  # LINE SEPARATOR
+        ("\u2029", "\\u2029"),  # PARAGRAPH SEPARATOR
+    ]
+    for char, escaped in unicode_separators:
         text = text.replace(char, escaped)
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
