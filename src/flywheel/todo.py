@@ -47,6 +47,16 @@ class Todo:
         self.done = False
         self.updated_at = _utc_now_iso()
 
+    def toggle(self) -> Todo:
+        """Flip the done status and update the timestamp.
+
+        Returns:
+            self for method chaining.
+        """
+        self.done = not self.done
+        self.updated_at = _utc_now_iso()
+        return self
+
     def rename(self, text: str) -> None:
         text = text.strip()
         if not text:
