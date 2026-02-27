@@ -78,7 +78,36 @@ def test_todo_repr_handles_special_characters() -> None:
     result2 = repr(todo2)
     assert "Todo" in result2
     # Should not have literal newlines in the repr output
-    assert "\n" not in result2 or repr(result2).count("\\n") > 0
+    assert "\n" not in result2, "repr should not contain literal newlines"
+
+
+def test_todo_repr_sanitizes_control_characters() -> None:
+    """repr(Todo) should produce single-line output for all control characters.
+
+    This test verifies that __repr__ properly escapes/sanitizes control
+    characters to prevent log injection or corrupted debug output.
+    Regression test for issue #6213.
+    """
+    test_cases = [
+        ("newline", "line1\nline2"),
+        ("carriage return", "line1\rline2"),
+        ("tab", "col1\tcol2"),
+        ("null byte", "text\x00null"),
+        ("DEL char", "text\x7fdelete"),
+        ("ANSI escape", "\x1b[31mred\x1b[0m"),
+        ("C1 control", "text\x80\x9fmore"),
+        ("unicode line sep", "line1\u2028line2"),
+        ("unicode para sep", "line1\u2029line2"),
+    ]
+
+    for name, text in test_cases:
+        todo = Todo(id=1, text=text)
+        result = repr(todo)
+        # Critical: repr output must be single-line (no literal newlines or CRs)
+        assert "\n" not in result, f"{name}: repr contains literal newline"
+        assert "\r" not in result, f"{name}: repr contains literal carriage return"
+        # Should always contain Todo marker
+        assert "Todo" in result, f"{name}: repr missing 'Todo' marker"
 
 
 def test_todo_repr_eval_able_optional() -> None:
