@@ -2,25 +2,22 @@
   "issue": 6013,
   "candidate": 2,
   "run_id": "22471424035",
-  "status": "verified",
-  "approach": "Explicit float rejection before int conversion",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "type": "fix",
-      "description": "Check if id is a float before int conversion and raise ValueError with clear message"
-    },
-    {
-      "file": "tests/test_issue_2000_json_validation.py",
-      "type": "test",
-      "description": "Added 4 regression tests for float ID rejection"
-    }
+  "branch": "claude/issue-6013-candidate-2-22471424035",
+  "pr_number": 6045,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6045",
+  "generated_at": "2026-02-27T04:09:16.643721+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 116,
-  "ruff_clean": true,
-  "verification": {
-    "pytest_targeted": "16 tests passed",
-    "pytest_full": "116 tests passed",
-    "ruff_check": "All checks passed"
+  "stage_response_sizes": {
+    "triage": 2210,
+    "plan": 4000,
+    "implement": 2224,
+    "verify": 2414,
+    "finalize": 773
   }
 }
