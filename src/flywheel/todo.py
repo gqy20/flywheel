@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 
 
@@ -53,6 +53,23 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def with_changes(self, *, text: str | None = None, done: bool | None = None) -> Todo:
+        """Return a new Todo instance with specified changes, leaving original unchanged.
+
+        Args:
+            text: New text for the todo. Must be non-empty after stripping whitespace.
+            done: New done status for the todo.
+
+        Returns:
+            A new Todo instance with the specified changes and updated_at set to now.
+        """
+        new_text = text.strip() if text is not None else self.text
+        if text is not None and not new_text:
+            raise ValueError("Todo text cannot be empty")
+        new_done = done if done is not None else self.done
+
+        return replace(self, text=new_text, done=new_done, updated_at=_utc_now_iso())
 
     def to_dict(self) -> dict:
         return asdict(self)

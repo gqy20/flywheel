@@ -1,0 +1,47 @@
+{
+  "issue_number": 6175,
+  "issue_title": "[Enhancement] 添加 Todo 不可变副本方法（copy/update 方法）",
+  "candidate_number": 3,
+  "run_id": "22502212432",
+  "branch_name": "claude/issue-6175-candidate-3-22502212432",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add with_changes() method to Todo class for immutable update pattern",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "type": "RED",
+        "description": "Add failing tests for with_changes() method",
+        "tests": [
+          "test_todo_with_changes_returns_new_instance_done_true",
+          "test_todo_with_changes_returns_new_instance_with_text",
+          "test_todo_with_changes_no_args_returns_copy",
+          "test_todo_with_changes_rejects_empty_text",
+          "test_todo_with_changes_strips_whitespace"
+        ]
+      },
+      {
+        "step": 2,
+        "type": "GREEN",
+        "description": "Implement with_changes() method using dataclass.replace()",
+        "implementation": "Add with_changes(*, text=None, done=None) -> Todo method that returns new instance with updated_at set to now"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "todo.with_changes(done=True) returns new Todo instance, original unchanged",
+    "New instance has updated updated_at timestamp",
+    "No args returns copy with same content but updated updated_at",
+    "Empty text validation raises ValueError",
+    "Whitespace is stripped from text"
+  ],
+  "status": "ready_for_implementation"
+}

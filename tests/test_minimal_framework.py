@@ -158,3 +158,77 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_with_changes_returns_new_instance_done_true() -> None:
+    """Issue #6175: with_changes(done=True) should return new instance."""
+    original = Todo(id=1, text="test")
+    original_updated = original.updated_at
+
+    new_todo = original.with_changes(done=True)
+
+    # Original should be unchanged
+    assert original.done is False
+    assert original.updated_at == original_updated
+
+    # New instance should have done=True and updated updated_at
+    assert new_todo.done is True
+    assert new_todo.updated_at >= original_updated
+    assert new_todo.id == original.id
+    assert new_todo.text == original.text
+    assert new_todo.created_at == original.created_at
+
+
+def test_todo_with_changes_returns_new_instance_with_text() -> None:
+    """Issue #6175: with_changes(text='new') should return new instance."""
+    original = Todo(id=1, text="old")
+    original_updated = original.updated_at
+
+    new_todo = original.with_changes(text="new text")
+
+    # Original should be unchanged
+    assert original.text == "old"
+    assert original.updated_at == original_updated
+
+    # New instance should have updated text
+    assert new_todo.text == "new text"
+    assert new_todo.updated_at >= original_updated
+
+
+def test_todo_with_changes_no_args_returns_copy() -> None:
+    """Issue #6175: with_changes() with no args returns copy with same content."""
+    original = Todo(id=1, text="test", done=True)
+    original_updated = original.updated_at
+
+    copy_todo = original.with_changes()
+
+    # Should be different objects
+    assert copy_todo is not original
+
+    # Content should be identical
+    assert copy_todo.id == original.id
+    assert copy_todo.text == original.text
+    assert copy_todo.done == original.done
+    assert copy_todo.created_at == original.created_at
+    # updated_at should be updated even for copy
+    assert copy_todo.updated_at >= original_updated
+
+
+def test_todo_with_changes_rejects_empty_text() -> None:
+    """Issue #6175: with_changes(text='') should reject empty text."""
+    original = Todo(id=1, text="test")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        original.with_changes(text="")
+
+    # Original should be unchanged
+    assert original.text == "test"
+
+
+def test_todo_with_changes_strips_whitespace() -> None:
+    """Issue #6175: with_changes(text='  x  ') should strip whitespace."""
+    original = Todo(id=1, text="test")
+
+    new_todo = original.with_changes(text="  padded  ")
+
+    assert new_todo.text == "padded"
