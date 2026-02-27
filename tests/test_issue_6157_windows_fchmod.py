@@ -96,6 +96,7 @@ def test_save_sets_restrictive_permissions_on_unix(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -110,6 +111,4 @@ def test_save_sets_restrictive_permissions_on_unix(tmp_path) -> None:
         file_mode = stat.S_IMODE(file_stat.st_mode)
         # The final file should have been created with restrictive permissions
         # Note: umask may affect the exact mode, but it should be owner-only
-        assert (file_mode & 0o077) == 0, (
-            f"Final file has overly permissive mode: {oct(file_mode)}"
-        )
+        assert (file_mode & 0o077) == 0, f"Final file has overly permissive mode: {oct(file_mode)}"
