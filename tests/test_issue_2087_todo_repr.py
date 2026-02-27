@@ -105,3 +105,23 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_many_newlines_bounded() -> None:
+    """repr(Todo) output should be bounded when text contains many newlines.
+
+    Issue #6200: Truncation happens on raw text before escaping, so text with
+    many newlines can produce an unexpectedly long repr after escaping.
+    """
+    # Create text with 200 newlines - this exposes the bug where
+    # truncating raw text to 47 chars gives 47 newlines, which when
+    # escaped becomes 94 chars (each \\n is 4 chars in repr)
+    text_with_newlines = "\n" * 200
+    todo = Todo(id=1, text=text_with_newlines)
+    result = repr(todo)
+
+    # repr output should be bounded (< 120 chars)
+    assert len(result) < 120, f"repr too long with newlines: {len(result)} chars - {result}"
+
+    # Should contain truncation indicator
+    assert "..." in result, f"repr should contain '...' for truncated text: {result}"

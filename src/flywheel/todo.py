@@ -26,12 +26,13 @@ class Todo:
         Shows only the essential fields (id, text, done) and truncates long text.
         Timestamps are excluded to keep the output concise and useful in debuggers.
         """
-        # Truncate text if longer than 50 characters
-        display_text = self.text
-        if len(display_text) > 50:
-            display_text = display_text[:47] + "..."
+        # Escape the text first, then truncate to ensure bounded output length
+        # even when text contains characters that expand when escaped (e.g., \n -> \\n)
+        escaped_text = repr(self.text)
+        if len(escaped_text) > 50:
+            escaped_text = escaped_text[:47] + "..."
 
-        return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
+        return f"Todo(id={self.id}, text={escaped_text}, done={self.done})"
 
     def __post_init__(self) -> None:
         if not self.created_at:

@@ -1,0 +1,15 @@
+{
+  "issue_number": 6200,
+  "candidate_id": 1,
+  "run_id": "22505789872",
+  "branch": "claude/issue-6200-candidate-1-22505789872",
+  "status": "ready",
+  "tests_passed": true,
+  "ruff_passed": true,
+  "summary": "Fixed Todo.__repr__ to escape text before truncation, ensuring bounded output length even when text contains newlines or other special characters that expand when escaped.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2087_todo_repr.py"
+  ],
+  "commit_sha": "bf0833f"
+}
