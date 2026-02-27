@@ -2,7 +2,7 @@
   "issue": 6013,
   "candidate": 2,
   "run_id": "22471424035",
-  "status": "ready",
+  "status": "verified",
   "approach": "Explicit float rejection before int conversion",
   "changes": [
     {
@@ -16,6 +16,11 @@
       "description": "Added 4 regression tests for float ID rejection"
     }
   ],
-  "tests_passed": 16,
-  "ruff_clean": true
+  "tests_passed": 116,
+  "ruff_clean": true,
+  "verification": {
+    "pytest_targeted": "16 tests passed",
+    "pytest_full": "116 tests passed",
+    "ruff_check": "All checks passed"
+  }
 }
