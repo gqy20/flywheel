@@ -1,21 +1,23 @@
 {
-  "issue_number": 6013,
-  "candidate_number": 1,
+  "issue": 6013,
+  "candidate": 1,
   "run_id": "22471424035",
-  "triage_summary": "from_dict silently truncates float IDs to int without warning at src/flywheel/todo.py:70. int(data['id']) accepts float and truncates it.",
-  "root_cause": "int(data['id']) accepts float values and silently truncates them (e.g., int(1.5) becomes 1). No type check before conversion.",
-  "fix_approach": "Add explicit float type check before int() conversion, raising clear ValueError with message indicating float is not acceptable.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "branch": "claude/issue-6013-candidate-1-22471424035",
+  "pr_number": 6050,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6050",
+  "generated_at": "2026-02-27T04:11:47.146285+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 4,
-  "tests_passed": 116,
-  "risks": "None - change only adds stricter validation that rejects previously silently-truncated values",
-  "verification_targets": [
-    "Todo.from_dict({'id': 1.5, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': 1.0, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': 1, 'text': 'test'}) still works",
-    "Todo.from_dict({'id': '1', 'text': 'test'}) still works"
-  ]
+  "stage_response_sizes": {
+    "triage": 2160,
+    "plan": 2942,
+    "implement": 2777,
+    "verify": 3164,
+    "finalize": 2945
+  }
 }
