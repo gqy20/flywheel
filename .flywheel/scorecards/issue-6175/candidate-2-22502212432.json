@@ -1,0 +1,32 @@
+{
+  "issue_number": 6175,
+  "candidate_number": 2,
+  "run_id": "22502212432",
+  "branch": "claude/issue-6175-candidate-2-22502212432",
+  "created_at": "2026-02-27T18:45:00Z",
+  "status": "ready_for_review",
+  "implementation": {
+    "approach": "Add with_changes(*, text=None, done=None) method to Todo dataclass",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6175_todo_with_changes.py"
+    ],
+    "lines_added": 173,
+    "test_count": 12
+  },
+  "verification": {
+    "tests_passed": true,
+    "lint_passed": true,
+    "test_command": "uv run pytest tests/test_issue_6175_todo_with_changes.py -v",
+    "lint_command": "uv run ruff check src/flywheel/todo.py"
+  },
+  "acceptance_criteria": {
+    "returns_new_instance": true,
+    "preserves_original": true,
+    "updates_updated_at": true,
+    "preserves_created_at": true,
+    "preserves_id": true,
+    "validates_empty_text": true,
+    "strips_whitespace": true
+  }
+}

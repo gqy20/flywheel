@@ -54,6 +54,34 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def with_changes(self, *, text: str | None = None, done: bool | None = None) -> Todo:
+        """Return a new Todo instance with specified changes, preserving original.
+
+        Args:
+            text: New text for the todo. If provided, cannot be empty.
+            done: New done status for the todo.
+
+        Returns:
+            A new Todo instance with updated values. The original instance is unchanged.
+            The created_at timestamp is preserved, and updated_at is set to current time.
+
+        Raises:
+            ValueError: If text is provided and is empty or whitespace-only.
+        """
+        new_text = text.strip() if text is not None else self.text
+        if text is not None and not new_text:
+            raise ValueError("Todo text cannot be empty")
+
+        new_done = done if done is not None else self.done
+
+        return Todo(
+            id=self.id,
+            text=new_text,
+            done=new_done,
+            created_at=self.created_at,
+            updated_at=_utc_now_iso(),
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
