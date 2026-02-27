@@ -1,0 +1,23 @@
+{
+  "issue_number": 6138,
+  "candidate_number": 3,
+  "run_id": "22494411018",
+  "status": "implemented",
+  "summary": "Fix inconsistent validation between Todo constructor and rename() method by adding text validation in __post_init__",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_minimal_framework.py"
+    ]
+  },
+  "tests_passed": 116,
+  "lint_status": "passed",
+  "acceptance_criteria": {
+    "empty_string_rejected": true,
+    "whitespace_only_rejected": true,
+    "from_dict_empty_rejected": true,
+    "existing_rename_tests_pass": true
+  }
+}
