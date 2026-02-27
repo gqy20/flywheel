@@ -20,6 +20,23 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by business fields only (id, text, done).
+
+        Timestamps (created_at, updated_at) are excluded from equality comparison
+        to allow semantic equality regardless of when objects were created/modified.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
+    def __hash__(self) -> int:
+        """Hash Todo objects by business fields only (id, text, done).
+
+        Must be consistent with __eq__ for proper set/dict behavior.
+        """
+        return hash((self.id, self.text, self.done))
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
