@@ -1,73 +1,23 @@
 {
-  "issue_number": 6175,
-  "issue_title": "[Enhancement] 添加 Todo 不可变副本方法（copy/update 方法）",
-  "candidate_number": 2,
+  "issue": 6175,
+  "candidate": 2,
   "run_id": "22502212432",
-  "branch_name": "claude/issue-6175-candidate-2-22502212432",
-  "status": "verified",
-  "plan": {
-    "description": "Add with_changes() method to Todo class for immutable updates",
-    "files_touched": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6175_todo_with_changes.py"
-    ],
-    "approach": "TDD - tests first, then implementation"
-  },
-  "implementation": {
-    "method_added": "with_changes(*, text: str | None = None, done: bool | None = None) -> Todo",
-    "behavior": [
-      "Returns new Todo instance with specified changes",
-      "Original instance remains unchanged",
-      "created_at is preserved from original",
-      "updated_at is set to current time",
-      "Empty text raises ValueError (consistent with rename())",
-      "Text is stripped of whitespace"
-    ]
-  },
-  "tests": {
-    "file": "tests/test_issue_6175_todo_with_changes.py",
-    "count": 12,
-    "all_passing": true,
-    "coverage": [
-      "test_with_changes_returns_new_instance",
-      "test_with_changes_done_true",
-      "test_with_changes_done_false",
-      "test_with_changes_text",
-      "test_with_changes_text_stripped",
-      "test_with_changes_empty_text_raises",
-      "test_with_changes_whitespace_only_text_raises",
-      "test_with_changes_no_args_returns_copy",
-      "test_with_changes_updates_updated_at",
-      "test_with_changes_preserves_created_at",
-      "test_with_changes_multiple_fields",
-      "test_with_changes_id_preserved"
-    ]
-  },
-  "verification": {
-    "targeted_tests": {
-      "command": "uv run pytest tests/test_issue_6175_todo_with_changes.py -v",
-      "result": "12 passed in 0.10s"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6175_todo_with_changes.py",
-      "result": "All checks passed!"
-    },
-    "full_test_suite": {
-      "command": "uv run pytest tests/ -q",
-      "result": "124 passed in 0.52s"
-    },
-    "coverage": "92%"
-  },
-  "verification_commands": [
-    "uv run pytest tests/test_issue_6175_todo_with_changes.py -v",
-    "uv run ruff check src/flywheel/todo.py tests/test_issue_6175_todo_with_changes.py",
-    "uv run pytest tests/ -q"
+  "branch": "claude/issue-6175-candidate-2-22502212432",
+  "pr_number": 6190,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6190",
+  "generated_at": "2026-02-27T20:59:54.679161+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": [
-    "todo.with_changes(done=True) returns new Todo instance, original unchanged",
-    "New instance has updated updated_at timestamp",
-    "No arguments returns copy with same attributes but new updated_at"
-  ],
-  "commit_sha": "0b1b08e",
-  "commit_message": "feat(todo): add with_changes() method for immutable updates"
+  "stage_response_sizes": {
+    "triage": 3682,
+    "plan": 2436,
+    "implement": 2118,
+    "verify": 1868,
+    "finalize": 1105
+  }
 }
