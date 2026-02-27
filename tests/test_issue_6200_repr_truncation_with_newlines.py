@@ -78,3 +78,33 @@ def test_todo_repr_all_newlines_bounded() -> None:
     # repr output should never exceed 120 chars total
     assert len(result) < 120, f"repr too long: {len(result)} chars - {result}"
     assert "..." in result  # Should be truncated
+
+
+def test_todo_repr_truncation_preserves_escape_sequences() -> None:
+    """repr(Todo) should not truncate in the middle of an escape sequence.
+
+    When truncating escaped text, the truncation point should not split
+    escape sequences like \\n, \\t, \\r, etc. This prevents confusing output
+    like '...\\' when the actual content has a newline.
+    """
+    # Create text where truncation would happen in the middle of \n escape
+    # repr('x' * 64 + '\n' + 'y' * 20) = "'xxx...xxx\\nyyy...yyy'" (88 chars)
+    # Truncation at position 66 would cut right after the backslash
+    text = "x" * 64 + "\n" + "y" * 20
+    todo = Todo(id=1, text=text)
+    result = repr(todo)
+
+    # Extract the text portion from the repr (between text=' and ', done=)
+    text_start = result.find("text=") + 5
+    text_end = result.rfind(", done=")
+    text_portion = result[text_start:text_end]
+
+    # The text portion should not end with a lone backslash before the ellipsis
+    # This would indicate truncation in the middle of an escape sequence
+    assert not text_portion.endswith("\\...'"), f"Truncation split escape sequence: {result}"
+
+    # Should still contain the ellipsis indicating truncation
+    assert "..." in result, f"Expected truncation indicator in: {result}"
+
+    # Total length should be bounded
+    assert len(result) < 120, f"repr too long ({len(result)} chars): {result}"

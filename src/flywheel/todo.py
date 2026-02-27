@@ -37,8 +37,20 @@ class Todo:
         max_text_repr_len = 70
         if len(text_repr) > max_text_repr_len:
             # Truncate the escaped representation, keeping quotes
+            # We need to be careful not to truncate in the middle of an escape
+            # sequence (e.g., \n -> \\n should not become \\ at the end)
+            truncate_at = max_text_repr_len - 4
+
+            # Check if truncation would cut into an escape sequence
+            # Escape sequences in repr are \x, \n, \r, \t, \\, \', \", etc.
+            # All start with a backslash, so we check if the char before
+            # truncation point is a backslash
+            if truncate_at > 0 and text_repr[truncate_at - 1] == "\\":
+                # Move truncation point back by 1 to avoid splitting escape
+                truncate_at -= 1
+
             # Remove trailing quote, truncate, add ... and close quote
-            text_repr = text_repr[: max_text_repr_len - 4] + "..." + text_repr[0]
+            text_repr = text_repr[:truncate_at] + "..." + text_repr[0]
 
         return f"Todo(id={self.id}, text={text_repr}, done={self.done})"
 
