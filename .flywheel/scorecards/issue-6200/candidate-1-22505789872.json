@@ -1,15 +1,23 @@
 {
-  "issue_number": 6200,
-  "candidate_id": 1,
+  "issue": 6200,
+  "candidate": 1,
   "run_id": "22505789872",
   "branch": "claude/issue-6200-candidate-1-22505789872",
-  "status": "ready",
-  "tests_passed": true,
-  "ruff_passed": true,
-  "summary": "Fixed Todo.__repr__ to escape text before truncation, ensuring bounded output length even when text contains newlines or other special characters that expand when escaped.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2087_todo_repr.py"
+  "pr_number": 6224,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6224",
+  "generated_at": "2026-02-27T22:58:44.179457+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "commit_sha": "bf0833f"
+  "stage_response_sizes": {
+    "triage": 2281,
+    "plan": 4000,
+    "implement": 2159,
+    "verify": 1732,
+    "finalize": 554
+  }
 }
