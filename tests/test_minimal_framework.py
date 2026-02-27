@@ -158,3 +158,37 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Bug #6145: Todo.from_dict should reject negative IDs."""
+    with pytest.raises(ValueError, match="positive integer"):
+        Todo.from_dict({"id": -1, "text": "test"})
+
+    with pytest.raises(ValueError, match="positive integer"):
+        Todo.from_dict({"id": -5, "text": "negative todo"})
+
+
+def test_next_id_returns_positive_when_todos_have_negative_ids() -> None:
+    """Bug #6145: next_id should return positive ID >= 1 regardless of existing IDs.
+
+    Tests the defensive fix in next_id() - even if Todo objects with negative IDs
+    somehow exist (e.g., created via __init__ bypassing from_dict validation),
+    next_id should still return a positive integer >= 1.
+    """
+    storage = TodoStorage()
+
+    # Create Todo objects with negative IDs directly (bypassing from_dict)
+    # This simulates a scenario where negative IDs exist despite validation
+    negative_id_todo = Todo.__new__(Todo)
+    negative_id_todo.id = -5
+    negative_id_todo.text = "negative todo"
+    negative_id_todo.done = False
+    negative_id_todo.created_at = "2024-01-01T00:00:00"
+    negative_id_todo.updated_at = "2024-01-01T00:00:00"
+
+    todos_with_negative = [negative_id_todo]
+
+    # next_id should defensively return >= 1 even with negative IDs
+    next_id = storage.next_id(todos_with_negative)
+    assert next_id >= 1, f"next_id returned {next_id}, expected >= 1"
