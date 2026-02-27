@@ -2,7 +2,7 @@
   "issue_number": 6189,
   "candidate": 3,
   "run_id": "22505789872",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Add __eq__ and __hash__ methods to Todo class for id-based equality and set/dict support",
     "files_to_touch": [
@@ -83,5 +83,12 @@
       }
     ],
     "summary": "All targeted tests pass (11 new tests for __eq__ and __hash__). All 123 existing tests pass with no regressions. Ruff linting passes on both the modified file and the entire project. Code coverage for todo.py is 98%."
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "status": "COMPLETED",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/6223",
+    "pr_number": 6223,
+    "branch_pushed": true
   }
 }
