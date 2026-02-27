@@ -118,6 +118,11 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Explicitly set restrictive permissions on final file
+            # os.replace may not reliably preserve permissions across all platforms,
+            # so we explicitly chmod to ensure 0o600 (rw-------)
+            os.chmod(self.path, stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
