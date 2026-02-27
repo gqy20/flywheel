@@ -1,0 +1,32 @@
+{
+  "issue_number": 6043,
+  "candidate_number": 1,
+  "run_id": "22475701327",
+  "branch_name": "claude/issue-6043-candidate-1-22475701327",
+  "created_at": "2026-02-27T03:48:00Z",
+  "scorecard": {
+    "test_coverage": {
+      "score": 5,
+      "notes": "5 comprehensive tests covering all acceptance criteria: toggle undone->done, toggle done->undone, timestamp update, None return, multiple toggles"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Minimal implementation following existing patterns (mark_done/mark_undone), proper docstring, consistent style"
+    },
+    "acceptance_criteria_met": {
+      "score": 5,
+      "notes": "All 3 acceptance criteria met: toggle flips done state, updates updated_at, returns None"
+    },
+    "risk_level": {
+      "score": 5,
+      "notes": "Very low risk - simple feature addition with no breaking changes"
+    }
+  },
+  "overall_score": 5.0,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6043_toggle_method.py"
+  ],
+  "tests_passed": true,
+  "linter_passed": true
+}
