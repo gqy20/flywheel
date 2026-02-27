@@ -2,7 +2,7 @@
   "issue_number": 6157,
   "candidate_number": 3,
   "run_id": "22498533820",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "plan": {
     "files_to_touch": [
       "tests/test_issue_6157_fchmod_windows.py",
@@ -36,5 +36,6 @@
   },
   "created_at": "2026-02-27T17:45:00Z",
   "implemented_at": "2026-02-27T17:50:00Z",
-  "verified_at": "2026-02-27T17:55:00Z"
+  "verified_at": "2026-02-27T17:55:00Z",
+  "finalized_at": "2026-02-27T18:00:00Z"
 }
