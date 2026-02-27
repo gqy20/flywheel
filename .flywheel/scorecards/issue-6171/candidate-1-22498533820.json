@@ -1,0 +1,21 @@
+{
+  "issue_number": 6171,
+  "issue_title": "[Security] TOCTOU race condition in _ensure_parent_directory between path existence check and mkdir",
+  "candidate_number": 1,
+  "run_id": "22498533820",
+  "branch_name": "claude/issue-6171-candidate-1-22498533820",
+  "fix_summary": "Fixed TOCTOU race condition by using exist_ok=True in mkdir() call and adding proper exception handling to distinguish between 'path is a file' and 'permission denied' errors",
+  "files_changed": [
+    "src/flywheel/storage.py"
+  ],
+  "tests_added": [
+    "tests/test_issue_6171_toctou_race_condition.py"
+  ],
+  "tests_run": [
+    "tests/test_issue_6171_toctou_race_condition.py",
+    "tests/test_issue_1894_security_mkdir_fix.py"
+  ],
+  "lint_passed": true,
+  "risks": "None - the fix uses standard exist_ok=True pattern which is safe and idempotent",
+  "limitations": "None"
+}
