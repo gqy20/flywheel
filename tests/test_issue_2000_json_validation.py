@@ -119,3 +119,30 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6187 - validate list items are dicts
+def test_storage_load_rejects_string_items_in_list(tmp_path) -> None:
+    """load() should reject JSON arrays containing non-dict items like strings."""
+    db = tmp_path / "string_item.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array with a string as first element
+    db.write_text('["not a dict", {"id": 1, "text": "test"}]', encoding="utf-8")
+
+    # Should raise ValueError with clear message about expecting dict
+    with pytest.raises(ValueError, match=r"Expected dict"):
+        storage.load()
+
+
+def test_storage_load_rejects_int_items_in_list(tmp_path) -> None:
+    """load() should reject JSON arrays containing non-dict items like integers."""
+    db = tmp_path / "int_item.json"
+    storage = TodoStorage(str(db))
+
+    # JSON array with an integer element
+    db.write_text('[{"id": 1, "text": "test"}, 42]', encoding="utf-8")
+
+    # Should raise ValueError with clear message about expecting dict
+    with pytest.raises(ValueError, match=r"Expected dict"):
+        storage.load()
