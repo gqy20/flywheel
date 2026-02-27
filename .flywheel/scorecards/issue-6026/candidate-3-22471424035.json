@@ -1,0 +1,34 @@
+{
+  "issue_number": 6026,
+  "candidate_number": 3,
+  "run_id": "22471424035",
+  "branch": "claude/issue-6026-candidate-3-22471424035",
+  "created_at": "2026-02-27T01:20:00Z",
+  "status": "implemented",
+  "summary": "Add validation for empty/whitespace-only text strings in Todo.from_dict()",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "tests_passed": 114,
+  "lint_passed": true,
+  "acceptance_criteria": [
+    {
+      "criterion": "Todo.from_dict with empty text raises ValueError",
+      "status": "passed"
+    },
+    {
+      "criterion": "Todo.from_dict with whitespace-only text raises ValueError",
+      "status": "passed"
+    },
+    {
+      "criterion": "Todo.from_dict with valid text still works correctly",
+      "status": "passed"
+    }
+  ],
+  "risks": "None - this is a consistent validation fix that aligns with rename() and add() methods"
+}
