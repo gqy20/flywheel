@@ -1,18 +1,23 @@
 {
-  "issue_number": 6108,
+  "issue": 6108,
   "candidate": 2,
   "run_id": "22486200533",
-  "scorecard": {
-    "tests_added": 3,
-    "tests_pass": true,
-    "linting_pass": true,
-    "implementation_complete": true,
-    "minimal_changes": true,
-    "tdd_followed": true
-  },
-  "summary": "Added toggle() method to Todo class that flips done state and updates timestamp. Followed TDD approach with 3 regression tests.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
-  ]
+  "branch": "claude/issue-6108-candidate-2-22486200533",
+  "pr_number": 6127,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6127",
+  "generated_at": "2026-02-27T13:28:54.268853+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1709,
+    "plan": 3177,
+    "implement": 1852,
+    "verify": 1964,
+    "finalize": 1270
+  }
 }
