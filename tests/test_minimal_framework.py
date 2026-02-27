@@ -158,3 +158,43 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_based_on_core_fields() -> None:
+    """Issue #6174: Todo equality should compare id, text, done only."""
+    # Two todos with same core fields should be equal
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="a")
+    assert todo1 == todo2
+
+    # Explicit done=False should equal implicit done=False
+    todo3 = Todo(id=1, text="a", done=False)
+    assert todo1 == todo3
+
+
+def test_todo_inequality_different_done_status() -> None:
+    """Issue #6174: Todos with different done status should not be equal."""
+    todo1 = Todo(id=1, text="a", done=False)
+    todo2 = Todo(id=1, text="a", done=True)
+    assert todo1 != todo2
+
+
+def test_todo_equality_ignores_timestamps() -> None:
+    """Issue #6174: Timestamps should not affect equality comparison."""
+    # Create todos with different timestamps but same core fields
+    todo1 = Todo(id=1, text="a", done=False, created_at="2024-01-01T00:00:00Z", updated_at="2024-01-01T00:00:00Z")
+    todo2 = Todo(id=1, text="a", done=False, created_at="2025-12-31T23:59:59Z", updated_at="2025-12-31T23:59:59Z")
+    assert todo1 == todo2
+
+
+def test_todo_inequality_different_id_or_text() -> None:
+    """Issue #6174: Todos with different id or text should not be equal."""
+    # Different id
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=2, text="a")
+    assert todo1 != todo2
+
+    # Different text
+    todo3 = Todo(id=1, text="a")
+    todo4 = Todo(id=1, text="b")
+    assert todo3 != todo4
