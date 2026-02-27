@@ -158,3 +158,23 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_lowest_unused_with_non_contiguous_ids() -> None:
+    """Bug #6186: next_id() should return lowest unused ID, not max+1."""
+    storage = TodoStorage(":memory:")
+
+    # Case 1: Non-contiguous IDs [1, 3, 5] -> should return 2
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Case 2: Contiguous IDs [1, 2, 3] -> should return 4
+    todos_contiguous = [Todo(id=1, text="x"), Todo(id=2, text="y"), Todo(id=3, text="z")]
+    assert storage.next_id(todos_contiguous) == 4
+
+    # Case 3: Empty list -> should return 1
+    assert storage.next_id([]) == 1
+
+    # Case 4: Gap at the start [2, 3, 4] -> should return 1
+    todos_gap_start = [Todo(id=2, text="p"), Todo(id=3, text="q"), Todo(id=4, text="r")]
+    assert storage.next_id(todos_gap_start) == 1
