@@ -110,3 +110,27 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_todo_escapes_unicode_line_separator() -> None:
+    """Unicode LINE SEPARATOR (U+2028) should be escaped to prevent log injection."""
+    todo = Todo(id=1, text="Before\u2028After")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2028" in result
+    # Should not contain actual U+2028 character
+    assert "\u2028" not in result
+    # Verify exact output
+    assert result == "[ ]   1 Before\\u2028After"
+
+
+def test_format_todo_escapes_unicode_paragraph_separator() -> None:
+    """Unicode PARAGRAPH SEPARATOR (U+2029) should be escaped to prevent log injection."""
+    todo = Todo(id=1, text="Before\u2029After")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2029" in result
+    # Should not contain actual U+2029 character
+    assert "\u2029" not in result
+    # Verify exact output
+    assert result == "[ ]   1 Before\\u2029After"
