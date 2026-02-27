@@ -105,3 +105,62 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+# Issue #6213: __repr__ should escape/sanitize special characters to prevent
+# log injection and ensure single-line output
+
+
+def test_todo_repr_sanitizes_newlines() -> None:
+    """repr(Todo) should escape newlines to prevent multi-line log injection."""
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # The repr output should be single-line (no literal newlines)
+    assert "\n" not in result, f"repr should not contain literal newlines: {result!r}"
+    assert "\r" not in result, f"repr should not contain literal carriage returns: {result!r}"
+
+
+def test_todo_repr_sanitizes_control_characters() -> None:
+    """repr(Todo) should escape control characters (tabs, null bytes, etc.)."""
+    # Text with tab and null byte
+    todo = Todo(id=1, text="text\twith\x00null")
+    result = repr(todo)
+
+    # The repr output should not contain literal control characters
+    assert "\t" not in result, f"repr should not contain literal tabs: {result!r}"
+    assert "\x00" not in result, f"repr should not contain literal null bytes: {result!r}"
+
+
+def test_todo_repr_sanitizes_ansi_escape_codes() -> None:
+    """repr(Todo) should escape ANSI escape codes to prevent terminal manipulation."""
+    # Text with ANSI escape code (e.g., red color)
+    todo = Todo(id=1, text="\x1b[31mred text\x1b[0m")
+    result = repr(todo)
+
+    # The repr output should not contain literal ANSI escape codes
+    assert "\x1b" not in result, f"repr should not contain literal ANSI escapes: {result!r}"
+    # Should contain escaped version instead
+    assert "\\x1b" in result or "\\u001b" in result, f"ANSI codes should be escaped: {result!r}"
+
+
+def test_todo_repr_is_always_single_line() -> None:
+    """repr(Todo) output should always be a single line regardless of input text."""
+    # Text with various line-breaking characters
+    todo = Todo(id=1, text="line1\nline2\rline3")
+    result = repr(todo)
+
+    # Count lines by splitting on newlines
+    lines = result.split("\n")
+    assert len(lines) == 1, f"repr should be single-line, got {len(lines)} lines: {result!r}"
+
+
+def test_todo_repr_sanitizes_backslashes() -> None:
+    """repr(Todo) should handle backslashes safely to avoid escape ambiguity."""
+    # Text with backslashes that could be confused with escape sequences
+    todo = Todo(id=1, text="path\\to\\file")
+    result = repr(todo)
+
+    # The repr should preserve backslashes in a safe way
+    assert "path" in result
+    assert "file" in result
