@@ -105,3 +105,42 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_with_newlines_truncation_bounded() -> None:
+    """repr(Todo) should have bounded output when text contains newlines.
+
+    Regression test for issue #6200:
+    - Text with 100+ chars containing newlines should have bounded repr
+    - Truncation indicator '...' should appear when text exceeds limit
+    - repr should never exceed 120 chars for any input
+    """
+    # Test case from issue: text='a\n' * 60 (120 chars with 60 newlines)
+    todo = Todo(id=1, text="a\n" * 60)
+    result = repr(todo)
+
+    # Criterion 1: repr output length is bounded (< 120 chars)
+    assert len(result) < 120, f"repr should be bounded: {len(result)} chars - {result}"
+
+    # Criterion 2: Truncation indicator should appear
+    assert "..." in result, f"repr should contain '...' for truncated text: {result}"
+
+    # Criterion 3: No literal newlines in repr (should be escaped)
+    assert "\n" not in result, f"repr should not contain literal newlines: {result}"
+
+
+def test_todo_repr_bounded_for_various_newline_patterns() -> None:
+    """repr(Todo) should stay bounded for various text patterns with newlines."""
+    test_cases = [
+        ("a" * 200, "200 chars no newlines"),
+        ("\n" * 100, "100 newlines only"),
+        ("a\n" * 60, "60 a-newline pairs"),
+        ("x" * 50 + "\n" * 50, "mixed chars and newlines"),
+    ]
+
+    for text, description in test_cases:
+        todo = Todo(id=99999, text=text)
+        result = repr(todo)
+        assert len(result) < 120, (
+            f"repr exceeded 120 chars for {description}: " f"{len(result)} chars"
+        )
