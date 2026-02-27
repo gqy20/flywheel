@@ -1,0 +1,21 @@
+{
+  "issue_number": 6175,
+  "candidate": 1,
+  "run_id": "22502212432",
+  "branch": "claude/issue-6175-candidate-1-22502212432",
+  "status": "implemented",
+  "checks": {
+    "tests_pass": true,
+    "ruff_check": true,
+    "no_regressions": true
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6175_todo_with_changes.py"
+    ],
+    "approach": "Added with_changes method to Todo dataclass that returns a new instance with optional text/done updates while preserving the original",
+    "test_count": 7
+  },
+  "timestamp": "2026-02-27T18:45:00Z"
+}

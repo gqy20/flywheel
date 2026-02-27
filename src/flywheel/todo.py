@@ -54,6 +54,27 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def with_changes(self, *, text: str | None = None, done: bool | None = None) -> Todo:
+        """Return a new Todo instance with specified changes, leaving original unchanged.
+
+        This provides an immutable update pattern for functional-style programming.
+
+        Args:
+            text: New text for the todo (optional)
+            done: New done status for the todo (optional)
+
+        Returns:
+            A new Todo instance with updated fields and updated_at timestamp.
+            The original todo is not modified.
+        """
+        return Todo(
+            id=self.id,
+            text=text if text is not None else self.text,
+            done=done if done is not None else self.done,
+            created_at=self.created_at,
+            updated_at=_utc_now_iso(),
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
