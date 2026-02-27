@@ -40,10 +40,18 @@ def _ensure_parent_directory(file_path: Path) -> None:
             )
 
     # Create parent directory if it doesn't exist
+    # Use exist_ok=True to handle TOCTOU race condition:
+    # Another process might create the directory between our exists() check and mkdir()
     if not parent.exists():
         try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
+            parent.mkdir(parents=True, exist_ok=True)
         except OSError as e:
+            # Handle specific error cases
+            if parent.is_file():
+                raise ValueError(
+                    f"Path error: '{parent}' exists as a file, not a directory. "
+                    f"Cannot use '{file_path}' as database path."
+                ) from e
             raise OSError(
                 f"Failed to create directory '{parent}': {e}. "
                 f"Check permissions or specify a different location with --db=path/to/db.json"

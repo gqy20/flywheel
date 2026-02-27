@@ -1,0 +1,29 @@
+{
+  "issue_number": 6171,
+  "issue_title": "[Security] TOCTOU race condition in _ensure_parent_directory between path existence check a",
+  "candidate_number": 2,
+  "run_id": "22498533820",
+  "branch": "claude/issue-6171-candidate-2-22498533820",
+  "fix_summary": "Fixed TOCTOU race condition in _ensure_parent_directory by using exist_ok=True in mkdir() call and adding specific error handling for file-as-directory cases.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_6171_toctou_race_fix.py"
+  ],
+  "tests_added": 9,
+  "tests_passed": 9,
+  "ruff_check": "passed",
+  "risks": [
+    "None identified - minimal change to existing error handling logic"
+  ],
+  "limitations": [
+    "Concurrent access testing limited to threading; real-world multi-process scenarios may behave differently"
+  ],
+  "score": {
+    "correctness": 5,
+    "completeness": 5,
+    "test_coverage": 5,
+    "code_quality": 5,
+    "security": 5
+  },
+  "created_at": "2026-02-27"
+}
