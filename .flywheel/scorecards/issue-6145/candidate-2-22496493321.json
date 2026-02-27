@@ -1,26 +1,29 @@
 {
   "issue_number": 6145,
-  "candidate": 2,
+  "issue_title": "[Bug] next_id returns incorrect ID when todos contain negative IDs (max+1 returns unex",
+  "candidate_number": 2,
   "run_id": "22496493321",
-  "status": "verified",
-  "tests_added": [
-    "test_todo_from_dict_rejects_negative_id",
-    "test_next_id_returns_positive_with_negative_todos"
-  ],
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "src/flywheel/storage.py",
-    "tests/test_minimal_framework.py",
-    "tests/test_storage_atomicity.py"
-  ],
+  "branch": "claude/issue-6145-candidate-2-22496493321",
+  "created_at": "2026-02-27T16:42:00Z",
+  "model": "glm-5",
   "approach": {
-    "validation": "Added validation in Todo.from_dict to reject negative IDs (todo_id < 1 raises ValueError)",
-    "fallback": "Added max(1, ...) wrapper in next_id to ensure positive return value"
+    "summary": "Fix bug #6145 by adding validation in Todo.from_dict to reject negative IDs and ensuring next_id always returns positive ID >= 1",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "src/flywheel/storage.py"
+    ],
+    "tests_added": [
+      "tests/test_minimal_framework.py::test_todo_from_dict_rejects_negative_id",
+      "tests/test_minimal_framework.py::test_next_id_returns_positive_with_negative_todos"
+    ]
   },
-  "risks": [],
-  "limitations": [],
-  "verification": {
-    "pytest": "uv run pytest tests/test_minimal_framework.py tests/test_storage_atomicity.py -v (114 passed)",
-    "ruff": "uv run ruff check . (All checks passed)"
+  "validation": {
+    "tests_passed": true,
+    "lint_passed": true,
+    "test_count": 2
+  },
+  "acceptance_criteria": {
+    "todo_from_dict_rejects_negative_id": true,
+    "next_id_returns_positive": true
   }
 }
