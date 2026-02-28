@@ -1,44 +1,23 @@
 {
-  "issue_number": 6297,
-  "issue_title": "[Bug] Todo.from_dict accepts empty or whitespace-only text without validation",
-  "candidate_number": 2,
+  "issue": 6297,
+  "candidate": 2,
   "run_id": "22518543331",
   "branch": "claude/issue-6297-candidate-2-22518543331",
-  "status": "implemented",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_minimal_framework.py"
-    ]
-  },
-  "tests": {
-    "added": [
-      "test_from_dict_rejects_empty_text",
-      "test_from_dict_rejects_whitespace_only_text",
-      "test_from_dict_accepts_valid_text",
-      "test_from_dict_strips_whitespace_from_text"
-    ],
-    "passed": 14,
-    "failed": 0
-  },
-  "validation": {
-    "lint_passed": true,
-    "tests_passed": true
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError",
-      "met": true
-    },
-    {
-      "criterion": "Todo.from_dict({'id': 1, 'text': '   '}) raises ValueError",
-      "met": true
-    },
-    {
-      "criterion": "Todo.from_dict({'id': 1, 'text': 'valid'}) still works",
-      "met": true
-    }
-  ]
+  "pr_number": 6318,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6318",
+  "generated_at": "2026-02-28T11:24:49.480250+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1613,
+    "plan": 2681,
+    "implement": 2556,
+    "verify": 1683,
+    "finalize": 2094
+  }
 }
