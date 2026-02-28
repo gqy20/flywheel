@@ -1,0 +1,17 @@
+{
+  "issue_number": 6281,
+  "candidate_number": 3,
+  "run_id": "22517832918",
+  "branch": "claude/issue-6281-candidate-3-22517832918",
+  "status": "implemented",
+  "summary": "Fixed Todo.__init__ and Todo.from_dict to validate text field is not empty or whitespace-only",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6281_todo_empty_text_validation.py"]
+  },
+  "tests_passed": 121,
+  "lint_status": "passed",
+  "implementation_approach": "Added text validation in __post_init__ method to check if text.strip() is empty, raising ValueError with message 'Todo text cannot be empty'. This matches the existing validation in rename() method.",
+  "risks": "Minimal - the validation is consistent with existing rename() method behavior. Any code directly creating Todo objects with empty/whitespace text will now raise ValueError.",
+  "limitations": "Text with leading/trailing whitespace is preserved (not auto-stripped) - this matches expected behavior from the issue."
+}
