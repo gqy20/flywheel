@@ -113,7 +113,16 @@ class TodoStorage:
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            # Security: Wrap os.fdopen in try/except to close fd on failure
+            # (os.fdopen takes ownership of fd only after successful return)
+            try:
+                file_obj = os.fdopen(fd, "w", encoding="utf-8")
+            except OSError:
+                # fdopen failed before taking ownership - close fd to prevent leak
+                with contextlib.suppress(OSError):
+                    os.close(fd)
+                raise
+            with file_obj as f:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)

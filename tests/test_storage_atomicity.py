@@ -151,6 +151,57 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_leak_on_fdopen_failure(tmp_path) -> None:
+    """Regression test for issue #6255: File descriptor leak when os.fdopen fails.
+
+    When tempfile.mkstemp returns a file descriptor and os.fdopen subsequently fails,
+    the file descriptor should be closed to prevent resource leaks.
+
+    The fix should ensure that even if os.fdopen raises an exception, the fd is
+    properly closed rather than leaked.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track the fd that mkstemp returns
+    leaked_fds = []
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        leaked_fds.append(fd)  # Track this fd
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        """Simulate os.fdopen failure to trigger the fd leak path."""
+        # We intentionally don't close fd here - this simulates the bug
+        # where os.fdopen fails before taking ownership of the fd
+        raise OSError("Simulated fdopen failure")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify the file descriptor was properly closed (not leaked)
+    # On Unix, we can check if the fd is still open by trying to fstat it
+    for fd in leaked_fds:
+        try:
+            # If fstat succeeds, the fd is still open (leaked)
+            os.fstat(fd)
+            # If we get here, the fd is leaked - this is the bug
+            pytest.fail(f"File descriptor {fd} is still open (leaked)")
+        except OSError:
+            # OSError means the fd is closed - this is the expected behavior
+            pass
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

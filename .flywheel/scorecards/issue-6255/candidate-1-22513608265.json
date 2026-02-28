@@ -1,0 +1,16 @@
+{
+  "issue_number": 6255,
+  "candidate_number": 1,
+  "run_id": "22513608265",
+  "branch": "claude/issue-6255-candidate-1-22513608265",
+  "created_at": "2026-02-28T05:10:00Z",
+  "status": "implemented",
+  "fix_summary": "Fixed file descriptor leak when os.fdopen fails after tempfile.mkstemp succeeds. Added try/except around os.fdopen to close fd on failure before it takes ownership.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": 1,
+  "tests_passed": true,
+  "lint_passed": true
+}
