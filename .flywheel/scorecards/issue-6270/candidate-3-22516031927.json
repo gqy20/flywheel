@@ -1,0 +1,16 @@
+{
+  "issue_number": 6270,
+  "candidate": 3,
+  "run_id": "22516031927",
+  "branch": "claude/issue-6270-candidate-3-22516031927",
+  "status": "implemented",
+  "summary": "Fix Todo.from_dict to validate empty and whitespace-only text",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": 115,
+  "checks_passed": ["pytest", "ruff check"],
+  "risks": "Minimal - only adds validation consistent with existing rename() method",
+  "implementation_notes": "Added text.strip() validation after type check in from_dict(), consistent with Todo.rename() behavior. Also strips leading/trailing whitespace from text for consistency."
+}
