@@ -1,27 +1,23 @@
 {
-  "issue_number": 6296,
-  "issue_title": "[Bug] Todo.from_dict accepts invalid id values (0, negative, non-integer floats)",
-  "candidate_number": 1,
+  "issue": 6296,
+  "candidate": 1,
   "run_id": "22518543331",
   "branch": "claude/issue-6296-candidate-1-22518543331",
-  "commit_sha": "2aabb17",
-  "status": "ready",
-  "fix_summary": "Added validation in Todo.from_dict to ensure id is a positive integer and reject non-integer float values",
-  "tests_added": [
-    "test_todo_from_dict_rejects_zero_id",
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_rejects_non_integer_float_id",
-    "test_todo_from_dict_accepts_integer_float_id"
+  "pr_number": 6319,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6319",
+  "generated_at": "2026-02-28T11:25:49.926670+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "acceptance_criteria_met": [
-    "Todo.from_dict({'id': 0, 'text': 'x'}) raises ValueError with 'id must be positive'",
-    "Todo.from_dict({'id': -1, 'text': 'x'}) raises ValueError with 'id must be positive'",
-    "Todo.from_dict({'id': 1.5, 'text': 'x'}) raises ValueError about non-integer value",
-    "Todo.from_dict({'id': 1.0, 'text': 'x'}) still works (1.0 == int(1.0))"
-  ],
-  "created_at": "2026-02-28"
+  "stage_response_sizes": {
+    "triage": 1955,
+    "plan": 3942,
+    "implement": 1888,
+    "verify": 3024,
+    "finalize": 1414
+  }
 }
