@@ -1,0 +1,15 @@
+{
+  "issue_number": 6422,
+  "candidate_number": 3,
+  "run_id": "22529914624",
+  "stage": "IMPLEMENT",
+  "status": "completed",
+  "summary": "Fix bool-as-id validation in Todo.from_dict",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_added": 2,
+  "tests_passed": true,
+  "lint_passed": true
+}
