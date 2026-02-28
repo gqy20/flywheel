@@ -1,41 +1,23 @@
 {
-  "issue_number": 6242,
-  "candidate_number": 1,
+  "issue": 6242,
+  "candidate": 1,
   "run_id": "22511986817",
-  "status": "implemented",
-  "summary": "Added missing 'rename' subcommand to CLI that exposes the existing Todo.rename() method",
-  "changes": [
-    {
-      "file": "src/flywheel/cli.py",
-      "change_type": "modified",
-      "description": "Added rename subparser, TodoApp.rename() method, and rename command handling"
-    },
-    {
-      "file": "tests/test_issue_6242_cli_rename_subcommand.py",
-      "change_type": "added",
-      "description": "Added 6 regression tests for rename subcommand"
-    }
+  "branch": "claude/issue-6242-candidate-1-22511986817",
+  "pr_number": 6249,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6249",
+  "generated_at": "2026-02-28T03:47:36.022368+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 6,
-  "tests_total": 6,
-  "acceptance_criteria": [
-    {
-      "criterion": "'todo rename <id> <text>' command successfully changes todo text",
-      "status": "passed"
-    },
-    {
-      "criterion": "'todo rename <id> <text>' returns exit code 0 on success",
-      "status": "passed"
-    },
-    {
-      "criterion": "'todo rename <id> <text>' returns exit code 1 when todo not found",
-      "status": "passed"
-    },
-    {
-      "criterion": "'todo rename' with empty text raises error",
-      "status": "passed"
-    }
-  ],
-  "risks": [],
-  "created_at": "2026-02-28T03:30:00Z"
+  "stage_response_sizes": {
+    "triage": 2040,
+    "plan": 2239,
+    "implement": 1947,
+    "verify": 1622,
+    "finalize": 1157
+  }
 }
