@@ -1,37 +1,23 @@
 {
-  "issue_number": 6381,
-  "candidate_number": 1,
+  "issue": 6381,
+  "candidate": 1,
   "run_id": "22525989589",
   "branch": "claude/issue-6381-candidate-1-22525989589",
-  "created_at": "2026-02-28T17:30:00Z",
-  "status": "ready",
-  "test_file": "tests/test_issue_6381_todo_constructor_text_validation.py",
-  "tests": [
-    {
-      "name": "test_todo_constructor_rejects_empty_string",
-      "description": "Todo constructor rejects empty string for text field"
-    },
-    {
-      "name": "test_todo_constructor_rejects_whitespace_only",
-      "description": "Todo constructor rejects whitespace-only string for text field"
-    },
-    {
-      "name": "test_todo_constructor_accepts_valid_text",
-      "description": "Todo constructor accepts valid non-empty text"
-    },
-    {
-      "name": "test_todo_constructor_strips_whitespace",
-      "description": "Todo constructor strips whitespace from text"
-    }
+  "pr_number": 6403,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6403",
+  "generated_at": "2026-02-28T18:43:49.215698+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest_passed": true,
-    "ruff_passed": true,
-    "pytest_command": "uv run pytest tests/test_issue_6381_todo_constructor_text_validation.py -v",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6381_todo_constructor_text_validation.py",
-    "tests_passed": 4,
-    "full_suite_passed": true,
-    "full_suite_count": 116
-  },
-  "commit_sha": "59ac8d0"
+  "stage_response_sizes": {
+    "triage": 2576,
+    "plan": 2472,
+    "implement": 1244,
+    "verify": 2244,
+    "finalize": 55
+  }
 }
