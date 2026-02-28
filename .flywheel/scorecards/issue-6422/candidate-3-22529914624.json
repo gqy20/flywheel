@@ -2,7 +2,7 @@
   "issue_number": 6422,
   "candidate_number": 3,
   "run_id": "22529914624",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "status": "completed",
   "summary": "Fix bool-as-id validation in Todo.from_dict",
   "changes": {
@@ -11,5 +11,13 @@
   },
   "tests_added": 2,
   "tests_passed": true,
-  "lint_passed": true
+  "lint_passed": true,
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "pytest_result": "14 passed in 0.06s",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "ruff_result": "All checks passed!",
+    "full_test_command": "uv run pytest tests/ -v --tb=short",
+    "full_test_result": "114 passed in 0.46s"
+  }
 }
