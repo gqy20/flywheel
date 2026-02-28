@@ -70,8 +70,9 @@
   },
   "finalize": {
     "stage": "FINALIZE",
-    "status": "ready_for_pr",
+    "status": "pr_created",
     "branch": "claude/issue-6381-candidate-2-22525989589",
-    "commit": "517a203"
+    "commit": "517a203",
+    "pr_url": "https://github.com/gqy20/flywheel/pull/6399"
   }
 }
