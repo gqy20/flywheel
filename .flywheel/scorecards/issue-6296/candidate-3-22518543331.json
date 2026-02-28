@@ -3,7 +3,7 @@
   "candidate": 3,
   "run_id": "22518543331",
   "branch": "claude/issue-6296-candidate-3-22518543331",
-  "status": "verified",
+  "status": "finalized",
   "summary": "Added validation in Todo.from_dict to reject invalid id values: zero, negative, and non-integer floats",
   "tests_added": [
     "test_todo_from_dict_rejects_zero_id",
@@ -26,5 +26,6 @@
       "uv run ruff format --check (3 files already formatted after fix)"
     ]
   },
-  "commit_sha": "2d17ce1"
+  "commit_sha": "dfc5c27",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6317"
 }
