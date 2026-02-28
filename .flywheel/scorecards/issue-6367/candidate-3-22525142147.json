@@ -2,7 +2,8 @@
   "issue_number": 6367,
   "candidate_id": 3,
   "run_id": "22525142147",
-  "stage": "IMPLEMENTED",
+  "stage": "FINALIZED",
+  "finalized_at": "2026-02-28T17:40:00Z",
   "plan": {
     "problem_summary": "Todo.text field accepts empty string at construction (only validated in rename method)",
     "root_cause": "__post_init__ only initializes timestamps, does NOT validate text field",
@@ -40,5 +41,6 @@
     "risks": "Minimal - validation is consistent with existing rename() method behavior"
   },
   "created_at": "2026-02-28T16:00:00Z",
-  "implemented_at": "2026-02-28T17:33:00Z"
+  "implemented_at": "2026-02-28T17:33:00Z",
+  "verified_at": "2026-02-28T17:35:00Z"
 }
