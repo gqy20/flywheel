@@ -1,0 +1,17 @@
+{
+  "issue_number": 6269,
+  "issue_title": "[Security] load() uses Path.stat() before Path.exists() check - potential TOCTOU race",
+  "candidate_number": 2,
+  "run_id": "22516031927",
+  "branch": "claude/issue-6269-candidate-2-22516031927",
+  "created_at": "2026-02-28T08:49:21Z",
+  "fix_summary": "Handle TOCTOU race in load() by catching FileNotFoundError",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_6269_toctou_race.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 4,
+  "lint_passed": true,
+  "approach": "Remove redundant exists() check and handle FileNotFoundError from both stat() and read_text() calls, returning empty list consistent with expected behavior for non-existent files"
+}
