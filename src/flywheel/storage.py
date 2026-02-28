@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import stat
@@ -118,10 +119,23 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except OSError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
+
+            # Provide specific, actionable error messages based on errno
+            if e.errno == errno.ENOSPC:
+                raise OSError(
+                    f"Failed to save '{self.path}': Storage space is full. "
+                    f"Free up disk space and try again."
+                ) from e
+            elif e.errno in (errno.EACCES, errno.EPERM):
+                raise OSError(
+                    f"Failed to save '{self.path}': Permission denied. "
+                    f"Check file permissions or specify a different location with --db=path/to/db.json"
+                ) from e
+            # Re-raise other OSError types as-is
             raise
 
     def next_id(self, todos: list[Todo]) -> int:

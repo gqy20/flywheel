@@ -151,6 +151,68 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_disk_full_provides_clear_error_message(tmp_path) -> None:
+    """Test that disk full errors provide clear, actionable error messages.
+
+    Regression test for issue #6437: OSError handling was too broad.
+    When disk is full (ENOSPC), users should get a clear message about
+    storage space, not a generic OSError.
+    """
+    import errno
+    import re
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    def failing_replace(*args, **kwargs):
+        err = OSError("No space left on device")
+        err.errno = errno.ENOSPC
+        raise err
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(OSError) as exc_info,
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify error message mentions storage space or disk
+    msg = str(exc_info.value).lower()
+    assert re.search(r"storage space|disk|full", msg), (
+        f"Expected message about storage/disk, got: {exc_info.value}"
+    )
+
+
+def test_save_permission_denied_provides_clear_error_message(tmp_path) -> None:
+    """Test that permission errors provide clear, actionable error messages.
+
+    Regression test for issue #6437: OSError handling was too broad.
+    When permission is denied (EACCES), users should get a clear message
+    about checking permissions, not a generic OSError.
+    """
+    import errno
+    import re
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    def failing_replace(*args, **kwargs):
+        err = PermissionError("Permission denied")
+        err.errno = errno.EACCES
+        raise err
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(OSError) as exc_info,
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify error message mentions checking permissions
+    msg = str(exc_info.value).lower()
+    assert re.search(r"check.*permission|permission.*check|access", msg), (
+        f"Expected message about checking permissions, got: {exc_info.value}"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
