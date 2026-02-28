@@ -43,5 +43,35 @@
   "risks": [
     "Existing code may rely on empty text being allowed - need to verify no regressions"
   ],
-  "status": "implemented"
+  "verification": {
+    "stage": "VERIFY",
+    "commands_executed": [
+      {
+        "command": "uv run pytest tests/test_issue_6381_todo_constructor_validation.py -v",
+        "result": "4 tests passed",
+        "tests": [
+          "test_todo_constructor_rejects_empty_string PASSED",
+          "test_todo_constructor_rejects_whitespace_only PASSED",
+          "test_todo_constructor_accepts_valid_text PASSED",
+          "test_todo_constructor_accepts_text_with_leading_trailing_spaces PASSED"
+        ]
+      },
+      {
+        "command": "uv run pytest tests/ -v --tb=short",
+        "result": "116 tests passed in 0.47s",
+        "coverage": "92%"
+      },
+      {
+        "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6381_todo_constructor_validation.py",
+        "result": "All checks passed!"
+      }
+    ],
+    "status": "verified"
+  },
+  "finalize": {
+    "stage": "FINALIZE",
+    "status": "ready_for_pr",
+    "branch": "claude/issue-6381-candidate-2-22525989589",
+    "commit": "517a203"
+  }
 }
