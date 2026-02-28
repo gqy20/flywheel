@@ -1,0 +1,61 @@
+{
+  "issue_number": 6227,
+  "issue_title": "[Security] cli.py line 125 prints exception message to stderr without sanitization",
+  "candidate": 3,
+  "run_id": "22509599351",
+  "branch_name": "claude/issue-6227-candidate-3-22509599351",
+  "created_at": "2026-02-28T01:10:00Z",
+  "status": "implemented",
+  "summary": {
+    "problem": "Exception messages printed to stderr at cli.py:125 were not sanitized, allowing potential terminal control character injection attacks via ANSI escape sequences, newlines, carriage returns, and null bytes.",
+    "solution": "Applied the existing _sanitize_text() function to exception messages before printing to stderr, consistent with how todo.text is already sanitized in success messages.",
+    "approach": "Minimal single-line fix that reuses existing sanitization infrastructure."
+  },
+  "changes": {
+    "files_modified": [
+      "src/flywheel/cli.py"
+    ],
+    "files_added": [
+      "tests/test_issue_6227_cli_exception_message_sanitization.py"
+    ],
+    "lines_changed": 1
+  },
+  "tests": {
+    "test_file": "tests/test_issue_6227_cli_exception_message_sanitization.py",
+    "test_count": 5,
+    "all_passing": true,
+    "commands_run": [
+      "uv run pytest tests/test_issue_6227_cli_exception_message_sanitization.py -v",
+      "uv run ruff check src/flywheel/cli.py",
+      "uv run pytest tests/test_issue_2015_cli_exception_handling.py tests/test_issue_2083_cli_success_message_sanitization.py tests/test_issue_2084_cli_output_sanitization.py -v"
+    ]
+  },
+  "security_analysis": {
+    "vulnerability_type": "Terminal Control Character Injection (CWE-117)",
+    "attack_vectors": [
+      "ANSI escape sequences could manipulate terminal output",
+      "Newline injection could create fake error messages",
+      "Carriage return injection could overwrite error messages",
+      "Null bytes could cause terminal issues"
+    ],
+    "fix_validates": [
+      "Control characters are escaped to readable representations",
+      "Normal error messages still display correctly",
+      "All existing tests continue to pass"
+    ]
+  },
+  "risks_and_limitations": {
+    "risks": [
+      "Exception messages from internal code may now display escaped characters instead of raw ones, but this is expected security behavior"
+    ],
+    "limitations": [
+      "Only applies to CLI exception output, not to logging or other output channels"
+    ]
+  },
+  "acceptance_criteria_met": [
+    "Exception messages containing control characters are sanitized before output to stderr",
+    "Normal error flow still displays useful error information",
+    "Trigger ValueError with control character in message, capture stderr, verify no raw control chars output"
+  ],
+  "commit_sha": "2529e57"
+}
