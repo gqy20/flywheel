@@ -73,12 +73,12 @@ def test_todo_repr_handles_special_characters() -> None:
     result1 = repr(todo1)
     assert "Todo" in result1
 
-    # Text with newlines - repr should escape or handle them
+    # Text with newlines - repr should escape them (no literal newlines)
     todo2 = Todo(id=2, text="line1\nline2")
     result2 = repr(todo2)
     assert "Todo" in result2
-    # Should not have literal newlines in the repr output
-    assert "\n" not in result2 or repr(result2).count("\\n") > 0
+    # Must not have literal newlines in the repr output (single-line output)
+    assert "\n" not in result2, f"repr should escape newlines, got: {result2!r}"
 
 
 def test_todo_repr_eval_able_optional() -> None:
@@ -105,3 +105,44 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_no_control_chars_single_line() -> None:
+    """repr(Todo) output must be single-line with no literal control chars.
+
+    This is a regression test for issue #6435: __repr__ output should never
+    contain literal newlines or other control characters that would break
+    debugger output or log formatting.
+    """
+    # Test cases with various control characters
+    test_cases = [
+        ("newline", "line1\nline2"),
+        ("tab", "col1\tcol2"),
+        ("carriage return", "line1\rline2"),
+        ("null char", "text\x00null"),
+        ("mixed control", "a\nb\tc\rd"),
+        ("leading newline", "\nstart"),
+        ("trailing newline", "end\n"),
+        ("multiple newlines", "a\nb\nc\n"),
+        ("long with newline", "start\n" + "x" * 100),
+        ("newline at truncation boundary", "x" * 47 + "\ny"),
+    ]
+
+    for name, text in test_cases:
+        todo = Todo(id=1, text=text)
+        result = repr(todo)
+
+        # repr output must be a single line (no literal newlines)
+        assert "\n" not in result, f"{name}: repr should escape newlines, got: {result!r}"
+
+        # repr output must not contain literal tabs
+        assert "\t" not in result, f"{name}: repr should escape tabs, got: {result!r}"
+
+        # repr output must not contain literal carriage returns
+        assert "\r" not in result, f"{name}: repr should escape CR, got: {result!r}"
+
+        # repr output must not contain null characters
+        assert "\x00" not in result, f"{name}: repr should escape null, got: {result!r}"
+
+        # repr output should be a single line (no internal line breaks)
+        assert result.count("\n") == 0, f"{name}: repr should be single-line, got: {result!r}"
