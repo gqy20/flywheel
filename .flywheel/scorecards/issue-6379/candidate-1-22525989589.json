@@ -1,0 +1,28 @@
+{
+  "issue_number": 6379,
+  "issue_title": "[Bug] __post_init__ allows empty text when Todo is constructed directly",
+  "candidate_number": 1,
+  "run_id": "22525989589",
+  "branch_name": "claude/issue-6379-candidate-1-22525989589",
+  "status": "ready_for_review",
+  "created_at": "2026-02-28T17:30:00Z",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "linting_passed": true,
+  "summary": "Add text validation in Todo.__post_init__ to reject empty or whitespace-only text, ensuring consistency with rename() method behavior.",
+  "approach": "TDD with minimal fix - added 4 regression tests first, then implemented validation in __post_init__ that strips whitespace and raises ValueError for empty text.",
+  "risks": [
+    "Breaking change: Direct construction with empty/whitespace text will now raise ValueError (intended fix)",
+    "Existing code paths through TodoApp.add() already validate, so only direct construction is affected"
+  ],
+  "verification_commands": [
+    "uv run pytest tests/test_minimal_framework.py -v -k 'test_todo_init'",
+    "uv run pytest tests/test_minimal_framework.py -v",
+    "uv run ruff check src/flywheel/todo.py",
+    "uv run pytest"
+  ]
+}
