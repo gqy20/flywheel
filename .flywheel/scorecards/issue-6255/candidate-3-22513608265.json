@@ -3,7 +3,7 @@
   "candidate_number": 3,
   "run_id": "22513608265",
   "branch": "claude/issue-6255-candidate-3-22513608265",
-  "commit_sha": "9e6401cc0d11e1e849df86338eb39f36d80a4efc",
+  "commit_sha": "cfb0687acd4ce4b1eeea1aadbf346feb6bbd6fd7",
   "summary": "Fixed file descriptor leak when os.fdopen fails after mkstemp returns fd",
   "changes": {
     "source_files": ["src/flywheel/storage.py"],
