@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
+# Maximum allowed length for todo text
+MAX_TEXT_LENGTH = 1000
+
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -38,6 +41,11 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+        # Validate text length
+        if len(self.text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+            )
 
     def mark_done(self) -> None:
         self.done = True
@@ -51,6 +59,10 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {MAX_TEXT_LENGTH} characters"
+            )
         self.text = text
         self.updated_at = _utc_now_iso()
 
