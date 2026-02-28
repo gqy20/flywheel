@@ -1,25 +1,23 @@
 {
-  "issue_number": 6407,
-  "issue_title": "[Bug] Todo.from_dict does not validate or strip whitespace from 'text' field, allowing",
-  "candidate_number": 3,
+  "issue": 6407,
+  "candidate": 3,
   "run_id": "22528933368",
-  "branch_name": "claude/issue-6407-candidate-3-22528933368",
-  "created_at": "2026-02-28T19:30:00Z",
-  "status": "implemented",
-  "tests_added": [
-    "test_todo_from_dict_rejects_empty_text",
-    "test_todo_from_dict_rejects_whitespace_only_text",
-    "test_todo_from_dict_strips_whitespace_from_text"
+  "branch": "claude/issue-6407-candidate-3-22528933368",
+  "pr_number": 6428,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6428",
+  "generated_at": "2026-02-28T21:41:02.295256+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "approach": "Add text validation in from_dict similar to rename(): strip whitespace and validate non-empty",
-  "acceptance_criteria_met": [
-    "Todo.from_dict({'id': 1, 'text': '   '}) raises ValueError with message about empty text",
-    "Todo.from_dict({'id': 1, 'text': '  valid  '}) strips whitespace and stores 'valid'",
-    "Existing tests continue to pass"
-  ],
-  "risks": "None - minimal change following existing pattern in rename() method"
+  "stage_response_sizes": {
+    "triage": 2502,
+    "plan": 3015,
+    "implement": 2229,
+    "verify": 2414,
+    "finalize": 768
+  }
 }
