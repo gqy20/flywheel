@@ -1,34 +1,23 @@
 {
-  "issue_number": 6214,
-  "candidate_number": 2,
+  "issue": 6214,
+  "candidate": 2,
   "run_id": "22509599351",
   "branch": "claude/issue-6214-candidate-2-22509599351",
-  "status": "ready_for_review",
-  "implementation": {
-    "approach": "Add rename command to CLI by implementing TodoApp.rename() method, adding 'rename' subparser, and adding 'rename' command handler",
-    "files_changed": [
-      "src/flywheel/cli.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "tests_added": 2,
-    "lines_changed": 35
-  },
-  "tests": {
-    "passed": true,
-    "test_count": 12,
-    "new_tests": [
-      "test_cli_rename_command",
-      "test_cli_rename_returns_error_for_nonexistent_id"
-    ]
-  },
-  "linting": {
-    "ruff": "passed"
-  },
-  "acceptance_criteria": {
-    "cli_accepts_rename_command": true,
-    "rename_calls_TodoApp_rename": true,
-    "invalid_id_returns_error": true
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 6233,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6233",
+  "generated_at": "2026-02-28T01:24:02.515105+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2863,
+    "plan": 2598,
+    "implement": 1856,
+    "verify": 1707,
+    "finalize": 660
+  }
 }
