@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 
 
@@ -53,6 +53,29 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def copy(self, **overrides) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        Returns a new Todo instance with the same field values, except for
+        any fields specified in overrides. The updated_at timestamp is
+        automatically set to the current time.
+
+        Args:
+            **overrides: Field names and values to override in the copy.
+                Supported fields: id, text, done, created_at, updated_at
+
+        Returns:
+            A new Todo instance with copied (and optionally overridden) values.
+
+        Example:
+            >>> todo = Todo(id=1, text="buy milk", done=False)
+            >>> done_todo = todo.copy(done=True)  # New object with done=True
+            >>> todo.done  # Original unchanged
+            False
+        """
+        # Create copy with overrides, always updating the timestamp
+        return replace(self, **{**overrides, "updated_at": _utc_now_iso()})
 
     def to_dict(self) -> dict:
         return asdict(self)
