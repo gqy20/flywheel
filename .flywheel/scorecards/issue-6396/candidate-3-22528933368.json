@@ -2,13 +2,24 @@
   "issue_number": 6396,
   "candidate_number": 3,
   "run_id": "22528933368",
-  "status": "ready_for_review",
+  "status": "finalized",
   "created_at": "2026-02-28T21:29:00Z",
+  "verified_at": "2026-02-28T21:32:00Z",
+  "finalized_at": "2026-02-28T21:35:00Z",
   "approach": "Add __eq__ method comparing (id, text, done) and __hash__ based on id",
   "files_changed": [
     "src/flywheel/todo.py",
     "tests/test_issue_6396_todo_eq_hash.py"
   ],
-  "tests_passed": 123,
-  "lint_status": "passed"
+  "tests_passed": 11,
+  "lint_status": "passed",
+  "verification_commands": [
+    "uv run pytest tests/test_issue_6396_todo_eq_hash.py -v",
+    "uv run ruff check tests/test_issue_6396_todo_eq_hash.py src/flywheel/todo.py"
+  ],
+  "verification_outcomes": {
+    "pytest": "11 tests passed",
+    "ruff": "All checks passed"
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6430"
 }
