@@ -1,26 +1,23 @@
 {
-  "issue_number": 6409,
-  "candidate_number": 3,
+  "issue": 6409,
+  "candidate": 3,
   "run_id": "22529914624",
-  "created_at": "2026-02-28T19:30:00Z",
-  "status": "ready",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "lines_added": 12,
-    "lines_removed": 0
-  },
-  "tests": {
-    "added": 3,
-    "passed": 15,
-    "failed": 0
-  },
-  "checklist": {
-    "test_file_added": true,
-    "source_file_changed": true,
-    "conventional_commit": true,
-    "minimal_scope": true
+  "branch": "claude/issue-6409-candidate-3-22529914624",
+  "pr_number": 6443,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6443",
+  "generated_at": "2026-02-28T22:34:20.622392+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1823,
+    "plan": 2398,
+    "implement": 1519,
+    "verify": 3453,
+    "finalize": 851
   }
 }
