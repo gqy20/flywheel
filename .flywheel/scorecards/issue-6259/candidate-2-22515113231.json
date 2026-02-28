@@ -1,23 +1,23 @@
 {
-  "issue_number": 6259,
-  "issue_title": "[Enhancement] 添加 copy/clone 方法支持不可变操作模式",
-  "candidate_number": 2,
+  "issue": 6259,
+  "candidate": 2,
   "run_id": "22515113231",
   "branch": "claude/issue-6259-candidate-2-22515113231",
-  "status": "implemented",
-  "approach": "Added copy() method using dataclasses.replace() for immutable-style operations",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_6259_todo_copy.py"],
-    "summary": "Added copy(**overrides) -> Todo method that creates a new Todo instance with optional field overrides, automatically setting updated_at to current time"
-  },
-  "tests_passed": 7,
-  "acceptance_criteria": {
-    "copy_returns_new_instance": true,
-    "copy_with_overrides": true,
-    "copy_preserves_original": true,
-    "copy_updates_timestamp": true
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 6279,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6279",
+  "generated_at": "2026-02-28T07:28:43.898075+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2786,
+    "plan": 3338,
+    "implement": 2241,
+    "verify": 2134,
+    "finalize": 299
+  }
 }
