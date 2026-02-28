@@ -81,6 +81,67 @@ def test_todo_repr_handles_special_characters() -> None:
     assert "\n" not in result2 or repr(result2).count("\\n") > 0
 
 
+def test_todo_repr_escapes_newlines_in_text() -> None:
+    """repr(Todo) should escape newlines to keep output on single line (Issue #6339)."""
+    todo = Todo(id=1, text="first line\nsecond line")
+    result = repr(todo)
+
+    # The repr output must NOT contain literal newline characters
+    # The newline in text should be escaped as \n (two characters: backslash, n)
+    assert "\n" not in result, (
+        f"repr should not contain literal newlines: {result!r}"
+    )
+
+    # Verify the escaped newline representation is present
+    assert "\\n" in result, (
+        f"repr should contain escaped newline \\n: {result!r}"
+    )
+
+
+def test_todo_repr_escapes_tabs_in_text() -> None:
+    """repr(Todo) should escape tabs to prevent display issues (Issue #6339)."""
+    todo = Todo(id=1, text="col1\tcol2")
+    result = repr(todo)
+
+    # The repr output must NOT contain literal tab characters
+    assert "\t" not in result, (
+        f"repr should not contain literal tabs: {result!r}"
+    )
+
+    # Verify the escaped tab representation is present
+    assert "\\t" in result, (
+        f"repr should contain escaped tab \\t: {result!r}"
+    )
+
+
+def test_todo_repr_escapes_carriage_return_in_text() -> None:
+    """repr(Todo) should escape carriage returns (Issue #6339)."""
+    todo = Todo(id=1, text="line1\r\nline2")
+    result = repr(todo)
+
+    # The repr output must NOT contain literal carriage return characters
+    assert "\r" not in result, (
+        f"repr should not contain literal carriage returns: {result!r}"
+    )
+
+    # Verify the escaped representation is present
+    assert "\\r" in result, (
+        f"repr should contain escaped CR \\r: {result!r}"
+    )
+
+
+def test_todo_repr_remains_single_line_with_control_chars() -> None:
+    """repr(Todo) output should always be on a single line (Issue #6339)."""
+    todo = Todo(id=1, text="a\nb\tc\rd")
+    result = repr(todo)
+
+    # Count newlines in the output - should be zero
+    newline_count = result.count("\n")
+    assert newline_count == 0, (
+        f"repr should be single line but has {newline_count} newlines: {result!r}"
+    )
+
+
 def test_todo_repr_eval_able_optional() -> None:
     """repr(Todo) output should ideally be eval-able or at least informative."""
     todo = Todo(id=1, text="simple task", done=True)
