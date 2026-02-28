@@ -1,0 +1,23 @@
+{
+  "issue_number": 6352,
+  "candidate": 2,
+  "run_id": "22523097887",
+  "branch": "claude/issue-6352-candidate-2-22523097887",
+  "status": "implemented",
+  "summary": "Fixed load() to validate that each item in the JSON array is a dict before passing to Todo.from_dict(). Added isinstance(item, dict) validation with clear error message indicating the invalid item's index and type.",
+  "tests_added": [
+    "tests/test_issue_6352_non_dict_array_items.py"
+  ],
+  "files_modified": [
+    "src/flywheel/storage.py"
+  ],
+  "acceptance_criteria_met": [
+    "load() raises ValueError (not TypeError) when JSON array contains non-dict items",
+    "Error message clearly indicates which item in the array is invalid"
+  ],
+  "test_results": {
+    "new_tests_passed": 5,
+    "total_tests_passed": 102,
+    "lint_passed": true
+  }
+}
