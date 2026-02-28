@@ -1,40 +1,23 @@
 {
-  "issue_number": 6339,
-  "issue_title": "[Bug] Todo.__repr__ does not escape newlines in text, causing multiline output",
-  "candidate_number": 3,
+  "issue": 6339,
+  "candidate": 3,
   "run_id": "22522323885",
-  "stage": "FINALIZE",
-  "status": "completed",
-  "created_at": "2026-02-28T14:00:00Z",
-  "summary": "Added comprehensive regression tests for Todo.__repr__ control character escaping. The existing implementation already correctly escapes newlines, tabs, and carriage returns via Python's !r format specifier. Added three new tests with explicit assertions to prevent regression.",
-  "changes": {
-    "test_files": ["tests/test_issue_2087_todo_repr.py"],
-    "source_files": [],
-    "tests_added": 3,
-    "tests_modified": 1
-  },
-  "tests_run": {
-    "command": "uv run pytest tests/test_issue_2087_todo_repr.py -v",
-    "result": "11 passed",
-    "coverage": "51% on todo.py"
-  },
-  "risks": [],
-  "limitations": [],
-  "verification": {
-    "repr_escapes_newlines": true,
-    "repr_escapes_tabs": true,
-    "repr_escapes_carriage_return": true,
-    "output_remains_single_line": true,
-    "existing_tests_pass": true,
-    "full_test_suite_pass": true,
-    "ruff_checks_pass": true
-  },
-  "verify_commands": {
-    "pytest_targeted": "uv run pytest tests/test_issue_2087_todo_repr.py -v",
-    "pytest_result": "11 passed in 0.05s",
-    "pytest_full": "uv run pytest tests/ -v",
-    "pytest_full_result": "115 passed in 0.46s",
-    "ruff_check": "uv run ruff check tests/test_issue_2087_todo_repr.py src/flywheel/todo.py",
-    "ruff_result": "All checks passed!"
+  "branch": "claude/issue-6339-candidate-3-22522323885",
+  "pr_number": 6364,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6364",
+  "generated_at": "2026-02-28T15:28:23.664986+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3221,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2385,
+    "finalize": 428
   }
 }
