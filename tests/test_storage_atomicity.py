@@ -151,6 +151,88 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_permission_error_clear_message(tmp_path) -> None:
+    """Test that PermissionError provides a clear, actionable message.
+
+    Regression test for issue #6437: OSError handling was too broad.
+    PermissionError should provide guidance about checking file permissions.
+    """
+    # Create a read-only directory to trigger permission error
+    readonly_dir = tmp_path / "readonly"
+    readonly_dir.mkdir()
+    readonly_db = readonly_dir / "todo.json"
+    readonly_storage = TodoStorage(str(readonly_db))
+
+    # Make directory read-only
+    import os
+    os.chmod(readonly_dir, 0o555)
+
+    try:
+        with pytest.raises(PermissionError) as exc_info:
+            readonly_storage.save([Todo(id=1, text="test")])
+
+        # Error message should mention permissions
+        error_msg = str(exc_info.value).lower()
+        assert "permission" in error_msg or "access" in error_msg
+    finally:
+        # Restore permissions for cleanup
+        os.chmod(readonly_dir, 0o755)
+
+
+def test_save_disk_full_error_clear_message(tmp_path) -> None:
+    """Test that disk full errors (ENOSPC) provide a clear message.
+
+    Regression test for issue #6437: OSError handling was too broad.
+    Disk full errors should provide guidance about storage space.
+    """
+    import errno
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Simulate disk full error during os.replace
+    def raise_enospc(*args, **kwargs):
+        raise OSError(errno.ENOSPC, "No space left on device")
+
+    with (
+        patch("flywheel.storage.os.replace", raise_enospc),
+        pytest.raises(OSError) as exc_info,
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Should preserve errno for disk full
+    assert exc_info.value.errno == errno.ENOSPC
+    # Error message should mention storage (our enhanced message)
+    error_msg = str(exc_info.value).lower()
+    assert "storage" in error_msg or "disk" in error_msg
+
+
+def test_save_preserves_exception_chain(tmp_path) -> None:
+    """Test that exception chain is preserved with 'from e' syntax.
+
+    Regression test for issue #6437: Exception chain should be preserved.
+    """
+    import errno
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Simulate an OSError during replace
+    original_error = OSError(errno.EIO, "I/O error")
+
+    def raise_oserror(*args, **kwargs):
+        raise original_error
+
+    with (
+        patch("flywheel.storage.os.replace", raise_oserror),
+        pytest.raises(OSError) as exc_info,
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # The raised exception should have __cause__ set (from e syntax)
+    assert exc_info.value.__cause__ is not None
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

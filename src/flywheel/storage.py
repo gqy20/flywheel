@@ -118,11 +118,28 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except PermissionError as e:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
-            raise
+            raise PermissionError(
+                f"Permission denied writing to '{self.path}'. "
+                f"Check file permissions or specify a different location with --db=path/to/db.json"
+            ) from e
+        except OSError as e:
+            # Clean up temp file on error
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            # Provide more specific messages for known error types
+            import errno
+            if e.errno == errno.ENOSPC:
+                raise OSError(
+                    e.errno,
+                    f"Disk full: cannot write to '{self.path}'. "
+                    f"Free up storage space and try again."
+                ) from e
+            # For other OSErrors, wrap with context preserved
+            raise OSError(e.errno, e.strerror) from e
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
