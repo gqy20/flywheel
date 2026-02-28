@@ -1,0 +1,31 @@
+{
+  "issue_number": 6367,
+  "candidate_number": 1,
+  "run_id": "22525142147",
+  "stage": "IMPLEMENT",
+  "status": "completed",
+  "created_at": "2026-02-28T16:00:00Z",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_minimal_framework.py"
+    ],
+    "tests_added": 6,
+    "tests_passed": 16
+  },
+  "fix_summary": "Added validation in Todo.__post_init__() to reject empty or whitespace-only text, consistent with the existing rename() method validation.",
+  "validation": {
+    "pytest_passed": true,
+    "ruff_passed": true,
+    "all_tests_count": 16,
+    "new_tests_count": 6
+  },
+  "acceptance_criteria": {
+    "empty_string_raises": true,
+    "whitespace_only_raises": true,
+    "from_dict_validates": true,
+    "valid_text_works": true
+  }
+}
