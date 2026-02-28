@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 
 
@@ -56,6 +56,34 @@ class Todo:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+    def copy(self, **overrides) -> Todo:
+        """Create a copy of this Todo with optional field overrides.
+
+        This supports immutable-style operations where instead of mutating
+        the original object, a new copy is created with modified fields.
+
+        Args:
+            **overrides: Optional field values to override in the copy.
+                         Supported fields: id, text, done, created_at, updated_at
+
+        Returns:
+            A new Todo instance with the same field values as this one,
+            except for any fields specified in overrides, and with updated_at
+            set to the current time (unless explicitly overridden).
+
+        Example:
+            >>> todo = Todo(id=1, text="buy milk", done=False)
+            >>> done_todo = todo.copy(done=True)
+            >>> done_todo.done
+            True
+            >>> todo.done  # original unchanged
+            False
+        """
+        # Create copy with overrides, always updating updated_at unless explicitly set
+        if "updated_at" not in overrides:
+            overrides["updated_at"] = _utc_now_iso()
+        return replace(self, **overrides)
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
