@@ -119,3 +119,40 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6228 - reject float IDs with non-zero fractional parts
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs like 1.5 that have non-zero fractional parts."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_float_id() -> None:
+    """Todo.from_dict should reject negative float IDs like -1.5."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
+        Todo.from_dict({"id": -1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_2_7() -> None:
+    """Todo.from_dict should reject float IDs like 2.7."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer"):
+        Todo.from_dict({"id": 2.7, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_representable_float() -> None:
+    """Todo.from_dict should accept float IDs that are integer-representable (e.g., 1.0)."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_actual_integer() -> None:
+    """Todo.from_dict should accept actual integer IDs."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_string_integer() -> None:
+    """Todo.from_dict should accept string IDs that can be converted to integer."""
+    todo = Todo.from_dict({"id": "1", "text": "task"})
+    assert todo.id == 1
