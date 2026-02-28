@@ -1,0 +1,44 @@
+{
+  "issue_number": 6367,
+  "candidate_id": 3,
+  "run_id": "22525142147",
+  "stage": "IMPLEMENTED",
+  "plan": {
+    "problem_summary": "Todo.text field accepts empty string at construction (only validated in rename method)",
+    "root_cause": "__post_init__ only initializes timestamps, does NOT validate text field",
+    "files_to_touch": [
+      "src/flywheel/todo.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing regression tests for constructor validation",
+        "tests": [
+          "test_todo_constructor_rejects_empty_string",
+          "test_todo_constructor_rejects_whitespace_only",
+          "test_todo_from_dict_rejects_empty_text",
+          "test_todo_constructor_accepts_valid_text"
+        ]
+      },
+      {
+        "step": "GREEN",
+        "description": "Add text validation to __post_init__ in todo.py",
+        "implementation": "Add text.strip() and empty check in __post_init__, consistent with rename() validation"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_minimal_framework.py -v -k 'test_todo_constructor or test_todo_from_dict'",
+      "uv run ruff check src/flywheel/todo.py",
+      "uv run pytest tests/test_minimal_framework.py -v"
+    ]
+  },
+  "implementation": {
+    "approach": "Add validation in __post_init__ to reject empty/whitespace-only text, consistent with rename() validation",
+    "tests_passed": 14,
+    "ruff_checks": "passed",
+    "risks": "Minimal - validation is consistent with existing rename() method behavior"
+  },
+  "created_at": "2026-02-28T16:00:00Z",
+  "implemented_at": "2026-02-28T17:33:00Z"
+}
