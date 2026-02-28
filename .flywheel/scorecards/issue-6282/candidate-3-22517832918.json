@@ -2,7 +2,7 @@
   "issue_number": 6282,
   "candidate_number": 3,
   "run_id": "22517832918",
-  "stage": "IMPLEMENT",
+  "stage": "VERIFY",
   "created_at": "2026-02-28T08:20:00Z",
   "plan": {
     "summary": "Add validation in Todo.from_dict to reject id <= 0, preventing next_id conflicts and semantic confusion",
