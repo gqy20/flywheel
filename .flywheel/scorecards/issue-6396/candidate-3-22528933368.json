@@ -1,0 +1,14 @@
+{
+  "issue_number": 6396,
+  "candidate_number": 3,
+  "run_id": "22528933368",
+  "status": "ready_for_review",
+  "created_at": "2026-02-28T21:29:00Z",
+  "approach": "Add __eq__ method comparing (id, text, done) and __hash__ based on id",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6396_todo_eq_hash.py"
+  ],
+  "tests_passed": 123,
+  "lint_status": "passed"
+}
