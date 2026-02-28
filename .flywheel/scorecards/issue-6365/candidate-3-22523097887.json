@@ -1,0 +1,25 @@
+{
+  "issue_number": 6365,
+  "candidate": 3,
+  "run_id": "22523097887",
+  "branch": "claude/issue-6365-candidate-3-22523097887",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Add validation in __post_init__ to ensure id > 0",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6365_positive_id_validation.py"
+    ],
+    "lines_changed": 3
+  },
+  "tests": {
+    "added": 7,
+    "passed": 7,
+    "failed": 0
+  },
+  "checks": {
+    "ruff": "passed",
+    "pytest": "passed"
+  },
+  "timestamp": "2026-02-28T16:00:00Z"
+}
