@@ -158,3 +158,37 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_generates_unique_ids_with_gaps() -> None:
+    """Bug #6283: next_id() should generate unique IDs even with gaps.
+
+    Verifies that:
+    1. next_id() returns max_id + 1 (not gap-filling)
+    2. Generated IDs never conflict with existing IDs
+    """
+    storage = TodoStorage("/tmp/test_next_id_gaps.json")
+
+    # Test case from issue: IDs [1, 5, 10] should return 11
+    todos_with_gaps = [
+        Todo(id=1, text="a"),
+        Todo(id=5, text="b"),
+        Todo(id=10, text="c"),
+    ]
+    assert storage.next_id(todos_with_gaps) == 11
+
+    # After removing middle todo, still return 11 (not reuse gap ID 5)
+    todos_after_removal = [Todo(id=1, text="a"), Todo(id=10, text="c")]
+    assert storage.next_id(todos_after_removal) == 11
+
+    # Verify generated ID is never in existing IDs
+    existing_ids = {t.id for t in todos_with_gaps}
+    next_id = storage.next_id(todos_with_gaps)
+    assert next_id not in existing_ids, f"next_id={next_id} conflicts with existing IDs"
+
+    # Edge case: unordered IDs
+    unordered = [Todo(id=10, text="a"), Todo(id=1, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(unordered) == 11
+
+    # Edge case: empty list
+    assert storage.next_id([]) == 1
