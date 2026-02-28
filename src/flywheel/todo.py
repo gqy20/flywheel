@@ -57,6 +57,22 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, new_id: int = 0) -> Todo:
+        """Create a copy of this Todo with a new id and timestamps.
+
+        Args:
+            new_id: The id for the new Todo instance. Defaults to 0.
+
+        Returns:
+            A new Todo instance with the same text and done status,
+            but with new timestamps and the specified id.
+        """
+        return Todo(
+            id=new_id,
+            text=self.text,
+            done=self.done,
+        )
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
