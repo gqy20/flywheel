@@ -125,4 +125,16 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Generate the next unique ID for a new todo.
+
+        Uses max+1 strategy: returns the maximum existing ID + 1, or 1 if empty.
+        This ensures IDs are always unique and monotonically increasing.
+        Gaps from deleted todos are NOT reused (by design).
+
+        Args:
+            todos: List of existing todos.
+
+        Returns:
+            The next available unique ID.
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

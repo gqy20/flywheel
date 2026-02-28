@@ -158,3 +158,55 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_with_gaps_returns_max_plus_one(tmp_path) -> None:
+    """Bug #6283: next_id() should return max(existing_ids) + 1, not fill gaps."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 11 (max+1), not fill the gap at 2
+    assert storage.next_id(loaded) == 11
+
+
+def test_next_id_with_gaps_after_removal(tmp_path) -> None:
+    """Bug #6283: next_id() should not reuse IDs from removed todos."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with IDs [1, 5, 10]
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    # Remove the middle todo (id=5)
+    loaded = storage.load()
+    remaining = [t for t in loaded if t.id != 5]
+    storage.save(remaining)
+
+    # next_id should still return 11, not reuse 5
+    loaded_again = storage.load()
+    assert storage.next_id(loaded_again) == 11
+
+
+def test_next_id_always_unique_with_existing_ids(tmp_path) -> None:
+    """Bug #6283: next_id() should never return an ID that already exists."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with various IDs including gaps
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=7, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    existing_ids = {t.id for t in loaded}
+    next_id = storage.next_id(loaded)
+
+    # The new ID must not already exist
+    assert next_id not in existing_ids
+    # And it should be max+1
+    assert next_id == 8

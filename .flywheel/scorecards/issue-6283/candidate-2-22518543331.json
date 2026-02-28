@@ -1,0 +1,22 @@
+{
+  "issue_number": 6283,
+  "issue_title": "[Bug] next_id() generates duplicate IDs when there are gaps in existing IDs",
+  "candidate_number": 2,
+  "run_id": "22518543331",
+  "branch_name": "claude/issue-6283-candidate-2-22518543331",
+  "status": "implemented",
+  "approach": "Documentation fix - clarified the intended behavior of next_id() with docstring explaining max+1 strategy and that gaps are not reused by design",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": [
+    "test_next_id_with_gaps_returns_max_plus_one",
+    "test_next_id_with_gaps_after_removal",
+    "test_next_id_always_unique_with_existing_ids"
+  ],
+  "tests_passed": true,
+  "linter_passed": true,
+  "risks": "Low risk - only documentation change and tests added. No behavioral change to production code.",
+  "limitations": "None - the original max+1 implementation was already correct per the issue's acceptance criteria"
+}
