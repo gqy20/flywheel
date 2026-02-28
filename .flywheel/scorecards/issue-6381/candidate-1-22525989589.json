@@ -26,7 +26,12 @@
   ],
   "verification": {
     "pytest_passed": true,
-    "ruff_passed": true
+    "ruff_passed": true,
+    "pytest_command": "uv run pytest tests/test_issue_6381_todo_constructor_text_validation.py -v",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6381_todo_constructor_text_validation.py",
+    "tests_passed": 4,
+    "full_suite_passed": true,
+    "full_suite_count": 116
   },
   "commit_sha": "59ac8d0"
 }
