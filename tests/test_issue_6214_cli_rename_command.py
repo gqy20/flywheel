@@ -82,7 +82,7 @@ def test_app_rename_method_exists() -> None:
     """TodoApp should have a rename method."""
     app = TodoApp()
     assert hasattr(app, "rename"), "TodoApp should have a rename method"
-    assert callable(getattr(app, "rename"))
+    assert callable(app.rename)
 
 
 def test_app_rename_method_works(tmp_path) -> None:
