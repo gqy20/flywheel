@@ -6,8 +6,6 @@ and used in sets/dicts for deduplication.
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
