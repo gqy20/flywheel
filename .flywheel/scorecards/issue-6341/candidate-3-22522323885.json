@@ -1,22 +1,23 @@
 {
-  "issue_number": 6341,
+  "issue": 6341,
   "candidate": 3,
   "run_id": "22522323885",
   "branch": "claude/issue-6341-candidate-3-22522323885",
-  "status": "verified",
-  "tests_passed": 7,
-  "ruff_check": "passed",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6341_todo_copy.py"
+  "pr_number": 6363,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6363",
+  "generated_at": "2026-02-28T15:25:00.787801+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added copy() method to Todo class that creates a new Todo instance with the same text and done status, but with fresh timestamps. Optional new_id parameter allows changing the id of the copy.",
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6341_todo_copy.py -v",
-    "pytest_result": "7 passed in 0.06s",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6341_todo_copy.py",
-    "ruff_result": "All checks passed!",
-    "broader_test_command": "uv run pytest tests/ -v -k 'todo' --tb=short",
-    "broader_test_result": "41 passed, 78 deselected in 0.16s"
+  "stage_response_sizes": {
+    "triage": 2125,
+    "plan": 2363,
+    "implement": 1411,
+    "verify": 1566,
+    "finalize": 729
   }
 }
