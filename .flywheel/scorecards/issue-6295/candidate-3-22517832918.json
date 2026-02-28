@@ -1,32 +1,23 @@
 {
-  "issue_number": 6295,
+  "issue": 6295,
   "candidate": 3,
   "run_id": "22517832918",
   "branch": "claude/issue-6295-candidate-3-22517832918",
-  "created_at": "2026-02-28T09:42:36Z",
-  "triage": {
-    "root_cause": "The temp file gets 0o600 permissions via os.fchmod(), but after os.replace() the final file may not retain these permissions on all filesystems/platforms. The code implicitly relies on os.replace() preserving permissions, which is not guaranteed.",
-    "risk_points": [
-      "Final db file may be world-readable on some systems",
-      "Other users on multi-user systems could read sensitive todo data"
-    ],
-    "proposed_fix": "Explicitly call os.chmod(self.path, stat.S_IRUSR | stat.S_IWUSR) after os.replace() to ensure the final file has 0o600 permissions"
-  },
-  "fix": {
-    "files_modified": [
-      "src/flywheel/storage.py"
-    ],
-    "files_added": [
-      "tests/test_issue_6295_final_file_permissions.py"
-    ],
-    "tests_added": 5,
-    "tests_passed": 117,
-    "lint_passed": true
-  },
-  "verification": {
-    "all_tests_passed": true,
-    "existing_tests_passed": true,
-    "new_tests_passed": true,
-    "ruff_check_passed": true
+  "pr_number": 6300,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6300",
+  "generated_at": "2026-02-28T10:21:43.662928+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 3193,
+    "implement": 2891,
+    "verify": 1812,
+    "finalize": 778
   }
 }
