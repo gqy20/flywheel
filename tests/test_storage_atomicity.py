@@ -169,7 +169,6 @@ def test_fd_closed_on_fdopen_failure(tmp_path) -> None:
     closed_fds = []
 
     original_mkstemp = __import__("tempfile").mkstemp
-    original_fdopen = os.fdopen
     original_close = os.close
 
     def tracking_mkstemp(*args, **kwargs):
