@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import errno
 import json
 import os
 import stat
@@ -99,14 +100,15 @@ class TodoStorage:
 
         # Create temp file in same directory as target for atomic rename
         # Use tempfile.mkstemp for unpredictable name and O_EXCL semantics
-        fd, temp_path = tempfile.mkstemp(
-            dir=self.path.parent,
-            prefix=f".{self.path.name}.",
-            suffix=".tmp",
-            text=False,  # We'll write binary data to control encoding
-        )
-
+        temp_path = None
         try:
+            fd, temp_path = tempfile.mkstemp(
+                dir=self.path.parent,
+                prefix=f".{self.path.name}.",
+                suffix=".tmp",
+                text=False,  # We'll write binary data to control encoding
+            )
+
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
@@ -118,10 +120,27 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
-        except OSError:
+        except PermissionError as e:
             # Clean up temp file on error
-            with contextlib.suppress(OSError):
-                os.unlink(temp_path)
+            if temp_path:
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+            raise PermissionError(
+                f"Permission denied writing to '{self.path}'. "
+                f"Check file permissions or specify a different location with --db=path/to/db.json"
+            ) from e
+        except OSError as e:
+            # Clean up temp file on error
+            if temp_path:
+                with contextlib.suppress(OSError):
+                    os.unlink(temp_path)
+            # Provide specific guidance for common errors
+            if e.errno == errno.ENOSPC:
+                raise OSError(
+                    f"Disk full: Cannot write to '{self.path}'. "
+                    f"Free up storage space and try again."
+                ) from e
+            # Re-raise other OSErrors with context preserved
             raise
 
     def next_id(self, todos: list[Todo]) -> int:

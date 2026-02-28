@@ -1,0 +1,15 @@
+{
+  "issue_number": 6437,
+  "candidate_number": 1,
+  "run_id": "22530905796",
+  "branch": "claude/issue-6437-candidate-1-22530905796",
+  "created_at": "2026-02-28T22:15:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_storage_atomicity.py"]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "summary": "Refined exception handling in save() to provide specific error messages for PermissionError and disk full (ENOSPC) errors instead of catching all OSError types generically."
+}

@@ -151,6 +151,64 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_permission_error_provides_clear_message(tmp_path) -> None:
+    """Test that PermissionError provides a clear message about checking file permissions.
+
+    Regression test for issue #6437: save() should provide specific error messages
+    for permission errors rather than catching all OSError types generically.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Simulate permission error during temp file write
+    def permission_error_mkstemp(*args, **kwargs):
+        raise PermissionError("Permission denied")
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", permission_error_mkstemp),
+        pytest.raises(PermissionError) as exc_info,
+    ):
+        storage.save(todos)
+
+    # Error message should provide helpful hint about checking permissions
+    error_msg = str(exc_info.value)
+    assert "check" in error_msg.lower() or "verify" in error_msg.lower(), (
+        f"Expected helpful hint in error message, got: {error_msg}"
+    )
+
+
+def test_save_disk_full_error_provides_clear_message(tmp_path) -> None:
+    """Test that disk full errors (ENOSPC) provide a clear message about storage space.
+
+    Regression test for issue #6437: save() should provide specific error messages
+    for disk full errors rather than catching all OSError types generically.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Simulate disk full error (ENOSPC) during os.replace
+    def disk_full_replace(*args, **kwargs):
+        raise OSError(28, "No space left on device")  # errno.ENOSPC = 28
+
+    with (
+        patch("flywheel.storage.os.replace", disk_full_replace),
+        pytest.raises(OSError) as exc_info,
+    ):
+        storage.save(todos)
+
+    # Error message should provide helpful hint about storage/disk space
+    error_msg = str(exc_info.value)
+    assert "storage" in error_msg.lower() or "disk" in error_msg.lower(), (
+        f"Expected storage/disk hint in error message, got: {error_msg}"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
