@@ -1,24 +1,23 @@
 {
-  "issue_number": 6339,
-  "candidate_number": 1,
+  "issue": 6339,
+  "candidate": 1,
   "run_id": "22522323885",
-  "status": "implemented",
-  "approach": "verification",
-  "summary": "Added explicit regression tests to verify Todo.__repr__ correctly escapes newlines and control characters. The existing implementation using Python's !r format specifier already handles this correctly.",
-  "changes": {
-    "test_files_added": [
-      "tests/test_issue_6339_todo_repr_newlines.py"
-    ],
-    "source_files_changed": []
-  },
-  "tests_added": 5,
-  "tests_passed": 117,
-  "linting_passed": true,
-  "acceptance_criteria": {
-    "repr_no_literal_newline": true,
-    "repr_single_line": true,
-    "existing_tests_pass": true
-  },
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-6339-candidate-1-22522323885",
+  "pr_number": 6356,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6356",
+  "generated_at": "2026-02-28T15:17:14.580809+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3586,
+    "plan": 3178,
+    "implement": 4000,
+    "verify": 2847,
+    "finalize": 1172
+  }
 }
