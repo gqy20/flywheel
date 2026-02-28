@@ -1,16 +1,23 @@
 {
-  "issue_number": 6241,
+  "issue": 6241,
   "candidate": 3,
   "run_id": "22511986817",
   "branch": "claude/issue-6241-candidate-3-22511986817",
-  "status": "verified",
-  "tests_passed": true,
-  "lint_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py",
-    "tests/test_storage_atomicity.py"
+  "pr_number": 6250,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6250",
+  "generated_at": "2026-02-28T03:48:03.105506+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added validation in Todo.from_dict to ensure 'id' is a positive integer (> 0). Fixed pre-existing test that used id=0.",
-  "approach": "TDD - added failing tests first, then implemented minimal fix"
+  "stage_response_sizes": {
+    "triage": 1995,
+    "plan": 3043,
+    "implement": 2040,
+    "verify": 3121,
+    "finalize": 968
+  }
 }
