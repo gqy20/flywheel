@@ -1,16 +1,23 @@
 {
-  "issue_number": 6409,
+  "issue": 6409,
   "candidate": 1,
   "run_id": "22529914624",
   "branch": "claude/issue-6409-candidate-1-22529914624",
-  "created_at": "2026-02-28T19:26:00Z",
-  "status": "verified",
-  "tests_added": 3,
-  "tests_passed": true,
-  "ruff_passed": true,
-  "all_tests_passed": 115,
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py", "tests/test_storage_atomicity.py"]
+  "pr_number": 6446,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6446",
+  "generated_at": "2026-02-28T22:39:04.446365+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1426,
+    "plan": 2604,
+    "implement": 2061,
+    "verify": 2145,
+    "finalize": 1715
   }
 }
