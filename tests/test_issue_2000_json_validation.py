@@ -84,6 +84,27 @@ def test_todo_from_dict_handles_wrong_id_type() -> None:
         Todo.from_dict({"id": "not-an-int", "text": "task"})
 
 
+# Tests for Issue #6325 - reject boolean values for 'id' field
+def test_todo_from_dict_rejects_boolean_true_id() -> None:
+    """Todo.from_dict should reject boolean True for 'id' field.
+
+    bool is a subclass of int, so int(True) == 1, but this is likely
+    unintended behavior when deserializing data.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_rejects_boolean_false_id() -> None:
+    """Todo.from_dict should reject boolean False for 'id' field.
+
+    bool is a subclass of int, so int(False) == 0, but this is likely
+    unintended behavior when deserializing data.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": False, "text": "task"})
+
+
 # Tests for Issue #2125 - validate 'done' field is properly typed
 def test_todo_from_dict_rejects_truthy_int_done() -> None:
     """Todo.from_dict should reject non-boolean integers like 2 for 'done' field."""
