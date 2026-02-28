@@ -1,0 +1,31 @@
+{
+  "issue_number": 6353,
+  "candidate_number": 1,
+  "run_id": "22523097887",
+  "branch": "claude/issue-6353-candidate-1-22523097887",
+  "status": "ready_for_review",
+  "created_at": "2026-02-28T14:50:00Z",
+  "triage": {
+    "root_cause": "next_id() returns non-positive ID when todos contain only negative IDs",
+    "affected_files": ["src/flywheel/storage.py"],
+    "risk_level": "low"
+  },
+  "fix": {
+    "approach": "Wrap result in max(..., 1) to guarantee return value >= 1",
+    "files_changed": ["src/flywheel/storage.py", "tests/test_minimal_framework.py"],
+    "lines_changed": 22
+  },
+  "tests": {
+    "added": 1,
+    "scenarios_covered": [
+      "All negative IDs returns 1",
+      "Mixed negative/positive IDs returns max positive + 1",
+      "All positive IDs preserves existing behavior",
+      "Empty list returns 1"
+    ]
+  },
+  "verification": {
+    "pytest_passed": true,
+    "ruff_passed": true
+  }
+}
