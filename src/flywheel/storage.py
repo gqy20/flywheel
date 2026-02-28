@@ -55,8 +55,34 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        # Cache for avoiding redundant file reads
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
+
+    def _get_mtime(self) -> float | None:
+        """Get file modification time, or None if file doesn't exist."""
+        try:
+            return self.path.stat().st_mtime
+        except OSError:
+            return None
+
+    def _is_cache_valid(self) -> bool:
+        """Check if cache is still valid (file unchanged)."""
+        if self._cache is None or self._cache_mtime is None:
+            return False
+        current_mtime = self._get_mtime()
+        return current_mtime is not None and current_mtime == self._cache_mtime
+
+    def _invalidate_cache(self) -> None:
+        """Clear the cache (called after save)."""
+        self._cache = None
+        self._cache_mtime = None
 
     def load(self) -> list[Todo]:
+        # Return cached data if file hasn't changed
+        if self._is_cache_valid():
+            return self._cache  # type: ignore[return-value]
+
         if not self.path.exists():
             return []
 
@@ -80,7 +106,12 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        todos = [Todo.from_dict(item) for item in raw]
+        # Update cache
+        self._cache = todos
+        self._cache_mtime = self._get_mtime()
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +149,9 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+            # Update cache with saved data to avoid immediate re-read
+            self._cache = list(todos)  # Store a copy to avoid mutation issues
+            self._cache_mtime = self._get_mtime()
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
