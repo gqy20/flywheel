@@ -81,6 +81,43 @@ def test_todo_repr_handles_special_characters() -> None:
     assert "\n" not in result2 or repr(result2).count("\\n") > 0
 
 
+def test_todo_repr_escapes_newlines() -> None:
+    """repr(Todo) should escape newlines to keep output on single line (Issue #6339)."""
+    # Text with newline should NOT produce multiline repr output
+    todo = Todo(id=1, text="a\nb")
+    result = repr(todo)
+
+    # The repr output must be on a single line - no literal newlines
+    assert "\n" not in result, f"repr should not contain literal newlines: {result!r}"
+
+    # The escaped newline should appear as \\n in the output
+    assert "\\n" in result, f"repr should contain escaped newline: {result!r}"
+
+
+def test_todo_repr_escapes_tabs() -> None:
+    """repr(Todo) should escape tabs to prevent misaligned output (Issue #6339)."""
+    todo = Todo(id=1, text="a\tb")
+    result = repr(todo)
+
+    # The repr output must not contain literal tabs
+    assert "\t" not in result, f"repr should not contain literal tabs: {result!r}"
+
+    # The escaped tab should appear as \\t in the output
+    assert "\\t" in result, f"repr should contain escaped tab: {result!r}"
+
+
+def test_todo_repr_escapes_carriage_return() -> None:
+    """repr(Todo) should escape carriage returns (Issue #6339)."""
+    todo = Todo(id=1, text="a\rb")
+    result = repr(todo)
+
+    # The repr output must not contain literal carriage returns
+    assert "\r" not in result, f"repr should not contain literal CR: {result!r}"
+
+    # The escaped CR should appear as \\r in the output
+    assert "\\r" in result, f"repr should contain escaped CR: {result!r}"
+
+
 def test_todo_repr_eval_able_optional() -> None:
     """repr(Todo) output should ideally be eval-able or at least informative."""
     todo = Todo(id=1, text="simple task", done=True)
