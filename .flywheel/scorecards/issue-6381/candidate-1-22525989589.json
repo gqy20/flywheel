@@ -1,14 +1,32 @@
 {
-  "issue": 6381,
-  "candidate": 1,
+  "issue_number": 6381,
+  "candidate_number": 1,
   "run_id": "22525989589",
+  "branch": "claude/issue-6381-candidate-1-22525989589",
   "created_at": "2026-02-28T17:30:00Z",
-  "tests_added": 4,
-  "tests_passed": 116,
-  "source_files_changed": 1,
-  "test_files_changed": 1,
-  "lines_changed": 12,
-  "approach": "Added text validation in __post_init__ to strip whitespace and reject empty/whitespace-only text, matching the validation behavior of rename() method",
-  "risks": "Low risk - validation matches existing rename() method behavior",
-  "commit_sha": "9eaa4c3642a08b31c5e308ec9c33e7481b859b2a"
+  "status": "ready",
+  "test_file": "tests/test_issue_6381_todo_constructor_text_validation.py",
+  "tests": [
+    {
+      "name": "test_todo_constructor_rejects_empty_string",
+      "description": "Todo constructor rejects empty string for text field"
+    },
+    {
+      "name": "test_todo_constructor_rejects_whitespace_only",
+      "description": "Todo constructor rejects whitespace-only string for text field"
+    },
+    {
+      "name": "test_todo_constructor_accepts_valid_text",
+      "description": "Todo constructor accepts valid non-empty text"
+    },
+    {
+      "name": "test_todo_constructor_strips_whitespace",
+      "description": "Todo constructor strips whitespace from text"
+    }
+  ],
+  "verification": {
+    "pytest_passed": true,
+    "ruff_passed": true
+  },
+  "commit_sha": "59ac8d0"
 }
