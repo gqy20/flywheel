@@ -1,0 +1,14 @@
+{
+  "issue_number": 6228,
+  "candidate": 2,
+  "run_id": "22509599351",
+  "status": "implemented",
+  "summary": "Fixed Todo.from_dict silently truncating float IDs by adding validation to reject float IDs with non-zero fractional parts before int() conversion",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": 18,
+  "lint_status": "passed"
+}
