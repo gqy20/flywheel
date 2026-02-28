@@ -51,14 +51,26 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos with mtime-based caching."""
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._cache: list[Todo] | None = None
+        self._cache_mtime: float | None = None
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
+            # Clear cache when file doesn't exist
+            self._cache = None
+            self._cache_mtime = None
             return []
+
+        # Get current file modification time
+        current_mtime = self.path.stat().st_mtime
+
+        # Return cached data if file hasn't been modified
+        if self._cache is not None and self._cache_mtime == current_mtime:
+            return self._cache
 
         # Security: Check file size before loading to prevent DoS
         file_size = self.path.stat().st_size
@@ -80,7 +92,11 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+
+        # Cache the result
+        self._cache = [Todo.from_dict(item) for item in raw]
+        self._cache_mtime = current_mtime
+        return self._cache
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -118,6 +134,10 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Invalidate cache after save to ensure consistency
+            self._cache = None
+            self._cache_mtime = None
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
