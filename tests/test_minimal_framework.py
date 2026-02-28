@@ -158,3 +158,28 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_from_dict_rejects_empty_text() -> None:
+    """Bug #6297: Todo.from_dict() should reject empty text."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo.from_dict({"id": 1, "text": ""})
+
+
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Bug #6297: Todo.from_dict() should reject whitespace-only text."""
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        Todo.from_dict({"id": 1, "text": "\t\n"})
+
+
+def test_todo_from_dict_accepts_valid_text() -> None:
+    """Bug #6297: Todo.from_dict() should still work with valid text."""
+    todo = Todo.from_dict({"id": 1, "text": "valid"})
+    assert todo.text == "valid"
+
+    # Text with surrounding whitespace should be stripped
+    todo = Todo.from_dict({"id": 2, "text": "  padded  "})
+    assert todo.text == "padded"
