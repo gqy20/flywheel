@@ -1,16 +1,23 @@
 {
-  "issue_number": 6255,
-  "candidate_number": 3,
+  "issue": 6255,
+  "candidate": 3,
   "run_id": "22513608265",
   "branch": "claude/issue-6255-candidate-3-22513608265",
-  "commit_sha": "9847195247413efedcb7c4f95f5ea49ee02d3478",
-  "summary": "Fixed file descriptor leak when os.fdopen fails after mkstemp returns fd",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_storage_atomicity.py"]
-  },
-  "tests_passed": 7,
-  "ruff_check": "passed",
-  "ruff_format": "passed",
-  "fix_approach": "Wrap os.fdopen in try/except to explicitly close fd on failure before re-raising exception"
+  "pr_number": 6266,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6266",
+  "generated_at": "2026-02-28T05:35:34.295509+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2568,
+    "plan": 2138,
+    "implement": 3061,
+    "verify": 1856,
+    "finalize": 2127
+  }
 }
