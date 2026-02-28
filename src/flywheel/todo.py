@@ -119,12 +119,8 @@ class Todo:
             )
 
         # Validate and normalize timestamp fields
-        created_at = _validate_iso8601_timestamp(
-            str(data.get("created_at") or ""), "created_at"
-        )
-        updated_at = _validate_iso8601_timestamp(
-            str(data.get("updated_at") or ""), "updated_at"
-        )
+        created_at = _validate_iso8601_timestamp(str(data.get("created_at") or ""), "created_at")
+        updated_at = _validate_iso8601_timestamp(str(data.get("updated_at") or ""), "updated_at")
 
         return cls(
             id=todo_id,
