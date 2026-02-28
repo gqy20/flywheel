@@ -1,33 +1,23 @@
 {
-  "issue_number": 6325,
-  "candidate_number": 3,
+  "issue": 6325,
+  "candidate": 3,
   "run_id": "22519436295",
   "branch": "claude/issue-6325-candidate-3-22519436295",
-  "status": "verified",
-  "test_results": {
-    "passed": 114,
-    "failed": 0,
-    "total": 114,
-    "targeted_tests": {
-      "test_file": "tests/test_issue_2000_json_validation.py",
-      "passed": 14,
-      "failed": 0
-    }
-  },
-  "lint_results": {
-    "ruff": "passed",
-    "ruff_scope": "src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
-  },
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 6332,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6332",
+  "generated_at": "2026-02-28T12:17:38.524035+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Fixed bug where from_dict accepted True/False as valid 'id' value via int() conversion. Added explicit type check before int() conversion to reject boolean values.",
-  "verification": {
-    "pytest_targeted": "uv run pytest tests/test_issue_2000_json_validation.py -xvs",
-    "pytest_all": "uv run pytest tests/ -x --tb=short",
-    "ruff_targeted": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-    "ruff_all": "uv run ruff check src/ tests/",
-    "all_checks_passed": true
+  "stage_response_sizes": {
+    "triage": 1397,
+    "plan": 2607,
+    "implement": 2307,
+    "verify": 3157,
+    "finalize": 1256
   }
 }
