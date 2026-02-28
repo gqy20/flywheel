@@ -69,9 +69,7 @@ class Todo:
         # Reject float values that are not integer-equivalent (e.g., 3.14)
         raw_id = data["id"]
         if isinstance(raw_id, float) and not raw_id.is_integer():
-            raise ValueError(
-                f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer."
-            )
+            raise ValueError(f"Invalid value for 'id': {raw_id!r}. 'id' must be an integer.")
         try:
             todo_id = int(data["id"])
         except (ValueError, TypeError) as e:
