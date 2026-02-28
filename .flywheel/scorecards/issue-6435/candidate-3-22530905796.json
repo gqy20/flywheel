@@ -1,35 +1,23 @@
 {
-  "issue_number": 6435,
-  "candidate_number": 3,
+  "issue": 6435,
+  "candidate": 3,
   "run_id": "22530905796",
   "branch": "claude/issue-6435-candidate-3-22530905796",
-  "status": "verified",
-  "created_at": "2026-02-28T22:30:00Z",
-  "analysis": {
-    "root_cause": "Test assertion was too lenient with OR clause that could allow buggy implementations to pass",
-    "fix_approach": "Strengthen test assertions to strictly verify no literal control characters in __repr__ output"
-  },
-  "changes": {
-    "files_modified": [
-      "tests/test_issue_2087_todo_repr.py"
-    ],
-    "source_files_changed": false,
-    "test_files_added_or_changed": true
-  },
-  "tests": {
-    "tests_run": ["uv run pytest tests/test_issue_2087_todo_repr.py -v"],
-    "tests_passed": 9,
-    "tests_failed": 0,
-    "new_tests_added": 1,
-    "test_name": "test_todo_repr_no_control_chars_single_line"
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_check_passed": true,
-    "commands_executed": [
-      "uv run pytest tests/test_issue_2087_todo_repr.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2087_todo_repr.py"
-    ]
-  },
-  "implementation_notes": "The current __repr__ implementation already correctly escapes control characters via !r format specifier. The fix strengthens the test to ensure this behavior is enforced and adds comprehensive edge case testing for various control characters (newlines, tabs, carriage returns, null chars)."
+  "pr_number": 6455,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6455",
+  "generated_at": "2026-02-28T23:48:01.597288+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 4000,
+    "implement": 3447,
+    "verify": 3257,
+    "finalize": 525
+  }
 }
