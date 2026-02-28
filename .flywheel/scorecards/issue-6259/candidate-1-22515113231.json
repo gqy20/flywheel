@@ -1,31 +1,23 @@
 {
-  "issue_number": 6259,
-  "issue_title": "[Enhancement] 添加 copy/clone 方法支持不可变操作模式",
-  "candidate_number": 1,
+  "issue": 6259,
+  "candidate": 1,
   "run_id": "22515113231",
-  "branch_name": "claude/issue-6259-candidate-1-22515113231",
-  "created_at": "2026-02-28T05:06:00Z",
-  "implementation": {
-    "approach": "Added copy(**overrides) method to Todo dataclass using dataclasses.replace()",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6259_copy_method.py"
-    ],
-    "lines_added": 70,
-    "lines_removed": 1
-  },
-  "test_coverage": {
-    "new_tests": 9,
-    "all_passing": true,
-    "test_file": "tests/test_issue_6259_copy_method.py"
-  },
-  "acceptance_criteria": {
-    "copy_returns_new_instance": true,
-    "copy_with_done_override": true,
-    "copy_with_text_override": true,
-    "copy_updates_timestamp": true,
-    "original_unchanged": true
-  },
-  "risks": "None identified. Implementation uses standard dataclasses.replace() which is safe and well-tested.",
-  "limitations": "None. Full feature implemented as specified."
+  "branch": "claude/issue-6259-candidate-1-22515113231",
+  "pr_number": 6274,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6274",
+  "generated_at": "2026-02-28T07:14:53.038215+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2494,
+    "plan": 3372,
+    "implement": 1201,
+    "verify": 2277,
+    "finalize": 1278
+  }
 }
