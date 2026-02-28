@@ -11,9 +11,7 @@ This test FAILS before the fix and PASSES after the fix.
 
 from __future__ import annotations
 
-import os
 import stat
-from pathlib import Path
 
 from flywheel.storage import TodoStorage
 from flywheel.todo import Todo
