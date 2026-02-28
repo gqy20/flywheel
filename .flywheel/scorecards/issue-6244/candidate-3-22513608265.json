@@ -1,16 +1,23 @@
 {
-  "issue_number": 6244,
+  "issue": 6244,
   "candidate": 3,
   "run_id": "22513608265",
   "branch": "claude/issue-6244-candidate-3-22513608265",
-  "status": "implemented",
-  "tests_passed": true,
-  "lint_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6244_todo_eq_hash.py"
+  "pr_number": 6267,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6267",
+  "generated_at": "2026-02-28T05:35:28.872635+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_count": 7,
-  "all_tests_passed": 119,
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo dataclass for equality comparison and set operations"
+  "stage_response_sizes": {
+    "triage": 2163,
+    "plan": 3622,
+    "implement": 1800,
+    "verify": 1978,
+    "finalize": 950
+  }
 }
