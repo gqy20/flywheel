@@ -1,0 +1,14 @@
+{
+  "issue_number": 6341,
+  "candidate": 3,
+  "run_id": "22522323885",
+  "branch": "claude/issue-6341-candidate-3-22522323885",
+  "status": "implemented",
+  "tests_passed": 7,
+  "ruff_check": "passed",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6341_todo_copy.py"
+  ],
+  "summary": "Added copy() method to Todo class that creates a new Todo instance with the same text and done status, but with fresh timestamps. Optional new_id parameter allows changing the id of the copy."
+}
