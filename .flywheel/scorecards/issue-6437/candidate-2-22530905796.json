@@ -1,17 +1,23 @@
 {
-  "issue_number": 6437,
+  "issue": 6437,
   "candidate": 2,
   "run_id": "22530905796",
-  "approach": "Refine OSError handling in save() to provide specific error messages for ENOSPC (disk full) and EACCES/EPERM (permission denied) while preserving exception chain",
-  "files_changed": [
-    "src/flywheel/storage.py",
-    "tests/test_storage_atomicity.py"
+  "branch": "claude/issue-6437-candidate-2-22530905796",
+  "pr_number": 6460,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6460",
+  "generated_at": "2026-02-28T23:49:50.942363+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "test_save_disk_full_provides_clear_error_message",
-    "test_save_permission_denied_provides_clear_error_message"
-  ],
-  "tests_passed": 17,
-  "linter_status": "passed",
-  "commit_message": "fix(storage): provide specific error messages for disk full and permission errors (#6437)"
+  "stage_response_sizes": {
+    "triage": 2830,
+    "plan": 3487,
+    "implement": 2529,
+    "verify": 2205,
+    "finalize": 307
+  }
 }
