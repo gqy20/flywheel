@@ -1,0 +1,27 @@
+{
+  "issue_number": 6337,
+  "candidate_number": 1,
+  "run_id": "22521674456",
+  "branch_name": "claude/issue-6337-candidate-1-22521674456",
+  "created_at": "2026-02-28T13:46:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py",
+      "tests/test_storage_atomicity.py"
+    ]
+  },
+  "validation": {
+    "tests_passed": 115,
+    "tests_failed": 0,
+    "ruff_check": "passed"
+  },
+  "acceptance_criteria": {
+    "negative_id_raises_valueerror": true,
+    "zero_id_raises_valueerror": true,
+    "positive_id_accepts": true
+  }
+}
