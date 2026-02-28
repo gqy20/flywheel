@@ -1,46 +1,23 @@
 {
-  "issue_number": 6341,
-  "issue_title": "[Feature] 添加 Todo 复制/克隆方法 copy()",
+  "issue": 6341,
   "candidate": 2,
   "run_id": "22522323885",
   "branch": "claude/issue-6341-candidate-2-22522323885",
-  "status": "verified",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6341_todo_copy.py"
-    ],
-    "changes_summary": "Added copy() method to Todo class that creates a new Todo instance with the same text and done status, but with new timestamps and a configurable id (defaults to 0).",
-    "tests_added": 7,
-    "tests_passed": 119
-  },
-  "acceptance_criteria": [
-    {"criterion": "todo.copy() returns new Todo instance with same text/done", "met": true},
-    {"criterion": "Default generates new created_at/updated_at", "met": true},
-    {"criterion": "Can optionally pass new id parameter", "met": true}
+  "pr_number": 6359,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6359",
+  "generated_at": "2026-02-28T15:16:39.545767+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "test_plan": [
-    {"test": "copy() returns different object instance", "passed": true},
-    {"test": "copy() preserves text and done status", "passed": true},
-    {"test": "Modifying copy does not affect original", "passed": true},
-    {"test": "copy() generates new timestamps", "passed": true},
-    {"test": "copy() defaults to id=0", "passed": true},
-    {"test": "copy(new_id=X) uses provided id", "passed": true},
-    {"test": "copy() preserves done state for both True/False", "passed": true}
-  ],
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_6341_todo_copy.py -v",
-      "result": "7 passed"
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ -v",
-      "result": "119 passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6341_todo_copy.py",
-      "result": "All checks passed"
-    }
-  },
-  "risks_limitations": "Minimal change with no backward compatibility concerns. The new id defaults to 0 which is consistent with the pattern of creating new todos that need to be assigned proper ids by the storage layer."
+  "stage_response_sizes": {
+    "triage": 1885,
+    "plan": 3696,
+    "implement": 770,
+    "verify": 2125,
+    "finalize": 1435
+  }
 }
