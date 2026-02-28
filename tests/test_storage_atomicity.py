@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,55 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_closed_on_fdopen_failure(tmp_path) -> None:
+    """Regression test for issue #6255: fd leak on os.fdopen failure.
+
+    When os.fdopen fails after mkstemp returns a file descriptor,
+    the fd should be properly closed to prevent resource leaks.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track the fd created by mkstemp
+    created_fds = []
+    closed_fds = []
+
+    original_mkstemp = __import__("tempfile").mkstemp
+    original_fdopen = os.fdopen
+    original_close = os.close
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        created_fds.append(fd)
+        return fd, path
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Simulate fdopen failure (e.g., encoding error, memory issue)
+        raise OSError("Simulated fdopen failure")
+
+    def tracking_close(fd):
+        closed_fds.append(fd)
+        return original_close(fd)
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify that the fd was closed even though fdopen failed
+    assert len(created_fds) == 1, "Expected exactly one fd to be created"
+    assert created_fds[0] in closed_fds, (
+        f"fd {created_fds[0]} was not closed on fdopen failure - RESOURCE LEAK"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +269,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
