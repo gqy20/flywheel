@@ -1,0 +1,41 @@
+{
+  "issue_number": 6408,
+  "candidate": 2,
+  "run_id": "22528933368",
+  "branch_name": "claude/issue-6408-candidate-2-22528933368",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_6408_todo_text_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "description": "Create failing regression tests for Todo text validation in __post_init__"
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "description": "Add text validation in __post_init__: strip and check for empty/whitespace"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6408_todo_text_validation.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "Todo(id=1, text='') raises ValueError",
+    "Todo(id=1, text=' ') raises ValueError",
+    "Todo(id=1, text='valid') works normally"
+  ],
+  "risks": [
+    "Breaking change for existing code creating Todo with empty/whitespace text",
+    "from_dict() will also be affected",
+    "JSON files with empty text todos will fail to load"
+  ],
+  "created_at": "2026-02-28T19:30:00Z"
+}

@@ -34,6 +34,13 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate and normalize text field
+        text = self.text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        self.text = text
+
+        # Set timestamps
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
