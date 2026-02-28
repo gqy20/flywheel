@@ -1,31 +1,23 @@
 {
-  "issue_number": 6296,
+  "issue": 6296,
   "candidate": 3,
   "run_id": "22518543331",
   "branch": "claude/issue-6296-candidate-3-22518543331",
-  "status": "finalized",
-  "summary": "Added validation in Todo.from_dict to reject invalid id values: zero, negative, and non-integer floats",
-  "tests_added": [
-    "test_todo_from_dict_rejects_zero_id",
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_rejects_non_integer_float_id",
-    "test_todo_from_dict_accepts_integer_float_id"
+  "pr_number": 6317,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6317",
+  "generated_at": "2026-02-28T11:25:47.340737+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py",
-    "tests/test_storage_atomicity.py"
-  ],
-  "verification": {
-    "pytest_commands": [
-      "uv run pytest tests/test_issue_2000_json_validation.py -v (16 passed)",
-      "uv run pytest tests/test_storage_atomicity.py -v (6 passed)"
-    ],
-    "ruff_commands": [
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py tests/test_storage_atomicity.py (All checks passed)",
-      "uv run ruff format --check (3 files already formatted after fix)"
-    ]
-  },
-  "commit_sha": "dfc5c27",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/6317"
+  "stage_response_sizes": {
+    "triage": 2092,
+    "plan": 2017,
+    "implement": 1874,
+    "verify": 2814,
+    "finalize": 845
+  }
 }
