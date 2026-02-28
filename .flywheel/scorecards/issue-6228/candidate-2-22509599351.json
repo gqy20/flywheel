@@ -1,14 +1,23 @@
 {
-  "issue_number": 6228,
+  "issue": 6228,
   "candidate": 2,
   "run_id": "22509599351",
-  "status": "implemented",
-  "summary": "Fixed Todo.from_dict silently truncating float IDs by adding validation to reject float IDs with non-zero fractional parts before int() conversion",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "branch": "claude/issue-6228-candidate-2-22509599351",
+  "pr_number": 6236,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6236",
+  "generated_at": "2026-02-28T01:25:43.535902+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passed": 18,
-  "lint_status": "passed"
+  "stage_response_sizes": {
+    "triage": 2166,
+    "plan": 3826,
+    "implement": 2760,
+    "verify": 1728,
+    "finalize": 1549
+  }
 }
