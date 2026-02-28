@@ -1,0 +1,25 @@
+{
+  "issue_number": 6394,
+  "candidate_number": 1,
+  "run_id": "22527162004",
+  "status": "completed",
+  "summary": "Added regression tests to verify that Todo.__repr__ properly sanitizes control characters. The existing implementation already handles this correctly because Python's !r format specifier escapes control characters. Tests verify: newlines, carriage returns, tabs, ANSI escape codes, null bytes, and unicode handling.",
+  "tests_added": ["tests/test_issue_6394_repr_sanitization.py"],
+  "files_changed": ["tests/test_issue_6394_repr_sanitization.py"],
+  "source_changes": false,
+  "test_results": {
+    "passed": 26,
+    "failed": 0,
+    "total": 26
+  },
+  "lint_results": {
+    "passed": true,
+    "errors": []
+  },
+  "acceptance_criteria_met": [
+    "repr(Todo(id=1, text='a\\n\\r\\tx')) returns string without literal control characters",
+    "repr(Todo(id=1, text='a\\x1b[31m')) returns string without ANSI escape sequences"
+  ],
+  "risks": [],
+  "limitations": ["No code changes were needed - existing implementation is already safe due to Python's !r format specifier behavior"]
+}
