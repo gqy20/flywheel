@@ -33,5 +33,6 @@
       "uv run ruff format --check tests/"
     ]
   },
-  "status": "planned"
+  "status": "completed",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6458"
 }
