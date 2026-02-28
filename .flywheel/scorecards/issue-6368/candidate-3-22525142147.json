@@ -1,29 +1,23 @@
 {
-  "issue_number": 6368,
-  "candidate_number": 3,
+  "issue": 6368,
+  "candidate": 3,
   "run_id": "22525142147",
   "branch": "claude/issue-6368-candidate-3-22525142147",
-  "status": "verified",
-  "tests_passed": true,
-  "ruff_passed": true,
-  "implementation_summary": "Added __eq__ method to Todo dataclass that compares business fields (id, text, done) only, excluding timestamps (created_at, updated_at) from equality comparison.",
-  "test_file": "tests/test_issue_6368_todo_eq.py",
-  "source_file": "src/flywheel/todo.py",
-  "test_count": 6,
-  "tests": [
-    "test_todo_eq_with_same_fields",
-    "test_todo_eq_ignores_timestamps",
-    "test_todo_neq_different_id",
-    "test_todo_neq_different_text",
-    "test_todo_neq_different_done",
-    "test_todo_eq_not_equal_to_other_types"
+  "pr_number": 6389,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6389",
+  "generated_at": "2026-02-28T17:48:52.270174+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6368_todo_eq.py -v",
-    "pytest_result": "6 passed in 0.04s",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6368_todo_eq.py",
-    "ruff_result": "All checks passed!",
-    "related_tests_command": "uv run pytest tests/test_minimal_framework.py tests/test_issue_2087_todo_repr.py -v",
-    "related_tests_result": "18 passed in 0.19s"
+  "stage_response_sizes": {
+    "triage": 2499,
+    "plan": 2847,
+    "implement": 1737,
+    "verify": 1776,
+    "finalize": 595
   }
 }
