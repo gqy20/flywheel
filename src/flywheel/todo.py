@@ -47,6 +47,18 @@ class Todo:
         self.done = False
         self.updated_at = _utc_now_iso()
 
+    def toggle(self) -> Todo:
+        """Toggle the done state of the todo.
+
+        Returns:
+            Self for method chaining.
+        """
+        if self.done:
+            self.mark_undone()
+        else:
+            self.mark_done()
+        return self
+
     def rename(self, text: str) -> None:
         text = text.strip()
         if not text:
