@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_positive_with_negative_ids() -> None:
+    """Bug #6353: next_id() should always return positive ID (>= 1).
+
+    If all existing todo IDs are negative, next_id() should return 1,
+    not a non-positive ID that could result from max() of negative values.
+    """
+    storage = TodoStorage("/tmp/test.json")  # Path doesn't matter for this test
+
+    # Test case 1: All negative IDs should return 1
+    todos_with_negative_ids = [
+        Todo(id=-5, text="negative 1"),
+        Todo(id=-10, text="negative 2"),
+        Todo(id=-1, text="negative 3"),
+    ]
+    next_id = storage.next_id(todos_with_negative_ids)
+    assert next_id == 1, f"Expected 1 when all IDs are negative, got {next_id}"
+
+    # Test case 2: Mixed positive and negative should work correctly
+    todos_mixed = [
+        Todo(id=-5, text="negative"),
+        Todo(id=5, text="positive"),
+    ]
+    next_id = storage.next_id(todos_mixed)
+    assert next_id == 6, f"Expected 6 when max ID is 5, got {next_id}"
+
+    # Test case 3: Normal case with positive IDs
+    todos_positive = [
+        Todo(id=5, text="five"),
+        Todo(id=10, text="ten"),
+    ]
+    next_id = storage.next_id(todos_positive)
+    assert next_id == 11, f"Expected 11 when max ID is 10, got {next_id}"
+
+    # Test case 4: Empty list should return 1
+    next_id = storage.next_id([])
+    assert next_id == 1, f"Expected 1 for empty list, got {next_id}"
