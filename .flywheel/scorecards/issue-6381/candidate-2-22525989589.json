@@ -1,0 +1,47 @@
+{
+  "issue_number": 6381,
+  "issue_title": "[Test] Missing test coverage for Todo constructor text validation",
+  "candidate": 2,
+  "run_id": "22525989589",
+  "stage": "PLAN",
+  "plan": {
+    "description": "Add test coverage for Todo constructor text validation and implement validation in __post_init__",
+    "tdd_approach": {
+      "red_phase": "Add failing tests that expect Todo constructor to reject empty/whitespace-only text",
+      "green_phase": "Add validation in __post_init__ to reject empty/whitespace-only text"
+    },
+    "files_to_touch": [
+      {
+        "path": "tests/test_issue_6381_todo_constructor_validation.py",
+        "action": "create",
+        "purpose": "New test file with constructor validation tests"
+      },
+      {
+        "path": "src/flywheel/todo.py",
+        "action": "modify",
+        "purpose": "Add text validation in __post_init__"
+      }
+    ],
+    "implementation_sequence": [
+      "1. Create test file with test_todo_constructor_rejects_empty_string (expect ValueError)",
+      "2. Add test_todo_constructor_rejects_whitespace_only (expect ValueError)",
+      "3. Run pytest to confirm RED (tests fail)",
+      "4. Add validation in Todo.__post_init__ to check text.strip() is not empty",
+      "5. Run pytest to confirm GREEN (tests pass)"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6381_todo_constructor_validation.py -v",
+      "uv run pytest tests/ -v --tb=short",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_6381_todo_constructor_validation.py"
+    ]
+  },
+  "acceptance_criteria": [
+    "Test file includes test_todo_constructor_rejects_empty_string",
+    "Test file includes test_todo_constructor_rejects_whitespace_only",
+    "All tests pass with pytest"
+  ],
+  "risks": [
+    "Existing code may rely on empty text being allowed - need to verify no regressions"
+  ],
+  "status": "implemented"
+}
