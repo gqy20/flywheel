@@ -105,3 +105,52 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_no_literal_newlines_strict() -> None:
+    """repr(Todo) must never contain literal newline characters.
+
+    Regression test for issue #6435.
+    All embedded newlines and control characters must be escaped
+    so that repr output remains single-line for debugger compatibility.
+    """
+    # Short text with embedded newline
+    todo1 = Todo(id=1, text="line1\nline2")
+    result1 = repr(todo1)
+    assert "\n" not in result1, (
+        f"repr should not contain literal newline: {result1!r}"
+    )
+    assert result1.count("\n") == 0, (
+        f"repr output must be single-line: {result1!r}"
+    )
+
+    # Long text with embedded newline (tests truncation path)
+    long_text_with_newline = "a" * 40 + "\n" + "b" * 40
+    todo2 = Todo(id=2, text=long_text_with_newline)
+    result2 = repr(todo2)
+    assert "\n" not in result2, (
+        f"repr should not contain literal newline in truncated text: {result2!r}"
+    )
+    assert result2.count("\n") == 0, (
+        f"repr output must be single-line even for truncated text: {result2!r}"
+    )
+
+    # Text with multiple embedded newlines
+    todo3 = Todo(id=3, text="a\nb\nc\nd")
+    result3 = repr(todo3)
+    assert "\n" not in result3, (
+        f"repr should not contain literal newlines: {result3!r}"
+    )
+
+    # Text with other control characters (tab, carriage return)
+    todo4 = Todo(id=4, text="col1\tcol2\rcol3")
+    result4 = repr(todo4)
+    assert "\n" not in result4, (
+        f"repr should not contain literal newline: {result4!r}"
+    )
+    assert "\t" not in result4, (
+        f"repr should not contain literal tab: {result4!r}"
+    )
+    assert "\r" not in result4, (
+        f"repr should not contain literal carriage return: {result4!r}"
+    )
