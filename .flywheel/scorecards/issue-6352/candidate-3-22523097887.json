@@ -1,44 +1,23 @@
 {
-  "issue_number": 6352,
-  "candidate_number": 3,
+  "issue": 6352,
+  "candidate": 3,
   "run_id": "22523097887",
-  "branch_name": "claude/issue-6352-candidate-3-22523097887",
-  "commit_sha": "7a6958a",
-  "status": "finalized",
-  "stage": "FINALIZE",
-  "summary": "Added validation in load() to check that each item in the JSON array is a dict before passing it to Todo.from_dict(). This prevents confusing TypeError when the JSON contains non-dict items.",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_issue_6352_non_dict_array_items.py"],
-    "lines_added": 86,
-    "lines_changed": 1
-  },
-  "tests": {
-    "added": 5,
-    "passed": 5,
-    "failed": 0
-  },
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_6352_non_dict_array_items.py -v",
-      "outcome": "PASSED",
-      "tests_run": 5,
-      "tests_passed": 5,
-      "tests_failed": 0
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/storage.py tests/test_issue_6352_non_dict_array_items.py",
-      "outcome": "PASSED"
-    },
-    "mypy": {
-      "command": "uv run mypy src/flywheel/storage.py",
-      "outcome": "PASSED"
-    }
-  },
-  "approach": "Minimal defensive validation - enumerate through items and raise ValueError with clear message identifying the invalid index before attempting to process with Todo.from_dict()",
-  "risks": "None - this is a pure validation addition that catches an edge case earlier with a better error message",
-  "acceptance_criteria_met": [
-    "load() raises ValueError (not TypeError) when JSON array contains non-dict items",
-    "Error message clearly indicates which item in the array is invalid (includes index and type)"
-  ]
+  "branch": "claude/issue-6352-candidate-3-22523097887",
+  "pr_number": 6376,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6376",
+  "generated_at": "2026-02-28T16:24:29.599740+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2520,
+    "plan": 3609,
+    "implement": 2180,
+    "verify": 3335,
+    "finalize": 1323
+  }
 }
