@@ -1,22 +1,23 @@
 {
-  "issue_number": 6408,
-  "candidate_number": 1,
+  "issue": 6408,
+  "candidate": 1,
   "run_id": "22528933368",
   "branch": "claude/issue-6408-candidate-1-22528933368",
-  "status": "implemented",
-  "summary": "Added text validation in Todo.__post_init__ to raise ValueError for empty or whitespace-only text when constructing a Todo directly.",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "change_type": "modified",
-      "description": "Added text validation in __post_init__ method"
-    },
-    {
-      "file": "tests/test_issue_6408_todo_text_validation.py",
-      "change_type": "added",
-      "description": "Added regression tests for empty/whitespace text validation"
-    }
+  "pr_number": 6432,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6432",
+  "generated_at": "2026-02-28T21:38:47.147714+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 117,
-  "ruff_check": "passed"
+  "stage_response_sizes": {
+    "triage": 2257,
+    "plan": 1719,
+    "implement": 1752,
+    "verify": 1493,
+    "finalize": 1543
+  }
 }
