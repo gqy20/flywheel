@@ -1,35 +1,23 @@
 {
-  "issue_number": 6327,
-  "issue_title": "[Enhancement] Add hash support for Todo to enable use in sets and dicts",
-  "candidate_number": 1,
+  "issue": 6327,
+  "candidate": 1,
   "run_id": "22521674456",
-  "branch_name": "claude/issue-6327-candidate-1-22521674456",
-  "status": "implementation_complete",
-  "created_at": "2026-02-28T13:52:00Z",
-  "approach": {
-    "description": "Add __hash__ method to Todo dataclass based on id field",
-    "files_modified": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6327_todo_hash.py"
-    ],
-    "lines_changed": 8
-  },
-  "tests": {
-    "test_file": "tests/test_issue_6327_todo_hash.py",
-    "test_count": 7,
-    "all_passing": true
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6327_todo_hash.py -v",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py",
-    "regression_tests": "uv run pytest tests/test_issue_2087_todo_repr.py -v"
-  },
-  "risks": [
-    "Todo is mutable; hash is based on id only. Changing id after adding to a hash-based container will break the container."
+  "branch": "claude/issue-6327-candidate-1-22521674456",
+  "pr_number": 6345,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6345",
+  "generated_at": "2026-02-28T14:10:04.044348+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria": [
-    {"criterion": "hash(Todo(id=1, text='a')) does not raise TypeError", "met": true},
-    {"criterion": "Two Todo objects with same id have same hash", "met": true},
-    {"criterion": "Todo objects can be added to a set", "met": true}
-  ]
+  "stage_response_sizes": {
+    "triage": 2584,
+    "plan": 4000,
+    "implement": 2734,
+    "verify": 1679,
+    "finalize": 1037
+  }
 }
