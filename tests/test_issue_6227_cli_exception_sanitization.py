@@ -26,8 +26,8 @@ def test_cli_exception_message_sanitizes_ansi_escape(tmp_path, capsys) -> None:
     parser = build_parser()
 
     # Patch TodoApp.add to raise ValueError with control character in message
-    with patch("flywheel.cli.TodoApp") as MockApp:
-        mock_instance = MockApp.return_value
+    with patch("flywheel.cli.TodoApp") as mock_app:
+        mock_instance = mock_app.return_value
         mock_instance.add.side_effect = ValueError("\x1b[31mRed Error\x1b[0m")
 
         args = parser.parse_args(["--db", str(db), "add", "test"])
@@ -50,8 +50,8 @@ def test_cli_exception_message_sanitizes_carriage_return(tmp_path, capsys) -> No
     db = tmp_path / "db.json"
     parser = build_parser()
 
-    with patch("flywheel.cli.TodoApp") as MockApp:
-        mock_instance = MockApp.return_value
+    with patch("flywheel.cli.TodoApp") as mock_app:
+        mock_instance = mock_app.return_value
         mock_instance.add.side_effect = ValueError("Error\r[INJECTED]")
 
         args = parser.parse_args(["--db", str(db), "add", "test"])
@@ -74,8 +74,8 @@ def test_cli_exception_message_sanitizes_newline(tmp_path, capsys) -> None:
     db = tmp_path / "db.json"
     parser = build_parser()
 
-    with patch("flywheel.cli.TodoApp") as MockApp:
-        mock_instance = MockApp.return_value
+    with patch("flywheel.cli.TodoApp") as mock_app:
+        mock_instance = mock_app.return_value
         mock_instance.add.side_effect = ValueError("Error\nFAKE_LINE")
 
         args = parser.parse_args(["--db", str(db), "add", "test"])
@@ -98,8 +98,8 @@ def test_cli_exception_message_sanitizes_null_byte(tmp_path, capsys) -> None:
     db = tmp_path / "db.json"
     parser = build_parser()
 
-    with patch("flywheel.cli.TodoApp") as MockApp:
-        mock_instance = MockApp.return_value
+    with patch("flywheel.cli.TodoApp") as mock_app:
+        mock_instance = mock_app.return_value
         mock_instance.add.side_effect = ValueError("Error\x00WithNull")
 
         args = parser.parse_args(["--db", str(db), "add", "test"])
