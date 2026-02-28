@@ -1,7 +1,5 @@
 """Tests for Todo __eq__ and __hash__ methods (issue #6258)."""
 
-import pytest
-
 from flywheel.todo import Todo
 
 
@@ -29,7 +27,7 @@ class TestTodoEquality:
         assert todo != "not a todo"
         assert todo != 1
         assert todo != {"id": 1, "text": "Buy milk"}
-        assert todo != None
+        assert todo is not None
 
     def test_todo_equal_to_itself(self) -> None:
         """Todo should be equal to itself."""
