@@ -158,3 +158,56 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_fills_gaps_in_existing_ids(tmp_path) -> None:
+    """Bug #6283: next_id() should fill gaps when there are holes in existing IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with gaps: IDs [1, 5, 10]
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=5, text="fifth"),
+        Todo(id=10, text="tenth"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return the first available gap (2), not max+1 (11)
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_returns_next_after_continuous_ids(tmp_path) -> None:
+    """Bug #6283: When no gaps exist, next_id should return max+1."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with continuous IDs: [1, 2, 3]
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=2, text="second"),
+        Todo(id=3, text="third"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # No gaps, so should return max+1 = 4
+    assert storage.next_id(loaded) == 4
+
+
+def test_next_id_fills_single_gap(tmp_path) -> None:
+    """Bug #6283: next_id() should fill a single gap in the middle."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with a single gap: IDs [1, 3]
+    todos = [
+        Todo(id=1, text="first"),
+        Todo(id=3, text="third"),
+    ]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return 2 to fill the gap
+    assert storage.next_id(loaded) == 2
