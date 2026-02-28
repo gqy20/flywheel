@@ -33,6 +33,15 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __hash__(self) -> int:
+        """Return hash based on id field.
+
+        Allows Todo objects to be used in sets and as dict keys.
+        Note: Since Todo is mutable, hash is based on id only.
+        Changing id after adding to a hash-based container will break the container.
+        """
+        return hash(self.id)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
