@@ -1,0 +1,20 @@
+{
+  "issue_number": 6245,
+  "issue_title": "[Feature] Add toggle() method to switch done state",
+  "candidate": 1,
+  "run_id": "22513608265",
+  "branch": "claude/issue-6245-candidate-1-22513608265",
+  "commit_sha": "9eaaae8",
+  "tests_passed": true,
+  "lint_passed": true,
+  "tests_added": 5,
+  "source_files_changed": ["src/flywheel/todo.py"],
+  "test_files_added": ["tests/test_issue_6245_toggle_method.py"],
+  "acceptance_criteria": {
+    "toggle_marks_undone_as_done": true,
+    "toggle_marks_done_as_undone": true,
+    "toggle_updates_timestamp": true,
+    "toggle_returns_self_for_chaining": true
+  },
+  "created_at": "2026-02-28T03:30:00Z"
+}
