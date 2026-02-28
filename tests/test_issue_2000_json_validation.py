@@ -119,3 +119,44 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6393 - validate timestamp format
+def test_todo_from_dict_rejects_invalid_created_at_format() -> None:
+    """Todo.from_dict should reject non-ISO format strings for 'created_at'."""
+    with pytest.raises(
+        ValueError, match=r"Invalid.*'created_at'|'created_at'.*ISO|timestamp"
+    ):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "invalid"})
+
+
+def test_todo_from_dict_rejects_invalid_updated_at_format() -> None:
+    """Todo.from_dict should reject non-ISO format strings for 'updated_at'."""
+    with pytest.raises(
+        ValueError, match=r"Invalid.*'updated_at'|'updated_at'.*ISO|timestamp"
+    ):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": "not-a-date"})
+
+
+def test_todo_from_dict_accepts_valid_iso_created_at() -> None:
+    """Todo.from_dict should accept valid ISO 8601 timestamp for 'created_at'."""
+    todo = Todo.from_dict(
+        {"id": 1, "text": "task", "created_at": "2024-01-01T00:00:00+00:00"}
+    )
+    assert todo.created_at == "2024-01-01T00:00:00+00:00"
+
+
+def test_todo_from_dict_accepts_valid_iso_updated_at() -> None:
+    """Todo.from_dict should accept valid ISO 8601 timestamp for 'updated_at'."""
+    todo = Todo.from_dict(
+        {"id": 1, "text": "task", "updated_at": "2024-01-01T00:00:00+00:00"}
+    )
+    assert todo.updated_at == "2024-01-01T00:00:00+00:00"
+
+
+def test_todo_from_dict_accepts_empty_string_timestamps() -> None:
+    """Todo.from_dict should allow empty string timestamps (filled by __post_init__)."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "", "updated_at": ""})
+    # __post_init__ fills in timestamps when empty
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
