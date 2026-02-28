@@ -1,0 +1,21 @@
+{
+  "issue_number": 6340,
+  "candidate": 3,
+  "run_id": "22522323885",
+  "branch": "claude/issue-6340-candidate-3-22522323885",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Add MAX_TEXT_LENGTH constant (1000) and validate text length in Todo.__post_init__, Todo.rename(), and Todo.from_dict()",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6340_todo_text_max_length.py"
+    ],
+    "tests_added": 9,
+    "tests_passed": true
+  },
+  "validation": {
+    "pytest": "passed",
+    "ruff": "passed"
+  },
+  "timestamp": "2026-02-28T14:00:00Z"
+}
