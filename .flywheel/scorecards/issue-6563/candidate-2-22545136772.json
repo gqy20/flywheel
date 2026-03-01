@@ -1,0 +1,19 @@
+{
+  "issue": 6563,
+  "candidate": 2,
+  "run_id": "22545136772",
+  "status": "implemented",
+  "tests_passed": true,
+  "ruff_passed": true,
+  "summary": "Added 'edit' CLI command to rename todo items via command line",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_6563_cli_edit_command.py"
+  ],
+  "tests": [
+    "test_cli_edit_command_modifies_existing_todo",
+    "test_cli_edit_command_nonexistent_id_returns_error",
+    "test_cli_edit_command_empty_text_returns_error",
+    "test_cli_edit_command_sanitizes_output"
+  ]
+}
