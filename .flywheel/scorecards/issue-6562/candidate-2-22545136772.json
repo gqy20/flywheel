@@ -1,0 +1,19 @@
+{
+  "issue_number": 6562,
+  "candidate": 2,
+  "run_id": "22545136772",
+  "branch": "claude/issue-6562-candidate-2-22545136772",
+  "status": "implemented",
+  "changes": {
+    "source_files": ["src/flywheel/cli.py"],
+    "test_files": ["tests/test_issue_6562_cli_rename_command.py"]
+  },
+  "acceptance_criteria": {
+    "cli_accepts_rename_command": true,
+    "rename_updates_text_and_updated_at": true,
+    "missing_todo_returns_exit_code_1": true,
+    "empty_text_returns_exit_code_1": true
+  },
+  "tests_passed": true,
+  "linting_passed": true
+}
