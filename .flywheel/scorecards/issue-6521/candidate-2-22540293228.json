@@ -1,0 +1,17 @@
+{
+  "issue_number": 6521,
+  "candidate_number": 2,
+  "run_id": "22540293228",
+  "status": "in_progress",
+  "stage": "RED",
+  "created_at": "2026-03-01T09:45:00Z",
+  "updated_at": "2026-03-01T09:45:00Z",
+  "triage_summary": {
+    "root_cause": "Todo.from_dict() does not validate that id > 0, allowing negative IDs",
+    "fix_location": "src/flywheel/todo.py - add validation in from_dict()",
+    "risk_level": "medium"
+  },
+  "tests_added": [],
+  "files_modified": [],
+  "verification_results": {}
+}
