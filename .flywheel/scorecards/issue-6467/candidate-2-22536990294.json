@@ -1,15 +1,23 @@
 {
-  "issue_number": 6467,
+  "issue": 6467,
   "candidate": 2,
   "run_id": "22536990294",
-  "status": "implemented",
-  "summary": "Added toggle() method to Todo class that flips done status and updates timestamp",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "branch": "claude/issue-6467-candidate-2-22536990294",
+  "pr_number": 6483,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6483",
+  "generated_at": "2026-03-01T06:27:18.744017+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": true,
-  "linting_passed": true,
-  "created_at": "2026-03-01T04:30:00Z"
+  "stage_response_sizes": {
+    "triage": 2350,
+    "plan": 2106,
+    "implement": 2332,
+    "verify": 1838,
+    "finalize": 1896
+  }
 }
