@@ -20,6 +20,20 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id for equality."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __lt__(self, other: Todo) -> bool:
+        """Compare Todo objects by id for sorting."""
+        return self.id < other.id
+
+    def __hash__(self) -> int:
+        """Hash Todo objects by id for set/dict usage."""
+        return hash(self.id)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
