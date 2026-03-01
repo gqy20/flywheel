@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int = 0
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -52,6 +53,14 @@ class Todo:
         if not text:
             raise ValueError("Todo text cannot be empty")
         self.text = text
+        self.updated_at = _utc_now_iso()
+
+    def set_priority(self, priority: int) -> None:
+        if not isinstance(priority, int) or priority < 0:
+            raise ValueError(
+                f"Invalid priority: {priority!r}. Priority must be a non-negative integer."
+            )
+        self.priority = priority
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
@@ -93,10 +102,19 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is a non-negative integer
+        raw_priority = data.get("priority", 0)
+        if not isinstance(raw_priority, int) or raw_priority < 0:
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be a non-negative integer."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=raw_priority,
         )
