@@ -1,0 +1,29 @@
+{
+  "issue_number": 6620,
+  "issue_title": "[Enhancement] Add __hash__ method for set/dict compatibility",
+  "candidate": 3,
+  "run_id": "22551425636",
+  "branch": "claude/issue-6620-candidate-3-22551425636",
+  "status": "implemented",
+  "summary": "Added __hash__ and __eq__ methods to Todo class based on id field",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6620_todo_hash.py"
+  ],
+  "tests_added": 7,
+  "tests_passed": 119,
+  "ruff_check": "passed",
+  "implementation_details": {
+    "approach": "Added __hash__ method returning hash(self.id) and __eq__ method comparing by id field for id-based identity semantics",
+    "key_changes": [
+      "Added __hash__ method to enable Todo objects in sets and as dict keys",
+      "Added __eq__ method to enable proper set deduplication by id"
+    ]
+  },
+  "acceptance_criteria_met": [
+    "hash(Todo(id=1, text='a')) does not raise TypeError",
+    "len({Todo(id=1, text='a'), Todo(id=1, text='b')}) == 1 (deduplication works)"
+  ],
+  "risks": "None identified. The __eq__ change may affect existing code that compares Todos by all fields, but id-based identity is the expected behavior.",
+  "created_at": "2026-03-01T19:00:00Z"
+}
