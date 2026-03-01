@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import traceback
 
 from .formatter import TodoFormatter, _sanitize_text
 from .storage import TodoStorage
@@ -70,6 +71,9 @@ class TodoApp:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
     parser.add_argument("--db", default=".todo.json", help="Path to JSON database")
+    parser.add_argument(
+        "--debug", action="store_true", help="Show full traceback on errors"
+    )
 
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -122,6 +126,8 @@ def run_command(args: argparse.Namespace) -> int:
 
         raise ValueError(f"Unsupported command: {args.command}")
     except Exception as exc:
+        if getattr(args, "debug", False):
+            traceback.print_exc()
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 
