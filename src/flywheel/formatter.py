@@ -11,6 +11,13 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes Unicode bidirectional override characters that can be
+    used for display spoofing attacks:
+    - U+202A-U+202E: Bidirectional formatting (LRE, RLE, PDF, LRO, RLO)
+    - U+2066-U+2069: Bidirectional isolate controls (LRI, RLI, FSI, PDI)
+    - U+200E-U+200F: Direction marks (LRM, RLM)
+    - U+FEFF: BOM / Zero-width no-break space
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -26,13 +33,25 @@ def _sanitize_text(text: str) -> str:
     for char, escaped in replacements:
         text = text.replace(char, escaped)
 
+    # Unicode bidirectional override characters that enable display spoofing
+    # These are not control characters but can deceive users visually
+    bidi_chars = {
+        "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",  # Bidi formatting
+        "\u2066", "\u2067", "\u2068", "\u2069",  # Bidi isolate controls
+        "\u200e", "\u200f",  # Direction marks
+        "\ufeff",  # BOM / Zero-width no-break space
+    }
+
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
     # Replace with \\xNN escape sequences
+    # Bidi characters are replaced with \\uNNNN escape sequences
     result = []
     for char in text:
         code = ord(char)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        elif char in bidi_chars:
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
