@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -55,6 +56,53 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive lock for thread-safe operations.
+
+        Uses a separate lock file to protect the critical section of
+        load-modify-save operations. This prevents race conditions where
+        concurrent threads could read the same state and overwrite each other.
+        """
+        _ensure_parent_directory(self._lock_path)
+        self._lock_fd = os.open(
+            str(self._lock_path),
+            os.O_CREAT | os.O_RDWR,
+            stat.S_IRUSR | stat.S_IWUSR,  # 0o600
+        )
+        try:
+            fcntl.flock(self._lock_fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(self._lock_fd)
+            raise
+
+    def _release_lock(self) -> None:
+        """Release the exclusive lock."""
+        if hasattr(self, "_lock_fd"):
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+                os.close(self._lock_fd)
+            except OSError:
+                pass
+            finally:
+                delattr(self, "_lock_fd")
+
+    @contextlib.contextmanager
+    def exclusive_access(self):
+        """Context manager for exclusive access to storage.
+
+        Usage:
+            with storage.exclusive_access():
+                todos = storage.load()
+                # modify todos
+                storage.save(todos)
+        """
+        self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
