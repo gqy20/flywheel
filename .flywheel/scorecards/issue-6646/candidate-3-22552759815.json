@@ -1,30 +1,23 @@
 {
-  "issue_number": 6646,
+  "issue": 6646,
   "candidate": 3,
   "run_id": "22552759815",
-  "plan": {
-    "problem": "Race condition in add() causes data loss with concurrent writes - TOCTOU vulnerability in load/calculate-id/save sequence",
-    "solution": "File locking using fcntl.flock via exclusive_access() context manager",
-    "files_to_modify": [
-      "src/flywheel/cli.py",
-      "src/flywheel/storage.py"
-    ],
-    "approach": "TDD - failing test first, then implementation"
-  },
-  "implementation": {
-    "approach": "file_locking",
-    "description": "Added exclusive_access() context manager to TodoStorage using fcntl.flock for thread-safe file locking. The add() method in TodoApp now uses this context manager to prevent race conditions during load-modify-save operations.",
-    "files_changed": [
-      "src/flywheel/storage.py",
-      "src/flywheel/cli.py"
-    ],
-    "tests_added": [
-      "tests/test_issue_6646_concurrent_add_race.py"
-    ]
-  },
-  "status": "IMPLEMENTED",
-  "tests_passed": true,
-  "lint_passed": true,
-  "created_at": "2026-03-01T21:32:00Z",
-  "updated_at": "2026-03-01T21:40:00Z"
+  "branch": "claude/issue-6646-candidate-3-22552759815",
+  "pr_number": 6657,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6657",
+  "generated_at": "2026-03-01T21:55:44.337390+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3476,
+    "plan": 4000,
+    "implement": 3147,
+    "verify": 2349,
+    "finalize": 101
+  }
 }
