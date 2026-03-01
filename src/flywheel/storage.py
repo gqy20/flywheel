@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -51,10 +52,46 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Thread-safe: Uses file-based locking to prevent race conditions in ID
+    generation and concurrent modifications. All operations that read and
+    modify the todo list are protected by an exclusive lock.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _acquire_lock(self) -> None:
+        """Acquire exclusive file lock for thread-safe operations."""
+        # Ensure lock file parent directory exists
+        _ensure_parent_directory(self._lock_path)
+
+        # Open or create lock file
+        lock_fd = os.open(str(self._lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+
+        try:
+            # Acquire exclusive lock (blocks until available)
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        except Exception:
+            # Close fd if lock acquisition fails
+            os.close(lock_fd)
+            raise
+
+        # Store fd for release
+        self._lock_fd = lock_fd
+
+    def _release_lock(self) -> None:
+        """Release exclusive file lock."""
+        if hasattr(self, "_lock_fd"):
+            try:
+                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+                os.close(self._lock_fd)
+            except Exception:
+                pass
+            finally:
+                delattr(self, "_lock_fd")
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +163,31 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo_atomic(self, text: str) -> Todo:
+        """Add a todo with atomic ID generation and locking.
+
+        This method acquires an exclusive file lock, loads the current todos,
+        generates a unique ID, adds the new todo, and saves atomically.
+
+        This prevents race conditions where concurrent processes could generate
+        duplicate IDs (issue #6604).
+        """
+        self._acquire_lock()
+        try:
+            # Load current state
+            todos = self.load()
+
+            # Generate unique ID
+            new_id = self.next_id(todos)
+
+            # Create and add new todo
+            todo = Todo(id=new_id, text=text)
+            todos.append(todo)
+
+            # Save atomically
+            self.save(todos)
+
+            return todo
+        finally:
+            self._release_lock()

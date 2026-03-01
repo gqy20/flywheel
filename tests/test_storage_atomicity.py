@@ -229,3 +229,67 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_unique_ids(tmp_path) -> None:
+    """Regression test for issue #6604: Race condition in ID generation.
+
+    Tests that concurrent add() operations produce unique IDs.
+    Without proper locking, two processes calling add() simultaneously can
+    read the same max ID and generate duplicate IDs (TOCTOU race).
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race.json"
+
+    def add_worker(worker_id: int, count: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds multiple todos concurrently."""
+        try:
+            app = TodoApp(db_path=str(db))
+            added_ids = []
+            for i in range(count):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                added_ids.append(todo.id)
+            result_queue.put(("success", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently, each adding todos
+    num_workers = 3
+    todos_per_worker = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, todos_per_worker, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should succeed
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    assert len(errors) == 0, f"Workers encountered errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes, got {len(successes)}"
+
+    # Collect all IDs from all workers
+    all_ids = []
+    for _, _worker_id, ids in successes:
+        all_ids.extend(ids)
+
+    # Verify all IDs are unique (this is the key assertion for issue #6604)
+    assert len(all_ids) == len(set(all_ids)), (
+        f"Duplicate IDs detected! Expected {len(all_ids)} unique IDs, "
+        f"but got {len(set(all_ids))} unique. IDs: {sorted(all_ids)}"
+    )
