@@ -1,25 +1,23 @@
 {
-  "issue_number": 6564,
+  "issue": 6564,
   "candidate": 3,
   "run_id": "22545136772",
-  "scorecard": {
-    "tests_added": 8,
-    "tests_passed": 120,
-    "tests_failed": 0,
-    "lint_passed": true,
-    "coverage": "91%",
-    "files_changed": 3,
-    "implementation_notes": [
-      "Added priority field (int=0) to Todo dataclass with 0=normal, 1=high, -1=low",
-      "Updated from_dict to parse and validate priority field",
-      "to_dict automatically includes priority via dataclass asdict",
-      "Added '!' marker in TodoFormatter.format_todo for high priority items"
-    ]
-  },
-  "acceptance_criteria": {
-    "priority_field_exists": true,
-    "from_dict_handles_priority": true,
-    "to_dict_includes_priority": true,
-    "high_priority_marker": true
+  "branch": "claude/issue-6564-candidate-3-22545136772",
+  "pr_number": 6582,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6582",
+  "generated_at": "2026-03-01T15:34:38.046103+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2303,
+    "plan": 2912,
+    "implement": 1406,
+    "verify": 2092,
+    "finalize": 1034
   }
 }
