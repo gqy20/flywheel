@@ -192,6 +192,39 @@ def test_atomic_rename_still_works_after_fix(tmp_path) -> None:
     # The important thing is that the file content is valid and complete
 
 
+def test_save_rejects_symlink_at_target_path(tmp_path) -> None:
+    """Issue #6546: Target path symlink attack protection.
+
+    If self.path is a symlink pointing to another file, save() should raise
+    ValueError with 'symlink' in the message. This prevents symlink attacks
+    where an attacker creates a symlink at the expected db path pointing to
+    a sensitive file, causing data to be overwritten.
+
+    Before fix: os.replace() follows symlinks and replaces the target file
+    After fix: save() raises ValueError if target path is a symlink
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a target file that attacker wants overwritten
+    attack_target = tmp_path / "sensitive_data.txt"
+    attack_target.write_text("original sensitive content")
+
+    # Create a symlink at the db path pointing to the attack target
+    db.symlink_to(attack_target)
+
+    # Attempt to save - should raise ValueError about symlink
+    todos = [Todo(id=1, text="test")]
+    try:
+        storage.save(todos)
+        raise AssertionError("Expected ValueError for symlink target path")
+    except ValueError as e:
+        assert "symlink" in str(e).lower(), f"Error message should mention 'symlink': {e}"
+
+    # Verify the attack target was NOT overwritten
+    assert attack_target.read_text() == "original sensitive content"
+
+
 def test_temp_file_cleanup_on_error(tmp_path) -> None:
     """Issue #1999: Temp file should be cleaned up if save fails."""
     db = tmp_path / "todo.json"
