@@ -1,0 +1,59 @@
+{
+  "issue_number": 6521,
+  "candidate": 3,
+  "run_id": "22540293228",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Fix next_id() returning incorrect IDs when todos contain negative IDs by adding validation in Todo.from_dict() to reject non-positive IDs",
+    "files_to_touch": [
+      "tests/test_issue_6521_negative_id_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": 1,
+        "phase": "RED",
+        "action": "Create failing regression tests for negative/zero ID validation",
+        "tests": [
+          "test_todo_from_dict_rejects_negative_id - Todo.from_dict with id=-1 raises ValueError",
+          "test_todo_from_dict_rejects_zero_id - Todo.from_dict with id=0 raises ValueError",
+          "test_todo_from_dict_accepts_positive_id - Todo.from_dict with id=1 succeeds"
+        ]
+      },
+      {
+        "step": 2,
+        "phase": "GREEN",
+        "action": "Add ID validation in Todo.from_dict() after line 70",
+        "implementation": "Add check: if todo_id <= 0: raise ValueError with clear message"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6521_negative_id_validation.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py",
+      "uv run ruff format --check src/flywheel/todo.py"
+    ],
+    "acceptance_criteria": [
+      "Todo.from_dict raises ValueError when 'id' is negative or zero",
+      "next_id() always returns a positive integer >= 1",
+      "Existing tests pass after fix"
+    ]
+  },
+  "implementation": {
+    "status": "completed",
+    "tests_passed": 116,
+    "lint_passed": true,
+    "changes": [
+      {
+        "file": "src/flywheel/todo.py",
+        "description": "Added validation to reject negative or zero IDs in from_dict()"
+      },
+      {
+        "file": "tests/test_issue_6521_negative_id_validation.py",
+        "description": "Added regression tests for negative/zero ID validation"
+      }
+    ]
+  },
+  "created_at": "2026-03-01T09:40:00Z",
+  "updated_at": "2026-03-01T09:45:00Z"
+}
