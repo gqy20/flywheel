@@ -1,20 +1,23 @@
 {
-  "issue_number": 6534,
-  "candidate_number": 1,
+  "issue": 6534,
+  "candidate": 1,
   "run_id": "22543269460",
-  "branch_name": "claude/issue-6534-candidate-1-22543269460",
-  "created_at": "2026-03-01T10:40:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/storage.py"],
-    "test_files": ["tests/test_minimal_framework.py"]
-  },
-  "test_results": {
-    "passed": true,
-    "test_command": "uv run pytest tests/test_minimal_framework.py::test_next_id_returns_smallest_unused_for_non_contiguous_ids -v"
-  },
-  "lint_results": {
-    "passed": true,
-    "lint_command": "uv run ruff check src/flywheel/storage.py tests/test_minimal_framework.py"
+  "branch": "claude/issue-6534-candidate-1-22543269460",
+  "pr_number": 6553,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6553",
+  "generated_at": "2026-03-01T13:07:30.666595+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 4000,
+    "plan": 2826,
+    "implement": 3031,
+    "verify": 1699,
+    "finalize": 497
   }
 }
