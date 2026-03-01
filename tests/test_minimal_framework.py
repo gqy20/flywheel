@@ -158,3 +158,56 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_for_non_contiguous_ids() -> None:
+    """Bug #6534: next_id should return smallest unused positive integer.
+
+    When todos have non-contiguous IDs after removal, next_id should not
+    return an ID that already exists in the list.
+    """
+    storage = TodoStorage(":memory:")  # Path doesn't matter for next_id
+
+    # Create todos with non-contiguous IDs [1, 3, 5]
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+
+    # next_id should return 2 (smallest unused), not 6 (max+1)
+    new_id = storage.next_id(todos)
+    assert new_id == 2, f"Expected 2 (smallest unused), got {new_id}"
+
+    # Verify the new ID doesn't collide with existing IDs
+    existing_ids = {todo.id for todo in todos}
+    assert new_id not in existing_ids, f"ID {new_id} collides with existing IDs"
+
+
+def test_next_id_returns_1_for_empty_list() -> None:
+    """Bug #6534: next_id should return 1 for an empty todo list."""
+    storage = TodoStorage(":memory:")
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_finds_gap_in_sequence() -> None:
+    """Bug #6534: next_id should find gaps in ID sequences."""
+    storage = TodoStorage(":memory:")
+
+    # IDs with multiple gaps: [1, 2, 5, 7]
+    todos = [
+        Todo(id=1, text="a"),
+        Todo(id=2, text="b"),
+        Todo(id=5, text="c"),
+        Todo(id=7, text="d"),
+    ]
+
+    # Should return 3 (first gap), not 8 (max+1)
+    assert storage.next_id(todos) == 3
+
+
+def test_next_id_returns_max_plus_1_when_no_gaps() -> None:
+    """Bug #6534: next_id should return max+1 when IDs are contiguous."""
+    storage = TodoStorage(":memory:")
+
+    # Contiguous IDs [1, 2, 3]
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+
+    # Should return 4 (max+1) since there are no gaps
+    assert storage.next_id(todos) == 4
