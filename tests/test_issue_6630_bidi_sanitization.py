@@ -6,7 +6,7 @@ text appears different than its actual content. These should be escaped
 to prevent security issues.
 """
 
-from flywheel.formatter import _sanitize_text, TodoFormatter
+from flywheel.formatter import TodoFormatter, _sanitize_text
 from flywheel.todo import Todo
 
 
@@ -59,7 +59,7 @@ class TestBidiCharacterSanitization:
         result = _sanitize_text("text\u200fend")
         assert "\u200f" not in result
 
-    def test_sanitize_text_escapes_bom_uFEFF(self):
+    def test_sanitize_text_escapes_bom_ufeff(self):
         """Test that BOM/Zero Width No-Break Space (U+FEFF) is escaped."""
         # BOM can be used to hide content at the start of files
         result = _sanitize_text("\ufeffhidden")
