@@ -158,3 +158,32 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_for_non_contiguous_ids() -> None:
+    """Bug #6534: next_id should return smallest unused positive integer.
+
+    When todos have non-contiguous IDs after removal, next_id should
+    return the smallest unused positive integer rather than max+1,
+    to avoid wasting ID space and provide predictable behavior.
+    """
+    storage = TodoStorage()
+
+    # Case 1: Non-contiguous IDs [1, 3, 5] should return 2 (smallest unused)
+    todos = [Todo(id=1, text="a"), Todo(id=3, text="b"), Todo(id=5, text="c")]
+    assert storage.next_id(todos) == 2
+
+    # Case 2: IDs [1, 2, 4] should return 3 (smallest unused)
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=4, text="c")]
+    assert storage.next_id(todos) == 3
+
+    # Case 3: Empty list should return 1
+    assert storage.next_id([]) == 1
+
+    # Case 4: Contiguous IDs [1, 2, 3] should return 4
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(todos) == 4
+
+    # Case 5: IDs starting from 2 [2, 3, 4] should return 1
+    todos = [Todo(id=2, text="a"), Todo(id=3, text="b"), Todo(id=4, text="c")]
+    assert storage.next_id(todos) == 1
