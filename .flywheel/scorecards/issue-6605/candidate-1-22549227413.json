@@ -1,40 +1,23 @@
 {
-  "issue_number": 6605,
-  "candidate_number": 1,
+  "issue": 6605,
+  "candidate": 1,
   "run_id": "22549227413",
-  "branch_name": "claude/issue-6605-candidate-1-22549227413",
-  "status": "implemented",
-  "summary": "Added 'edit' CLI command to allow users to modify todo text via command line",
-  "changes": {
-    "source_files": [
-      "src/flywheel/cli.py"
-    ],
-    "test_files": [
-      "tests/test_issue_6605_cli_edit_command.py"
-    ]
-  },
-  "implementation_details": {
-    "todoapp_rename_method": "Added rename() method to TodoApp class that finds todo by id, calls Todo.rename() method, and saves",
-    "edit_subparser": "Added 'edit' subparser with id (int) and text (string) arguments",
-    "edit_handler": "Added edit command handler in run_command that calls app.rename() and outputs sanitized success message"
-  },
-  "acceptance_criteria_met": [
-    "Running 'todo edit 1 new text' modifies todo with id=1",
-    "Empty text triggers 'Todo text cannot be empty' error",
-    "updated_at is automatically updated after modification"
+  "branch": "claude/issue-6605-candidate-1-22549227413",
+  "pr_number": 6628,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6628",
+  "generated_at": "2026-03-01T18:53:27.963435+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 5,
-  "tests_total": 5,
-  "tests_description": [
-    "test_cli_edit_command_modifies_todo_text - verifies successful edit",
-    "test_cli_edit_command_returns_error_for_nonexistent_id - verifies error for missing todo",
-    "test_cli_edit_command_rejects_empty_text - verifies empty text validation",
-    "test_cli_edit_command_updates_timestamp - verifies updated_at changes",
-    "test_cli_edit_command_sanitizes_output - verifies terminal security (control char escaping)"
-  ],
-  "full_test_suite_passed": true,
-  "full_test_count": 117,
-  "ruff_check_passed": true,
-  "risks": "None - minimal change that reuses existing Todo.rename() validation logic",
-  "limitations": "None identified"
+  "stage_response_sizes": {
+    "triage": 2210,
+    "plan": 2281,
+    "implement": 2402,
+    "verify": 1796,
+    "finalize": 1466
+  }
 }
