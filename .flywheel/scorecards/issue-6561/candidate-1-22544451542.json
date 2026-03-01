@@ -1,42 +1,23 @@
 {
-  "issue_number": 6561,
-  "issue_title": "[Bug] Todo.from_dict 静默截断浮点数 ID",
-  "candidate_number": 1,
+  "issue": 6561,
+  "candidate": 1,
   "run_id": "22544451542",
   "branch": "claude/issue-6561-candidate-1-22544451542",
-  "status": "finalized",
+  "pr_number": 6569,
   "pr_url": "https://github.com/gqy20/flywheel/pull/6569",
-  "checks": {
-    "tests_added": true,
-    "tests_pass": true,
-    "ruff_pass": true,
-    "minimal_scope": true
-  },
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "status": "passed",
-      "tests_run": 14,
-      "tests_passed": 14,
-      "tests_failed": 0
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/todo.py",
-      "status": "passed"
-    }
-  },
-  "test_summary": {
-    "total_tests": 114,
-    "passed": 114,
-    "failed": 0
-  },
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "acceptance_criteria": {
-    "reject_non_integer_float": "Todo.from_dict({'id': 1.5, 'text': 'test'}) raises ValueError - PASS",
-    "accept_integer_float": "Todo.from_dict({'id': 1.0, 'text': 'test'}) accepts and converts to integer 1 - PASS",
-    "error_message": "Error message mentions 'float' or 'integer' - PASS"
+  "generated_at": "2026-03-01T14:26:43.761496+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2004,
+    "plan": 2804,
+    "implement": 1634,
+    "verify": 1935,
+    "finalize": 974
   }
 }
