@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _utc_now_iso() -> str:
@@ -54,7 +55,7 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
