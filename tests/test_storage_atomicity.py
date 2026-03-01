@@ -229,3 +229,47 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_ensure_parent_directory_race_condition(tmp_path) -> None:
+    """Regression test for issue #6493: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles the race condition where:
+    1. exists() returns False (parent doesn't exist)
+    2. Another process creates the directory before mkdir() is called
+    3. mkdir() with exist_ok=False would raise FileExistsError
+
+    The fix is to use exist_ok=True to tolerate the directory being created
+    by another process between the exists() check and mkdir() call.
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    # Create a path where the parent doesn't exist
+    db_path = tmp_path / "race_test" / "deep" / "todo.json"
+    parent_dir = db_path.parent
+
+    # Verify parent doesn't exist initially
+    assert not parent_dir.exists()
+
+    # Patch parent.mkdir to simulate the race:
+    # When mkdir is called, another process has already created the directory
+    original_mkdir = Path.mkdir
+
+    def mkdir_with_race(self, mode=0o777, parents=False, exist_ok=False):
+        # Simulate another process creating the directory just before this mkdir
+        # This happens between the exists() check and the actual mkdir call
+        if not self.exists():
+            # Create the directory (simulating another process)
+            original_mkdir(self, mode=mode, parents=parents, exist_ok=True)
+        # Now call the original mkdir with the original exist_ok parameter
+        # With exist_ok=False (the bug), this will raise FileExistsError
+        # With exist_ok=True (the fix), this will succeed silently
+        return original_mkdir(self, mode=mode, parents=parents, exist_ok=exist_ok)
+
+    with patch.object(Path, 'mkdir', mkdir_with_race):
+        # With exist_ok=False (the bug), this would raise FileExistsError
+        # With exist_ok=True (the fix), this should succeed
+        _ensure_parent_directory(db_path)
+
+    # Verify the directory was created
+    assert parent_dir.exists()
