@@ -91,6 +91,14 @@ class TodoStorage:
         Security: Uses tempfile.mkstemp to create unpredictable temp file names
         and sets restrictive permissions (0o600) to protect against symlink attacks.
         """
+        # Security: Reject symlink at target path to prevent symlink attacks
+        # os.replace follows symlinks and would replace the target file, not the symlink
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Security: refusing to write to symlink '{self.path}'. "
+                f"Symlinks at the target path are not allowed."
+            )
+
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
