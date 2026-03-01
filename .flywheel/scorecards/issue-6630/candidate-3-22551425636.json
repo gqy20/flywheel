@@ -1,23 +1,23 @@
 {
-  "issue_number": 6630,
+  "issue": 6630,
   "candidate": 3,
   "run_id": "22551425636",
   "branch": "claude/issue-6630-candidate-3-22551425636",
-  "status": "implemented",
-  "approach": "Extend _sanitize_text() to escape Unicode bidirectional override characters",
-  "changes": {
-    "source_files": [
-      "src/flywheel/formatter.py"
-    ],
-    "test_files": [
-      "tests/test_issue_6630_bidi_sanitization.py"
-    ]
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "summary": "Added sanitization for Unicode bidirectional override characters that enable display spoofing attacks. The fix escapes U+202A-U+202E (bidi formatting), U+2066-U+2069 (bidi isolate controls), U+200E-U+200F (direction marks), and U+FEFF (BOM) using \\uNNNN escape sequences.",
-  "risks": [
-    "Normal text with legitimate direction marks (e.g., multilingual content) will show escaped characters instead of proper direction markers"
+  "pr_number": 6641,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6641",
+  "generated_at": "2026-03-01T20:41:45.090418+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": []
+  "stage_response_sizes": {
+    "triage": 2978,
+    "plan": 3850,
+    "implement": 2338,
+    "verify": 2195,
+    "finalize": 1155
+  }
 }
