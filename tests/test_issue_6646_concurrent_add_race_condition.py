@@ -9,8 +9,6 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 
@@ -31,7 +29,7 @@ def test_concurrent_add_no_data_loss(tmp_path: Path) -> None:
 
     def add_todo(thread_id: int) -> None:
         try:
-            todo = app.add(f"thread-{thread_id}-todo")
+            app.add(f"thread-{thread_id}-todo")
             results[thread_id] = None  # Success
         except Exception as e:
             results[thread_id] = e
