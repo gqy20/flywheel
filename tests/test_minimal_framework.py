@@ -158,3 +158,72 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_app_rename_updates_todo_text(tmp_path) -> None:
+    """Issue #6588: TodoApp.rename() should update todo text and updated_at."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    # Add a todo first
+    added = app.add("original text")
+    assert added.id == 1
+    original_updated_at = added.updated_at
+
+    # Rename should work
+    renamed = app.rename(1, "new text")
+    assert renamed.text == "new text"
+    assert renamed.updated_at >= original_updated_at
+
+    # Verify persistence
+    todos = app.list()
+    assert todos[0].text == "new text"
+
+
+def test_app_rename_rejects_empty_text(tmp_path) -> None:
+    """Issue #6588: TodoApp.rename() should reject empty text."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("original")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        app.rename(1, "")
+
+
+def test_app_rename_raises_for_nonexistent_todo(tmp_path) -> None:
+    """Issue #6588: TodoApp.rename() should raise for non-existent todo."""
+    app = TodoApp(str(tmp_path / "db.json"))
+
+    with pytest.raises(ValueError, match="Todo #99 not found"):
+        app.rename(99, "new text")
+
+
+def test_cli_rename_command(tmp_path, capsys) -> None:
+    """Issue #6588: CLI 'rename <id> <text>' command should work."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename via CLI
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "Renamed #1" in out
+    assert "new text" in out
+
+
+def test_cli_rename_returns_error_for_empty_text(tmp_path, capsys) -> None:
+    """Issue #6588: CLI rename with empty text should return error code 1."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Rename with empty text should fail
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "empty" in captured.out.lower() or "empty" in captured.err.lower()
