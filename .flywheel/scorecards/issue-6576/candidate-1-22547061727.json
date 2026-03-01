@@ -1,28 +1,23 @@
 {
-  "issue_number": 6576,
-  "candidate_number": 1,
+  "issue": 6576,
+  "candidate": 1,
   "run_id": "22547061727",
   "branch": "claude/issue-6576-candidate-1-22547061727",
-  "status": "implemented",
-  "summary": "Fix Todo.from_dict to reject bool values as ID since bool is subclass of int in Python",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py"
-    ]
-  },
-  "tests_passed": true,
-  "ruff_check_passed": true,
-  "implementation_details": {
-    "root_cause": "Python's bool is a subclass of int, so int(True)=1 and int(False)=0 silently convert bool to int",
-    "fix": "Added explicit isinstance check for bool before the int conversion and raise ValueError with clear message",
-    "lines_changed": 3
-  },
-  "acceptance_criteria_met": [
-    "Todo.from_dict({'id': True, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': False, 'text': 'test'}) raises ValueError",
-    "Todo.from_dict({'id': 1, 'text': 'test'}) succeeds"
-  ]
+  "pr_number": 6598,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6598",
+  "generated_at": "2026-03-01T16:40:10.499948+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2660,
+    "plan": 2701,
+    "implement": 2517,
+    "verify": 1459,
+    "finalize": 1426
+  }
 }
