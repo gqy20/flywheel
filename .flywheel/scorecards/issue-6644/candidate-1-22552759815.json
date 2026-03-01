@@ -1,22 +1,23 @@
 {
-  "issue_number": 6644,
-  "issue_title": "[Bug] Todo.id accepts negative and zero values without validation",
-  "candidate_number": 1,
+  "issue": 6644,
+  "candidate": 1,
   "run_id": "22552759815",
   "branch": "claude/issue-6644-candidate-1-22552759815",
-  "status": "pr_created",
+  "pr_number": 6656,
   "pr_url": "https://github.com/gqy20/flywheel/pull/6656",
-  "approach": "Add validation in Todo.__post_init__ and Todo.from_dict to reject non-positive id values",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6644_todo_id_validation.py",
-    "tests/test_issue_1999_symlink_protection.py",
-    "tests/test_storage_atomicity.py"
+  "generated_at": "2026-03-01T21:54:16.222285+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 6,
-  "tests_passed": 118,
-  "lint_status": "passed",
-  "summary": "Added validation to ensure Todo.id must be a positive integer (> 0). Validation occurs both in __post_init__ (for direct construction) and in from_dict (for loading from dict). This prevents invalid state from being created.",
-  "risks": "Minimal - existing code that relied on id=0 will now raise ValueError. Tests were updated to use positive IDs.",
-  "limitations": "None identified"
+  "stage_response_sizes": {
+    "triage": 2073,
+    "plan": 2116,
+    "implement": 3352,
+    "verify": 1971,
+    "finalize": 852
+  }
 }
