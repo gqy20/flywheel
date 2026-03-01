@@ -33,6 +33,20 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects by id, text, and done status.
+
+        Timestamps (created_at, updated_at) are excluded from equality comparison
+        to enable practical equality testing for todos with same content but
+        different creation/modification times.
+
+        Returns NotImplemented for non-Todo comparisons to allow the other
+        operand's __eq__ method to be tried.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
