@@ -229,3 +229,82 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+class TestSymlinkSecurity:
+    """Tests for symlink attack prevention in TodoStorage.
+
+    Security regression tests for issue #6463:
+    load() should reject symlinks to prevent arbitrary file read if an attacker
+    can create a symlink at the .todo.json path.
+    """
+
+    def test_load_rejects_symlink_pointing_to_file(self, tmp_path) -> None:
+        """Test that load() raises ValueError when path is a symlink.
+
+        This prevents arbitrary file read if an attacker can create a symlink
+        at the storage path (e.g., .todo.json -> /etc/passwd).
+        """
+        # Create a target file with some content
+        target_file = tmp_path / "target.json"
+        target_file.write_text('[{"id": 1, "text": "secret data"}]', encoding="utf-8")
+
+        # Create a symlink pointing to the target file
+        symlink_path = tmp_path / "todo.json"
+        symlink_path.symlink_to(target_file)
+
+        # Attempting to load via symlink should raise ValueError
+        storage = TodoStorage(str(symlink_path))
+        with pytest.raises(ValueError, match="symlink"):
+            storage.load()
+
+    def test_load_rejects_symlink_pointing_to_system_file(self, tmp_path) -> None:
+        """Test that load() rejects symlinks even to system files like /etc/passwd."""
+        # Skip if /etc/passwd doesn't exist (unlikely on Unix, but just in case)
+        passwd_path = Path("/etc/passwd")
+        if not passwd_path.exists():
+            pytest.skip("/etc/passwd does not exist on this system")
+
+        # Create a symlink pointing to /etc/passwd
+        symlink_path = tmp_path / "todo.json"
+        symlink_path.symlink_to(passwd_path)
+
+        # Attempting to load should raise ValueError, not read /etc/passwd
+        storage = TodoStorage(str(symlink_path))
+        with pytest.raises(ValueError, match="symlink"):
+            storage.load()
+
+    def test_load_works_with_regular_file(self, tmp_path) -> None:
+        """Test that load() still works correctly with regular (non-symlink) files."""
+        db = tmp_path / "todo.json"
+        storage = TodoStorage(str(db))
+
+        # Save some todos
+        todos = [Todo(id=1, text="task one"), Todo(id=2, text="task two", done=True)]
+        storage.save(todos)
+
+        # Loading should work fine
+        loaded = storage.load()
+        assert len(loaded) == 2
+        assert loaded[0].text == "task one"
+        assert loaded[1].text == "task two"
+        assert loaded[1].done is True
+
+    def test_load_returns_empty_list_for_nonexistent_file(self, tmp_path) -> None:
+        """Test that load() returns empty list for non-existent file."""
+        db = tmp_path / "nonexistent.json"
+        storage = TodoStorage(str(db))
+
+        result = storage.load()
+        assert result == []
+
+    def test_load_rejects_dangling_symlink(self, tmp_path) -> None:
+        """Test that load() rejects symlinks even if target doesn't exist."""
+        # Create a symlink pointing to a non-existent file
+        symlink_path = tmp_path / "todo.json"
+        symlink_path.symlink_to(tmp_path / "nonexistent.json")
+
+        # Should raise ValueError about symlink, not FileNotFoundError
+        storage = TodoStorage(str(symlink_path))
+        with pytest.raises(ValueError, match="symlink"):
+            storage.load()
