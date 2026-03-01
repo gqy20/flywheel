@@ -1,39 +1,23 @@
 {
-  "issue_number": 6644,
+  "issue": 6644,
   "candidate": 2,
   "run_id": "22552759815",
-  "stage": "FINALIZE",
-  "triage_summary": {
-    "root_cause": "Todo.from_dict() at src/flywheel/todo.py:70 converts 'id' to int without validating it's positive. Storage.next_id() always returns >=1, but from_dict bypasses this guarantee when loading external JSON.",
-    "risk_points": [
-      "Line 70: todo_id = int(data['id']) accepts any integer including negatives/zeros",
-      "from_dict is called by TodoStorage.load() when reading external JSON files",
-      "Negative/zero IDs could break assumptions in other code expecting positive IDs"
-    ],
-    "verification_targets": [
-      "Todo.from_dict({'id': 0, 'text': 'x'}) should raise ValueError with 'positive' in message",
-      "Todo.from_dict({'id': -1, 'text': 'x'}) should raise ValueError with 'positive' in message",
-      "Todo.from_dict({'id': 1, 'text': 'x'}) should succeed as before"
-    ],
-    "proposed_fix_location": "src/flywheel/todo.py:70-74 - add validation after int conversion",
-    "test_location": "tests/test_issue_2000_json_validation.py - add tests for negative/zero id"
-  },
-  "fix_summary": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6644_todo_id_validation.py"
-    ],
-    "tests_added": 3,
-    "tests_passed": true,
-    "lint_passed": true
-  },
-  "pr_url": "https://github.com/gqy20/flywheel/pull/6652",
+  "branch": "claude/issue-6644-candidate-2-22552759815",
   "pr_number": 6652,
-  "timestamps": {
-    "triage_started": "2026-03-01T21:28:00Z",
-    "triage_completed": "2026-03-01T21:28:30Z",
-    "fix_completed": "2026-03-01T21:35:00Z",
-    "finalize_started": "2026-03-01T21:35:00Z",
-    "pr_created": "2026-03-01T21:36:00Z"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6652",
+  "generated_at": "2026-03-01T21:50:34.243242+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1882,
+    "plan": 2921,
+    "implement": 1045,
+    "verify": 2610,
+    "finalize": 1936
   }
 }
