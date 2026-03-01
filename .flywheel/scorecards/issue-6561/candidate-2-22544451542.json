@@ -1,17 +1,23 @@
 {
-  "issue_number": 6561,
-  "candidate_number": 2,
+  "issue": 6561,
+  "candidate": 2,
   "run_id": "22544451542",
   "branch": "claude/issue-6561-candidate-2-22544451542",
+  "pr_number": 6568,
   "pr_url": "https://github.com/gqy20/flywheel/pull/6568",
-  "status": "implemented",
-  "summary": "Fixed Todo.from_dict silently truncating float IDs by adding validation before int() conversion",
-  "tests_added": 4,
-  "tests_passed": 116,
-  "lint_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "generated_at": "2026-03-01T14:30:43.828646+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "commit_sha": "de08d69"
+  "stage_response_sizes": {
+    "triage": 1692,
+    "plan": 2872,
+    "implement": 2133,
+    "verify": 2269,
+    "finalize": 1384
+  }
 }
