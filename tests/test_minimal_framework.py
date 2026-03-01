@@ -158,3 +158,85 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_app_rename_updates_todo_text(tmp_path) -> None:
+    """Regression test for issue #6588: TodoApp.rename() should update todo text."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    added = app.add("original text")
+    todo_id = added.id
+
+    renamed = app.rename(todo_id, "new text")
+    assert renamed.text == "new text"
+    assert renamed.id == todo_id
+
+    # Verify persistence
+    todos = app.list()
+    assert len(todos) == 1
+    assert todos[0].text == "new text"
+
+
+def test_app_rename_raises_for_nonexistent_todo(tmp_path) -> None:
+    """TodoApp.rename() should raise ValueError for nonexistent todo."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    with pytest.raises(ValueError, match="not found"):
+        app.rename(999, "new text")
+
+
+def test_app_rename_raises_for_empty_text(tmp_path) -> None:
+    """TodoApp.rename() should raise ValueError for empty text."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("original")
+    with pytest.raises(ValueError, match="cannot be empty"):
+        app.rename(1, "")
+
+
+def test_cli_rename_command(tmp_path, capsys) -> None:
+    """Regression test for issue #6588: CLI 'rename' command should work."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename it via CLI
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "Renamed #1" in out
+    assert "new text" in out
+
+    # Verify persistence via list
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_returns_error_for_nonexistent_todo(tmp_path, capsys) -> None:
+    """CLI rename should return error code 1 for nonexistent todo."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
+def test_cli_rename_returns_error_for_empty_text(tmp_path, capsys) -> None:
+    """CLI rename should return error code 1 for empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Try to rename with empty text
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "empty" in captured.out.lower() or "empty" in captured.err.lower()
