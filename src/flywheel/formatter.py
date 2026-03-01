@@ -44,11 +44,14 @@ class TodoFormatter:
     @staticmethod
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
+        priority_marker = "!" if todo.priority > 0 else ""
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        return f"[{status}] {todo.id:>3} {priority_marker}{safe_text}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
         if not todos:
             return "No todos yet."
-        return "\n".join(cls.format_todo(todo) for todo in todos)
+        # Sort by priority descending (high priority first)
+        sorted_todos = sorted(todos, key=lambda t: -t.priority)
+        return "\n".join(cls.format_todo(todo) for todo in sorted_todos)
