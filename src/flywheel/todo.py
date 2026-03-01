@@ -34,9 +34,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        if not self.created_at:
+        if self.created_at == "":
             self.created_at = _utc_now_iso()
-        if not self.updated_at:
+        if self.updated_at == "":
             self.updated_at = self.created_at
 
     def mark_done(self) -> None:
