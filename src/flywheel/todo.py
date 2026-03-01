@@ -105,8 +105,7 @@ class Todo:
             tags = [str(tag) for tag in raw_tags]
         else:
             raise ValueError(
-                f"Invalid value for 'tags': {raw_tags!r}. "
-                "'tags' must be a list of strings."
+                f"Invalid value for 'tags': {raw_tags!r}. 'tags' must be a list of strings."
             )
 
         return cls(
