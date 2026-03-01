@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
@@ -123,6 +124,44 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+
+    def _acquire_lock(self) -> int:
+        """Acquire an exclusive lock on the storage file.
+
+        Creates the lock file if it doesn't exist. Returns the file descriptor
+        for the locked file, which must be closed to release the lock.
+        """
+        # Ensure parent directory exists before creating lock file
+        _ensure_parent_directory(self.path)
+
+        lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        except OSError:
+            os.close(fd)
+            raise
+        return fd
+
+    def _release_lock(self, fd: int) -> None:
+        """Release the lock and close the file descriptor."""
+        try:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def exclusive_access(self) -> None:
+        """Context manager for exclusive access to the storage file.
+
+        Acquires an exclusive lock before entering the context and releases
+        it upon exit. This prevents race conditions in concurrent operations.
+        """
+        fd = self._acquire_lock()
+        try:
+            yield
+        finally:
+            self._release_lock(fd)
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

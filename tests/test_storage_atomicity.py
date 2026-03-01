@@ -229,3 +229,68 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_no_data_loss(tmp_path) -> None:
+    """Regression test for issue #6646: Race condition in add() causes data loss.
+
+    Tests that multiple threads calling add() concurrently do not result in
+    data loss. Each todo added should appear in the final storage, and all
+    IDs should be unique.
+
+    The bug occurs because:
+    1. Multiple threads read the same todos list
+    2. They all calculate the same next_id
+    3. The last writer wins, losing all other adds
+    """
+    import threading
+    import time
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+    app = TodoApp(db_path=str(db))
+
+    num_threads = 5
+    results = []
+    errors = []
+    barrier = threading.Barrier(num_threads)
+
+    def add_todo(thread_id: int) -> None:
+        try:
+            # Synchronize all threads to start at the same time
+            barrier.wait(timeout=5)
+            # Add small random delay to increase race condition likelihood
+            time.sleep(0.001 * (thread_id % 3))
+            todo = app.add(f"thread-{thread_id}-todo")
+            results.append((thread_id, todo.id))
+        except Exception as e:
+            errors.append((thread_id, str(e)))
+
+    threads = []
+    for i in range(num_threads):
+        t = threading.Thread(target=add_todo, args=(i,))
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join(timeout=10)
+
+    # No errors should occur
+    assert len(errors) == 0, f"Threads encountered errors: {errors}"
+
+    # All todos should be present
+    final_todos = app.list()
+    assert len(final_todos) == num_threads, (
+        f"Expected {num_threads} todos, got {len(final_todos)}. "
+        f"Data loss occurred! Results: {results}"
+    )
+
+    # All IDs should be unique
+    ids = [todo.id for todo in final_todos]
+    assert len(ids) == len(set(ids)), f"Duplicate IDs found: {ids}"
+
+    # Each thread's todo should be present
+    texts = {todo.text for todo in final_todos}
+    for i in range(num_threads):
+        assert f"thread-{i}-todo" in texts, f"Missing todo from thread {i}"
