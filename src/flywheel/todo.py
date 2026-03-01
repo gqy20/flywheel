@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 
 def _utc_now_iso() -> str:
@@ -38,6 +38,17 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+
+    @property
+    def age(self) -> timedelta:
+        """Return the time elapsed since this todo was created.
+
+        Returns:
+            timedelta: The duration between now (UTC) and created_at.
+        """
+        created = datetime.fromisoformat(self.created_at)
+        now = datetime.now(UTC)
+        return now - created
 
     def mark_done(self) -> None:
         self.done = True
