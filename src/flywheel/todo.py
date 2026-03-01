@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    tags: list[str] | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -34,6 +35,8 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if self.tags is None:
+            self.tags = []
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -93,10 +96,24 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse tags - default to empty list if not present
+        raw_tags = data.get("tags", [])
+        if raw_tags is None:
+            tags = []
+        elif isinstance(raw_tags, list):
+            # Validate all items are strings
+            tags = [str(tag) for tag in raw_tags]
+        else:
+            raise ValueError(
+                f"Invalid value for 'tags': {raw_tags!r}. "
+                "'tags' must be a list of strings."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            tags=tags,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )

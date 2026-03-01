@@ -45,7 +45,12 @@ class TodoFormatter:
     def format_todo(todo: Todo) -> str:
         status = "x" if todo.done else " "
         safe_text = _sanitize_text(todo.text)
-        return f"[{status}] {todo.id:>3} {safe_text}"
+        tags_str = ""
+        if todo.tags:
+            # Sanitize each tag and join
+            safe_tags = [_sanitize_text(tag) for tag in todo.tags]
+            tags_str = f" [{', '.join(safe_tags)}]"
+        return f"[{status}] {todo.id:>3} {safe_text}{tags_str}"
 
     @classmethod
     def format_list(cls, todos: list[Todo]) -> str:
