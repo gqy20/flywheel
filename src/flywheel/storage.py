@@ -57,12 +57,20 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        # Security: Open file once and use fstat to check size via fd.
+        # This prevents TOCTOU race condition between stat() and read_text()
+        # where an attacker could swap the file between size check and read.
+        try:
+            fd = os.open(self.path, os.O_RDONLY)
+        except FileNotFoundError:
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
+        # Security: Check file size via fstat on the opened fd
+        file_stat = os.fstat(fd)
+        file_size = file_stat.st_size
         if file_size > _MAX_JSON_SIZE_BYTES:
+            # Close fd before raising
+            os.close(fd)
             size_mb = file_size / (1024 * 1024)
             limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
             raise ValueError(
@@ -71,7 +79,10 @@ class TodoStorage:
             )
 
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            # Read from the same fd we used for size check
+            with os.fdopen(fd, "r", encoding="utf-8") as f:
+                # fd is now managed by the file object
+                raw = json.loads(f.read())
         except json.JSONDecodeError as e:
             raise ValueError(
                 f"Invalid JSON in '{self.path}': {e.msg}. "

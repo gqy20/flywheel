@@ -1,0 +1,26 @@
+{
+  "issue": 6464,
+  "candidate": 3,
+  "run_id": "22535644272",
+  "branch": "claude/issue-6464-candidate-3-22535644272",
+  "pr_number": null,
+  "pr_url": null,
+  "generated_at": "2026-03-01T04:40:00.000000+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement"
+  ],
+  "stage_response_sizes": {
+    "triage": 1500,
+    "plan": 800,
+    "implement": 2500
+  },
+  "fix_summary": "Fixed TOCTOU vulnerability in TodoStorage.load() by using os.open() and os.fstat() instead of Path.stat() and Path.read_text(). This ensures the file is opened once and the same file descriptor is used for both size checking and reading.",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_6464_toctou_protection.py"
+  ],
+  "tests_passed": 120,
+  "ruff_checks": "passed"
+}
