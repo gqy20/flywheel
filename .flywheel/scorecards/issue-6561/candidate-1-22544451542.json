@@ -1,0 +1,22 @@
+{
+  "issue_number": 6561,
+  "candidate_number": 1,
+  "run_id": "22544451542",
+  "branch": "claude/issue-6561-candidate-1-22544451542",
+  "status": "implemented",
+  "checks": {
+    "tests_added": true,
+    "tests_pass": true,
+    "ruff_pass": true,
+    "minimal_scope": true
+  },
+  "test_summary": {
+    "total_tests": 114,
+    "passed": 114,
+    "failed": 0
+  },
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  }
+}
