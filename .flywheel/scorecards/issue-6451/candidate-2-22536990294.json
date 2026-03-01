@@ -1,0 +1,14 @@
+{
+  "issue_number": 6451,
+  "candidate": 2,
+  "run_id": "22536990294",
+  "branch": "claude/issue-6451-candidate-2-22536990294",
+  "status": "implemented",
+  "summary": "Fix float id truncation in Todo.from_dict by explicitly rejecting float values",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": true,
+  "lint_passed": true
+}
