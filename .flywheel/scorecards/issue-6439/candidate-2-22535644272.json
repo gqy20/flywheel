@@ -2,7 +2,7 @@
   "issue_number": 6439,
   "candidate": 2,
   "run_id": "22535644272",
-  "stage": "VERIFY",
+  "stage": "FINALIZE",
   "plan": {
     "summary": "Add toggle() method to Todo class that flips done status and returns new state",
     "files_to_touch": [
