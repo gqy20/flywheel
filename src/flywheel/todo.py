@@ -10,6 +10,31 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_iso_timestamp(value: str, field_name: str) -> str:
+    """Validate that a timestamp string is in ISO 8601 format.
+
+    Args:
+        value: The timestamp string to validate.
+        field_name: The field name for error messages.
+
+    Returns:
+        The validated timestamp string.
+
+    Raises:
+        ValueError: If the timestamp is not empty and not valid ISO 8601.
+    """
+    if not value:
+        return value  # Empty values are allowed (will use __post_init__ defaults)
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"'{field_name}' must be a valid ISO 8601 timestamp."
+        ) from e
+    return value
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -93,10 +118,18 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields (must be ISO 8601 format or empty)
+        created_at = _validate_iso_timestamp(
+            str(data.get("created_at") or ""), "created_at"
+        )
+        updated_at = _validate_iso_timestamp(
+            str(data.get("updated_at") or ""), "updated_at"
+        )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
