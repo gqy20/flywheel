@@ -119,3 +119,41 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6533 - validate timestamp format (ISO 8601)
+def test_todo_from_dict_rejects_invalid_created_at_format() -> None:
+    """Todo.from_dict should reject non-ISO timestamp format for 'created_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*ISO|timestamp.*format"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "not-a-date"})
+
+
+def test_todo_from_dict_rejects_invalid_updated_at_format() -> None:
+    """Todo.from_dict should reject non-ISO timestamp format for 'updated_at'."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*ISO|timestamp.*format"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": "garbage"})
+
+
+def test_todo_from_dict_accepts_valid_iso_created_at() -> None:
+    """Todo.from_dict should accept valid ISO 8601 timestamp for 'created_at'."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "2024-01-15T10:30:00+00:00"})
+    assert todo.created_at == "2024-01-15T10:30:00+00:00"
+
+
+def test_todo_from_dict_accepts_valid_iso_updated_at() -> None:
+    """Todo.from_dict should accept valid ISO 8601 timestamp for 'updated_at'."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": "2024-01-15T10:30:00Z"})
+    assert todo.updated_at == "2024-01-15T10:30:00Z"
+
+
+def test_todo_from_dict_accepts_empty_timestamps() -> None:
+    """Todo.from_dict should accept empty/missing timestamps (uses __post_init__ defaults)."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    # __post_init__ sets timestamps, so they should be non-empty ISO format
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+
+    todo2 = Todo.from_dict({"id": 2, "text": "task", "created_at": "", "updated_at": ""})
+    # Empty strings trigger __post_init__ defaults
+    assert todo2.created_at != ""
+    assert todo2.updated_at != ""
