@@ -1,23 +1,23 @@
 {
-  "issue_number": 6564,
+  "issue": 6564,
   "candidate": 1,
   "run_id": "22545136772",
-  "status": "ready_for_merge",
-  "created_at": "2026-03-01T14:00:00Z",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "src/flywheel/formatter.py",
-      "tests/test_issue_6564_priority_field.py"
-    ],
-    "summary": "Add priority field to Todo class with sorting support in TodoFormatter"
-  },
-  "tests": {
-    "total": 8,
-    "passed": 8,
-    "failed": 0
-  },
-  "lint": {
-    "status": "passed"
+  "branch": "claude/issue-6564-candidate-1-22545136772",
+  "pr_number": 6579,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6579",
+  "generated_at": "2026-03-01T15:37:21.349332+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3417,
+    "plan": 2428,
+    "implement": 1662,
+    "verify": 2232,
+    "finalize": 1032
   }
 }
