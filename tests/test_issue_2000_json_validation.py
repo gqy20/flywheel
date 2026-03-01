@@ -119,3 +119,29 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6561 - reject non-integer floats for 'id' field
+def test_todo_from_dict_rejects_non_integer_float_id() -> None:
+    """Todo.from_dict should reject floats that are not whole numbers."""
+    with pytest.raises(ValueError, match=r"float|integer"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_non_integer_float_id_negative() -> None:
+    """Todo.from_dict should reject negative non-integer floats for 'id'."""
+    with pytest.raises(ValueError, match=r"float|integer"):
+        Todo.from_dict({"id": -2.7, "text": "task"})
+
+
+def test_todo_from_dict_accepts_integer_float_id() -> None:
+    """Todo.from_dict should accept floats that are whole numbers (e.g., 1.0)."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+    assert isinstance(todo.id, int)
+
+
+def test_todo_from_dict_accepts_integer_float_id_large() -> None:
+    """Todo.from_dict should accept large floats that are whole numbers."""
+    todo = Todo.from_dict({"id": 1000000.0, "text": "task"})
+    assert todo.id == 1000000
