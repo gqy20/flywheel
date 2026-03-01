@@ -1,0 +1,24 @@
+{
+  "issue_number": 6477,
+  "issue_title": "[Bug] Negative ID values accepted without validation",
+  "candidate_number": 2,
+  "run_id": "22537696430",
+  "branch": "claude/issue-6477-candidate-2-22537696430",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "tests_passed": true,
+  "linter_passed": true,
+  "implementation_summary": "Added validation in Todo.from_dict() to reject negative ID values. The fix raises ValueError with a clear message when a negative ID is provided. ID=0 is accepted as a valid boundary case.",
+  "validation_criteria_met": [
+    "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError",
+    "Todo.from_dict({'id': 0, 'text': 'test'}) returns Todo with id=0",
+    "Existing tests for positive IDs still pass"
+  ]
+}
