@@ -1,0 +1,36 @@
+{
+  "issue_number": 6479,
+  "issue_title": "[Bug] TodoApp 缺少 rename 功能的 CLI 命令入口",
+  "candidate_number": 1,
+  "run_id": "22537696430",
+  "branch_name": "claude/issue-6479-candidate-1-22537696430",
+  "status": "implemented",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_6479_cli_rename_command.py"
+    ],
+    "changes_summary": "Added rename subcommand to CLI with id and text arguments, TodoApp.rename() method, and handler in run_command()",
+    "tests_added": 4,
+    "tests_passing": true
+  },
+  "tests": {
+    "test_file": "tests/test_issue_6479_cli_rename_command.py",
+    "test_cases": [
+      "test_cli_rename_command_succeeds_for_existing_todo",
+      "test_cli_rename_command_returns_error_for_nonexistent_id",
+      "test_cli_rename_command_returns_error_for_empty_text",
+      "test_cli_rename_command_sanitizes_text_in_output"
+    ],
+    "all_passed": true
+  },
+  "acceptance_criteria": {
+    "cli_supports_rename_command": true,
+    "rename_outputs_success_message": true,
+    "rename_returns_error_for_nonexistent_id": true
+  },
+  "risks_and_limitations": [
+    "Minor change with low risk - follows existing patterns for other commands"
+  ],
+  "timestamp": "2026-03-01T06:05:00Z"
+}
