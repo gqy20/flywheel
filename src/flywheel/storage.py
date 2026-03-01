@@ -3,16 +3,24 @@
 from __future__ import annotations
 
 import contextlib
+import fcntl
 import json
 import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .todo import Todo
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 # Maximum JSON file size to prevent DoS attacks (10MB)
 _MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+
+# Default timeout for acquiring file lock (seconds)
+_LOCK_TIMEOUT_SECONDS = 10
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -50,11 +58,98 @@ def _ensure_parent_directory(file_path: Path) -> None:
             ) from e
 
 
+def _acquire_file_lock(file_path: Path, timeout_seconds: float = _LOCK_TIMEOUT_SECONDS) -> int:
+    """Acquire an exclusive file-based lock for the given path.
+
+    Creates a lock file with '.lock' suffix and acquires an exclusive lock on it.
+    This prevents race conditions when multiple processes access the same database.
+
+    Args:
+        file_path: Path to the file that needs locking
+        timeout_seconds: Maximum time to wait for lock acquisition
+
+    Returns:
+        File descriptor of the lock file (must be closed to release lock)
+
+    Raises:
+        TimeoutError: If lock cannot be acquired within timeout
+        OSError: If lock file cannot be created
+    """
+    _ensure_parent_directory(file_path)
+
+    lock_path = file_path.with_suffix(file_path.suffix + ".lock")
+
+    # Open/create lock file
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o600)
+
+    try:
+        # Try exclusive lock with non-blocking first
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except OSError:
+            # Lock is held by another process, wait with timeout
+            import time
+
+            start_time = time.monotonic()
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    return fd
+                except OSError:
+                    if time.monotonic() - start_time >= timeout_seconds:
+                        raise TimeoutError(
+                            f"Could not acquire lock on '{lock_path}' within "
+                            f"{timeout_seconds} seconds. Another process may be holding "
+                            "the lock."
+                        ) from None
+                    time.sleep(0.05)  # Short sleep before retry
+    except Exception:
+        # Clean up on failure
+        os.close(fd)
+        raise
+
+
+def _release_file_lock(fd: int) -> None:
+    """Release a file lock and close the file descriptor.
+
+    Args:
+        fd: File descriptor returned by _acquire_file_lock
+    """
+    try:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
+
+
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Thread/Process Safety:
+        This class uses file-based locking (via fcntl.flock) to prevent race conditions
+        when multiple processes access the same database concurrently. The lock is
+        acquired automatically during atomic operations like `add_todo`.
+
+        For custom operations that require atomicity, use the `_lock` context manager.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_fd: int | None = None
+
+    @contextlib.contextmanager
+    def _lock(self) -> Generator[None]:
+        """Context manager for file-based locking.
+
+        Acquires an exclusive lock on the database file for the duration of the context.
+        This prevents race conditions when multiple processes perform read-modify-write
+        operations on the same database.
+        """
+        lock_fd = _acquire_file_lock(self.path)
+        try:
+            yield
+        finally:
+            _release_file_lock(lock_fd)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -126,3 +221,29 @@ class TodoStorage:
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+
+    def add_todo(self, text: str) -> Todo:
+        """Add a new todo with atomic file locking.
+
+        This method performs load→compute_id→save as a single atomic operation,
+        preventing race conditions when multiple processes add todos concurrently.
+
+        Args:
+            text: The text content of the todo
+
+        Returns:
+            The newly created Todo with a unique ID
+
+        Raises:
+            ValueError: If text is empty or whitespace only
+        """
+        text = text.strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+
+        with self._lock():
+            todos = self.load()
+            todo = Todo(id=self.next_id(todos), text=text)
+            todos.append(todo)
+            self.save(todos)
+        return todo
