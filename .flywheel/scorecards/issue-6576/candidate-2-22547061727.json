@@ -1,11 +1,23 @@
 {
-  "issue_number": 6576,
+  "issue": 6576,
   "candidate": 2,
   "run_id": "22547061727",
   "branch": "claude/issue-6576-candidate-2-22547061727",
-  "status": "implemented",
-  "tests_added": ["tests/test_issue_6576_bool_id_rejection.py"],
-  "files_modified": ["src/flywheel/todo.py"],
-  "summary": "Fixed Todo.from_dict to reject bool values as IDs. Added explicit type check for bool before converting to int.",
-  "risks": "Minimal - only adds validation, no behavior changes for valid inputs"
+  "pr_number": 6594,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6594",
+  "generated_at": "2026-03-01T16:34:09.930066+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1986,
+    "plan": 3440,
+    "implement": 2353,
+    "verify": 1639,
+    "finalize": 726
+  }
 }
