@@ -1,16 +1,23 @@
 {
-  "issue_number": 6606,
-  "issue_title": "[Enhancement] Todo 类缺少 __eq__ 和 __hash__ 方法，无法进行对象比较或用作 dict 键",
+  "issue": 6606,
   "candidate": 2,
   "run_id": "22549227413",
   "branch": "claude/issue-6606-candidate-2-22549227413",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_6606_todo_equality_hash.py"]
-  },
-  "implementation_summary": "Added __eq__ and __hash__ methods to Todo dataclass. The __eq__ method compares todos by id only, allowing todos to be compared and used in sets/dicts by their unique id. The __hash__ method hashes by id to maintain consistency with __eq__.",
-  "tests_run": ["tests/test_issue_6606_todo_equality_hash.py"],
-  "tests_passed": 11,
-  "lint_status": "passed"
+  "pr_number": 6625,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6625",
+  "generated_at": "2026-03-01T18:47:51.135996+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2468,
+    "plan": 3080,
+    "implement": 1548,
+    "verify": 3561,
+    "finalize": 1893
+  }
 }
