@@ -1,18 +1,23 @@
 {
-  "issue_number": 6547,
-  "candidate_number": 2,
+  "issue": 6547,
+  "candidate": 2,
   "run_id": "22543269460",
   "branch": "claude/issue-6547-candidate-2-22543269460",
-  "status": "implemented",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_6547_to_dict_type_precision.py"
-    ]
-  },
-  "tests_passed": true,
-  "linting_passed": true,
-  "summary": "Fixed to_dict() return type annotation from bare 'dict' to 'dict[str, Any]' for proper type precision"
+  "pr_number": 6559,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6559",
+  "generated_at": "2026-03-01T13:13:46.800747+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2014,
+    "plan": 2237,
+    "implement": 2455,
+    "verify": 1577,
+    "finalize": 1184
+  }
 }
