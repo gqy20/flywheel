@@ -20,8 +20,10 @@
     "uv run ruff check src/flywheel/storage.py",
     "uv run ruff format --check src/flywheel/storage.py"
   ],
-  "stage": "FINALIZE",
+  "stage": "COMPLETE",
   "finalized_at": "2026-03-01T13:10:00Z",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6557",
+  "pr_number": 6557,
   "created_at": "2026-03-01T10:45:00Z",
   "implemented_at": "2026-03-01T13:01:45Z",
   "verified_at": "2026-03-01T13:06:00Z",
