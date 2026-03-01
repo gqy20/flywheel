@@ -43,7 +43,6 @@ class TestTodoSetPriority:
     def test_set_priority_updates_value(self) -> None:
         """set_priority() should update the priority value."""
         todo = Todo(id=1, text="task")
-        original_updated_at = todo.updated_at
 
         todo.set_priority(1)
         assert todo.priority == 1

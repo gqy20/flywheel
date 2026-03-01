@@ -1,0 +1,21 @@
+{
+  "issue": 6591,
+  "candidate": 1,
+  "run_id": "22548328897",
+  "branch": "claude/issue-6591-candidate-1-22548328897",
+  "pr_number": null,
+  "pr_url": null,
+  "generated_at": "2026-03-01T17:30:00.000000+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify"
+  ],
+  "stage_response_sizes": {
+    "triage": 1500,
+    "plan": 2000,
+    "implement": 2500,
+    "verify": 1800
+  }
+}
