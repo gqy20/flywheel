@@ -1,44 +1,23 @@
 {
-  "issue_number": 6467,
-  "issue_title": "[Feature] Add toggle method to flip done status",
-  "candidate_number": 3,
+  "issue": 6467,
+  "candidate": 3,
   "run_id": "22536990294",
   "branch": "claude/issue-6467-candidate-3-22536990294",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6467_toggle_method.py"
-    ],
-    "lines_added": 9,
-    "lines_removed": 0
-  },
-  "tests": {
-    "test_file": "tests/test_issue_6467_toggle_method.py",
-    "tests_passed": 5,
-    "tests_total": 5,
-    "coverage": {
-      "todo.py": "47%"
-    }
-  },
-  "quality_checks": {
-    "ruff": "passed",
-    "pytest": "passed"
-  },
-  "acceptance_criteria": [
-    {
-      "criterion": "todo.toggle() on done=False returns done=True",
-      "status": "passed"
-    },
-    {
-      "criterion": "todo.toggle() on done=True returns done=False",
-      "status": "passed"
-    },
-    {
-      "criterion": "updated_at is refreshed after toggle",
-      "status": "passed"
-    }
+  "pr_number": 6487,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6487",
+  "generated_at": "2026-03-01T06:33:42.550624+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [],
-  "limitations": [],
-  "created_at": "2026-03-01T06:23:00Z"
+  "stage_response_sizes": {
+    "triage": 2081,
+    "plan": 1713,
+    "implement": 1980,
+    "verify": 2171,
+    "finalize": 892
+  }
 }
