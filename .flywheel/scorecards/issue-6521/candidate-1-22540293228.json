@@ -1,0 +1,28 @@
+{
+  "issue_number": 6521,
+  "candidate_number": 1,
+  "run_id": "22540293228",
+  "status": "implemented",
+  "summary": "Fixed negative ID validation bug in Todo.from_dict()",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "change_type": "modified",
+      "description": "Added validation to reject negative or zero IDs in Todo.from_dict()"
+    },
+    {
+      "file": "tests/test_issue_6521_negative_id_validation.py",
+      "change_type": "added",
+      "description": "New regression tests for negative ID validation"
+    },
+    {
+      "file": "tests/test_storage_atomicity.py",
+      "change_type": "modified",
+      "description": "Fixed existing test that was using ID=0 (now invalid)"
+    }
+  ],
+  "tests_passed": 119,
+  "tests_added": 7,
+  "risks": "Low risk - adds validation that rejects invalid data which was previously accepted",
+  "limitations": "None - minimal fix addressing the root cause"
+}
