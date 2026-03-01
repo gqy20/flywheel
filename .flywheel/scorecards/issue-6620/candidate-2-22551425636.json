@@ -1,0 +1,20 @@
+{
+  "issue": 6620,
+  "candidate": 2,
+  "run_id": "22551425636",
+  "status": "implemented",
+  "summary": "Added __eq__ method to complement existing __hash__ for proper set/dict compatibility",
+  "changes": [
+    {
+      "file": "src/flywheel/todo.py",
+      "description": "Added __eq__ method based on id field to ensure proper deduplication in sets and dicts"
+    }
+  ],
+  "tests_passed": 41,
+  "tests_failed": 0,
+  "risks": [
+    "Changes equality semantics - Todos with same id but different text/done are now equal",
+    "May affect existing code that relies on full field comparison"
+  ],
+  "timestamp": "2026-03-01T18:30:00Z"
+}
