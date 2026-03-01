@@ -1,0 +1,53 @@
+{
+  "issue_number": 6439,
+  "candidate": 2,
+  "run_id": "22535644272",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "summary": "Add toggle() method to Todo class that flips done status and returns new state",
+    "files_to_touch": [
+      "tests/test_issue_6439_todo_toggle.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "action": "Create test file with 3 failing tests for toggle() method"
+      },
+      {
+        "step": "GREEN",
+        "action": "Add toggle() method to Todo class after mark_undone()"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6439_todo_toggle.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_6439_todo_toggle.py"
+    ],
+    "acceptance_criteria": [
+      "toggle() on undone todo returns True and sets done=True",
+      "toggle() on done todo returns False and sets done=False",
+      "updated_at is updated after toggle"
+    ]
+  },
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6439_toggle_method.py"
+    ],
+    "tests_added": 4,
+    "tests_passed": 116,
+    "lint_status": "passed",
+    "method_signature": "def toggle(self) -> bool",
+    "method_location": "src/flywheel/todo.py:49-52",
+    "lines_added": 6
+  },
+  "acceptance_criteria_met": [
+    "toggle() on undone todo returns True and sets done=True",
+    "toggle() on done todo returns False and sets done=False",
+    "updated_at is updated after toggle"
+  ],
+  "risks": "None - minimal change following existing patterns (mark_done/mark_undone)",
+  "status": "implemented",
+  "timestamp": "2026-03-01T04:42:00Z"
+}
