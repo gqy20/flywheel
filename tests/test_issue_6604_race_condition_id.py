@@ -13,8 +13,6 @@ import multiprocessing
 import time
 from pathlib import Path
 
-import pytest
-
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
 
@@ -156,7 +154,7 @@ def test_concurrent_add_with_existing_todos(tmp_path: Path) -> None:
 
     # All newly generated IDs should be > 10 (max existing ID)
     all_new_ids: list[int] = []
-    for _, worker_id, ids in successes:
+    for _, _worker_id, ids in successes:
         all_new_ids.extend(ids)
 
     for new_id in all_new_ids:
