@@ -1,0 +1,17 @@
+{
+  "issue_number": 6561,
+  "candidate_number": 2,
+  "run_id": "22544451542",
+  "branch": "claude/issue-6561-candidate-2-22544451542",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6568",
+  "status": "implemented",
+  "summary": "Fixed Todo.from_dict silently truncating float IDs by adding validation before int() conversion",
+  "tests_added": 4,
+  "tests_passed": 116,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "commit_sha": "de08d69"
+}
