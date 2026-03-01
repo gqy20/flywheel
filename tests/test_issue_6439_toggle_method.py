@@ -34,6 +34,7 @@ def test_toggle_updates_timestamp() -> None:
 
     # Small delay to ensure timestamp difference
     import time
+
     time.sleep(0.001)
 
     todo.toggle()
