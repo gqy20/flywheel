@@ -2,26 +2,22 @@
   "issue": 6563,
   "candidate": 2,
   "run_id": "22545136772",
-  "status": "verified",
-  "tests_passed": true,
-  "ruff_passed": true,
-  "summary": "Added 'edit' CLI command to rename todo items via command line",
-  "files_changed": [
-    "src/flywheel/cli.py",
-    "tests/test_issue_6563_cli_edit_command.py"
+  "branch": "claude/issue-6563-candidate-2-22545136772",
+  "pr_number": 6583,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6583",
+  "generated_at": "2026-03-01T15:37:19.233973+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests": [
-    "test_cli_edit_command_modifies_existing_todo",
-    "test_cli_edit_command_nonexistent_id_returns_error",
-    "test_cli_edit_command_empty_text_returns_error",
-    "test_cli_edit_command_sanitizes_output"
-  ],
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6563_cli_edit_command.py -v",
-    "pytest_result": "4 passed",
-    "ruff_command": "uv run ruff check src/flywheel/cli.py tests/test_issue_6563_cli_edit_command.py",
-    "ruff_result": "All checks passed",
-    "full_test_suite": "uv run pytest tests/ -v",
-    "full_test_result": "116 passed"
+  "stage_response_sizes": {
+    "triage": 1766,
+    "plan": 2968,
+    "implement": 2065,
+    "verify": 2051,
+    "finalize": 1528
   }
 }
