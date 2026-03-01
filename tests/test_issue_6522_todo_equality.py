@@ -62,7 +62,7 @@ def test_todo_equality_with_non_todo() -> None:
     todo = Todo(id=1, text="buy milk", done=False)
 
     # Comparing with None should return False (not raise)
-    assert todo != None
+    assert todo is not None
 
     # Comparing with dict should return False
     assert todo != {"id": 1, "text": "buy milk", "done": False}
