@@ -37,5 +37,9 @@
     "success_message_format": "Renamed #{id}: {sanitized_text}",
     "error_handling_for_nonexistent_id": true,
     "error_handling_for_empty_text": true
+  },
+  "pr": {
+    "url": "https://github.com/gqy20/flywheel/pull/6502",
+    "number": 6502
   }
 }
