@@ -11,8 +11,28 @@ from pathlib import Path
 
 from .todo import Todo
 
-# Maximum JSON file size to prevent DoS attacks (10MB)
-_MAX_JSON_SIZE_BYTES = 10 * 1024 * 1024
+# Default maximum JSON file size to prevent DoS attacks (10MB)
+_DEFAULT_MAX_JSON_SIZE_MB = 10
+
+
+def _get_max_json_size_bytes() -> int:
+    """Get the maximum JSON file size from environment variable or default.
+
+    The limit can be configured via FLYWHEEL_MAX_JSON_SIZE_MB environment variable.
+    Invalid, negative, or zero values fall back to the default of 10MB.
+
+    Returns:
+        Maximum allowed file size in bytes.
+    """
+    env_value = os.environ.get("FLYWHEEL_MAX_JSON_SIZE_MB", "")
+    if env_value:
+        try:
+            mb_value = int(env_value)
+            if mb_value > 0:
+                return mb_value * 1024 * 1024
+        except (ValueError, TypeError):
+            pass  # Fall through to default
+    return _DEFAULT_MAX_JSON_SIZE_MB * 1024 * 1024
 
 
 def _ensure_parent_directory(file_path: Path) -> None:
@@ -61,10 +81,11 @@ class TodoStorage:
             return []
 
         # Security: Check file size before loading to prevent DoS
+        max_size_bytes = _get_max_json_size_bytes()
         file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
+        if file_size > max_size_bytes:
             size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+            limit_mb = max_size_bytes / (1024 * 1024)
             raise ValueError(
                 f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
                 f"This protects against denial-of-service attacks."
