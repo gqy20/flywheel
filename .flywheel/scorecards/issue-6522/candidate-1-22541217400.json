@@ -1,38 +1,23 @@
 {
-  "issue_number": 6522,
-  "candidate_number": 1,
+  "issue": 6522,
+  "candidate": 1,
   "run_id": "22541217400",
   "branch": "claude/issue-6522-candidate-1-22541217400",
-  "created_at": "2026-03-01T10:53:00Z",
-  "status": "ready_for_review",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6522_todo_equality.py"
-    ],
-    "lines_added": 76,
-    "lines_removed": 0,
-    "approach": "Added __eq__ method to Todo dataclass that compares by id, text, and done fields (excluding timestamps)"
-  },
-  "tests": {
-    "new_tests": 10,
-    "all_tests_passed": true,
-    "total_tests_run": 122,
-    "coverage_percent": 92
-  },
-  "linting": {
-    "ruff_check": "passed",
-    "ruff_format": "not_run"
-  },
-  "acceptance_criteria": {
-    "todo_eq_same_values": true,
-    "todo_eq_different_id": true,
-    "comparison_with_non_todo_returns_not_implemented": true
-  },
-  "risks": [
-    "Code that relies on object identity comparison will now use value comparison - this is generally expected behavior"
+  "pr_number": 6537,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6537",
+  "generated_at": "2026-03-01T11:04:08.878329+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "limitations": [
-    "Todo objects remain unhashable (appropriate for mutable objects with custom __eq__)"
-  ]
+  "stage_response_sizes": {
+    "triage": 2386,
+    "plan": 4000,
+    "implement": 2263,
+    "verify": 2213,
+    "finalize": 774
+  }
 }
