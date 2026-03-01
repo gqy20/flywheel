@@ -1,0 +1,26 @@
+{
+  "issue_number": 6546,
+  "candidate_number": 1,
+  "run_id": "22543269460",
+  "created_at": "2026-03-01T12:45:00Z",
+  "fix_summary": "Added symlink detection in save() to prevent symlink following attacks on target file path",
+  "test_coverage": {
+    "tests_added": 4,
+    "tests_passed": 116,
+    "test_file": "tests/test_issue_6546_target_symlink_protection.py"
+  },
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_6546_target_symlink_protection.py"
+  ],
+  "security_fix": {
+    "vulnerability": "CWE-367: Time-of-check Time-of-use (TOCTOU) Race Condition",
+    "cwe_secondary": "CWE-61: UNIX Symbolic Link (Symlink) Following",
+    "fix_approach": "Reject symlink target paths before os.replace to prevent symlink following attacks"
+  },
+  "verification": {
+    "lint_check": "passed",
+    "all_tests_passed": true,
+    "tdd_followed": true
+  }
+}
