@@ -20,6 +20,16 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id, text, and done status (exclude timestamps).
+
+        This enables value-based equality for testing, sorting, and deduplication.
+        Timestamps are excluded to allow practical equality comparison.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return (self.id, self.text, self.done) == (other.id, other.text, other.done)
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
