@@ -1,40 +1,23 @@
 {
-  "issue_number": 6453,
-  "issue_title": "[Feature] Add age property to show time since creation",
-  "candidate_number": 2,
+  "issue": 6453,
+  "candidate": 2,
   "run_id": "22536990294",
-  "branch_name": "claude/issue-6453-candidate-2-22536990294",
-  "implementation": {
-    "approach": "Added @property age method to Todo dataclass that computes timedelta between now (UTC) and created_at timestamp",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6453_todo_age_property.py"
-    ],
-    "lines_added": 22,
-    "lines_removed": 1
-  },
-  "tests": {
-    "test_file": "tests/test_issue_6453_todo_age_property.py",
-    "test_count": 5,
-    "all_passed": true,
-    "coverage": [
-      "test_age_returns_timedelta",
-      "test_age_is_positive_for_past_creation",
-      "test_age_for_newly_created_todo_is_near_zero",
-      "test_age_increases_over_time",
-      "test_age_is_accurate_within_one_second"
-    ]
-  },
-  "verification": {
-    "ruff_check": "passed",
-    "pytest_run": "passed",
-    "regression_tests": "passed"
-  },
-  "acceptance_criteria": {
-    "returns_timedelta": true,
-    "positive_for_past_creation": true,
-    "accurate_within_one_second": true
-  },
-  "risks": [],
-  "limitations": []
+  "branch": "claude/issue-6453-candidate-2-22536990294",
+  "pr_number": 6485,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6485",
+  "generated_at": "2026-03-01T06:29:11.030273+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1938,
+    "plan": 2018,
+    "implement": 1344,
+    "verify": 2540,
+    "finalize": 1623
+  }
 }
