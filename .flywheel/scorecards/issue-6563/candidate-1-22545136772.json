@@ -1,0 +1,50 @@
+{
+  "issue_number": 6563,
+  "candidate_number": 1,
+  "run_id": "22545136772",
+  "branch": "claude/issue-6563-candidate-1-22545136772",
+  "commit_sha": "0beefae",
+  "created_at": "2026-03-01T14:00:00Z",
+  "status": "ready_for_review",
+  "tests_passed": true,
+  "linting_passed": true,
+  "summary": {
+    "files_changed": 2,
+    "lines_added": 121,
+    "lines_removed": 0,
+    "test_files_added": 1,
+    "test_cases_added": 4
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "CLI supports 'todo edit <id> <new_text>' command",
+      "status": "passed"
+    },
+    {
+      "criterion": "Success output shows 'Renamed #1: new text'",
+      "status": "passed"
+    },
+    {
+      "criterion": "Non-existent id returns clear error message",
+      "status": "passed"
+    },
+    {
+      "criterion": "Empty text returns clear error message",
+      "status": "passed"
+    },
+    {
+      "criterion": "Output sanitizes control characters",
+      "status": "passed"
+    }
+  ],
+  "tests": {
+    "test_cli_edit_command_modifies_existing_todo_text": "passed",
+    "test_cli_edit_command_returns_error_for_nonexistent_id": "passed",
+    "test_cli_edit_command_returns_error_for_empty_text": "passed",
+    "test_cli_edit_command_sanitizes_text_in_output": "passed"
+  },
+  "risks": [
+    "None identified - minimal change that follows existing patterns"
+  ],
+  "limitations": []
+}
