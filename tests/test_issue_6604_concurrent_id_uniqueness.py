@@ -8,14 +8,9 @@ leading to a TOCTOU (Time-of-check to time-of-use) race condition.
 from __future__ import annotations
 
 import multiprocessing
-import tempfile
-from pathlib import Path
-
-import pytest
 
 from flywheel.cli import TodoApp
 from flywheel.storage import TodoStorage
-from flywheel.todo import Todo
 
 
 def add_todos_worker(db_path: str, worker_id: int, num_todos: int, result_queue: multiprocessing.Queue) -> None:
@@ -43,7 +38,6 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     # Run multiple workers concurrently, each adding multiple todos
     num_workers = 4
     todos_per_worker = 25
-    total_expected_todos = num_workers * todos_per_worker
 
     processes = []
     result_queue = multiprocessing.Queue()
@@ -73,7 +67,7 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     all_ids = []
     successes = [r for r in results if r[0] == "success"]
     for success in successes:
-        _, worker_id, ids_generated = success
+        _, _worker_id, ids_generated = success
         all_ids.extend(ids_generated)
 
     # Verify all IDs are unique - this is the core assertion for issue #6604
@@ -106,7 +100,6 @@ def test_concurrent_add_with_existing_todos(tmp_path) -> None:
     for i in range(1, 6):
         app.add(f"existing-{i}")
 
-    initial_count = len(app.list())
     initial_max_id = max(todo.id for todo in app.list())
 
     # Run concurrent adds
