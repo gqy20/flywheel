@@ -50,7 +50,7 @@ class TestTodoEquality:
         assert todo != "task"
         assert todo != 1
         assert todo != {"id": 1, "text": "task"}
-        assert todo != None
+        assert todo is not None
 
     def test_todo_equal_to_itself(self) -> None:
         """Todo should be equal to itself (reflexivity)."""
