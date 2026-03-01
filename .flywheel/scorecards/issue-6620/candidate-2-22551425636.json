@@ -2,12 +2,16 @@
   "issue": 6620,
   "candidate": 2,
   "run_id": "22551425636",
-  "status": "implemented",
-  "summary": "Added __eq__ method to complement existing __hash__ for proper set/dict compatibility",
+  "status": "verified",
+  "summary": "Added __hash__ and __eq__ methods to Todo class for proper set/dict compatibility",
   "changes": [
     {
       "file": "src/flywheel/todo.py",
-      "description": "Added __eq__ method based on id field to ensure proper deduplication in sets and dicts"
+      "description": "Added __hash__ method (line 36-38) and __eq__ method (line 40-44) based on id field for id-based identity semantics"
+    },
+    {
+      "file": "tests/test_issue_6620_todo_hash.py",
+      "description": "Added 7 tests for hashability, set operations, dict key usage, and deduplication"
     }
   ],
   "tests_passed": 41,
@@ -16,5 +20,11 @@
     "Changes equality semantics - Todos with same id but different text/done are now equal",
     "May affect existing code that relies on full field comparison"
   ],
-  "timestamp": "2026-03-01T18:30:00Z"
+  "verification": {
+    "pytest_command": "uv run pytest tests/test_issue_6620_todo_hash.py -v",
+    "pytest_result": "7 passed",
+    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6620_todo_hash.py",
+    "ruff_result": "All checks passed"
+  },
+  "timestamp": "2026-03-01T18:35:00Z"
 }
