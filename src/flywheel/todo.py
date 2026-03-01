@@ -17,6 +17,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    tags: list[str] | None = None
     created_at: str = ""
     updated_at: str = ""
 
@@ -34,10 +35,12 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        if self.tags is None:
+            object.__setattr__(self, "tags", [])
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
@@ -93,10 +96,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'tags' is a list of strings (optional, defaults to empty list)
+        raw_tags = data.get("tags", [])
+        if not isinstance(raw_tags, list):
+            raise ValueError(
+                f"Invalid value for 'tags': {raw_tags!r}. 'tags' must be a list/array of strings."
+            )
+        if not all(isinstance(tag, str) for tag in raw_tags):
+            raise ValueError(
+                f"Invalid value for 'tags': {raw_tags!r}. All tag elements must be strings."
+            )
+        tags = list(raw_tags)  # Make a copy to avoid mutation issues
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            tags=tags,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
