@@ -23,8 +23,14 @@
   },
   "validation": {
     "lint": "passed",
+    "format": "passed",
     "tests": "passed",
-    "coverage": "93%"
+    "coverage": "93%",
+    "test_counts": {
+      "issue_specific": "5 passed",
+      "cli_related": "31 passed",
+      "full_suite": "117 passed"
+    }
   },
   "verification_criteria": {
     "cli_rename_command_exists": true,
