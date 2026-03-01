@@ -10,15 +10,31 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, eq=False)
 class Todo:
-    """Simple todo item."""
+    """Simple todo item.
+
+    Equality and hashing are based solely on the 'id' field, which is the
+    semantic identity of a todo. This allows todos to be used in sets and
+    as dict keys, and ensures that two todos with the same id are considered
+    equal regardless of their other attributes.
+    """
 
     id: int
     text: str
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+
+    def __eq__(self, other: object) -> bool:
+        """Two todos are equal if and only if they have the same id."""
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash is based solely on id for consistency with __eq__."""
+        return hash(self.id)
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
