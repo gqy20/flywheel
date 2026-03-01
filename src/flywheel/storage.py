@@ -57,30 +57,46 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
-        if not self.path.exists():
+        # Security: Open file once and use fstat to avoid TOCTOU race condition
+        # between size check and read. The fd always refers to the same file,
+        # even if the path is replaced/relinked between open and read.
+        try:
+            fd = os.open(self.path, os.O_RDONLY)
+        except FileNotFoundError:
+            return []
+        except OSError:
+            # Handle permission errors
             return []
 
-        # Security: Check file size before loading to prevent DoS
-        file_size = self.path.stat().st_size
-        if file_size > _MAX_JSON_SIZE_BYTES:
-            size_mb = file_size / (1024 * 1024)
-            limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
-            raise ValueError(
-                f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
-                f"This protects against denial-of-service attacks."
-            )
-
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as e:
-            raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
-            ) from e
+            # Security: Use fstat on fd to check size (not stat on path)
+            # This prevents TOCTOU race where file is swapped between size check and read
+            file_stat = os.fstat(fd)
+            file_size = file_stat.st_size
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+            if file_size > _MAX_JSON_SIZE_BYTES:
+                size_mb = file_size / (1024 * 1024)
+                limit_mb = _MAX_JSON_SIZE_BYTES / (1024 * 1024)
+                raise ValueError(
+                    f"JSON file too large ({size_mb:.1f}MB > {limit_mb:.0f}MB limit). "
+                    f"This protects against denial-of-service attacks."
+                )
+
+            try:
+                # Read from the same fd that we used for fstat
+                with os.fdopen(fd, "r", encoding="utf-8", closefd=False) as f:
+                    raw = json.load(f)
+            except json.JSONDecodeError as e:
+                raise ValueError(
+                    f"Invalid JSON in '{self.path}': {e.msg}. "
+                    f"Check line {e.lineno}, column {e.colno}."
+                ) from e
+
+            if not isinstance(raw, list):
+                raise ValueError("Todo storage must be a JSON list")
+            return [Todo.from_dict(item) for item in raw]
+        finally:
+            os.close(fd)
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
