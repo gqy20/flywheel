@@ -1,46 +1,23 @@
 {
-  "issue_number": 6481,
-  "candidate_number": 2,
+  "issue": 6481,
+  "candidate": 2,
   "run_id": "22539290881",
   "branch": "claude/issue-6481-candidate-2-22539290881",
-  "created_at": "2026-03-01T06:15:00Z",
-  "status": "verified",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6481_text_length_limit.py"
-    ],
-    "summary": "Added MAX_TEXT_LENGTH constant (1000 chars) and validation in rename() and from_dict() methods"
-  },
-  "tests": {
-    "test_file": "tests/test_issue_6481_text_length_limit.py",
-    "test_count": 6,
-    "all_passed": true
-  },
-  "checklist": {
-    "test_file_added": true,
-    "source_file_changed": true,
-    "tests_pass": true,
-    "linter_pass": true,
-    "format_pass": true
-  },
-  "verification": {
-    "pytest_commands": [
-      "uv run pytest tests/test_issue_6481_text_length_limit.py -v",
-      "uv run pytest tests/test_minimal_framework.py -v"
-    ],
-    "ruff_commands": [
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_6481_text_length_limit.py",
-      "uv run ruff format --check src/flywheel/todo.py tests/test_issue_6481_text_length_limit.py"
-    ],
-    "results": {
-      "new_tests_passed": "6/6",
-      "existing_tests_passed": "10/10",
-      "ruff_check": "All checks passed",
-      "ruff_format": "2 files already formatted"
-    },
-    "fixes_applied": [
-      "Applied ruff formatting to src/flywheel/todo.py (single-line ValueError messages)"
-    ]
+  "pr_number": 6513,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6513",
+  "generated_at": "2026-03-01T08:56:36.835819+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2720,
+    "plan": 1902,
+    "implement": 2938,
+    "verify": 3525,
+    "finalize": 347
   }
 }
