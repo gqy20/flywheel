@@ -48,7 +48,7 @@ def test_todo_set_deduplication() -> None:
     todo2 = Todo(id=1, text="b")
     todo3 = Todo(id=2, text="c")
 
-    unique_todos = set([todo1, todo2, todo3])
+    unique_todos = {todo1, todo2, todo3}
 
     # Only 2 unique ids (1 and 2), despite 3 todo objects
     assert len(unique_todos) == 2
