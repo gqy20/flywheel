@@ -8,14 +8,7 @@ This test file ensures that:
 
 from __future__ import annotations
 
-import argparse
-import sys
-from io import StringIO
-from unittest import mock
-
-import pytest
-
-from flywheel.cli import build_parser, run_command, main
+from flywheel.cli import build_parser, main, run_command
 
 
 def test_cli_debug_flag_exists() -> None:
