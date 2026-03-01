@@ -1,20 +1,23 @@
 {
-  "issue_number": 6548,
+  "issue": 6548,
   "candidate": 2,
   "run_id": "22544451542",
   "branch": "claude/issue-6548-candidate-2-22544451542",
-  "status": "implemented",
-  "approach": "Add validation in Todo.from_dict to ensure id > 0 after int conversion",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 6566,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6566",
+  "generated_at": "2026-03-01T14:21:32.499310+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": true,
-  "linter_passed": true,
-  "validation_criteria": {
-    "negative_id_raises_valueerror": true,
-    "zero_id_raises_valueerror": true,
-    "positive_id_succeeds": true
+  "stage_response_sizes": {
+    "triage": 2908,
+    "plan": 2427,
+    "implement": 2000,
+    "verify": 2137,
+    "finalize": 1223
   }
 }
