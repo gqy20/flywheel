@@ -26,6 +26,23 @@ def test_todo_lifecycle_updates_state() -> None:
     assert todo.text == "b"
 
 
+def test_todo_toggle_flips_done_status() -> None:
+    """Issue #6467: toggle() should flip done status and update timestamp."""
+    todo = Todo(id=1, text="toggle test")
+    original_updated_at = todo.updated_at
+
+    # Toggle from False to True
+    todo.toggle()
+    assert todo.done is True
+    assert todo.updated_at >= original_updated_at
+
+    # Toggle from True to False
+    second_updated_at = todo.updated_at
+    todo.toggle()
+    assert todo.done is False
+    assert todo.updated_at >= second_updated_at
+
+
 def test_storage_roundtrip(tmp_path) -> None:
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
