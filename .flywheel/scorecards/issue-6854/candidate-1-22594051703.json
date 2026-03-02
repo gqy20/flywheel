@@ -1,0 +1,34 @@
+{
+  "issue_number": 6854,
+  "issue_title": "[Bug] from_dict() converts id with int() allowing float strings like '1.5' to truncate",
+  "candidate": 1,
+  "run_id": "22594051703",
+  "branch": "claude/issue-6854-candidate-1-22594051703",
+  "status": "implemented",
+  "summary": "Fix from_dict() to reject float id values that would be silently truncated by int()",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "tests_passed": 16,
+  "ruff_check": "passed",
+  "acceptance_criteria": [
+    {
+      "description": "Todo.from_dict({'id': 1.5, 'text': 'x'}) raises ValueError",
+      "status": "passed"
+    },
+    {
+      "description": "Todo.from_dict({'id': '1.5', 'text': 'x'}) raises ValueError",
+      "status": "passed"
+    },
+    {
+      "description": "Todo.from_dict({'id': 1, 'text': 'x'}) works correctly",
+      "status": "passed"
+    }
+  ],
+  "timestamp": "2026-03-02T20:45:00Z"
+}
