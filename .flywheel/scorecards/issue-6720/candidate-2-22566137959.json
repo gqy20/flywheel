@@ -1,0 +1,44 @@
+{
+  "issue_number": 6720,
+  "issue_title": "[Feature] Add __str__ method for user-friendly string representation",
+  "candidate_number": 2,
+  "run_id": "22566137959",
+  "branch_name": "claude/issue-6720-candidate-2-22566137959",
+  "created_at": "2026-03-02T08:30:00Z",
+  "triage_summary": {
+    "root_cause": "Todo class has __repr__ but no __str__, causing print(todo) to use debug format instead of user-friendly format",
+    "files_modified": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6720_todo_str.py"
+    ],
+    "risk_points": [
+      "Text sanitization needed to prevent terminal injection",
+      "Avoided circular dependency by inlining sanitization logic"
+    ]
+  },
+  "implementation": {
+    "approach": "Added __str__ method and _sanitize_text static method to Todo class",
+    "format": "[x] #<id>: <text> for done, [ ] #<id>: <text> for undone",
+    "test_coverage": 9 new tests covering format, distinction from repr, conciseness, and sanitization"
+  },
+  "verification": {
+    "tests_passed": 121,
+    "tests_added": 9,
+    "ruff_check": "passed",
+    "coverage_percent": 92
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "str(Todo(1, 'buy milk', False)) returns '[ ] #1: buy milk'",
+      "status": "passed"
+    },
+    {
+      "criterion": "str(Todo(1, 'buy milk', True)) returns '[x] #1: buy milk'",
+      "status": "passed"
+    },
+    {
+      "criterion": "Output is under 80 chars for normal todos",
+      "status": "passed"
+    }
+  ]
+}

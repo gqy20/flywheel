@@ -33,6 +33,38 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __str__(self) -> str:
+        """Return a user-friendly string representation of the Todo.
+
+        Format: [x] #<id>: <text> for done, [ ] #<id>: <text> for undone.
+        Control characters in text are sanitized for safe terminal output.
+        """
+        status = "x" if self.done else " "
+        safe_text = self._sanitize_text(self.text)
+        return f"[{status}] #{self.id}: {safe_text}"
+
+    @staticmethod
+    def _sanitize_text(text: str) -> str:
+        """Escape control characters to prevent terminal output manipulation.
+
+        Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
+        C1 control characters (0x80-0x9f) with their escaped representations.
+        """
+        # First: Escape backslash to prevent collision with escape sequences
+        text = text.replace("\\", "\\\\")
+        # Common control characters - replace with readable escapes
+        for char, escaped in [("\n", "\\n"), ("\r", "\\r"), ("\t", "\\t")]:
+            text = text.replace(char, escaped)
+        # Other control characters - replace with hex escape sequences
+        result = []
+        for char in text:
+            code = ord(char)
+            if (0 <= code <= 0x1F and char not in ("\n", "\r", "\t")) or 0x7F <= code <= 0x9F:
+                result.append(f"\\x{code:02x}")
+            else:
+                result.append(char)
+        return "".join(result)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
