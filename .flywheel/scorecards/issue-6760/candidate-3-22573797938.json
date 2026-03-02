@@ -1,23 +1,23 @@
 {
-  "issue_number": 6760,
-  "candidate_number": 3,
+  "issue": 6760,
+  "candidate": 3,
   "run_id": "22573797938",
   "branch": "claude/issue-6760-candidate-3-22573797938",
-  "status": "implemented",
-  "created_at": "2026-03-02T11:43:00Z",
-  "implementation": {
-    "approach": "Strip and validate text in from_dict() to match rename() behavior",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "tests_added": 3,
-    "tests_passed": 15
-  },
-  "acceptance_criteria": {
-    "rejects_empty_text": true,
-    "rejects_whitespace_only_text": true,
-    "strips_whitespace_from_valid_text": true
-  },
-  "risks": "Low risk - adds validation that matches existing rename() behavior"
+  "pr_number": 6767,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6767",
+  "generated_at": "2026-03-02T12:13:50.558916+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1753,
+    "plan": 2930,
+    "implement": 2274,
+    "verify": 1626,
+    "finalize": 1649
+  }
 }
