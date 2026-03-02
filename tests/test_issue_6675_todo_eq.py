@@ -51,7 +51,7 @@ def test_todo_eq_with_non_todo() -> None:
     todo = Todo(id=1, text="a", done=False)
     assert todo != "not a todo"
     assert todo != 1
-    assert todo != None
+    assert todo is not None
     assert todo != {"id": 1, "text": "a", "done": False}
 
 
