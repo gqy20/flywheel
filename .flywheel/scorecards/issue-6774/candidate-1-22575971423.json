@@ -1,27 +1,23 @@
 {
-  "issue_number": 6774,
+  "issue": 6774,
   "candidate": 1,
   "run_id": "22575971423",
   "branch": "claude/issue-6774-candidate-1-22575971423",
-  "status": "ready_for_review",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"],
-    "lines_added": 20,
-    "lines_removed": 0
-  },
-  "tests": {
-    "added": ["test_todo_from_dict_rejects_empty_text", "test_todo_from_dict_rejects_whitespace_only_text"],
-    "passed": 14,
-    "failed": 0
-  },
-  "validation": {
-    "ruff_check": "passed",
-    "all_tests_pass": true
-  },
-  "acceptance_criteria": {
-    "empty_text_raises_valueerror": true,
-    "whitespace_only_raises_valueerror": true,
-    "valid_text_succeeds": true
+  "pr_number": 6777,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6777",
+  "generated_at": "2026-03-02T13:06:47.502091+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1976,
+    "plan": 2940,
+    "implement": 2493,
+    "verify": 2112,
+    "finalize": 631
   }
 }
