@@ -1,0 +1,14 @@
+{
+  "issue": 6689,
+  "candidate": 1,
+  "run_id": "22560101666",
+  "branch": "claude/issue-6689-candidate-1-22560101666",
+  "status": "implemented",
+  "summary": "Fix boolean id rejection in Todo.from_dict",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6689_boolean_id_rejection.py"]
+  },
+  "tests_passed": true,
+  "ruff_check_passed": true
+}
