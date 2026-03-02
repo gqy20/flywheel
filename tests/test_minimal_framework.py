@@ -158,3 +158,49 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_is_o1_with_cached_max_id(tmp_path) -> None:
+    """Perf #6855: next_id() should be O(1) by caching _max_id.
+
+    This test verifies that:
+    1. next_id() works without requiring todos list after load()
+    2. _max_id is properly cached during load()
+    3. Sequential id assignment still works correctly
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save some todos
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=5, text="c")]
+    storage.save(todos)
+
+    # Load triggers caching of max_id
+    loaded = storage.load()
+    assert len(loaded) == 3
+
+    # next_id should return max(id) + 1 = 6
+    assert storage.next_id(loaded) == 6
+
+    # Test empty list returns 1
+    storage2 = TodoStorage(str(tmp_path / "empty.json"))
+    assert storage2.next_id([]) == 1
+
+    # Test after loading empty file
+    storage2.save([])
+    storage2.load()
+    assert storage2.next_id([]) == 1
+
+
+def test_next_id_handles_gap_in_ids(tmp_path) -> None:
+    """Perf #6855: next_id() should handle non-sequential ids correctly."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save todos with gaps in ids
+    todos = [Todo(id=1, text="a"), Todo(id=10, text="b"), Todo(id=100, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+    # next_id should return max(id) + 1 = 101
+    assert storage.next_id(loaded) == 101
