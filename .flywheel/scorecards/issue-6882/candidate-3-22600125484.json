@@ -1,23 +1,23 @@
 {
-  "issue_number": 6882,
+  "issue": 6882,
   "candidate": 3,
   "run_id": "22600125484",
-  "created_at": "2026-03-02T23:31:00Z",
-  "triage_summary": "Todo constructor accepts empty/whitespace-only text while rename() method rejects them. Fixed by adding validation in __post_init__.",
-  "root_cause": "Missing text validation in Todo.__post_init__() - only timestamp initialization was handled",
-  "fix_approach": "Add validation at the beginning of __post_init__ to check for empty or whitespace-only text, matching rename() behavior",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "branch": "claude/issue-6882-candidate-3-22600125484",
+  "pr_number": 6887,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6887",
+  "generated_at": "2026-03-02T23:47:09.004902+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "risks": [
-    "Code that directly instantiates Todo with empty text will now raise ValueError",
-    "from_dict() will also reject empty text which may affect deserialization of existing invalid data"
-  ],
-  "verification": {
-    "tests_pass": true,
-    "lint_pass": true,
-    "all_existing_tests_pass": true
+  "stage_response_sizes": {
+    "triage": 3609,
+    "plan": 3329,
+    "implement": 2706,
+    "verify": 2425,
+    "finalize": 1560
   }
 }
