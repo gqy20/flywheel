@@ -10,6 +10,13 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _normalize_tags(tags: tuple[str, ...] | list[str] | None) -> tuple[str, ...]:
+    """Normalize tags: strip whitespace and filter empty strings."""
+    if tags is None:
+        return ()
+    return tuple(tag.strip() for tag in tags if isinstance(tag, str) and tag.strip())
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -17,6 +24,7 @@ class Todo:
     id: int
     text: str
     done: bool = False
+    tags: tuple[str, ...] = ()
     created_at: str = ""
     updated_at: str = ""
 
@@ -55,7 +63,10 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        result = asdict(self)
+        # Convert tuple to list for JSON serialization
+        result["tags"] = list(self.tags)
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
@@ -93,10 +104,14 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Normalize tags (convert list to tuple, strip whitespace, filter empty)
+        tags = _normalize_tags(data.get("tags"))
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
+            tags=tags,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
         )
