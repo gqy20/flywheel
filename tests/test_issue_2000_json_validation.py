@@ -119,3 +119,24 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6814 - float IDs should not be silently truncated
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs with fractional parts (e.g., 1.5)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_negative_float_id() -> None:
+    """Todo.from_dict should reject negative float IDs (e.g., -2.7)."""
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": -2.7, "text": "task"})
+
+
+def test_todo_from_dict_accepts_whole_number_float_id() -> None:
+    """Todo.from_dict should accept float IDs that are whole numbers (e.g., 1.0)."""
+    # Float 1.0 is semantically equivalent to int 1
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+    assert isinstance(todo.id, int)
