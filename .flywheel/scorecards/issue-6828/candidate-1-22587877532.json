@@ -1,37 +1,23 @@
 {
-  "issue_number": 6828,
-  "issue_title": "[Bug] Boolean accepted as valid id since bool is subclass of int in Python",
+  "issue": 6828,
   "candidate": 1,
   "run_id": "22587877532",
   "branch": "claude/issue-6828-candidate-1-22587877532",
-  "status": "verified",
-  "test_results": {
-    "passed": 14,
-    "failed": 0,
-    "total": 14
-  },
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 6833,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6833",
+  "generated_at": "2026-03-02T18:13:54.455582+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "approach": "Add explicit boolean type check before int conversion in Todo.from_dict",
-  "risks": "None - minimal change that only adds validation",
-  "limitations": "None",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "result": "14 passed in 0.06s",
-      "status": "passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "result": "All checks passed!",
-      "status": "passed"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "result": "2 files already formatted",
-      "status": "passed"
-    }
+  "stage_response_sizes": {
+    "triage": 2069,
+    "plan": 2438,
+    "implement": 1751,
+    "verify": 2739,
+    "finalize": 735
   }
 }
