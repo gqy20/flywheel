@@ -1,23 +1,23 @@
 {
   "issue": 6676,
-  "title": "[Feature] Add toggle method to flip done status",
   "candidate": 1,
   "run_id": "22560101666",
   "branch": "claude/issue-6676-candidate-1-22560101666",
-  "status": "implemented",
-  "test_results": {
-    "passed": 4,
-    "failed": 0,
-    "total": 4
-  },
-  "acceptance_criteria": [
-    {"criterion": "todo.toggle() flips done from False to True", "met": true},
-    {"criterion": "todo.toggle() flips done from True to False", "met": true},
-    {"criterion": "updated_at is updated after toggle", "met": true}
+  "pr_number": 6700,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6700",
+  "generated_at": "2026-03-02T04:21:07.190294+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6676_toggle_method.py"
-  ],
-  "implementation_summary": "Added toggle() method to Todo class that flips the done boolean and updates updated_at timestamp. Added comprehensive tests covering all acceptance criteria."
+  "stage_response_sizes": {
+    "triage": 1929,
+    "plan": 2227,
+    "implement": 1759,
+    "verify": 2114,
+    "finalize": 2093
+  }
 }
