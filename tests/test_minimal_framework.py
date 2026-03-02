@@ -158,3 +158,67 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_performance_with_large_todo_list(tmp_path) -> None:
+    """Issue #6855: next_id() should be O(1) not O(n) for large todo lists.
+
+    This test verifies that next_id() performance does not degrade
+    significantly with large todo lists (>1000 items).
+    """
+    import time
+
+    db = tmp_path / "perf.json"
+    storage = TodoStorage(str(db))
+
+    # Create 10,000 todos to simulate large list
+    large_todo_list = [Todo(id=i, text=f"task {i}") for i in range(1, 10001)]
+    storage.save(large_todo_list)
+
+    # Load to populate cache
+    loaded = storage.load()
+
+    # Measure next_id performance - should be O(1) with caching
+    # With O(n) implementation, this would take ~10ms+ for 10,000 items
+    # With O(1) caching, should be <1ms
+    start = time.perf_counter()
+    result = storage.next_id(loaded)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+
+    assert result == 10001
+    # Assert O(1) performance: should be <5ms even for 10,000 items
+    # (allowing some margin for test environment variability)
+    assert elapsed_ms < 5.0, f"next_id took {elapsed_ms:.2f}ms, expected <5ms for O(1)"
+
+
+def test_next_id_correctness_after_load(tmp_path) -> None:
+    """Issue #6855: Verify next_id returns correct values after loading existing todos."""
+    db = tmp_path / "correctness.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-sequential IDs to test edge cases
+    todos = [
+        Todo(id=5, text="task 5"),
+        Todo(id=10, text="task 10"),
+        Todo(id=3, text="task 3"),
+    ]
+    storage.save(todos)
+
+    # Load and verify next_id returns max+1
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 11
+
+
+def test_next_id_sequential_adds(tmp_path) -> None:
+    """Issue #6855: Verify sequential ID assignment works correctly with caching."""
+    db = tmp_path / "sequential.json"
+    storage = TodoStorage(str(db))
+
+    # Add multiple todos and verify sequential IDs
+    todos = []
+    for i in range(1, 101):
+        todo = Todo(id=storage.next_id(todos), text=f"task {i}")
+        todos.append(todo)
+
+    # Verify IDs are sequential starting from 1
+    assert [t.id for t in todos] == list(range(1, 101))
