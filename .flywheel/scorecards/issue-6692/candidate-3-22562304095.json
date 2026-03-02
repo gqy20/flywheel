@@ -1,33 +1,23 @@
 {
-  "issue_number": 6692,
-  "candidate_number": 3,
+  "issue": 6692,
+  "candidate": 3,
   "run_id": "22562304095",
-  "status": "verified",
-  "summary": "Added __eq__ and __hash__ methods to Todo class for comparison and set operations",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_6692_todo_eq_hash.py"]
-  },
-  "tests_passed": 44,
-  "tests_added": 10,
-  "verification": {
-    "pytest_command": "uv run pytest tests/ -k 'todo' -v",
-    "ruff_command": "uv run ruff check src/flywheel/ tests/",
-    "pytest_result": "44 passed, 78 deselected",
-    "ruff_result": "All checks passed"
-  },
-  "implementation_notes": [
-    "Added eq=False to @dataclass decorator to disable default comparison",
-    "Implemented __eq__ to compare id, text, and done (excluding timestamps)",
-    "Implemented __hash__ based on same fields as __eq__ for consistency",
-    "This allows Todo objects to be used in sets and as dict keys"
+  "branch": "claude/issue-6692-candidate-3-22562304095",
+  "pr_number": 6707,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6707",
+  "generated_at": "2026-03-02T05:54:14.195580+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria_met": [
-    "Todo(id=1, text='a') == Todo(id=1, text='a') returns True",
-    "Todo objects can be placed in set() and correctly deduplicated",
-    "Existing tests unaffected"
-  ],
-  "risks": [
-    "Mutating todo fields after hashing can break set/dict invariants - this is an existing issue with mutable dataclasses"
-  ]
+  "stage_response_sizes": {
+    "triage": 2949,
+    "plan": 3113,
+    "implement": 1362,
+    "verify": 1768,
+    "finalize": 2048
+  }
 }
