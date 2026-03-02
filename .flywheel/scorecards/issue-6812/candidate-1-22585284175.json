@@ -1,0 +1,17 @@
+{
+  "issue_number": 6812,
+  "issue_title": "[Bug] Todo.from_dict accepts negative IDs without validation",
+  "candidate_number": 1,
+  "run_id": "22585284175",
+  "branch": "claude/issue-6812-candidate-1-22585284175",
+  "status": "implemented",
+  "approach": "Add validation in Todo.from_dict to reject negative and zero IDs after int conversion. IDs must be positive integers (>= 1) to match storage.py next_id() behavior.",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "tests_added": 3,
+  "tests_passing": true,
+  "lint_clean": true,
+  "summary": "Added validation to Todo.from_dict that raises ValueError when 'id' is less than 1. This aligns with the storage layer's next_id() which returns values starting from 1."
+}
