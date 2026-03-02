@@ -1,0 +1,19 @@
+{
+  "issue_number": 6720,
+  "candidate_number": 1,
+  "run_id": "22566137959",
+  "branch": "claude/issue-6720-candidate-1-22566137959",
+  "status": "implemented",
+  "created_at": "2026-03-02T00:00:00Z",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_6720_todo_str.py"
+    ]
+  },
+  "tests_passed": 7,
+  "linting_passed": true,
+  "implementation_summary": "Added __str__ method to Todo class that returns user-friendly format '[x] #id: text' for done todos and '[ ] #id: text' for undone todos."
+}
