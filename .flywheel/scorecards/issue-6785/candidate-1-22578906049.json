@@ -1,26 +1,23 @@
 {
-  "issue_number": 6785,
+  "issue": 6785,
   "candidate": 1,
   "run_id": "22578906049",
-  "status": "implemented",
-  "summary": "Fix Todo.from_dict to validate and strip whitespace-only text",
-  "changes": [
-    {
-      "file": "src/flywheel/todo.py",
-      "description": "Added text stripping and validation in from_dict method to reject whitespace-only text"
-    },
-    {
-      "file": "tests/test_issue_2000_json_validation.py",
-      "description": "Added regression tests for whitespace-only text validation"
-    }
+  "branch": "claude/issue-6785-candidate-1-22578906049",
+  "pr_number": 6792,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6792",
+  "generated_at": "2026-03-02T14:44:17.851517+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 116,
-  "tests_added": 4,
-  "acceptance_criteria_met": [
-    "Todo.from_dict with whitespace-only text raises ValueError",
-    "Todo.from_dict with tabs/newlines raises ValueError",
-    "Todo.from_dict with valid text strips and preserves content"
-  ],
-  "risks": "None - follows same pattern as rename() method",
-  "approach": "TDD - added failing tests first, then implemented minimal fix"
+  "stage_response_sizes": {
+    "triage": 2204,
+    "plan": 2343,
+    "implement": 2485,
+    "verify": 2582,
+    "finalize": 1074
+  }
 }
