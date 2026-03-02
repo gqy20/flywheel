@@ -1,0 +1,14 @@
+{
+  "issue_number": 6772,
+  "candidate": 1,
+  "run_id": "22575971423",
+  "status": "implemented",
+  "approach": "Use contextlib.suppress(AttributeError) to gracefully handle missing os.fchmod on Windows",
+  "changes": {
+    "source_files": ["src/flywheel/storage.py"],
+    "test_files": ["tests/test_issue_6772_windows_fchmod.py"]
+  },
+  "tests_passed": true,
+  "linting_passed": true,
+  "created_at": "2026-03-02T12:47:00Z"
+}
