@@ -151,6 +151,52 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_next_id_generates_sequential_ids_for_single_process(tmp_path) -> None:
+    """Regression test for issue #6673: Document next_id single-process behavior.
+
+    This test verifies that next_id() generates sequential unique IDs when used
+    from a single process. Note that this method has a known TOCTOU (Time-Of-Check-
+    To-Time-Of-Use) race condition when multiple processes access the storage
+    concurrently:
+
+    1. Process A loads todos, calculates next_id = 5
+    2. Process B loads todos, calculates next_id = 5 (same as A)
+    3. Both processes save, resulting in duplicate ID 5
+
+    This is a documented design limitation. For true concurrency safety, use:
+    - File locking (fcntl.flock)
+    - A centralized ID generator
+    - A database with atomic operations
+
+    For single-process usage (the intended design), this implementation is safe.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Start with empty storage
+    todos = storage.load()
+    assert len(todos) == 0
+
+    # First ID should be 1
+    assert storage.next_id(todos) == 1
+
+    # Add a todo and verify next ID increments
+    todos.append(Todo(id=1, text="first"))
+    assert storage.next_id(todos) == 2
+
+    # Add more todos with non-contiguous IDs
+    todos.append(Todo(id=5, text="fifth"))
+    todos.append(Todo(id=10, text="tenth"))
+
+    # next_id should return max + 1
+    assert storage.next_id(todos) == 11
+
+    # Verify sequential IDs are generated correctly in single-process usage
+    storage.save(todos)
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 11
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

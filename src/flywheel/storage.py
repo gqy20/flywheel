@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -125,4 +124,31 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Calculate the next unique ID for a new todo.
+
+        Returns the maximum existing ID + 1, or 1 if the list is empty.
+
+        IMPORTANT - Single-Process Design Limitation:
+        This method has a known TOCTOU (Time-Of-Check-To-Time-Of-Use) race
+        condition when multiple processes access the storage concurrently:
+
+        1. Process A loads todos, calculates next_id = N
+        2. Process B loads todos, calculates next_id = N (same as A)
+        3. Both processes save, resulting in duplicate ID N
+
+        This is a documented design limitation. The storage layer is designed
+        for single-process usage. For true concurrency safety, consider:
+        - File locking (fcntl.flock)
+        - A centralized ID generator
+        - A database with atomic operations
+
+        The test_concurrent_save_from_multiple_processes test demonstrates
+        the last-writer-wins semantics for concurrent saves.
+
+        Args:
+            todos: Current list of todos to calculate the next ID from.
+
+        Returns:
+            The next unique ID (max existing ID + 1, or 1 if empty).
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
