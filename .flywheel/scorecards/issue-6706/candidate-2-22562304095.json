@@ -1,37 +1,23 @@
 {
-  "issue_number": 6706,
-  "candidate_number": 2,
+  "issue": 6706,
+  "candidate": 2,
   "run_id": "22562304095",
   "branch": "claude/issue-6706-candidate-2-22562304095",
-  "created_at": "2026-03-02T05:30:00Z",
-  "implementation": {
-    "approach": "Add MAX_TEXT_LENGTH constant (1000 chars) and validation helper function",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6706_text_length_validation.py"
-    ],
-    "lines_added": 62,
-    "lines_removed": 3
-  },
-  "tests": {
-    "total": 9,
-    "passed": 9,
-    "failed": 0,
-    "coverage": "100% of new code"
-  },
-  "checklist": {
-    "test_file_added": true,
-    "source_file_changed": true,
-    "tests_pass": true,
-    "ruff_check_pass": true,
-    "conventional_commit": true
-  },
-  "acceptance_criteria": {
-    "text_over_max_raises_valueerror": true,
-    "default_max_is_1000": true,
-    "error_message_includes_limit_and_actual": true,
-    "rename_validates_length": true,
-    "from_dict_validates_length": true,
-    "constructor_validates_length": true
+  "pr_number": 6712,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6712",
+  "generated_at": "2026-03-02T06:03:33.012161+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2938,
+    "plan": 2492,
+    "implement": 2218,
+    "verify": 2699,
+    "finalize": 1275
   }
 }
