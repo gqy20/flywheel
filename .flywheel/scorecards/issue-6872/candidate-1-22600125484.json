@@ -1,22 +1,23 @@
 {
-  "issue_number": 6872,
-  "candidate_number": 1,
+  "issue": 6872,
+  "candidate": 1,
   "run_id": "22600125484",
   "branch": "claude/issue-6872-candidate-1-22600125484",
-  "created_at": "2026-03-02T00:00:00Z",
-  "status": "implemented",
-  "tests_passed": true,
-  "lint_passed": true,
-  "implementation_summary": "Added tags field support to Todo.from_dict() method to convert JSON arrays to tuples with whitespace normalization",
-  "files_changed": [
-    "src/flywheel/todo.py"
+  "pr_number": 6892,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6892",
+  "generated_at": "2026-03-02T23:54:19.553997+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": [
-    "tests/test_issue_6872_todo_tags.py"
-  ],
-  "commands_executed": [
-    "uv run pytest tests/test_issue_6872_todo_tags.py -v",
-    "uv run ruff check src/flywheel/todo.py",
-    "uv run pytest tests/ -v --tb=short"
-  ]
+  "stage_response_sizes": {
+    "triage": 2179,
+    "plan": 3509,
+    "implement": 3044,
+    "verify": 2000,
+    "finalize": 1103
+  }
 }
