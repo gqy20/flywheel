@@ -1,24 +1,23 @@
 {
-  "issue_number": 6673,
-  "issue_title": "[Bug] Race condition between multiple processes: next_id can generate duplicate IDs",
-  "candidate_number": 1,
+  "issue": 6673,
+  "candidate": 1,
   "run_id": "22557090120",
-  "branch_name": "claude/issue-6673-candidate-1-22557090120",
-  "created_at": "2026-03-02T01:30:00Z",
-  "approach": "documentation",
-  "summary": "Added comprehensive docstrings to TodoStorage class and next_id() method documenting the single-process design limitation and race condition behavior.",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py"
-    ],
-    "test_files": [
-      "tests/test_storage_concurrency_docs.py"
-    ]
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "acceptance_criteria": {
-    "documentation_states_single_process_limitation": true,
-    "concurrent_access_behavior_documented": true
+  "branch": "claude/issue-6673-candidate-1-22557090120",
+  "pr_number": 6684,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6684",
+  "generated_at": "2026-03-02T01:41:08.350374+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2423,
+    "plan": 2591,
+    "implement": 2968,
+    "verify": 1669,
+    "finalize": 1628
   }
 }
