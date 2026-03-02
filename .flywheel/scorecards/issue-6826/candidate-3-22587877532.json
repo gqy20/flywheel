@@ -38,6 +38,20 @@
     "status": "passed",
     "command": "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
   },
+  "verification": {
+    "status": "passed",
+    "pytest": {
+      "command": "uv run pytest tests/ -v",
+      "total_tests": 116,
+      "passed": 116,
+      "failed": 0,
+      "coverage": "92%"
+    },
+    "ruff": {
+      "command": "uv run ruff check src/flywheel/ tests/",
+      "status": "All checks passed!"
+    }
+  },
   "risks": {
     "breaking_changes": false,
     "description": "Fix is backward compatible - only rejects invalid data that should have been rejected already"
