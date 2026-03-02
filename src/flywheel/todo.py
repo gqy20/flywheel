@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 
 
@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    tags: list[str] = field(default_factory=list)
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -93,10 +94,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate and parse 'tags' as a list of strings
+        raw_tags = data.get("tags", [])
+        if not isinstance(raw_tags, list):
+            raise ValueError(f"Invalid value for 'tags': {raw_tags!r}. 'tags' must be a list.")
+        tags: list[str] = []
+        for tag in raw_tags:
+            if not isinstance(tag, str):
+                raise ValueError(
+                    f"Invalid value in 'tags': {tag!r}. 'tags' must contain only strings."
+                )
+            stripped = tag.strip()
+            if stripped and stripped not in tags:
+                tags.append(stripped)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            tags=tags,
         )
