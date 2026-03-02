@@ -1,0 +1,44 @@
+{
+  "issue_number": 6830,
+  "issue_title": "[Feature] Add copy/clone method to create independent Todo instance",
+  "candidate_number": 3,
+  "run_id": "22592165658",
+  "branch_name": "claude/issue-6830-candidate-3-22592165658",
+  "stage": "IMPLEMENT",
+  "status": "completed",
+  "created_at": "2026-03-02T19:49:00Z",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6830_todo_copy.py"
+    ],
+    "lines_added": 49,
+    "lines_removed": 0,
+    "approach": "Added copy(**kwargs) method to Todo class that leverages existing to_dict() and from_dict() methods to create independent copies with optional field overrides"
+  },
+  "tests": {
+    "test_file": "tests/test_issue_6830_todo_copy.py",
+    "test_count": 6,
+    "tests_passed": 6,
+    "coverage": [
+      "test_copy_returns_independent_instance",
+      "test_copy_with_text_override",
+      "test_copy_with_done_override",
+      "test_original_unchanged_after_copy_modification",
+      "test_copy_has_new_updated_at_timestamp",
+      "test_copy_with_multiple_overrides"
+    ]
+  },
+  "verification": {
+    "pytest_passed": true,
+    "ruff_passed": true
+  },
+  "acceptance_criteria": {
+    "copy_returns_identical_values": true,
+    "copy_with_text_override": true,
+    "original_unchanged": true,
+    "copied_has_new_updated_at": true
+  },
+  "risks": [],
+  "limitations": []
+}
