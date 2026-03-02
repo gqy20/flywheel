@@ -119,3 +119,30 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6745 - validate 'text' field length limit
+def test_todo_from_dict_accepts_text_at_max_length() -> None:
+    """Todo.from_dict should accept text with exactly MAX_TEXT_LENGTH characters."""
+    from flywheel.todo import MAX_TEXT_LENGTH
+
+    max_text = "x" * MAX_TEXT_LENGTH
+    todo = Todo.from_dict({"id": 1, "text": max_text})
+    assert len(todo.text) == MAX_TEXT_LENGTH
+
+
+def test_todo_from_dict_rejects_text_exceeding_max_length() -> None:
+    """Todo.from_dict should reject text exceeding MAX_TEXT_LENGTH characters."""
+    from flywheel.todo import MAX_TEXT_LENGTH
+
+    too_long_text = "x" * (MAX_TEXT_LENGTH + 1)
+    with pytest.raises(ValueError, match=r"text.*too long|text.*exceeds|length.*limit"):
+        Todo.from_dict({"id": 1, "text": too_long_text})
+
+
+def test_todo_from_dict_rejects_extremely_long_text() -> None:
+    """Todo.from_dict should reject extremely long text to prevent memory exhaustion."""
+    # Test with 1MB of text - should definitely be rejected
+    huge_text = "x" * (1024 * 1024)
+    with pytest.raises(ValueError, match=r"text.*too long|text.*exceeds|length.*limit"):
+        Todo.from_dict({"id": 1, "text": huge_text})
