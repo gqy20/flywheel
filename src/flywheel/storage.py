@@ -9,6 +9,8 @@ import stat
 import tempfile
 from pathlib import Path
 
+import filelock
+
 from .todo import Todo
 
 # Maximum JSON file size to prevent DoS attacks (10MB)
@@ -55,6 +57,11 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._lock_path = Path(str(self.path) + ".lock")
+
+    def _get_lock(self) -> filelock.FileLock:
+        """Get a file-based lock for synchronizing concurrent access."""
+        return filelock.FileLock(self._lock_path)
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
