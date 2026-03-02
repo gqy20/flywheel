@@ -158,3 +158,31 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_for_non_contiguous_ids() -> None:
+    """Bug #6732: next_id should return smallest unused ID for non-contiguous IDs.
+
+    When todos have gaps in IDs (e.g., [1, 5]), next_id should return 2 (the
+    smallest unused ID) rather than 6 (max + 1). This ensures IDs remain unique
+    even after deletions create gaps.
+    """
+    storage = TodoStorage()
+
+    # Test with non-contiguous IDs [1, 5] - should return 2 (smallest unused)
+    todos_with_gap = [Todo(id=1, text="a"), Todo(id=5, text="b")]
+    assert storage.next_id(todos_with_gap) == 2
+
+    # Test with IDs [1, 3] - should return 2 (fill the gap)
+    todos_with_gap2 = [Todo(id=1, text="a"), Todo(id=3, text="b")]
+    assert storage.next_id(todos_with_gap2) == 2
+
+    # Test with contiguous IDs [1, 2, 3] - should return 4
+    contiguous_todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    assert storage.next_id(contiguous_todos) == 4
+
+    # Test with empty list - should return 1
+    assert storage.next_id([]) == 1
+
+    # Test with single todo - should return 2
+    assert storage.next_id([Todo(id=1, text="a")]) == 2
