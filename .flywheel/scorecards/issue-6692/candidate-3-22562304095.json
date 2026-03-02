@@ -1,0 +1,27 @@
+{
+  "issue_number": 6692,
+  "candidate_number": 3,
+  "run_id": "22562304095",
+  "status": "implemented",
+  "summary": "Added __eq__ and __hash__ methods to Todo class for comparison and set operations",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6692_todo_eq_hash.py"]
+  },
+  "tests_passed": 28,
+  "tests_added": 10,
+  "implementation_notes": [
+    "Added eq=False to @dataclass decorator to disable default comparison",
+    "Implemented __eq__ to compare id, text, and done (excluding timestamps)",
+    "Implemented __hash__ based on same fields as __eq__ for consistency",
+    "This allows Todo objects to be used in sets and as dict keys"
+  ],
+  "acceptance_criteria_met": [
+    "Todo(id=1, text='a') == Todo(id=1, text='a') returns True",
+    "Todo objects can be placed in set() and correctly deduplicated",
+    "Existing tests unaffected"
+  ],
+  "risks": [
+    "Mutating todo fields after hashing can break set/dict invariants - this is an existing issue with mutable dataclasses"
+  ]
+}
