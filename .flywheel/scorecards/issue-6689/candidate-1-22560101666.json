@@ -3,12 +3,21 @@
   "candidate": 1,
   "run_id": "22560101666",
   "branch": "claude/issue-6689-candidate-1-22560101666",
-  "status": "implemented",
-  "summary": "Fix boolean id rejection in Todo.from_dict",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_6689_boolean_id_rejection.py"]
-  },
-  "tests_passed": true,
-  "ruff_check_passed": true
+  "pr_number": 6699,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6699",
+  "generated_at": "2026-03-02T04:20:34.644985+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1395,
+    "plan": 2530,
+    "implement": 2088,
+    "verify": 3443,
+    "finalize": 864
+  }
 }
