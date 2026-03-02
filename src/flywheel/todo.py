@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
+from typing import ClassVar
 
 
 def _utc_now_iso() -> str:
@@ -13,6 +14,8 @@ def _utc_now_iso() -> str:
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
+
+    MAX_TEXT_LENGTH: ClassVar[int] = 1000
 
     id: int
     text: str
@@ -34,6 +37,17 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
+        # Validate text length and emptiness
+        text = self.text.strip() if self.text else ""
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        if len(text) > Todo.MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {Todo.MAX_TEXT_LENGTH} "
+                f"characters (got {len(text)})"
+            )
+        self.text = text
+
         if not self.created_at:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
@@ -51,6 +65,11 @@ class Todo:
         text = text.strip()
         if not text:
             raise ValueError("Todo text cannot be empty")
+        if len(text) > Todo.MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {Todo.MAX_TEXT_LENGTH} "
+                f"characters (got {len(text)})"
+            )
         self.text = text
         self.updated_at = _utc_now_iso()
 
@@ -79,6 +98,16 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate text length
+        text = data["text"].strip()
+        if not text:
+            raise ValueError("Todo text cannot be empty")
+        if len(text) > cls.MAX_TEXT_LENGTH:
+            raise ValueError(
+                f"Todo text exceeds maximum length of {cls.MAX_TEXT_LENGTH} "
+                f"characters (got {len(text)})"
+            )
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
@@ -95,7 +124,7 @@ class Todo:
 
         return cls(
             id=todo_id,
-            text=data["text"],
+            text=text,
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
