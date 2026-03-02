@@ -229,3 +229,48 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_next_id_documents_single_process_limitation(tmp_path) -> None:
+    """Regression test for issue #6673: next_id race condition documentation.
+
+    This test verifies that the TodoStorage class documents its design
+    limitation regarding concurrent access from multiple processes.
+
+    The next_id method calculates the next ID by finding the max ID in the
+    current list and adding 1. This creates a TOCTOU (time-of-check-to-time-of-use)
+    race condition when multiple processes use the storage concurrently:
+    1. Process A loads todos, calculates next_id=2
+    2. Process B loads todos, calculates next_id=2 (same!)
+    3. Both processes save, resulting in duplicate IDs
+
+    This is a documented design limitation. For true concurrency safety,
+    use file locking (fcntl.flock) or a central ID generator.
+    """
+    storage = TodoStorage(str(tmp_path / "test.json"))
+
+    # Verify that next_id calculates correctly for single-process usage
+    todos = [Todo(id=1, text="first"), Todo(id=2, text="second")]
+    assert storage.next_id(todos) == 3
+
+    # Verify empty list returns 1
+    assert storage.next_id([]) == 1
+
+    # Verify the docstring documents the limitation
+    # (This serves as a regression test that the documentation exists)
+
+    # Check class-level docstring mentions concurrent access limitation
+    class_doc = TodoStorage.__doc__ or ""
+    next_id_doc = TodoStorage.next_id.__doc__ or ""
+
+    # At least one of these should document the single-process limitation
+    combined_docs = class_doc.lower() + next_id_doc.lower()
+    assert (
+        "single-process" in combined_docs
+        or "single process" in combined_docs
+        or "concurrent" in combined_docs
+        or "race" in combined_docs
+    ), (
+        "TodoStorage or next_id should document single-process design limitation "
+        "regarding concurrent access and ID generation"
+    )

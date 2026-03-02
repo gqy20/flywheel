@@ -51,7 +51,17 @@ def _ensure_parent_directory(file_path: Path) -> None:
 
 
 class TodoStorage:
-    """Persistent storage for todos."""
+    """Persistent storage for todos.
+
+    Design Note - Single-Process Limitation:
+        This storage class is designed for single-process usage. Concurrent access
+        from multiple processes can result in race conditions, particularly with
+        ID generation (see next_id method). For multi-process scenarios, consider
+        using file locking (fcntl.flock) or a centralized ID generator.
+
+    Attributes:
+        path: Path to the JSON file used for storage.
+    """
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
@@ -125,4 +135,22 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        """Calculate the next available ID for a new todo.
+
+        Returns the maximum existing ID + 1, or 1 if the list is empty.
+
+        Warning - Race Condition:
+            This method has a TOCTOU (time-of-check-to-time-of-use) race condition
+            when used by multiple processes. If two processes call this simultaneously,
+            they may receive the same ID, resulting in duplicate IDs after save.
+
+            This is a documented design limitation for single-process usage.
+            For concurrent access, use file locking or a centralized ID generator.
+
+        Args:
+            todos: List of existing todos to calculate the next ID from.
+
+        Returns:
+            The next available ID (max existing ID + 1, or 1 if empty).
+        """
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
