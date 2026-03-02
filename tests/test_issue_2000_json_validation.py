@@ -119,3 +119,30 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6785 - validate 'text' field is not whitespace-only
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only text (spaces only)."""
+    with pytest.raises(ValueError, match=r"'text'.*empty|empty.*'text'"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_rejects_tabs_and_newlines_text() -> None:
+    """Todo.from_dict should reject whitespace-only text (tabs/newlines)."""
+    with pytest.raises(ValueError, match=r"'text'.*empty|empty.*'text'"):
+        Todo.from_dict({"id": 1, "text": "\t\n"})
+
+
+def test_todo_from_dict_accepts_valid_text_with_spaces() -> None:
+    """Todo.from_dict should accept and strip valid text with surrounding spaces."""
+    todo = Todo.from_dict({"id": 1, "text": "  valid  "})
+    assert todo.text == "valid"
+
+
+def test_todo_from_dict_roundtrip_preserves_stripped_text() -> None:
+    """Todo.to_dict/from_dict roundtrip should preserve stripped text content."""
+    original = Todo(id=1, text="test task")
+    data = original.to_dict()
+    restored = Todo.from_dict(data)
+    assert restored.text == "test task"
