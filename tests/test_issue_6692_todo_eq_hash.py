@@ -49,7 +49,7 @@ def test_todo_eq_not_implemented() -> None:
 
     assert todo != "not a todo"
     assert todo != 1
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_hash_based_on_id() -> None:
