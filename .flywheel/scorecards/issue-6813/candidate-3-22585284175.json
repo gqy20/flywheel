@@ -1,0 +1,14 @@
+{
+  "issue_number": 6813,
+  "candidate_number": 3,
+  "run_id": "22585284175",
+  "approach": "Add text validation in Todo.__post_init__ to reject empty or whitespace-only text",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6813_todo_empty_text_validation.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": 118,
+  "lint_passed": true,
+  "summary": "Added validation in Todo.__post_init__ to strip whitespace from text and raise ValueError for empty or whitespace-only text, consistent with rename() method behavior"
+}
