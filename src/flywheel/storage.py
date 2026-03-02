@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -74,13 +75,22 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
-        if not isinstance(raw, list):
-            raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        # Support both new format (dict with todos/_max_id) and legacy format (list)
+        if isinstance(raw, dict):
+            todos_data = raw.get("todos", [])
+            self._max_id = raw.get("_max_id", 0)
+        elif isinstance(raw, list):
+            # Legacy format: migrate to new format in memory
+            todos_data = raw
+            # Infer max_id from existing todos
+            self._max_id = max((t.get("id", 0) for t in todos_data), default=0)
+        else:
+            raise ValueError("Todo storage must be a JSON object or list")
+
+        return [Todo.from_dict(item) for item in todos_data]
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -94,7 +104,16 @@ class TodoStorage:
         # Ensure parent directory exists (lazy creation, validated)
         _ensure_parent_directory(self.path)
 
-        payload = [todo.to_dict() for todo in todos]
+        # Update _max_id to track the highest ID ever used
+        if todos:
+            max_todo_id = max(todo.id for todo in todos)
+            if self._max_id is None or max_todo_id > self._max_id:
+                self._max_id = max_todo_id
+
+        payload = {
+            "todos": [todo.to_dict() for todo in todos],
+            "_max_id": self._max_id or 0,
+        }
         content = json.dumps(payload, ensure_ascii=False, indent=2)
 
         # Create temp file in same directory as target for atomic rename
@@ -125,4 +144,9 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
+        # Return monotonically increasing ID based on _max_id tracked in storage
+        # This ensures IDs never decrease even after deletions
+        if self._max_id is not None:
+            return self._max_id + 1
+        # Fallback: compute from current todos (for empty storage or legacy files)
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

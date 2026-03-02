@@ -158,3 +158,20 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_monotonically_increasing_after_deletion(tmp_path) -> None:
+    """Bug #6799: next_id should return monotonically increasing IDs after deletion."""
+    storage = TodoStorage(str(tmp_path / "db.json"))
+
+    # Create todos with IDs 1, 2, 3
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    storage.save(todos)
+
+    # Delete todos 2 and 3, leaving only [1]
+    todos = [Todo(id=1, text="a")]
+    storage.save(todos)
+
+    # next_id should return 4 (not 2), maintaining monotonic increase
+    loaded = storage.load()
+    assert storage.next_id(loaded) == 4
