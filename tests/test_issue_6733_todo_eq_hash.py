@@ -45,7 +45,7 @@ def test_todo_eq_not_implemented_for_other_types() -> None:
     assert todo != 1
     assert todo != "Todo(id=1, text='buy milk')"
     assert todo != {"id": 1, "text": "buy milk"}
-    assert todo != None
+    assert todo is not None
 
 
 def test_todo_hash_raises_typeerror() -> None:
