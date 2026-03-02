@@ -1,0 +1,45 @@
+{
+  "issue_number": 6784,
+  "issue_title": "[Bug] Todo.from_dict accepts negative id values without validation",
+  "candidate_number": 2,
+  "run_id": "22578906049",
+  "branch_name": "claude/issue-6784-candidate-2-22578906049",
+  "status": "implemented",
+  "approach": {
+    "summary": "Add validation in Todo.from_dict to reject negative id values with a clear error message",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "lines_changed": 10,
+    "test_first": true
+  },
+  "tests": {
+    "added": [
+      "test_todo_from_dict_rejects_negative_id",
+      "test_storage_load_rejects_negative_id"
+    ],
+    "modified": [],
+    "total_run": 114,
+    "passed": 114,
+    "failed": 0
+  },
+  "linting": {
+    "ruff": "passed",
+    "errors": 0
+  },
+  "verification_commands": [
+    "uv run pytest tests/test_issue_2000_json_validation.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
+    "uv run pytest tests/ -v --tb=short"
+  ],
+  "risks": {
+    "breaking_changes": false,
+    "backward_compatible": true,
+    "notes": "Only rejects invalid data that should never have been accepted. Valid non-negative IDs are unaffected."
+  },
+  "implementation_details": {
+    "validation_logic": "After converting id to integer, check if todo_id < 0 and raise ValueError with clear message",
+    "error_message": "Invalid value for 'id': {todo_id}. 'id' must be a non-negative integer."
+  }
+}
