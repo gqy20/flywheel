@@ -1,27 +1,23 @@
 {
-  "issue_number": 6745,
+  "issue": 6745,
   "candidate": 3,
   "run_id": "22569891595",
   "branch": "claude/issue-6745-candidate-3-22569891595",
-  "created_at": "2026-03-02T10:30:00Z",
-  "status": "verified",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_6745_text_length_limit.py"
-    ]
-  },
-  "tests_passed": true,
-  "linting_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6745_text_length_limit.py tests/ -k todo -v",
-    "pytest_result": "116 passed",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6745_text_length_limit.py",
-    "ruff_result": "All checks passed",
-    "format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_6745_text_length_limit.py",
-    "format_result": "2 files already formatted"
-  },
-  "summary": "Added MAX_TEXT_LENGTH constant (10000 chars) and validation in Todo.from_dict to prevent memory/resource exhaustion from extremely long text values."
+  "pr_number": 6756,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6756",
+  "generated_at": "2026-03-02T10:58:27.928227+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2110,
+    "plan": 2395,
+    "implement": 2045,
+    "verify": 2353,
+    "finalize": 1556
+  }
 }
