@@ -55,6 +55,7 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id: int | None = None  # Cached max_id for O(1) next_id()
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -80,7 +81,10 @@ class TodoStorage:
 
         if not isinstance(raw, list):
             raise ValueError("Todo storage must be a JSON list")
-        return [Todo.from_dict(item) for item in raw]
+        todos = [Todo.from_dict(item) for item in raw]
+        # Update cached max_id when loading
+        self._max_id = max((todo.id for todo in todos), default=0) if todos else 0
+        return todos
 
     def save(self, todos: list[Todo]) -> None:
         """Save todos to file atomically.
@@ -125,4 +129,9 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        # Use cached max_id for O(1) performance
+        # Initialize cache if needed (e.g., if load() wasn't called)
+        if self._max_id is None:
+            self._max_id = max((todo.id for todo in todos), default=0) if todos else 0
+        self._max_id += 1
+        return self._max_id
