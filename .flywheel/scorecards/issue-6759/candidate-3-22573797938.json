@@ -1,15 +1,23 @@
 {
-  "issue_number": 6759,
-  "candidate_number": 3,
+  "issue": 6759,
+  "candidate": 3,
   "run_id": "22573797938",
   "branch": "claude/issue-6759-candidate-3-22573797938",
-  "created_at": "2026-03-02T12:00:00Z",
-  "status": "implemented",
-  "summary": "Fix inconsistent text handling by stripping whitespace in __post_init__ to match rename() behavior",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_minimal_framework.py"]
-  },
-  "tests_passed": 13,
-  "lint_status": "passed"
+  "pr_number": 6770,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6770",
+  "generated_at": "2026-03-02T12:13:21.001682+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2166,
+    "plan": 3908,
+    "implement": 1843,
+    "verify": 2413,
+    "finalize": 1056
+  }
 }
