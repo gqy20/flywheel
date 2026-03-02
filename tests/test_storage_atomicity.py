@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,36 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_is_cross_platform_compatible(tmp_path) -> None:
+    """Regression test for issue #6731: os.fchmod is Unix-only.
+
+    Test that save() works even when os.fchmod is not available (e.g., on Windows).
+    This mocks the absence of os.fchmod to simulate Windows behavior.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="cross-platform test")]
+
+    # Simulate Windows environment where os.fchmod doesn't exist
+    original_fchmod = getattr(os, "fchmod", None)
+    if hasattr(os, "fchmod"):
+        delattr(os, "fchmod")
+
+    try:
+        # This should not raise AttributeError on Windows
+        storage.save(todos)
+
+        # Verify file was saved correctly
+        loaded = storage.load()
+        assert len(loaded) == 1
+        assert loaded[0].text == "cross-platform test"
+    finally:
+        # Restore original fchmod if it existed
+        if original_fchmod is not None:
+            os.fchmod = original_fchmod
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
