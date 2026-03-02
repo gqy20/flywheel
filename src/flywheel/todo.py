@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int = 0  # 0=normal, 1=high, 2=low
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -93,10 +94,19 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate 'priority' is 0, 1, or 2
+        raw_priority = data.get("priority", 0)
+        if not isinstance(raw_priority, int) or raw_priority not in (0, 1, 2):
+            raise ValueError(
+                f"Invalid value for 'priority': {raw_priority!r}. "
+                "'priority' must be 0 (normal), 1 (high), or 2 (low)."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=raw_priority,
         )
