@@ -1,0 +1,18 @@
+{
+  "issue_number": 6747,
+  "issue_title": "[Enhancement] 添加 __eq__ 和 __hash__ 方法支持 Todo 对象比较和去重",
+  "candidate_number": 3,
+  "run_id": "22569891595",
+  "branch": "claude/issue-6747-candidate-3-22569891595",
+  "status": "implemented",
+  "created_at": "2026-03-02T10:40:00Z",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6747_todo_eq_hash.py"
+  ],
+  "tests_added": 12,
+  "tests_passed": 124,
+  "ruff_check": "passed",
+  "implementation_summary": "Added __eq__ method to compare Todo objects by id and __hash__ method to enable set/dict usage. Changed @dataclass decorator to use eq=False to prevent default field-based equality.",
+  "approach": "Implemented id-based equality and hashing for Todo dataclass, allowing objects with same id to be considered equal and enabling use in sets/dicts."
+}
