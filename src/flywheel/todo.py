@@ -20,6 +20,16 @@ class Todo:
     created_at: str = ""
     updated_at: str = ""
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo objects for equality based on id, text, and done status.
+
+        Timestamps (created_at, updated_at) are intentionally excluded from comparison
+        to allow semantic equality regardless of when objects were created.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id and self.text == other.text and self.done == other.done
+
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
 
