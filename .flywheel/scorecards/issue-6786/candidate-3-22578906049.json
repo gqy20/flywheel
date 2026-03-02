@@ -1,0 +1,15 @@
+{
+  "issue_number": 6786,
+  "candidate": 3,
+  "run_id": "22578906049",
+  "status": "implemented",
+  "approach": "Add text validation in Todo.__post_init__ to raise ValueError for empty or whitespace-only text",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_6786_todo_constructor_validation.py"
+  ],
+  "tests_added": 6,
+  "tests_passed": 118,
+  "linting": "passed",
+  "risks": "Low - The fix adds validation at construction time which may break code that creates Todo objects with empty text. However, this is the desired behavior to match rename() and add() validation."
+}
