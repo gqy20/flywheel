@@ -57,6 +57,24 @@ class Todo:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def copy(self, **kwargs) -> Todo:
+        """Create an independent copy of this Todo with optional field overrides.
+
+        Args:
+            **kwargs: Optional field overrides (id, text, done, created_at, updated_at).
+
+        Returns:
+            A new Todo instance with the same field values as this Todo,
+            except for any fields specified in kwargs which are overridden.
+            The updated_at timestamp is always refreshed unless explicitly provided.
+        """
+        data = self.to_dict()
+        data.update(kwargs)
+        # Always refresh updated_at unless explicitly provided
+        if "updated_at" not in kwargs:
+            data["updated_at"] = _utc_now_iso()
+        return Todo.from_dict(data)
+
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
         # Validate required fields with clear error messages
