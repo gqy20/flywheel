@@ -5,7 +5,8 @@
   "stage": "FINALIZE",
   "created_at": "2026-03-02T05:26:00Z",
   "updated_at": "2026-03-02T05:40:00Z",
-  "status": "finalizing",
+  "status": "finalized",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6715",
   "changes": {
     "source_files": ["src/flywheel/storage.py"],
     "test_files": ["tests/test_issue_6702_final_file_permissions.py"]
