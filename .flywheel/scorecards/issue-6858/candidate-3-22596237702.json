@@ -1,0 +1,27 @@
+{
+  "issue_number": 6858,
+  "candidate": 3,
+  "run_id": "22596237702",
+  "triage_summary": "Add tags field to Todo dataclass for categorization support",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6858_todo_tags.py"]
+  },
+  "tests_passed": 126,
+  "tests_added": 14,
+  "acceptance_criteria": {
+    "tags_field_exists": true,
+    "from_dict_parses_tags": true,
+    "to_dict_includes_tags": true,
+    "tags_normalized": true,
+    "tags_deduplicated": true
+  },
+  "risks": [
+    "Existing JSON files without tags field will default to empty list (backward compatible)"
+  ],
+  "implementation_notes": [
+    "Added tags: list[str] = field(default_factory=list) to Todo dataclass",
+    "from_dict validates tags is a list type",
+    "Tags are stripped of whitespace and deduplicated using dict.fromkeys for order preservation"
+  ]
+}
