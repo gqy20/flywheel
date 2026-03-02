@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    tags: list[str] | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -38,6 +39,8 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+        if self.tags is None:
+            self.tags = []
 
     def mark_done(self) -> None:
         self.done = True
@@ -93,10 +96,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse tags field - default to empty list
+        raw_tags = data.get("tags")
+        if raw_tags is None:
+            tags: list[str] = []
+        elif isinstance(raw_tags, list):
+            tags = [str(tag) for tag in raw_tags]
+        else:
+            raise ValueError(
+                f"Invalid value for 'tags': {raw_tags!r}. "
+                "'tags' must be a list of strings."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            tags=tags,
         )
