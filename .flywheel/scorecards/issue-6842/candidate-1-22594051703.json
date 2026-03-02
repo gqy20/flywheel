@@ -1,0 +1,16 @@
+{
+  "issue_number": 6842,
+  "issue_title": "[Bug] TodoApp lacks rename() method to expose Todo.rename() functionality",
+  "candidate_number": 1,
+  "run_id": "22594051703",
+  "branch": "claude/issue-6842-candidate-1-22594051703",
+  "status": "implemented",
+  "approach": "Add rename method to TodoApp class that delegates to Todo.rename()",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_6842_todoapp_rename.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": 116,
+  "lint_status": "passed"
+}
