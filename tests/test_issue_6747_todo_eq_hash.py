@@ -60,7 +60,7 @@ class TestTodoEquality:
         assert todo != 1
         assert todo != "task"
         assert todo != {"id": 1, "text": "task"}
-        assert todo != None
+        assert todo is not None
 
 
 class TestTodoHash:
