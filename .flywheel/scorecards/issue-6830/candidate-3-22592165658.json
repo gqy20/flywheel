@@ -4,7 +4,7 @@
   "candidate_number": 3,
   "run_id": "22592165658",
   "branch_name": "claude/issue-6830-candidate-3-22592165658",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
   "status": "completed",
   "created_at": "2026-03-02T19:49:00Z",
   "implementation": {
