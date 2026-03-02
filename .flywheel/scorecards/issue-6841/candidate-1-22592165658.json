@@ -1,0 +1,20 @@
+{
+  "issue_number": 6841,
+  "candidate_id": 1,
+  "run_id": "22592165658",
+  "branch": "claude/issue-6841-candidate-1-22592165658",
+  "status": "implemented",
+  "summary": "Added 'rename' command to CLI to expose Todo.rename() functionality",
+  "changes": {
+    "source_files": ["src/flywheel/cli.py"],
+    "test_files": ["tests/test_minimal_framework.py"]
+  },
+  "tests_passed": true,
+  "linter_passed": true,
+  "acceptance_criteria": {
+    "cli_accepts_rename_command": true,
+    "rename_returns_0_on_success": true,
+    "rename_returns_1_when_not_found": true,
+    "rename_rejects_empty_text": true
+  }
+}
