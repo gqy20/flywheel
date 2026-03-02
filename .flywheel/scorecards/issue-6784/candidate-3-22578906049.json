@@ -1,31 +1,23 @@
 {
-  "issue_number": 6784,
-  "issue_title": "[Bug] Todo.from_dict accepts negative id values without validation",
+  "issue": 6784,
   "candidate": 3,
   "run_id": "22578906049",
-  "branch_name": "claude/issue-6784-candidate-3-22578906049",
-  "status": "verified",
-  "summary": "Add validation in Todo.from_dict() to reject negative id values",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6784_negative_id_validation.py"
+  "branch": "claude/issue-6784-candidate-3-22578906049",
+  "pr_number": 6793,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6793",
+  "generated_at": "2026-03-02T14:45:38.781549+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_6784_negative_id_validation.py -v",
-      "result": "passed",
-      "tests_run": 3,
-      "tests_passed": 3,
-      "tests_failed": 0
-    },
-    "ruff": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6784_negative_id_validation.py",
-      "result": "passed"
-    }
-  },
-  "acceptance_criteria": {
-    "negative_id_rejected": true,
-    "zero_id_accepted": true,
-    "positive_id_accepted": true
+  "stage_response_sizes": {
+    "triage": 1330,
+    "plan": 2243,
+    "implement": 1771,
+    "verify": 2079,
+    "finalize": 1454
   }
 }
