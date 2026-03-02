@@ -33,7 +33,9 @@ def test_save_handles_missing_fchmod_gracefully(tmp_path) -> None:
     storage = TodoStorage(str(db))
 
     # Mock os.fchmod to raise AttributeError (simulating Windows behavior)
-    with mock.patch.object(os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")):
+    with mock.patch.object(
+        os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")
+    ):
         # This should NOT raise AttributeError
         storage.save([Todo(id=1, text="test todo")])
 
@@ -58,7 +60,9 @@ def test_save_completes_full_workflow_without_fchmod(tmp_path) -> None:
     ]
 
     # Mock os.fchmod to raise AttributeError (simulating Windows behavior)
-    with mock.patch.object(os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")):
+    with mock.patch.object(
+        os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")
+    ):
         storage.save(todos)
 
     # Verify file exists and content is correct
@@ -89,7 +93,9 @@ def test_temp_file_cleaned_up_on_error_without_fchmod(tmp_path) -> None:
 
     # Mock both fchmod and mkstemp
     with (
-        mock.patch.object(os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")),
+        mock.patch.object(
+            os, "fchmod", side_effect=AttributeError("module 'os' has no attribute 'fchmod'")
+        ),
         mock.patch.object(tempfile, "mkstemp", side_effect=tracking_mkstemp),
     ):
         storage.save([Todo(id=1, text="test")])
