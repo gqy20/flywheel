@@ -1,0 +1,13 @@
+{
+  "issue_number": 6814,
+  "candidate": 2,
+  "run_id": "22585284175",
+  "status": "implemented",
+  "approach": "Reject non-integer float IDs explicitly while accepting integer-valued floats (e.g., 1.0)",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": 114,
+  "risks": "Low - only affects float ID inputs that would have been silently truncated"
+}
