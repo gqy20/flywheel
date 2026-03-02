@@ -1,0 +1,42 @@
+{
+  "issue_number": 6759,
+  "issue_title": "[Bug] Inconsistent text handling: rename() strips whitespace but constructor does not",
+  "candidate_id": 1,
+  "run_id": 22573797938,
+  "branch": "claude/issue-6759-candidate-1-22573797938",
+  "scorecard": {
+    "root_cause_analysis": {
+      "score": 5,
+      "notes": "Identified inconsistency: rename() strips whitespace but constructor and from_dict() do not, leading to different behavior for same logical operation"
+    },
+    "test_coverage": {
+      "score": 5,
+      "notes": "Added two regression tests: test_todo_constructor_strips_whitespace and test_todo_from_dict_strips_whitespace"
+    },
+    "minimal_fix": {
+      "score": 5,
+      "notes": "Single line fix in __post_init__ to strip text - minimal and targeted"
+    },
+    "no_regressions": {
+      "score": 5,
+      "notes": "All 12 existing tests pass, no behavior changes for already-stripped text"
+    },
+    "code_quality": {
+      "score": 5,
+      "notes": "Follows existing code style, uses same .strip() approach as rename() method"
+    }
+  },
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_run": [
+    "tests/test_minimal_framework.py::test_todo_constructor_strips_whitespace",
+    "tests/test_minimal_framework.py::test_todo_from_dict_strips_whitespace",
+    "All 12 tests in test_minimal_framework.py"
+  ],
+  "risks": [
+    "Existing data with whitespace in text fields will be stripped on load/reconstruction"
+  ],
+  "summary": "Fixed inconsistent text handling by adding text.strip() in __post_init__, ensuring constructor and from_dict() behave consistently with rename() method"
+}
