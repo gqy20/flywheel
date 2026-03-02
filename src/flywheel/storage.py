@@ -55,6 +55,9 @@ class TodoStorage:
 
     def __init__(self, path: str | None = None) -> None:
         self.path = Path(path or ".todo.json")
+        self._max_id_cache: int | None = None
+        self._cached_list_id: int | None = None
+        self._cached_list_len: int = 0
 
     def load(self) -> list[Todo]:
         if not self.path.exists():
@@ -125,4 +128,29 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the next available ID for a new todo.
+
+        Uses O(1) cached lookup instead of O(n) max() scan.
+        The cache is invalidated when the list identity or length changes.
+        """
+        list_id = id(todos)
+        list_len = len(todos)
+
+        # Check if cache is valid (same list object and same length)
+        if (
+            self._max_id_cache is not None
+            and self._cached_list_id == list_id
+            and self._cached_list_len == list_len
+        ):
+            return self._max_id_cache + 1
+
+        # Cache miss - compute and cache max_id
+        if todos:
+            self._max_id_cache = max(todo.id for todo in todos)
+        else:
+            self._max_id_cache = 0
+
+        self._cached_list_id = list_id
+        self._cached_list_len = list_len
+
+        return self._max_id_cache + 1
