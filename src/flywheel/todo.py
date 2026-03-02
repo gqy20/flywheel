@@ -79,6 +79,13 @@ class Todo:
                 f"Invalid value for 'text': {data['text']!r}. 'text' must be a string."
             )
 
+        # Validate 'text' is not empty or whitespace-only
+        if not data["text"].strip():
+            raise ValueError(
+                "Invalid value for 'text': empty or whitespace-only string. "
+                "'text' must contain non-whitespace characters."
+            )
+
         # Validate 'done' is a proper boolean value
         # Accept: True, False, 0, 1
         # Reject: other integers (2, -1), strings, or other types
