@@ -1,0 +1,29 @@
+{
+  "issue_number": 6857,
+  "candidate_number": 1,
+  "run_id": "22596237702",
+  "branch": "claude/issue-6857-candidate-1-22596237702",
+  "stage": "PLAN",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_6857_todo_priority.py",
+      "src/flywheel/todo.py"
+    ],
+    "tests": [
+      "test_todo_default_priority_is_zero",
+      "test_todo_from_dict_accepts_valid_priority_zero",
+      "test_todo_from_dict_accepts_valid_priority_one",
+      "test_todo_from_dict_accepts_valid_priority_two",
+      "test_todo_from_dict_rejects_invalid_priority_three",
+      "test_todo_from_dict_rejects_invalid_priority_negative",
+      "test_todo_to_dict_includes_priority"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6857_todo_priority.py -v",
+      "uv run pytest tests/ -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "status": "planning",
+  "created_at": "2026-03-02T20:35:00Z"
+}
