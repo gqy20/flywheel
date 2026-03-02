@@ -1,0 +1,18 @@
+{
+  "issue_number": 6828,
+  "candidate": 2,
+  "run_id": "22587877532",
+  "branch": "claude/issue-6828-candidate-2-22587877532",
+  "status": "implemented",
+  "summary": "Fix boolean accepted as valid id by adding explicit isinstance check before int conversion",
+  "tests_added": [
+    "test_todo_from_dict_rejects_true_as_id",
+    "test_todo_from_dict_rejects_false_as_id"
+  ],
+  "files_modified": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_2000_json_validation.py"
+  ],
+  "risks": "None - minimal change adding type validation",
+  "limitations": "None"
+}
