@@ -1,36 +1,23 @@
 {
-  "issue_number": 6828,
+  "issue": 6828,
   "candidate": 2,
   "run_id": "22587877532",
   "branch": "claude/issue-6828-candidate-2-22587877532",
-  "status": "finalized",
-  "summary": "Fix boolean accepted as valid id by adding explicit isinstance check before int conversion",
-  "tests_added": [
-    "test_todo_from_dict_rejects_true_as_id",
-    "test_todo_from_dict_rejects_false_as_id"
+  "pr_number": 6837,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6837",
+  "generated_at": "2026-03-02T18:17:25.907359+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "risks": "None - minimal change adding type validation",
-  "limitations": "None",
-  "verification": {
-    "pytest": {
-      "command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-      "result": "14 tests passed"
-    },
-    "ruff_check": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "result": "All checks passed"
-    },
-    "ruff_format": {
-      "command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-      "result": "2 files already formatted"
-    },
-    "full_test_suite": {
-      "command": "uv run pytest tests/ -v --ignore=tests/test_cli.py",
-      "result": "114 tests passed"
-    }
+  "stage_response_sizes": {
+    "triage": 2355,
+    "plan": 2792,
+    "implement": 1483,
+    "verify": 2360,
+    "finalize": 1267
   }
 }
