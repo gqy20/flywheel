@@ -1,47 +1,23 @@
 {
-  "issue_number": 6857,
-  "issue_title": "[Feature] 添加 Todo 优先级字段支持",
+  "issue": 6857,
   "candidate": 2,
   "run_id": "22596237702",
   "branch": "claude/issue-6857-candidate-2-22596237702",
-  "status": "implemented",
-  "created_at": "2026-03-02T20:35:00Z",
-  "updated_at": "2026-03-02T21:30:00Z",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py"
-    ],
-    "files_added": [
-      "tests/test_issue_6857_todo_priority.py"
-    ],
-    "lines_changed": 15
-  },
-  "tests": {
-    "added": 8,
-    "passed": 8,
-    "failed": 0
-  },
-  "implementation_summary": "Added priority field to Todo dataclass with validation in from_dict/to_dict. Priority values: 0=normal (default), 1=high, 2=low.",
-  "acceptance_criteria_met": [
-    "Todo dataclass includes priority field with default value 0",
-    "from_dict correctly parses and validates priority field (only accepts 0/1/2)",
-    "to_dict serializes priority field",
-    "Existing tests unaffected"
+  "pr_number": 6877,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6877",
+  "generated_at": "2026-03-02T21:56:58.171818+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "plan": {
-    "files_to_touch": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "tdd_sequence": [
-      "RED: Add failing tests for priority field (default, valid values, invalid values, serialization)",
-      "GREEN: Add priority: int = 0 field to Todo dataclass",
-      "GREEN: Add priority validation in from_dict (accept 0/1/2, reject others)"
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_minimal_framework.py -v -k priority",
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py"
-    ]
+  "stage_response_sizes": {
+    "triage": 2391,
+    "plan": 2478,
+    "implement": 1652,
+    "verify": 2033,
+    "finalize": 1391
   }
 }
