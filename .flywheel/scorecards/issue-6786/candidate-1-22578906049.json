@@ -1,21 +1,23 @@
 {
-  "issue_number": 6786,
+  "issue": 6786,
   "candidate": 1,
   "run_id": "22578906049",
   "branch": "claude/issue-6786-candidate-1-22578906049",
-  "status": "verified",
-  "tests_passed": true,
-  "lint_passed": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_6786_todo_empty_text_validation.py"
+  "pr_number": 6791,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6791",
+  "generated_at": "2026-03-02T14:45:17.928833+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added text validation in Todo.__post_init__() to raise ValueError for empty or whitespace-only text, consistent with rename() and add() methods.",
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6786_todo_empty_text_validation.py -v",
-    "pytest_result": "4 passed in 0.05s",
-    "ruff_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6786_todo_empty_text_validation.py",
-    "ruff_result": "All checks passed!",
-    "regression_tests": "uv run pytest tests/test_issue_2087_todo_repr.py -v -> 8 passed"
+  "stage_response_sizes": {
+    "triage": 2147,
+    "plan": 4000,
+    "implement": 1497,
+    "verify": 1845,
+    "finalize": 974
   }
 }
