@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    tags: list[str] = None  # type: ignore[assignment]
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -38,6 +39,8 @@ class Todo:
             self.created_at = _utc_now_iso()
         if not self.updated_at:
             self.updated_at = self.created_at
+        if self.tags is None:
+            self.tags = []
 
     def mark_done(self) -> None:
         self.done = True
@@ -99,4 +102,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            tags=list(data.get("tags", [])) if data.get("tags") is not None else None,
         )
