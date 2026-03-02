@@ -229,3 +229,74 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
+    """Regression test for issue #6869: Race condition in next_id().
+
+    Tests that multiple processes calling add() concurrently never produce
+    todos with duplicate IDs. The add() operation does load -> next_id() -> save,
+    which is vulnerable to race conditions without proper locking.
+    """
+    import multiprocessing
+
+    from flywheel.cli import TodoApp
+
+    db = tmp_path / "race_test.json"
+    num_workers = 5
+    todos_per_worker = 3
+
+    def add_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that adds multiple todos using TodoApp.add()."""
+        try:
+            app = TodoApp(db_path=str(db))
+            added_ids = []
+            for i in range(todos_per_worker):
+                todo = app.add(f"worker-{worker_id}-todo-{i}")
+                added_ids.append(todo.id)
+            result_queue.put(("success", worker_id, added_ids))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run workers concurrently
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=add_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=30)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    successes = [r for r in results if r[0] == "success"]
+    errors = [r for r in results if r[0] == "error"]
+
+    # All workers should succeed
+    assert len(errors) == 0, f"Workers failed with errors: {errors}"
+    assert len(successes) == num_workers, f"Expected {num_workers} successes"
+
+    # Load final todos and verify ID uniqueness
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+
+    # Check for duplicate IDs
+    all_ids = [todo.id for todo in final_todos]
+    unique_ids = set(all_ids)
+
+    expected_count = num_workers * todos_per_worker
+    assert len(all_ids) == expected_count, (
+        f"Expected {expected_count} todos, got {len(all_ids)}. "
+        f"Some data was lost due to race condition."
+    )
+    assert len(unique_ids) == len(all_ids), (
+        f"Duplicate IDs detected! Got {len(all_ids)} todos but only {len(unique_ids)} unique IDs. "
+        f"IDs: {all_ids}"
+    )
