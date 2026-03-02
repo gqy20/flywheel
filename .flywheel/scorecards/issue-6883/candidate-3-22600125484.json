@@ -1,19 +1,23 @@
 {
-  "issue_number": 6883,
+  "issue": 6883,
   "candidate": 3,
   "run_id": "22600125484",
   "branch": "claude/issue-6883-candidate-3-22600125484",
-  "status": "implemented",
-  "approach": "Add type validation in Todo.__post_init__ to reject None and non-string values for text parameter",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_6883_todo_text_validation.py"]
-  },
-  "tests_passed": true,
-  "ruff_passed": true,
-  "validation_criteria_met": [
-    "Todo(id=1, text=None) raises ValueError",
-    "Todo(id=1, text=123) raises ValueError",
-    "Todo(id=1, text='valid') works as before"
-  ]
+  "pr_number": 6888,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6888",
+  "generated_at": "2026-03-02T23:49:42.135650+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2131,
+    "plan": 3179,
+    "implement": 2040,
+    "verify": 2229,
+    "finalize": 1260
+  }
 }
