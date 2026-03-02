@@ -158,3 +158,62 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_next_id_returns_smallest_unused_for_non_contiguous_ids(tmp_path) -> None:
+    """Bug #6799: next_id should return smallest unused positive integer.
+
+    When todos have non-contiguous IDs (e.g., after deletion), next_id should
+    return the smallest unused ID rather than max()+1. This ensures IDs don't
+    grow unnecessarily and fills gaps from deleted todos.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create todos with non-contiguous IDs (simulating deletion scenario)
+    todos = [Todo(id=1, text="a"), Todo(id=5, text="b"), Todo(id=10, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+
+    # next_id should return 2 (smallest unused), not 11 (max+1)
+    assert storage.next_id(loaded) == 2
+
+
+def test_next_id_returns_1_for_empty_list(tmp_path) -> None:
+    """Verify next_id returns 1 when there are no todos."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Empty list should return 1
+    assert storage.next_id([]) == 1
+
+
+def test_next_id_fills_gap_after_first_id(tmp_path) -> None:
+    """Verify next_id fills gaps correctly when first ID is missing."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # IDs starting from 2 (1 is missing)
+    todos = [Todo(id=2, text="a"), Todo(id=3, text="b")]
+    storage.save(todos)
+
+    loaded = storage.load()
+
+    # next_id should return 1 to fill the gap
+    assert storage.next_id(loaded) == 1
+
+
+def test_next_id_returns_max_plus_1_for_contiguous_ids(tmp_path) -> None:
+    """Verify next_id still works correctly for contiguous IDs."""
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Contiguous IDs from 1 to 3
+    todos = [Todo(id=1, text="a"), Todo(id=2, text="b"), Todo(id=3, text="c")]
+    storage.save(todos)
+
+    loaded = storage.load()
+
+    # For contiguous IDs, next_id should return max+1 = 4
+    assert storage.next_id(loaded) == 4

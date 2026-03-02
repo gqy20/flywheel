@@ -125,4 +125,15 @@ class TodoStorage:
             raise
 
     def next_id(self, todos: list[Todo]) -> int:
-        return (max((todo.id for todo in todos), default=0) + 1) if todos else 1
+        """Return the smallest unused positive integer as the next ID.
+
+        This fills gaps from deleted todos, ensuring IDs don't grow unnecessarily.
+        """
+        if not todos:
+            return 1
+        used_ids = {todo.id for todo in todos}
+        # Find the smallest positive integer not in used_ids
+        next_id = 1
+        while next_id in used_ids:
+            next_id += 1
+        return next_id
