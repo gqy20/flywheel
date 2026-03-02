@@ -1,49 +1,23 @@
 {
-  "issue_number": 6745,
-  "issue_title": "[Bug] Todo.from_dict accepts extremely long 'text' values without length limit",
-  "candidate_number": 1,
+  "issue": 6745,
+  "candidate": 1,
   "run_id": "22569891595",
-  "branch_name": "claude/issue-6745-candidate-1-22569891595",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/6749",
+  "branch": "claude/issue-6745-candidate-1-22569891595",
   "pr_number": 6749,
-  "created_at": "2026-03-02T10:30:00Z",
-  "status": "ready_for_review",
-  "fix_summary": {
-    "root_cause": "Todo.from_dict() only validated text type (str) but not length, allowing memory exhaustion attacks",
-    "solution": "Added MAX_TEXT_LENGTH=10000 constant and length validation with clear error message",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "lines_added": 37,
-    "lines_removed": 0
-  },
-  "tests": {
-    "total_tests": 115,
-    "tests_passed": 115,
-    "tests_failed": 0,
-    "new_tests_added": 3,
-    "test_names": [
-      "test_todo_from_dict_accepts_text_at_max_length",
-      "test_todo_from_dict_rejects_text_exceeding_max_length",
-      "test_todo_from_dict_rejects_extremely_long_text"
-    ]
-  },
-  "linting": {
-    "ruff_check": "passed",
-    "ruff_format": "not_run"
-  },
-  "verification_criteria": {
-    "accepts_text_up_to_max_length": true,
-    "rejects_text_exceeding_max_length": true,
-    "clear_error_message": true,
-    "existing_functionality_preserved": true
-  },
-  "risks": [
-    {
-      "description": "Breaking change for existing todos with >10000 char text",
-      "severity": "low",
-      "mitigation": "Unlikely in practice; todo items rarely exceed this length"
-    }
-  ]
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6749",
+  "generated_at": "2026-03-02T10:54:47.537323+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3566,
+    "plan": 1894,
+    "implement": 1783,
+    "verify": 2653,
+    "finalize": 712
+  }
 }
