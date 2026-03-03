@@ -4,6 +4,17 @@ from __future__ import annotations
 
 from .todo import Todo
 
+# Unicode bidirectional override characters that can be used for Trojan Source attacks
+# Reference: https://trojansource.codes/
+BIDI_CHARS = frozenset(
+    # Bidirectional embedding/override (U+202A-U+202E)
+    "\u202a\u202b\u202c\u202d\u202e"
+    # Bidirectional isolates (U+2066-U+2069)
+    "\u2066\u2067\u2068\u2069"
+    # Directional marks (U+200E-U+200F)
+    "\u200e\u200f"
+)
+
 
 def _sanitize_text(text: str) -> str:
     """Escape control characters to prevent terminal output manipulation.
@@ -11,6 +22,9 @@ def _sanitize_text(text: str) -> str:
     Replaces ASCII control characters (0x00-0x1f), DEL (0x7f), and
     C1 control characters (0x80-0x9f) with their escaped representations
     to prevent injection attacks via todo text.
+
+    Also escapes Unicode bidirectional override characters (U+202A-U+202E,
+    U+2066-U+2069, U+200E-U+200F) to prevent Trojan Source attacks.
     """
     # First: Escape backslash to prevent collision with escape sequences
     # This MUST be done before any other escaping to prevent ambiguity
@@ -28,11 +42,14 @@ def _sanitize_text(text: str) -> str:
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
     # Replace with \\xNN escape sequences
+    # Also escape Unicode bidirectional override characters to prevent Trojan Source attacks
     result = []
     for char in text:
         code = ord(char)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        elif char in BIDI_CHARS:
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
