@@ -1,0 +1,22 @@
+{
+  "issue_number": 6886,
+  "candidate_number": 1,
+  "run_id": "22603148436",
+  "branch": "claude/issue-6886-candidate-1-22603148436",
+  "implementation": {
+    "approach": "Add due_date field to Todo dataclass with is_overdue property and set_due_date method",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_minimal_framework.py"
+    ],
+    "tests_added": 9,
+    "tests_passed": 19,
+    "linting_passed": true
+  },
+  "acceptance_criteria": {
+    "todo_has_due_date_field": true,
+    "is_overdue_property": true,
+    "from_dict_parses_due_date": true
+  },
+  "summary": "Added optional due_date field to Todo dataclass, implemented is_overdue property that returns True when due_date is in the past and todo is not done, and added set_due_date() method. Updated from_dict() to parse ISO format due_date strings."
+}

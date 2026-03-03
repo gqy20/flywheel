@@ -158,3 +158,101 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_with_past_due_date_is_overdue() -> None:
+    """Issue #6886: Todo with past due_date returns is_overdue=True."""
+    from datetime import UTC, datetime, timedelta
+
+    past_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    todo = Todo(id=1, text="overdue task", due_date=past_date)
+
+    assert todo.due_date == past_date
+    assert todo.is_overdue is True
+
+
+def test_todo_with_future_due_date_not_overdue() -> None:
+    """Issue #6886: Todo with future due_date returns is_overdue=False."""
+    from datetime import UTC, datetime, timedelta
+
+    future_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    todo = Todo(id=1, text="future task", due_date=future_date)
+
+    assert todo.is_overdue is False
+
+
+def test_completed_todo_with_past_due_date_not_overdue() -> None:
+    """Issue #6886: Completed todo with past due_date returns is_overdue=False."""
+    from datetime import UTC, datetime, timedelta
+
+    past_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    todo = Todo(id=1, text="completed task", done=True, due_date=past_date)
+
+    assert todo.done is True
+    assert todo.is_overdue is False
+
+
+def test_todo_without_due_date_not_overdue() -> None:
+    """Issue #6886: Todo without due_date returns is_overdue=False."""
+    todo = Todo(id=1, text="no deadline task")
+
+    assert todo.due_date is None
+    assert todo.is_overdue is False
+
+
+def test_todo_set_due_date() -> None:
+    """Issue #6886: set_due_date() method updates due_date and updated_at."""
+    from datetime import UTC, datetime, timedelta
+
+    todo = Todo(id=1, text="task")
+    original_updated_at = todo.updated_at
+
+    future_date = (datetime.now(UTC) + timedelta(days=7)).isoformat()
+    todo.set_due_date(future_date)
+
+    assert todo.due_date == future_date
+    assert todo.updated_at >= original_updated_at
+
+
+def test_todo_set_due_date_to_none() -> None:
+    """Issue #6886: set_due_date(None) clears the due_date."""
+    from datetime import UTC, datetime, timedelta
+
+    past_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    todo = Todo(id=1, text="task", due_date=past_date)
+
+    todo.set_due_date(None)
+    assert todo.due_date is None
+    assert todo.is_overdue is False
+
+
+def test_todo_from_dict_parses_due_date() -> None:
+    """Issue #6886: from_dict() parses ISO format due_date strings."""
+    from datetime import UTC, datetime, timedelta
+
+    past_date = (datetime.now(UTC) - timedelta(days=1)).isoformat()
+    data = {"id": 1, "text": "task", "due_date": past_date}
+
+    todo = Todo.from_dict(data)
+    assert todo.due_date == past_date
+    assert todo.is_overdue is True
+
+
+def test_todo_from_dict_handles_missing_due_date() -> None:
+    """Issue #6886: from_dict() handles missing due_date field."""
+    data = {"id": 1, "text": "task"}
+
+    todo = Todo.from_dict(data)
+    assert todo.due_date is None
+
+
+def test_todo_to_dict_includes_due_date() -> None:
+    """Issue #6886: to_dict() includes due_date field."""
+    from datetime import UTC, datetime, timedelta
+
+    future_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
+    todo = Todo(id=1, text="task", due_date=future_date)
+
+    data = todo.to_dict()
+    assert "due_date" in data
+    assert data["due_date"] == future_date

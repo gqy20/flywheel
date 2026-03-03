@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    due_date: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -53,6 +54,36 @@ class Todo:
             raise ValueError("Todo text cannot be empty")
         self.text = text
         self.updated_at = _utc_now_iso()
+
+    def set_due_date(self, due_date: str | None) -> None:
+        """Set or clear the due date for this todo.
+
+        Args:
+            due_date: ISO format datetime string or None to clear.
+        """
+        self.due_date = due_date
+        self.updated_at = _utc_now_iso()
+
+    @property
+    def is_overdue(self) -> bool:
+        """Check if this todo is overdue.
+
+        Returns True if:
+        - due_date is set
+        - due_date is in the past
+        - todo is not completed
+
+        Returns False otherwise.
+        """
+        if self.due_date is None:
+            return False
+        if self.done:
+            return False
+        try:
+            due_datetime = datetime.fromisoformat(self.due_date)
+            return due_datetime < datetime.now(UTC)
+        except (ValueError, TypeError):
+            return False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -93,10 +124,16 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse due_date as optional ISO format string
+        due_date = data.get("due_date")
+        if due_date is not None and not isinstance(due_date, str):
+            due_date = str(due_date)
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            due_date=due_date,
         )
