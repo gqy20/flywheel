@@ -1,55 +1,23 @@
 {
-  "issue_number": 6886,
-  "issue_title": "[Feature] Add due_date field to Todo for deadline tracking",
-  "candidate_number": 2,
+  "issue": 6886,
+  "candidate": 2,
   "run_id": "22603148436",
   "branch": "claude/issue-6886-candidate-2-22603148436",
-  "commit_sha": "6474c4ca887abd3354140a0640c29df12307b2b4",
-  "status": "verified",
-  "verification": {
-    "targeted_pytest": {
-      "command": "uv run pytest tests/test_minimal_framework.py -v",
-      "result": "passed",
-      "tests_run": 17,
-      "tests_passed": 17,
-      "tests_failed": 0
-    },
-    "full_test_suite": {
-      "command": "uv run pytest -v",
-      "result": "passed",
-      "tests_run": 119,
-      "tests_passed": 119,
-      "tests_failed": 0
-    },
-    "ruff_lint": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_minimal_framework.py",
-      "result": "All checks passed!"
-    }
-  },
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "features_added": [
-      "due_date field (str | None) in Todo dataclass",
-      "set_due_date() method to update due_date",
-      "is_overdue property to check if task is past deadline",
-      "from_dict() parsing for due_date field"
-    ],
-    "tests_added": [
-      "test_todo_with_past_due_date_is_overdue",
-      "test_todo_with_future_due_date_not_overdue",
-      "test_completed_todo_with_past_due_date_not_overdue",
-      "test_todo_without_due_date_not_overdue",
-      "test_todo_set_due_date",
-      "test_todo_from_dict_parses_due_date",
-      "test_todo_to_dict_includes_due_date"
-    ]
-  },
-  "acceptance_criteria": {
-    "due_date_field": true,
-    "is_overdue_property": true,
-    "from_dict_parsing": true
+  "pr_number": 6903,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6903",
+  "generated_at": "2026-03-03T01:45:44.256806+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2557,
+    "plan": 4000,
+    "implement": 1494,
+    "verify": 2697,
+    "finalize": 526
   }
 }
