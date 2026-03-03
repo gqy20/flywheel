@@ -1,79 +1,23 @@
 {
-  "issue_number": 6998,
-  "candidate_number": 2,
+  "issue": 6998,
+  "candidate": 2,
   "run_id": "22622966899",
-  "plan": {
-    "description": "Add CLI 'rename' command to expose Todo.rename() functionality",
-    "files_to_touch": [
-      "tests/test_issue_6998_cli_rename_command.py",
-      "src/flywheel/cli.py"
-    ],
-    "tdd_sequence": [
-      {
-        "step": 1,
-        "phase": "RED",
-        "description": "Create failing tests for CLI rename command",
-        "file": "tests/test_issue_6998_cli_rename_command.py",
-        "tests": [
-          "test_cli_rename_command_with_valid_id_and_text",
-          "test_cli_rename_command_with_invalid_id",
-          "test_cli_rename_command_with_empty_text",
-          "test_cli_rename_command_sanitizes_output"
-        ]
-      },
-      {
-        "step": 2,
-        "phase": "GREEN",
-        "description": "Add rename method to TodoApp class in cli.py",
-        "file": "src/flywheel/cli.py",
-        "changes": [
-          "Add rename() method to TodoApp class that finds todo by id and calls todo.rename()"
-        ]
-      },
-      {
-        "step": 3,
-        "phase": "GREEN",
-        "description": "Add 'rename' subcommand to build_parser() in cli.py",
-        "file": "src/flywheel/cli.py",
-        "changes": [
-          "Add p_rename = sub.add_parser('rename', help='Rename todo')",
-          "Add p_rename.add_argument('id', type=int)",
-          "Add p_rename.add_argument('text', help='New todo text')"
-        ]
-      },
-      {
-        "step": 4,
-        "phase": "GREEN",
-        "description": "Add rename case to run_command() in cli.py",
-        "file": "src/flywheel/cli.py",
-        "changes": [
-          "Add case for args.command == 'rename' that calls app.rename() and prints success message"
-        ]
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_6998_cli_rename_command.py -v",
-      "uv run pytest tests/test_minimal_framework.py -v",
-      "uv run ruff check src/flywheel/cli.py",
-      "uv run ruff format --check src/flywheel/cli.py"
-    ]
-  },
-  "acceptance_criteria": [
-    "'todo rename 1 new text' successfully renames todo #1",
-    "'todo rename 99 x' returns error for non-existent id",
-    "'todo rename 1 \"\"' returns error for empty text"
+  "branch": "claude/issue-6998-candidate-2-22622966899",
+  "pr_number": 7006,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7006",
+  "generated_at": "2026-03-03T13:23:13.792765+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "status": "IMPLEMENTED",
-  "implementation_result": {
-    "tests_passed": true,
-    "ruff_check_passed": true,
-    "files_changed": [
-      "src/flywheel/cli.py"
-    ],
-    "tests_added_or_changed": [
-      "tests/test_issue_6998_cli_rename_command.py"
-    ],
-    "implementation_summary": "Added 'rename' subcommand to CLI build_parser() and handled it in run_command() to expose Todo.rename() functionality.",
-    "verified_at": "2026-03-03T12:50:00Z"
+  "stage_response_sizes": {
+    "triage": 2806,
+    "plan": 2265,
+    "implement": 2369,
+    "verify": 1909,
+    "finalize": 1075
   }
 }
