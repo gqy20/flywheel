@@ -119,3 +119,19 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6995 - reject float ids to prevent precision loss
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float values for 'id' to prevent precision loss."""
+    with pytest.raises(ValueError, match=r"float.*'id'|'id'.*float|integer"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_int_like_float_id() -> None:
+    """Todo.from_dict should reject int-like float values (e.g., 1.0) for 'id'.
+
+    Even though 1.0 == 1, rejecting all floats keeps the API strict and predictable.
+    """
+    with pytest.raises(ValueError, match=r"float.*'id'|'id'.*float|integer"):
+        Todo.from_dict({"id": 2.0, "text": "task"})
