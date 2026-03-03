@@ -158,3 +158,41 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_by_id() -> None:
+    """Issue #7053: Two Todo objects with same id are equal regardless of other fields."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")
+
+    # Same id should be equal even with different text
+    assert todo1 == todo2
+
+    # Different id should not be equal even with same text
+    todo3 = Todo(id=2, text="a")
+    assert todo1 != todo3
+
+
+def test_todo_hash_by_id() -> None:
+    """Issue #7053: Todo can be added to a set and hash is based on id only."""
+    todo1 = Todo(id=1, text="a")
+    todo2 = Todo(id=1, text="b")  # Same id as todo1
+    todo3 = Todo(id=2, text="a")
+
+    # Can be added to a set
+    todo_set = {todo1, todo2, todo3}
+
+    # Set should deduplicate by id (todo1 and todo2 have same id)
+    assert len(todo_set) == 2
+
+    # Both should hash to the same value (based on id)
+    assert hash(todo1) == hash(todo2)
+
+
+def test_todo_equality_different_done_state() -> None:
+    """Issue #7053: Equality is based on id only, not done state."""
+    todo1 = Todo(id=1, text="task", done=False)
+    todo2 = Todo(id=1, text="task", done=True)
+
+    # Same id should be equal even with different done state
+    assert todo1 == todo2
