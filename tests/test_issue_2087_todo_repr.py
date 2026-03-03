@@ -105,3 +105,23 @@ def test_todo_repr_multiple_todos_distinct() -> None:
     # Key distinguishing info should be present
     assert "id=1" in repr1
     assert "id=2" in repr2
+
+
+def test_todo_repr_newline_escaped_not_literal() -> None:
+    """Regression test for #7079: newlines must be escaped, not literal.
+
+    The repr output must be single-line for debugger display and log parsing.
+    Python's !r format specifier escapes newlines as \\n (backslash-n),
+    not as literal newline characters.
+    """
+    todo = Todo(id=1, text="line1\nline2")
+    result = repr(todo)
+
+    # The repr must NOT contain a literal newline character (ASCII 10)
+    assert "\n" not in result, f"repr contains literal newline: {result!r}"
+
+    # The repr should contain the escaped newline representation (backslash-n)
+    assert "\\n" in result, f"repr should escape newline: {result!r}"
+
+    # Verify repr is single-line (no embedded line breaks)
+    assert result.count("\n") == 0, f"repr should be single-line: {result!r}"
