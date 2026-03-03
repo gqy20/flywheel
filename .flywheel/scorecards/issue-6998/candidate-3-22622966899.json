@@ -1,33 +1,23 @@
 {
-  "issue_number": 6998,
-  "issue_title": "[Feature] Add CLI 'rename' command to expose Todo.rename() functionality",
-  "candidate_number": 3,
+  "issue": 6998,
+  "candidate": 3,
   "run_id": "22622966899",
   "branch": "claude/issue-6998-candidate-3-22622966899",
-  "status": "implemented",
-  "implementation": {
-    "files_changed": [
-      "src/flywheel/cli.py",
-      "tests/test_issue_6998_cli_rename_command.py"
-    ],
-    "changes_summary": "Added CLI 'rename' subcommand that exposes Todo.rename() functionality. Changes include: (1) TodoApp.rename() method to call Todo.rename() and persist, (2) 'rename' subcommand in build_parser() with id and text arguments, (3) 'rename' case in run_command() to handle the command."
-  },
-  "tests": {
-    "test_file": "tests/test_issue_6998_cli_rename_command.py",
-    "tests_passed": 6,
-    "coverage": [
-      "test_cli_rename_with_valid_id_and_text",
-      "test_cli_rename_with_invalid_id_returns_error",
-      "test_cli_rename_with_empty_text_returns_error",
-      "test_app_rename_method_works",
-      "test_app_rename_raises_for_nonexistent_id",
-      "test_app_rename_raises_for_empty_text"
-    ]
-  },
-  "acceptance_criteria": {
-    "valid_rename": "PASS - 'todo rename 1 new text' successfully renames todo #1",
-    "invalid_id": "PASS - 'todo rename 99 x' returns error for non-existent id",
-    "empty_text": "PASS - 'todo rename 1 \"\"' returns error for empty text"
-  },
-  "created_at": "2026-03-03T12:47:00Z"
+  "pr_number": 7004,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7004",
+  "generated_at": "2026-03-03T13:20:45.338086+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3016,
+    "plan": 2877,
+    "implement": 2106,
+    "verify": 1821,
+    "finalize": 548
+  }
 }
