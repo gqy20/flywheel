@@ -1,0 +1,35 @@
+{
+  "issue_number": 6952,
+  "candidate_number": 2,
+  "run_id": "22614535297",
+  "branch": "claude/issue-6952-candidate-2-22614535297",
+  "stage": "IMPLEMENTED",
+  "triage_summary": {
+    "root_cause": "Todo.from_dict() at todo.py:69-70 converts 'id' to int without validating that it's positive. The int() function accepts any integer including negative values and zero.",
+    "risk_points": [
+      "todo.py:69-70 - No validation after int() conversion allows id <= 0",
+      "storage.py:128 - next_id() uses max() with default=0, so if storage contains negative IDs or zero, next_id could return an already-used ID causing collisions",
+      "cli.py:31 - next_id() assumes IDs start from 1, but from_dict can load id=0 or negative breaking assumptions"
+    ],
+    "verification_targets": [
+      "Todo.from_dict({'id': 0, 'text': 'x'}) should raise ValueError with 'positive' in message",
+      "Todo.from_dict({'id': -1, 'text': 'x'}) should raise ValueError with 'positive' in message",
+      "Todo.from_dict({'id': 1, 'text': 'x'}) should succeed and return Todo with id=1"
+    ],
+    "proposed_fix_location": "src/flywheel/todo.py:69-74",
+    "test_location": "tests/test_issue_2000_json_validation.py (extend existing test file)"
+  },
+  "implementation": {
+    "tests_added": [
+      "test_todo_from_dict_rejects_zero_id",
+      "test_todo_from_dict_rejects_negative_id",
+      "test_todo_from_dict_accepts_positive_id"
+    ],
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "summary": "Added validation in Todo.from_dict() to reject zero and negative IDs, ensuring IDs are positive integers as required by next_id() logic."
+  },
+  "timestamp": "2026-03-03T09:45:00Z"
+}
