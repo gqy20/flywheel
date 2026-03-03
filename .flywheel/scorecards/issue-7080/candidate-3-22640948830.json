@@ -2,7 +2,7 @@
   "issue_number": 7080,
   "candidate_number": 3,
   "run_id": "22640948830",
-  "status": "implemented",
+  "status": "verified",
   "implementation_summary": "Added __eq__ and __hash__ methods to Todo class for value-based comparison by id field",
   "files_changed": [
     "src/flywheel/todo.py",
@@ -10,5 +10,17 @@
   ],
   "tests_added": 9,
   "tests_passed": true,
-  "linting_passed": true
+  "linting_passed": true,
+  "verification_commands": [
+    "uv run pytest tests/test_issue_7080_todo_eq_hash.py -v",
+    "uv run ruff check src/flywheel/todo.py tests/test_issue_7080_todo_eq_hash.py",
+    "uv run ruff format --check src/flywheel/todo.py tests/test_issue_7080_todo_eq_hash.py",
+    "uv run pytest tests/ -v"
+  ],
+  "verification_results": {
+    "targeted_tests": "9 passed",
+    "all_tests": "121 passed",
+    "ruff_check": "All checks passed",
+    "ruff_format": "2 files already formatted"
+  }
 }
