@@ -119,3 +119,31 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6912 - float IDs should not be silently truncated to int
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs like 1.5 to prevent silent truncation.
+
+    If we silently convert 1.5 to 1, this could cause ID collisions and data corruption.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_whole_number() -> None:
+    """Todo.from_dict should reject float IDs like 1.0 to enforce type strictness.
+
+    Even whole-number floats (1.0) should be rejected to enforce explicit integer types.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.0, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject boolean IDs since bool is a subclass of int.
+
+    True -> 1 and False -> 0, which could cause ID collisions.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": True, "text": "task"})
