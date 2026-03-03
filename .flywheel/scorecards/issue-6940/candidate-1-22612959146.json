@@ -1,22 +1,23 @@
 {
-  "issue_number": 6940,
-  "candidate_number": 1,
+  "issue": 6940,
+  "candidate": 1,
   "run_id": "22612959146",
   "branch": "claude/issue-6940-candidate-1-22612959146",
-  "status": "ready",
-  "checks": {
-    "tests_pass": true,
-    "lint_pass": true,
-    "regression_test_added": true,
-    "minimal_fix": true
-  },
-  "summary": {
-    "problem": "Todo.from_dict accepts float id values that truncate to integer, causing silent data loss",
-    "solution": "Added validation to reject float values with fractional parts before int() conversion, while still accepting whole-number floats like 1.0",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "tests_added": 2
+  "pr_number": 6944,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6944",
+  "generated_at": "2026-03-03T08:58:20.387940+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2731,
+    "plan": 3918,
+    "implement": 2339,
+    "verify": 1946,
+    "finalize": 985
   }
 }
