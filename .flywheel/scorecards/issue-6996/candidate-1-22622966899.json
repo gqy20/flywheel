@@ -1,24 +1,23 @@
 {
-  "issue_number": 6996,
-  "candidate_number": 1,
+  "issue": 6996,
+  "candidate": 1,
   "run_id": "22622966899",
   "branch": "claude/issue-6996-candidate-1-22622966899",
-  "created_at": "2026-03-03T12:50:00Z",
-  "status": "implemented",
-  "summary": "Fixed from_dict silently coercing bool id to int by adding explicit bool type check before int conversion",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "test_results": {
-    "passed": 14,
-    "failed": 0,
-    "total": 14
-  },
-  "lint_results": {
-    "status": "passed",
-    "errors": 0
-  },
-  "approach": "Add explicit isinstance check for bool before int conversion, since bool is a subclass of int in Python",
-  "risks": "None - this is a strict enhancement that only rejects invalid input that was previously incorrectly accepted"
+  "pr_number": 6999,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6999",
+  "generated_at": "2026-03-03T13:15:12.202042+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2334,
+    "plan": 2432,
+    "implement": 1945,
+    "verify": 1941,
+    "finalize": 604
+  }
 }
