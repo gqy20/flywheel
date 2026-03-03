@@ -1,0 +1,24 @@
+{
+  "issue_number": 6966,
+  "candidate": 2,
+  "run_id": "22618749675",
+  "branch": "claude/issue-6966-candidate-2-22618749675",
+  "status": "implemented",
+  "summary": "Fixed version mismatch by replacing hardcoded __version__ with dynamic importlib.metadata.version() call",
+  "tests_added": 2,
+  "tests_passed": 114,
+  "ruff_check": "passed",
+  "files_changed": [
+    "src/flywheel/__init__.py",
+    "tests/test_issue_6966_version_consistency.py"
+  ],
+  "approach": "Use importlib.metadata.version('flywheel') to read version from pyproject.toml at runtime",
+  "risks": [
+    "PackageVersionNotFoundError will be raised if package is not installed (expected behavior)"
+  ],
+  "acceptance_criteria_met": [
+    "flywheel.__version__ returns same value as pyproject.toml version",
+    "Changing pyproject.toml version automatically reflects in flywheel.__version__",
+    "No hardcoded version string in src/flywheel/__init__.py"
+  ]
+}
