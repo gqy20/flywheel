@@ -1,0 +1,45 @@
+{
+  "issue_number": 6953,
+  "candidate": 1,
+  "run_id": "22614535297",
+  "branch": "claude/issue-6953-candidate-1-22614535297",
+  "status": "plan_complete",
+  "created_at": "2026-03-03T09:40:00Z",
+  "plan": {
+    "summary": "Add 'rename' subcommand to CLI to expose existing Todo.rename() method",
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_issue_6953_cli_rename_command.py"
+    ],
+    "changes": [
+      {
+        "file": "src/flywheel/cli.py",
+        "change": "Added TodoApp.rename() method, 'rename' subcommand parser, and handling in run_command()"
+      },
+      {
+        "file": "tests/test_issue_6953_cli_rename_command.py",
+        "change": "Added 3 regression tests for rename CLI command"
+      }
+    ],
+    "tdd_phases": {
+      "red": "Created failing tests for rename command functionality",
+      "green": "Implemented minimal fix to pass all tests"
+    },
+    "verification_commands": [
+      "uv run pytest tests/test_issue_6953_cli_rename_command.py -v",
+      "uv run pytest tests/test_issue_2015_cli_exception_handling.py tests/test_minimal_framework.py -v",
+      "uv run ruff check src/flywheel/cli.py tests/test_issue_6953_cli_rename_command.py"
+    ]
+  },
+  "test_results": {
+    "new_tests_passed": 3,
+    "existing_tests_passed": 15,
+    "lint_passed": true
+  },
+  "acceptance_criteria": {
+    "cli_accepts_rename_command": true,
+    "rename_updates_todo_text": true,
+    "invalid_id_returns_error": true,
+    "empty_text_returns_error": true
+  }
+}
