@@ -1,40 +1,23 @@
 {
-  "issue_number": 7023,
-  "candidate_number": 2,
+  "issue": 7023,
+  "candidate": 2,
   "run_id": "22630311688",
-  "stage": "FINALIZE",
-  "plan": {
-    "summary": "Add sanitization for Unicode surrogate characters (U+D800-U+DFFF) in _sanitize_text function",
-    "files_to_touch": [
-      "src/flywheel/formatter.py",
-      "tests/test_issue_2057_c1_control_sanitization.py"
-    ],
-    "implementation_sequence": [
-      {
-        "step": 1,
-        "type": "test",
-        "description": "Add failing regression tests for lone surrogate characters (U+D800-U+DFFF)",
-        "file": "tests/test_issue_2057_c1_control_sanitization.py"
-      },
-      {
-        "step": 2,
-        "type": "implementation",
-        "description": "Modify condition at line 34 to include surrogate range check: add 'or 0xd800 <= code <= 0xdfff'",
-        "file": "src/flywheel/formatter.py"
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_issue_2057_c1_control_sanitization.py -v",
-      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
-      "uv run pytest tests/test_issue_2028_del_char_sanitization.py -v",
-      "uv run ruff check src/flywheel/formatter.py"
-    ]
-  },
-  "acceptance_criteria": [
-    "Lone surrogate characters (U+D800-U+DFFF) are escaped to \\uD800 format",
-    "Valid surrogate pairs (for characters > U+FFFF) pass through unchanged",
-    "Existing tests continue to pass"
+  "branch": "claude/issue-7023-candidate-2-22630311688",
+  "pr_number": 7035,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7035",
+  "generated_at": "2026-03-03T16:29:44.276290+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [],
-  "status": "implemented"
+  "stage_response_sizes": {
+    "triage": 2280,
+    "plan": 1954,
+    "implement": 3673,
+    "verify": 1983,
+    "finalize": 1509
+  }
 }
