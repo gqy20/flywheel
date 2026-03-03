@@ -1,30 +1,23 @@
 {
-  "issue_number": 6967,
-  "candidate_number": 1,
+  "issue": 6967,
+  "candidate": 1,
   "run_id": "22618749675",
-  "status": "verified",
-  "summary": "Added rename(todo_id: int, text: str) -> Todo method to TodoApp class",
-  "test_file": "tests/test_issue_6967_todoapp_rename.py",
-  "source_file": "src/flywheel/cli.py",
-  "tests_passed": 117,
-  "ruff_check": "passed",
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_6967_todoapp_rename.py -v",
-      "result": "5 passed in 0.06s"
-    },
-    "pytest_full": {
-      "command": "uv run pytest tests/ -v",
-      "result": "117 passed in 0.50s"
-    },
-    "ruff_targeted": {
-      "command": "uv run ruff check src/flywheel/cli.py tests/test_issue_6967_todoapp_rename.py",
-      "result": "All checks passed!"
-    },
-    "ruff_full": {
-      "command": "uv run ruff check src/ tests/",
-      "result": "All checks passed!"
-    }
-  },
-  "timestamp": "2026-03-03T11:11:09Z"
+  "branch": "claude/issue-6967-candidate-1-22618749675",
+  "pr_number": 6978,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6978",
+  "generated_at": "2026-03-03T11:14:00.028872+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1641,
+    "plan": 3842,
+    "implement": 1877,
+    "verify": 2739,
+    "finalize": 1101
+  }
 }
