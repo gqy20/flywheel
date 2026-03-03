@@ -3,7 +3,7 @@
   "candidate_number": 2,
   "run_id": "22614535297",
   "branch": "claude/issue-6952-candidate-2-22614535297",
-  "stage": "VERIFIED",
+  "stage": "FINALIZED",
   "triage_summary": {
     "root_cause": "Todo.from_dict() at todo.py:69-70 converts 'id' to int without validating that it's positive. The int() function accepts any integer including negative values and zero.",
     "risk_points": [
