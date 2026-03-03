@@ -27,12 +27,15 @@ def _sanitize_text(text: str) -> str:
         text = text.replace(char, escaped)
 
     # Other control characters (0x00-0x1f excluding \n, \r, \t), DEL (0x7f), and C1 (0x80-0x9f)
-    # Replace with \\xNN escape sequences
+    # Also sanitize Unicode line/paragraph separators (U+2028, U+2029) which can cause line breaks
+    # Replace with \\xNN or \\uNNNN escape sequences
     result = []
     for char in text:
         code = ord(char)
         if (0 <= code <= 0x1f and char not in ("\n", "\r", "\t")) or 0x7f <= code <= 0x9f:
             result.append(f"\\x{code:02x}")
+        elif code in (0x2028, 0x2029):  # Unicode line/paragraph separators
+            result.append(f"\\u{code:04x}")
         else:
             result.append(char)
     return "".join(result)
