@@ -57,5 +57,10 @@
       "outcome": "All files formatted correctly (after minor auto-format)"
     },
     "verified_at": "2026-03-03T09:10:00Z"
+  },
+  "finalization": {
+    "pr_url": "https://github.com/gqy20/flywheel/pull/6951",
+    "pr_number": 6951,
+    "finalized_at": "2026-03-03T09:15:00Z"
   }
 }
