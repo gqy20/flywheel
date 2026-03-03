@@ -1,0 +1,27 @@
+{
+  "issue_number": 6927,
+  "issue_title": "[Feature] 添加 Todo 文本最大长度验证",
+  "candidate_number": 1,
+  "run_id": "22611347611",
+  "branch": "claude/issue-6927-candidate-1-22611347611",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Add MAX_TEXT_LENGTH constant (10000) and validate text length in __post_init__, rename(), and from_dict()",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_6927_todo_max_length.py"
+    ],
+    "test_coverage": 8
+  },
+  "checks": {
+    "tests_passed": true,
+    "lint_passed": true,
+    "regression_tests_passed": true
+  },
+  "score": {
+    "correctness": 5,
+    "code_quality": 5,
+    "test_coverage": 5,
+    "minimal_changes": 5
+  }
+}
