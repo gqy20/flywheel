@@ -151,6 +151,154 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_condition_simulated_directory_creation(tmp_path) -> None:
+    """Regression test for issue #7008: TOCTOU race condition in _ensure_parent_directory.
+
+    Simulates the race condition by having mkdir() encounter a FileExistsError,
+    which would happen if another process created the directory between the
+    exists() check and the mkdir() call.
+
+    With exist_ok=True, mkdir() should not raise FileExistsError even if
+    the directory already exists.
+    """
+    from pathlib import Path
+
+    db = tmp_path / "nested" / "path" / "todo.json"
+    parent = db.parent
+    parent.mkdir(parents=True, exist_ok=True)
+
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    # This should succeed even though the directory already exists
+    # With exist_ok=True, mkdir() handles the race condition gracefully
+    storage.save(todos)
+
+    # Verify the save worked correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
+
+
+def test_toctou_race_condition_mocked_exists_to_mkdir_gap(tmp_path) -> None:
+    """Regression test for issue #7008: TOCTOU race condition in _ensure_parent_directory.
+
+    This test simulates the exact TOCTOU race condition by patching Path.mkdir()
+    to simulate another process creating the directory between the exists() check
+    and the mkdir() call.
+
+    With exist_ok=False (the bug), this would raise FileExistsError.
+    With exist_ok=True (the fix), mkdir() handles the race condition gracefully.
+    """
+    from unittest.mock import patch
+
+    import flywheel.storage
+
+    db = tmp_path / "nested" / "race" / "todo.json"
+    parent = db.parent
+
+    original_mkdir = Path.mkdir
+
+    def mock_mkdir(self, *args, **kwargs):
+        """Simulate race condition by creating the directory before mkdir runs."""
+        if self == parent:
+            # Simulate race condition: another process creates the directory
+            # between the exists() check and this mkdir() call
+            import os
+            os.makedirs(parent, exist_ok=True)
+        # Now call the original mkdir - if exist_ok=False, this will fail
+        return original_mkdir(self, *args, **kwargs)
+
+    # Patch Path.mkdir globally
+    with patch.object(Path, "mkdir", mock_mkdir):
+        storage = TodoStorage(str(db))
+        todos = [Todo(id=1, text="race-test")]
+
+        # This should succeed with exist_ok=True
+        # With exist_ok=False, it would raise FileExistsError
+        storage.save(todos)
+
+    # Verify the save worked correctly
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "race-test"
+
+
+def test_toctou_race_condition_concurrent_parent_creation(tmp_path) -> None:
+    """Regression test for issue #7008: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that concurrent calls to save() with the same new parent directory
+    do not fail due to the race condition between exists() check and mkdir().
+
+    The vulnerability: exists() check at line 43 followed by mkdir(exist_ok=False)
+    at line 45 creates a window where another process could create the directory,
+    causing FileExistsError.
+
+    The fix: Use exist_ok=True in mkdir() to handle concurrent directory creation.
+    """
+    import multiprocessing
+
+    # Use a nested path that requires parent directory creation
+    db = tmp_path / "nested" / "deep" / "path" / "todo.json"
+
+    def save_worker(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker function that saves todos to a path requiring parent creation."""
+        try:
+            storage = TodoStorage(str(db))
+            # Each worker saves unique todos
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}-data")]
+            storage.save(todos)
+
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the specific error from the TOCTOU race condition
+            result_queue.put(("toctou_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers concurrently to trigger the race condition
+    num_workers = 10
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    # Start all workers at approximately the same time
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=save_worker, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes to complete
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    # All workers should have succeeded without TOCTOU errors
+    successes = [r for r in results if r[0] == "success"]
+    toctou_errors = [r for r in results if r[0] == "toctou_error"]
+    other_errors = [r for r in results if r[0] == "error"]
+
+    # If there are TOCTOU errors, the bug is present
+    assert len(toctou_errors) == 0, (
+        f"TOCTOU race condition detected! {len(toctou_errors)} workers hit FileExistsError: "
+        f"{toctou_errors[:3]}..."
+    )
+
+    # There should be no other errors either
+    assert len(other_errors) == 0, f"Workers encountered unexpected errors: {other_errors}"
+
+    # At least some workers should have succeeded
+    assert len(successes) > 0, "No workers succeeded"
+
+    # Final file should be valid JSON
+    storage = TodoStorage(str(db))
+    final_todos = storage.load()
+    assert isinstance(final_todos, list)
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
