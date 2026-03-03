@@ -1,24 +1,23 @@
 {
-  "issue_number": 7050,
-  "issue_title": "[Bug] Todo.__init__ does not validate empty/whitespace-only text, but Todo.rename() do",
-  "candidate_number": 1,
+  "issue": 7050,
+  "candidate": 1,
   "run_id": "22637319334",
-  "branch_name": "claude/issue-7050-candidate-1-22637319334",
-  "created_at": "2026-03-03T18:44:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_7050_todo_init_validation.py"],
-    "summary": "Added text validation in Todo.__post_init__ to strip whitespace and reject empty strings, ensuring consistency with Todo.rename() method"
-  },
-  "tests": {
-    "total": 9,
-    "passed": 9,
-    "failed": 0,
-    "command": "uv run pytest tests/test_issue_7050_todo_init_validation.py -v"
-  },
-  "lint": {
-    "status": "passed",
-    "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_7050_todo_init_validation.py"
+  "branch": "claude/issue-7050-candidate-1-22637319334",
+  "pr_number": 7060,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7060",
+  "generated_at": "2026-03-03T19:15:47.060010+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2805,
+    "plan": 4000,
+    "implement": 2099,
+    "verify": 2942,
+    "finalize": 1708
   }
 }
