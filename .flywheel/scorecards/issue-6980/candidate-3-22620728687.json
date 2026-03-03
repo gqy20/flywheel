@@ -41,6 +41,30 @@
       "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
       "uv run pytest tests/ -v --ignore=tests/test_cli.py"
     ],
-    "pr_created": false
+    "pr_created": true,
+    "pr_url": "https://github.com/gqy20/flywheel/pull/6985"
+  },
+  "stage_verify": {
+    "completed_at": "2026-03-03T12:05:00Z",
+    "pytest_targeted": {
+      "command": "uv run pytest tests/test_storage_atomicity.py -v",
+      "result": "8 passed in 0.10s",
+      "status": "PASS"
+    },
+    "ruff_check": {
+      "command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+      "result": "All checks passed!",
+      "status": "PASS"
+    },
+    "pytest_full": {
+      "command": "uv run pytest tests/ --ignore=tests/test_cli.py -q",
+      "result": "114 passed in 0.51s",
+      "status": "PASS"
+    },
+    "pr_status": {
+      "url": "https://github.com/gqy20/flywheel/pull/6985",
+      "state": "OPEN",
+      "status": "VERIFIED"
+    }
   }
 }
