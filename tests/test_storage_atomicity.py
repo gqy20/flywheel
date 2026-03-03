@@ -151,6 +151,68 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_fsyncs_file_before_close(tmp_path) -> None:
+    """Test that save() calls fsync on file before closing.
+
+    Regression test for issue #6980: fsync is required to ensure data is
+    persisted to stable storage before atomic rename, preventing data loss
+    on power failure.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track fsync calls
+    fsync_calls = []
+    original_fsync = os.fsync
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        return original_fsync(fd)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called at least once (for the file)
+    assert len(fsync_calls) >= 1, "fsync should be called on file before close"
+
+
+def test_save_fsyncs_directory_after_replace(tmp_path) -> None:
+    """Test that save() calls fsync on directory after os.replace.
+
+    Regression test for issue #6980: Directory fsync after atomic rename is
+    required for POSIX durability guarantees, ensuring the directory entry
+    is persisted to stable storage.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="test")]
+
+    # Track fsync calls and their associated file descriptors
+    fsync_calls = []
+    original_fsync = os.fsync
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        return original_fsync(fd)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called at least twice:
+    # 1. For the file content before close
+    # 2. For the directory after rename
+    assert len(fsync_calls) >= 2, (
+        "fsync should be called at least twice: once for file, once for directory"
+    )
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 

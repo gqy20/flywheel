@@ -115,9 +115,23 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Ensure file content is flushed and synced to disk before close
+                # This prevents data loss on power failure after atomic rename
+                f.flush()
+                os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Sync parent directory to ensure the rename is persisted
+            # This is required for POSIX durability guarantees
+            dir_path = self.path.parent
+            if dir_path.exists():
+                dir_fd = os.open(dir_path, os.O_RDONLY | os.O_DIRECTORY)
+                try:
+                    os.fsync(dir_fd)
+                finally:
+                    os.close(dir_fd)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
