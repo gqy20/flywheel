@@ -22,6 +22,9 @@ def _sanitize_text(text: str) -> str:
         ("\n", "\\n"),
         ("\r", "\\r"),
         ("\t", "\\t"),
+        # Unicode line/paragraph separators (U+2028, U+2029) can cause unexpected line breaks
+        ("\u2028", "\\u2028"),
+        ("\u2029", "\\u2029"),
     ]
     for char, escaped in replacements:
         text = text.replace(char, escaped)
