@@ -1,23 +1,23 @@
 {
-  "issue_number": 6912,
-  "candidate_number": 3,
+  "issue": 6912,
+  "candidate": 3,
   "run_id": "22606974332",
   "branch": "claude/issue-6912-candidate-3-22606974332",
-  "created_at": "2026-03-03T04:00:00Z",
-  "status": "implemented",
-  "summary": "Fixed Todo.from_dict to reject float and boolean IDs to prevent silent truncation",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"],
-    "lines_changed": 49
-  },
-  "tests": {
-    "added": 3,
-    "passed": 115,
-    "failed": 0
-  },
-  "validation": {
-    "linter": "passed",
-    "all_tests": "passed"
+  "pr_number": 6921,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6921",
+  "generated_at": "2026-03-03T04:26:03.744138+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2361,
+    "plan": 3650,
+    "implement": 1726,
+    "verify": 1814,
+    "finalize": 1030
   }
 }
