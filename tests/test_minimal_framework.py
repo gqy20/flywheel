@@ -158,3 +158,29 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_equality_by_id() -> None:
+    """Issue #7053: Two Todo objects with same id are equal regardless of other fields."""
+    todo_a = Todo(id=1, text="a")
+    todo_b = Todo(id=1, text="b")
+    assert todo_a == todo_b, "Todos with same id should be equal"
+
+
+def test_todo_inequality_by_different_id() -> None:
+    """Issue #7053: Todo objects with different ids are not equal."""
+    todo_a = Todo(id=1, text="a")
+    todo_b = Todo(id=2, text="a")
+    assert todo_a != todo_b, "Todos with different ids should not be equal"
+
+
+def test_todo_hash_by_id() -> None:
+    """Issue #7053: Todo can be added to a set and deduplicated by id."""
+    todo_a = Todo(id=1, text="a")
+    todo_b = Todo(id=1, text="b")
+    todo_c = Todo(id=2, text="c")
+    todo_set = {todo_a, todo_b, todo_c}
+    assert len(todo_set) == 2, "Set should deduplicate todos by id"
+    assert todo_a in todo_set
+    assert todo_b in todo_set
+    assert todo_c in todo_set

@@ -39,6 +39,23 @@ class Todo:
         if not self.updated_at:
             self.updated_at = self.created_at
 
+    def __eq__(self, other: object) -> bool:
+        """Compare todos by id only.
+
+        Two Todo objects are equal if they have the same id,
+        regardless of other fields like text, done, or timestamps.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash based on id for set operations.
+
+        Allows Todo objects to be used in sets and as dict keys.
+        """
+        return hash(self.id)
+
     def mark_done(self) -> None:
         self.done = True
         self.updated_at = _utc_now_iso()
