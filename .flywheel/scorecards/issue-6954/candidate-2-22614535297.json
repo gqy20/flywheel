@@ -1,38 +1,23 @@
 {
-  "issue_number": 6954,
+  "issue": 6954,
   "candidate": 2,
   "run_id": "22614535297",
   "branch": "claude/issue-6954-candidate-2-22614535297",
-  "created_at": "2026-03-03T09:45:00Z",
-  "status": "implemented",
-  "checks": {
-    "tests_added": true,
-    "tests_pass": true,
-    "ruff_check_pass": true,
-    "minimal_scope": true
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_minimal_framework.py -v -k 'rename'",
-    "pytest_result": "6 rename tests passed (13 total tests in file)",
-    "ruff_command": "uv run ruff check src/flywheel/cli.py tests/test_minimal_framework.py",
-    "ruff_result": "All checks passed!",
-    "verified_at": "2026-03-03T09:50:00Z"
-  },
-  "implementation_summary": {
-    "files_changed": [
-      "src/flywheel/cli.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "lines_added": 26,
-    "lines_removed": 0,
-    "approach": "Added rename(todo_id, text) method to TodoApp class following existing pattern from mark_done/mark_undone methods"
-  },
-  "test_coverage": {
-    "new_tests": 3,
-    "test_names": [
-      "test_app_rename_updates_todo_text",
-      "test_app_rename_raises_for_nonexistent_id",
-      "test_app_rename_propagates_empty_text_error"
-    ]
+  "pr_number": 6963,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6963",
+  "generated_at": "2026-03-03T10:17:11.083724+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2176,
+    "plan": 3446,
+    "implement": 2200,
+    "verify": 2211,
+    "finalize": 1399
   }
 }
