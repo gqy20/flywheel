@@ -1,21 +1,23 @@
 {
-  "issue_number": 7051,
-  "candidate_number": 1,
+  "issue": 7051,
+  "candidate": 1,
   "run_id": "22637319334",
-  "branch_name": "claude/issue-7051-candidate-1-22637319334",
-  "summary": "Add validation in Todo.__post_init__ to ensure id must be positive (>= 1)",
-  "tests": [
-    "test_todo_with_positive_id_succeeds",
-    "test_todo_with_negative_id_raises_value_error",
-    "test_todo_with_zero_id_raises_value_error",
-    "test_from_dict_with_negative_id_raises_value_error",
-    "test_from_dict_with_zero_id_raises_value_error",
-    "test_from_dict_with_positive_id_succeeds"
+  "branch": "claude/issue-7051-candidate-1-22637319334",
+  "pr_number": 7059,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7059",
+  "generated_at": "2026-03-03T19:12:23.582665+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_7051_todo_id_validation.py"
-  ],
-  "risks": "None - minimal validation change with clear error message",
-  "status": "implemented"
+  "stage_response_sizes": {
+    "triage": 2045,
+    "plan": 2586,
+    "implement": 2198,
+    "verify": 2701,
+    "finalize": 1723
+  }
 }
