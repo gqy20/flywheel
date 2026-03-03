@@ -1,0 +1,21 @@
+{
+  "issue_number": 7051,
+  "candidate_number": 1,
+  "run_id": "22637319334",
+  "branch_name": "claude/issue-7051-candidate-1-22637319334",
+  "summary": "Add validation in Todo.__post_init__ to ensure id must be positive (>= 1)",
+  "tests": [
+    "test_todo_with_positive_id_succeeds",
+    "test_todo_with_negative_id_raises_value_error",
+    "test_todo_with_zero_id_raises_value_error",
+    "test_from_dict_with_negative_id_raises_value_error",
+    "test_from_dict_with_zero_id_raises_value_error",
+    "test_from_dict_with_positive_id_succeeds"
+  ],
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_7051_todo_id_validation.py"
+  ],
+  "risks": "None - minimal validation change with clear error message",
+  "status": "implemented"
+}
