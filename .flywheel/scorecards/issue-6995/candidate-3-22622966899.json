@@ -1,0 +1,24 @@
+{
+  "issue_number": 6995,
+  "candidate_number": 3,
+  "run_id": "22622966899",
+  "branch": "claude/issue-6995-candidate-3-22622966899",
+  "status": "implemented",
+  "summary": "Fix from_dict to reject float ids with ValueError instead of silently coercing to int",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_6995_float_id_validation.py"]
+  },
+  "test_results": {
+    "total_tests": 117,
+    "passed": 117,
+    "failed": 0
+  },
+  "lint_results": {
+    "ruff": "All checks passed"
+  },
+  "implementation_details": {
+    "approach": "Added explicit float type check before int conversion to reject floats with clear error message",
+    "lines_changed": 8
+  }
+}
