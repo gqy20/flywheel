@@ -1,22 +1,23 @@
 {
-  "issue_number": 6966,
+  "issue": 6966,
   "candidate": 3,
   "run_id": "22618749675",
   "branch": "claude/issue-6966-candidate-3-22618749675",
-  "status": "implemented",
-  "summary": "Fixed version mismatch by using importlib.metadata.version() to read version from pyproject.toml at runtime",
-  "changes": {
-    "test_files": ["tests/test_issue_6966_version_sync.py"],
-    "source_files": ["src/flywheel/__init__.py"]
-  },
-  "tests_passed": 114,
-  "lint_status": "passed",
-  "risks": [
-    "Package must be properly installed for version to be available (not an issue for normal usage)"
+  "pr_number": 6971,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6971",
+  "generated_at": "2026-03-03T11:07:46.501617+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "acceptance_criteria": {
-    "version_matches_metadata": true,
-    "no_hardcoded_version": true,
-    "auto_reflects_pyproject_changes": true
+  "stage_response_sizes": {
+    "triage": 1649,
+    "plan": 2328,
+    "implement": 3359,
+    "verify": 1714,
+    "finalize": 493
   }
 }
