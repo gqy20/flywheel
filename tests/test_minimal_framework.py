@@ -158,3 +158,61 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command_updates_todo_text(tmp_path, capsys) -> None:
+    """Bug #7009: CLI should have 'rename' subcommand to update todo text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "old text"])
+    assert run_command(args) == 0
+
+    # Rename the todo
+    args = parser.parse_args(["--db", db, "rename", "1", "new text"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "Renamed #1" in out
+    assert "new text" in out
+
+    # Verify the text was actually changed
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "new text" in out
+    assert "old text" not in out
+
+
+def test_cli_rename_command_rejects_empty_text(tmp_path, capsys) -> None:
+    """Bug #7009: CLI rename should reject empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original"])
+    assert run_command(args) == 0
+
+    # Try to rename with empty text
+    args = parser.parse_args(["--db", db, "rename", "1", ""])
+    assert run_command(args) == 1
+    err = capsys.readouterr().err
+    assert "cannot be empty" in err.lower()
+
+    # Verify original text is unchanged
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "original" in out
+
+
+def test_cli_rename_command_handles_nonexistent_id(tmp_path, capsys) -> None:
+    """Bug #7009: CLI rename should handle non-existent todo ID."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Try to rename a non-existent todo
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    err = capsys.readouterr().err
+    assert "not found" in err
