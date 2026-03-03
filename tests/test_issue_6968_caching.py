@@ -7,13 +7,11 @@ to avoid loading/saving the entire file on each operation.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from flywheel.cli import TodoApp
-from flywheel.todo import Todo
 from flywheel.storage import TodoStorage
+from flywheel.todo import Todo
 
 
 class TestTodoAppCaching:
@@ -25,7 +23,7 @@ class TestTodoAppCaching:
         app = TodoApp(db_path=str(db))
 
         # Add a todo
-        todo1 = app.add("First task")
+        app.add("First task")
 
         # The cache should now contain the todo
         assert hasattr(app, "_cache"), "TodoApp should have a _cache attribute"
@@ -33,7 +31,7 @@ class TestTodoAppCaching:
         assert app._cache[0].text == "First task"
 
         # Add another todo
-        todo2 = app.add("Second task")
+        app.add("Second task")
 
         # Cache should now have 2 items
         assert len(app._cache) == 2
