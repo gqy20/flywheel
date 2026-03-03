@@ -1,0 +1,30 @@
+{
+  "issue_number": 6996,
+  "issue_title": "[Bug] from_dict silently coerces bool id to int (True becomes 1, False becomes 0)",
+  "candidate_number": 2,
+  "run_id": "22622966899",
+  "branch_name": "claude/issue-6996-candidate-2-22622966899",
+  "implementation": {
+    "approach": "Explicitly reject bool values before int conversion in from_dict method",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "lines_changed": 8
+  },
+  "tests": {
+    "added": 2,
+    "passed": 14,
+    "failed": 0,
+    "test_file": "tests/test_issue_2000_json_validation.py"
+  },
+  "quality_checks": {
+    "ruff": "passed",
+    "lint": "passed"
+  },
+  "risks": {
+    "breaking_changes": false,
+    "backward_compatible": true,
+    "notes": "This fix only adds validation; it does not change behavior for valid inputs"
+  }
+}
