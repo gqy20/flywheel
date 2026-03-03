@@ -161,8 +161,6 @@ def test_toctou_race_condition_simulated_directory_creation(tmp_path) -> None:
     With exist_ok=True, mkdir() should not raise FileExistsError even if
     the directory already exists.
     """
-    from pathlib import Path
-
     db = tmp_path / "nested" / "path" / "todo.json"
     parent = db.parent
     parent.mkdir(parents=True, exist_ok=True)
@@ -191,8 +189,6 @@ def test_toctou_race_condition_mocked_exists_to_mkdir_gap(tmp_path) -> None:
     With exist_ok=True (the fix), mkdir() handles the race condition gracefully.
     """
     from unittest.mock import patch
-
-    import flywheel.storage
 
     db = tmp_path / "nested" / "race" / "todo.json"
     parent = db.parent
