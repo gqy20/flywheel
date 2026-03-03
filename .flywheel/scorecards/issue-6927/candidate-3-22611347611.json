@@ -1,38 +1,23 @@
 {
-  "issue_number": 6927,
-  "issue_title": "[Feature] 添加 Todo 文本最大长度验证",
+  "issue": 6927,
   "candidate": 3,
   "run_id": "22611347611",
   "branch": "claude/issue-6927-candidate-3-22611347611",
-  "commit_sha": "2a1691f5679f30d5f07789c1113547929b490a63",
-  "status": "verified",
-  "plan": {
-    "files_touched": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6927_todo_text_length_validation.py"
-    ],
-    "approach": "Add MAX_TEXT_LENGTH constant and _validate_text_length helper, then validate in __post_init__, rename(), and from_dict()"
-  },
-  "implementation_summary": "Added MAX_TEXT_LENGTH constant (10000 chars) and _validate_text_length() function to validate Todo text length in __post_init__, rename(), and from_dict() methods.",
-  "tests": {
-    "total": 24,
-    "passed": 24,
-    "failed": 0,
-    "new_tests": 6,
-    "regression_tests": 18
-  },
-  "lint": "passed",
-  "format": "passed",
-  "regression_check": {
-    "total_tests": 24,
-    "all_passed": true
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_6927_todo_text_length_validation.py tests/test_issue_1924_format_todo_sanitization.py tests/test_issue_2087_todo_repr.py -v",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6927_todo_text_length_validation.py",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_6927_todo_text_length_validation.py",
-    "all_checks_passed": true
-  },
-  "risks_limitations": "None identified. The validation is minimal and non-breaking for valid use cases.",
-  "created_at": "2026-03-03T07:12:00Z"
+  "pr_number": 6935,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6935",
+  "generated_at": "2026-03-03T07:41:09.105334+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3347,
+    "plan": 2373,
+    "implement": 2434,
+    "verify": 3242,
+    "finalize": 1018
+  }
 }
