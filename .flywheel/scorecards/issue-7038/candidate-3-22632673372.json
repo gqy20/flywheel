@@ -1,19 +1,23 @@
 {
-  "issue_number": 7038,
+  "issue": 7038,
   "candidate": 3,
   "run_id": "22632673372",
-  "status": "implemented",
-  "summary": "Fixed Todo.from_dict() to validate that id is a positive integer (> 0)",
-  "changes": {
-    "source_files": [
-      "src/flywheel/todo.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2000_json_validation.py",
-      "tests/test_storage_atomicity.py"
-    ]
-  },
-  "tests_added": 3,
-  "tests_passed": 115,
-  "ruff_check": "passed"
+  "branch": "claude/issue-7038-candidate-3-22632673372",
+  "pr_number": 7046,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7046",
+  "generated_at": "2026-03-03T17:16:10.618621+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1629,
+    "plan": 2353,
+    "implement": 2256,
+    "verify": 1915,
+    "finalize": 1260
+  }
 }
