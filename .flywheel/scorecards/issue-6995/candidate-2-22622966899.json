@@ -1,31 +1,23 @@
 {
-  "issue_number": 6995,
-  "issue_title": "[Bug] from_dict silently coerces float id to int, potentially losing precision",
-  "candidate_number": 2,
+  "issue": 6995,
+  "candidate": 2,
   "run_id": "22622966899",
   "branch": "claude/issue-6995-candidate-2-22622966899",
-  "status": "implemented",
-  "approach": {
-    "description": "Reject float values for 'id' field in Todo.from_dict() by checking isinstance(raw_id, float) before conversion",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "lines_changed": 10
-  },
-  "tests": {
-    "added": [
-      "test_todo_from_dict_rejects_float_id_with_fraction",
-      "test_todo_from_dict_rejects_int_like_float_id"
-    ],
-    "passing": true
-  },
-  "verification": {
-    "pytest_passed": true,
-    "ruff_passed": true
-  },
-  "risks": {
-    "breaking_change": false,
-    "description": "No breaking change - previously float ids were silently coerced which was incorrect behavior"
+  "pr_number": 7000,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7000",
+  "generated_at": "2026-03-03T13:22:58.785628+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2159,
+    "plan": 2718,
+    "implement": 2037,
+    "verify": 1623,
+    "finalize": 789
   }
 }
