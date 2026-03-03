@@ -11,16 +11,36 @@ from .todo import Todo
 
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application with in-memory caching.
+
+    Caches loaded todos in memory to avoid repeated file I/O.
+    Use reload() to clear cache and reload from file, or flush()
+    to force write current cache to file.
+    """
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
+        self._cache: list[Todo] | None = None
 
     def _load(self) -> list[Todo]:
-        return self.storage.load()
+        """Load todos from cache or file if cache is empty."""
+        if self._cache is None:
+            self._cache = self.storage.load()
+        return self._cache
 
     def _save(self, todos: list[Todo]) -> None:
+        """Save todos to file and update cache."""
         self.storage.save(todos)
+        self._cache = todos
+
+    def reload(self) -> None:
+        """Clear cache and reload from file on next operation."""
+        self._cache = None
+
+    def flush(self) -> None:
+        """Force write current cache to file."""
+        if self._cache is not None:
+            self.storage.save(self._cache)
 
     def add(self, text: str) -> Todo:
         text = text.strip()
