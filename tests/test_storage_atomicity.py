@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os  # noqa: F401 - used in patch("os.fsync") and patch("os.sync")
 from pathlib import Path
 from unittest.mock import patch
 
@@ -55,6 +56,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +95,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +118,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +152,68 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_fsync_file_before_close(tmp_path) -> None:
+    """Regression test for issue #6980: File must be fsync'd before close.
+
+    Without fsync, data may remain in OS cache and be lost on power failure
+    even after os.replace() appears to succeed.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    # Track fsync calls - this should be called before close
+    fsync_calls = []
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        # Don't actually call fsync to avoid slow tests
+
+    with patch("os.fsync", side_effect=tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called at least once (file content sync)
+    assert len(fsync_calls) >= 1, "os.fsync should be called to ensure data durability"
+
+    # Verify file was written
+    assert db.exists()
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
+
+
+def test_save_syncs_directory_after_rename(tmp_path) -> None:
+    """Regression test for issue #6980: Directory must be synced after rename.
+
+    On POSIX systems, renaming a file updates the directory entry, which
+    also needs to be synced for full durability.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="durable")]
+
+    # Track os.sync calls (used for directory sync after rename)
+    sync_calls = []
+
+    def tracking_sync():
+        sync_calls.append(True)
+        # Don't actually call sync to avoid side effects in tests
+
+    with patch("os.sync", side_effect=tracking_sync):
+        storage.save(todos)
+
+    # Verify os.sync was called to sync directory after rename
+    assert len(sync_calls) >= 1, (
+        "os.sync should be called after os.replace for directory durability"
+    )
+
+    # Verify file was written
+    assert db.exists()
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "durable"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +283,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"

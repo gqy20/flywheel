@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -115,9 +114,17 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Sync file content to disk before close for durability
+                # This ensures data is on stable storage before rename
+                f.flush()
+                os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Sync directory to ensure rename is persisted to disk
+            # This is required for full POSIX durability guarantees
+            os.sync()
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):
