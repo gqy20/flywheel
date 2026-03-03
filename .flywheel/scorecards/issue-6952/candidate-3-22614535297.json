@@ -1,0 +1,13 @@
+{
+  "issue_number": 6952,
+  "candidate_number": 3,
+  "run_id": "22614535297",
+  "status": "implemented",
+  "summary": "Add validation in Todo.from_dict to reject non-positive IDs (zero and negative values)",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_2000_json_validation.py"]
+  },
+  "tests_passed": true,
+  "lint_passed": true
+}
