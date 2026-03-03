@@ -183,9 +183,7 @@ def test_cli_rename_command_success(tmp_path, capsys) -> None:
     assert "original task" not in captured.out
 
 
-def test_cli_rename_command_returns_error_for_missing_todo(
-    tmp_path, capsys
-) -> None:
+def test_cli_rename_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
     """Bug #6926: CLI rename should return error when todo not found."""
     db = str(tmp_path / "cli.json")
     parser = build_parser()
