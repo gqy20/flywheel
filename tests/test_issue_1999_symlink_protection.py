@@ -90,6 +90,7 @@ def test_temp_file_has_restrictive_permissions(tmp_path) -> None:
 
     # Patch to track permissions
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -130,6 +131,7 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -142,7 +144,9 @@ def test_temp_file_path_is_unpredictable(tmp_path) -> None:
 
     # All temp file names should be different (unpredictable/random component)
     assert len(temp_file_names) == 3, "Should have created 3 temp files"
-    assert len(set(temp_file_names)) == 3, f"Temp file names should be unique, got: {temp_file_names}"
+    assert len(set(temp_file_names)) == 3, (
+        f"Temp file names should be unique, got: {temp_file_names}"
+    )
 
     # Names should not be the simple predictable pattern
     for name in temp_file_names:
@@ -208,6 +212,7 @@ def test_temp_file_cleanup_on_error(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
     tempfile.mkstemp = tracking_mkstemp
 
@@ -223,4 +228,6 @@ def test_temp_file_cleanup_on_error(tmp_path) -> None:
         if temp_file.name.startswith(".todo.json") and temp_file.name.endswith(".tmp"):
             # Temp files should either be renamed or deleted
             # They should not exist as separate temp files
-            assert not temp_file.exists() or temp_file == db, f"Temp file not cleaned up: {temp_file}"
+            assert not temp_file.exists() or temp_file == db, (
+                f"Temp file not cleaned up: {temp_file}"
+            )
