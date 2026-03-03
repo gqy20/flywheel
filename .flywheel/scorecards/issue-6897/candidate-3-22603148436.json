@@ -1,0 +1,26 @@
+{
+  "issue_number": 6897,
+  "candidate_number": 3,
+  "run_id": "22603148436",
+  "timestamp": "2026-03-03T01:21:00Z",
+  "status": "implemented",
+  "summary": "Fix inconsistent validation of empty text in Todo class",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_6897_empty_text_validation.py"
+    ],
+    "source_files": [
+      "src/flywheel/todo.py"
+    ]
+  },
+  "tests_passed": 130,
+  "tests_added": 18,
+  "linter_status": "passed",
+  "acceptance_criteria_met": [
+    "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
+    "Todo(id=1, text='   ') raises ValueError with message 'Todo text cannot be empty'",
+    "Todo.from_dict({'id': 1, 'text': ''}) raises ValueError",
+    "Existing valid text cases still work"
+  ],
+  "implementation_notes": "Added text validation in __post_init__ and from_dict to reject empty/whitespace-only text, consistent with rename() method. Also added whitespace stripping for consistency across all text entry points."
+}
