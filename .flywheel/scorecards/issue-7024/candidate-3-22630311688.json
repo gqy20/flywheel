@@ -1,0 +1,14 @@
+{
+  "issue_number": 7024,
+  "candidate": 3,
+  "run_id": "22630311688",
+  "status": "implemented",
+  "summary": "Add sanitization for Unicode line/paragraph separators (U+2028, U+2029)",
+  "files_changed": [
+    "src/flywheel/formatter.py",
+    "tests/test_issue_1924_format_todo_sanitization.py"
+  ],
+  "tests_added": 2,
+  "tests_passed": 12,
+  "risks": "Minimal - adds handling for two additional Unicode characters that could cause line breaks"
+}
