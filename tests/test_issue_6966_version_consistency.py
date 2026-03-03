@@ -50,10 +50,9 @@ def test_version_is_dynamically_obtained() -> None:
                 if node.func.attr == "version":
                     uses_importlib_metadata = True
                     break
-            elif isinstance(node.func, ast.Name):
-                if node.func.id == "version":
-                    uses_importlib_metadata = True
-                    break
+            elif isinstance(node.func, ast.Name) and node.func.id == "version":
+                uses_importlib_metadata = True
+                break
 
     assert uses_importlib_metadata, (
         "__version__ should be obtained from importlib.metadata.version() "
