@@ -151,6 +151,114 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_toctou_race_condition_simulated_in_ensure_parent_directory(tmp_path) -> None:
+    """Regression test for issue #7008: TOCTOU race condition in _ensure_parent_directory.
+
+    This test verifies that _ensure_parent_directory uses exist_ok=True in mkdir()
+    to prevent the TOCTOU race condition.
+
+    Without exist_ok=True, an attacker could:
+    1. Watch for exists() check to return False
+    2. Create a directory at that path
+    3. The mkdir() call would then fail with FileExistsError
+    """
+    from flywheel.storage import _ensure_parent_directory
+
+    new_dir = tmp_path / "newdir" / "nested"
+    file_path = new_dir / "test.json"
+
+    # Track whether mkdir was called with exist_ok=True
+    mkdir_calls = []
+    original_mkdir = type(new_dir).mkdir
+
+    def mock_mkdir(self, *args, **kwargs):
+        mkdir_calls.append({"args": args, "kwargs": kwargs})
+        # Just pass through to original - we're only verifying the call parameters
+        return original_mkdir(self, *args, **kwargs)
+
+    with patch.object(Path, "mkdir", mock_mkdir):
+        # This should NOT raise FileExistsError when exist_ok=True is used
+        _ensure_parent_directory(file_path)
+
+    # Verify that mkdir was called with exist_ok=True
+    assert len(mkdir_calls) >= 1, f"Expected at least 1 mkdir call, got {len(mkdir_calls)}"
+
+    # Check that all mkdir calls use exist_ok=True (prevents TOCTOU)
+    for i, call in enumerate(mkdir_calls):
+        call_kwargs = call["kwargs"]
+        assert call_kwargs.get("exist_ok") is True, (
+            f"mkdir call #{i} should use exist_ok=True to prevent TOCTOU race. "
+            f"Got kwargs: {call_kwargs}"
+        )
+
+
+def test_toctou_race_condition_in_ensure_parent_directory(tmp_path) -> None:
+    """Regression test for issue #7008: TOCTOU race condition in _ensure_parent_directory.
+
+    Tests that _ensure_parent_directory handles concurrent directory creation
+    without raising FileExistsError. The race condition occurs when:
+    1. Process A checks if parent.exists() -> False
+    2. Process B creates the parent directory
+    3. Process A calls parent.mkdir(exist_ok=False) -> FileExistsError
+
+    The fix uses exist_ok=True to handle this atomically.
+    """
+    import multiprocessing
+    import time
+
+    # Create a path where multiple processes will try to create parent dirs
+    db_path = tmp_path / "subdir1" / "subdir2" / "test.json"
+
+    def worker_create_parent(worker_id: int, result_queue: multiprocessing.Queue) -> None:
+        """Worker that triggers _ensure_parent_directory concurrently."""
+        try:
+            from flywheel.storage import TodoStorage
+
+            storage = TodoStorage(str(db_path))
+            # Each worker saves, which triggers _ensure_parent_directory
+            todos = [Todo(id=worker_id, text=f"worker-{worker_id}")]
+            # Small delay to ensure processes start roughly together
+            time.sleep(0.001)
+            storage.save(todos)
+            result_queue.put(("success", worker_id))
+        except FileExistsError as e:
+            # This is the bug we're testing for - should NOT happen with fix
+            result_queue.put(("toctou_error", worker_id, str(e)))
+        except Exception as e:
+            result_queue.put(("error", worker_id, str(e)))
+
+    # Run multiple workers that will all try to create the same parent dirs
+    num_workers = 5
+    processes = []
+    result_queue = multiprocessing.Queue()
+
+    for i in range(num_workers):
+        p = multiprocessing.Process(target=worker_create_parent, args=(i, result_queue))
+        processes.append(p)
+        p.start()
+
+    # Wait for all processes
+    for p in processes:
+        p.join(timeout=10)
+
+    # Collect results
+    results = []
+    while not result_queue.empty():
+        results.append(result_queue.get())
+
+    toctou_errors = [r for r in results if r[0] == "toctou_error"]
+    other_errors = [r for r in results if r[0] == "error"]
+    successes = [r for r in results if r[0] == "success"]
+
+    # No TOCTOU errors should occur with the fix
+    assert len(toctou_errors) == 0, (
+        f"TOCTOU race condition detected! Workers hit FileExistsError: {toctou_errors}"
+    )
+    # All workers should succeed (or at least no hard errors)
+    assert len(other_errors) == 0, f"Unexpected errors: {other_errors}"
+    assert len(successes) >= 1, f"Expected at least 1 success, got {len(successes)}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
