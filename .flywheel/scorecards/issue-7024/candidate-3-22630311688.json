@@ -1,14 +1,23 @@
 {
-  "issue_number": 7024,
+  "issue": 7024,
   "candidate": 3,
   "run_id": "22630311688",
-  "status": "implemented",
-  "summary": "Add sanitization for Unicode line/paragraph separators (U+2028, U+2029)",
-  "files_changed": [
-    "src/flywheel/formatter.py",
-    "tests/test_issue_1924_format_todo_sanitization.py"
+  "branch": "claude/issue-7024-candidate-3-22630311688",
+  "pr_number": 7027,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7027",
+  "generated_at": "2026-03-03T16:15:07.406167+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 2,
-  "tests_passed": 12,
-  "risks": "Minimal - adds handling for two additional Unicode characters that could cause line breaks"
+  "stage_response_sizes": {
+    "triage": 2379,
+    "plan": 1915,
+    "implement": 1322,
+    "verify": 1964,
+    "finalize": 1001
+  }
 }
