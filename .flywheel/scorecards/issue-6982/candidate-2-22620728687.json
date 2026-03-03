@@ -1,26 +1,23 @@
 {
-  "issue_number": 6982,
+  "issue": 6982,
   "candidate": 2,
   "run_id": "22620728687",
-  "stage": "finalized",
-  "summary": "Fix silent float id truncation in Todo.from_dict by explicitly rejecting float values",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-    "pytest_result": "15 passed in 0.07s",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-    "ruff_check_result": "All checks passed",
-    "ruff_format_command": "uv run ruff format --check src/flywheel/todo.py tests/test_issue_2000_json_validation.py",
-    "ruff_format_result": "2 files already formatted",
-    "full_test_command": "uv run pytest tests/ -v",
-    "full_test_result": "115 passed in 0.72s"
-  },
-  "tests_passed": true,
-  "ruff_passed": true,
-  "created_at": "2026-03-03T12:00:00Z",
-  "verified_at": "2026-03-03T11:55:00Z",
-  "finalized_at": "2026-03-03T12:00:00Z"
+  "branch": "claude/issue-6982-candidate-2-22620728687",
+  "pr_number": 6986,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6986",
+  "generated_at": "2026-03-03T11:59:56.133368+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2069,
+    "plan": 2723,
+    "implement": 1527,
+    "verify": 2317,
+    "finalize": 608
+  }
 }
