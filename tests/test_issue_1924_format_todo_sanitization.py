@@ -110,3 +110,50 @@ def test_format_list_empty() -> None:
     """Empty list should return standard message."""
     result = TodoFormatter.format_list([])
     assert result == "No todos yet."
+
+
+def test_format_todo_escapes_unicode_line_separator() -> None:
+    """Unicode line separator (U+2028) should be escaped to prevent unexpected line breaks.
+
+    Regression test for Issue #7024.
+    """
+    todo = Todo(id=1, text="Buy milk\u2028[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2028" in result
+    # Should be single line (no actual Unicode line separator)
+    assert "\u2028" not in result
+    # Should show both parts on same line
+    assert result == "[ ]   1 Buy milk\\u2028[ ] FAKE_TODO"
+
+
+def test_format_todo_escapes_unicode_paragraph_separator() -> None:
+    """Unicode paragraph separator (U+2029) should be escaped to prevent unexpected line breaks.
+
+    Regression test for Issue #7024.
+    """
+    todo = Todo(id=1, text="Buy milk\u2029[ ] FAKE_TODO")
+    result = TodoFormatter.format_todo(todo)
+    # Should contain escaped representation
+    assert "\\u2029" in result
+    # Should be single line (no actual Unicode paragraph separator)
+    assert "\u2029" not in result
+    # Should show both parts on same line
+    assert result == "[ ]   1 Buy milk\\u2029[ ] FAKE_TODO"
+
+
+def test_format_todo_escapes_unicode_separators_with_regular_newline() -> None:
+    """Both Unicode separators and regular newline should be escaped together.
+
+    Regression test for Issue #7024.
+    """
+    todo = Todo(id=1, text="Line1\nLine2\u2028Line3\u2029End")
+    result = TodoFormatter.format_todo(todo)
+    # All should be escaped
+    assert "\\n" in result
+    assert "\\u2028" in result
+    assert "\\u2029" in result
+    # Should not contain actual control characters
+    assert "\n" not in result
+    assert "\u2028" not in result
+    assert "\u2029" not in result
