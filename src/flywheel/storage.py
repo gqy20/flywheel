@@ -115,9 +115,22 @@ class TodoStorage:
             # Use os.write instead of Path.write_text for more control
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
+                # Flush Python buffer to OS buffer
+                f.flush()
+                # Sync file content to disk for durability on power failure
+                # This ensures data is on stable storage before rename
+                os.fsync(f.fileno())
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Sync directory to ensure rename is persisted to disk
+            # On POSIX systems, fsync on directory ensures directory entries are durable
+            dir_fd = os.open(str(self.path.parent), os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):

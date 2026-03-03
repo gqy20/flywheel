@@ -229,3 +229,83 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
         assert hasattr(todo, "id"), "Todo should have id"
         assert hasattr(todo, "text"), "Todo should have text"
         assert isinstance(todo.text, str), "Todo text should be a string"
+
+
+def test_save_fsyncs_file_before_rename(tmp_path) -> None:
+    """Regression test for issue #6980: File content must be fsync'd before rename.
+
+    Without fsync, data may remain in OS cache and be lost on power failure.
+    This test verifies that os.fsync() is called on the file before os.replace().
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="important data")]
+
+    # Track fsync calls
+    fsync_calls = []
+    original_fsync = os.fsync
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        return original_fsync(fd)
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync):
+        storage.save(todos)
+
+    # Verify fsync was called at least once (for the file)
+    assert len(fsync_calls) >= 1, "os.fsync() should be called on file before rename"
+
+
+def test_save_fsyncs_directory_after_rename(tmp_path) -> None:
+    """Regression test for issue #6980: Directory must be fsync'd after rename.
+
+    On POSIX systems, even after atomic rename, the directory entry may not be
+    persisted to disk without fsync on the directory fd. This ensures durability
+    of the rename operation itself.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    todos = [Todo(id=1, text="important data")]
+
+    # Track fsync calls and the fds used
+    fsync_calls = []
+    original_fsync = os.fsync
+
+    def tracking_fsync(fd):
+        fsync_calls.append(fd)
+        return original_fsync(fd)
+
+    # Track directory opens
+    open_calls = []
+    original_open = os.open
+
+    def tracking_open(path, flags, *args, **kwargs):
+        result = original_open(path, flags, *args, **kwargs)
+        # Check if opening a directory (O_DIRECTORY flag or path is a dir)
+        try:
+            if isinstance(path, (str, bytes)) and os.path.isdir(path):
+                open_calls.append((path, result))
+        except OSError:
+            pass
+        return result
+
+    with patch("flywheel.storage.os.fsync", tracking_fsync), \
+         patch("flywheel.storage.os.open", tracking_open):
+        storage.save(todos)
+
+    # Verify the parent directory was opened for fsync
+    dir_opens = [call for call in open_calls if str(db.parent) in str(call[0])]
+    assert len(dir_opens) >= 1, (
+        f"Parent directory should be opened for fsync. Got opens: {open_calls}"
+    )
+
+    # Verify at least 2 fsync calls: one for file, one for directory
+    assert len(fsync_calls) >= 2, (
+        f"Expected fsync on file AND directory. Got {len(fsync_calls)} calls"
+    )
