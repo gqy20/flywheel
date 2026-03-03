@@ -19,9 +19,7 @@ def test_repr_escapes_newlines_no_literal_newline() -> None:
     result = repr(todo)
 
     # The repr output must be a single line - no literal newline chars
-    assert "\n" not in result, (
-        f"repr should not contain literal newlines: {result!r}"
-    )
+    assert "\n" not in result, f"repr should not contain literal newlines: {result!r}"
 
 
 def test_repr_escapes_newlines_single_line_output() -> None:
@@ -31,9 +29,7 @@ def test_repr_escapes_newlines_single_line_output() -> None:
 
     # Count actual newlines in the output
     line_count = result.count("\n")
-    assert line_count == 0, (
-        f"repr should be single line but has {line_count} newlines: {result!r}"
-    )
+    assert line_count == 0, f"repr should be single line but has {line_count} newlines: {result!r}"
 
 
 def test_repr_escapes_carriage_return() -> None:
@@ -60,9 +56,7 @@ def test_repr_newline_appears_as_escaped_sequence() -> None:
 
     # The string should contain the two-character escape sequence \n
     # (backslash followed by 'n'), not a literal newline
-    assert "\\n" in result, (
-        f"repr should contain escaped newline sequence '\\\\n': {result!r}"
-    )
+    assert "\\n" in result, f"repr should contain escaped newline sequence '\\\\n': {result!r}"
 
 
 def test_repr_mixed_control_characters() -> None:
