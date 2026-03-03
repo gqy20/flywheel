@@ -33,6 +33,24 @@ class Todo:
 
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
+    def __eq__(self, other: object) -> bool:
+        """Compare Todo instances by id for value-based equality.
+
+        Two Todo instances are considered equal if they have the same id,
+        regardless of other fields like text, done, or timestamps.
+        """
+        if not isinstance(other, Todo):
+            return NotImplemented
+        return self.id == other.id
+
+    def __hash__(self) -> int:
+        """Hash Todo instances by id for set/dict usage.
+
+        This allows Todo instances to be used in sets and as dictionary keys,
+        with deduplication based on the id field.
+        """
+        return hash(self.id)
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = _utc_now_iso()
