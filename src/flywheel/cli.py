@@ -66,6 +66,15 @@ class TodoApp:
                 return
         raise ValueError(f"Todo #{todo_id} not found")
 
+    def rename(self, todo_id: int, text: str) -> Todo:
+        todos = self._load()
+        for todo in todos:
+            if todo.id == todo_id:
+                todo.rename(text)
+                self._save(todos)
+                return todo
+        raise ValueError(f"Todo #{todo_id} not found")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="todo", description="Minimal Todo CLI")
