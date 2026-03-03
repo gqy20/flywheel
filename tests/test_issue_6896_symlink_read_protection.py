@@ -10,12 +10,10 @@ These tests should FAIL before the fix and PASS after the fix.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
 from flywheel.storage import TodoStorage
-from flywheel.todo import Todo
 
 
 def test_load_rejects_symlink_pointing_to_regular_file(tmp_path) -> None:
