@@ -1,0 +1,36 @@
+{
+  "issue_number": 6886,
+  "issue_title": "[Feature] Add due_date field to Todo for deadline tracking",
+  "candidate_number": 3,
+  "run_id": "22603148436",
+  "branch_name": "claude/issue-6886-candidate-3-22603148436",
+  "status": "implemented",
+  "created_at": "2026-03-03T00:00:00Z",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/todo.py"
+    ],
+    "files_added": [
+      "tests/test_issue_6886_due_date.py"
+    ],
+    "summary": "Added due_date field to Todo dataclass with set_due_date() method and is_overdue property"
+  },
+  "acceptance_criteria": {
+    "todo_has_due_date_field": true,
+    "is_overdue_returns_true_when_past_due_and_not_done": true,
+    "is_overdue_returns_false_when_done": true,
+    "from_dict_parses_iso_format": true
+  },
+  "tests": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "coverage": "91%"
+  },
+  "implementation_details": {
+    "due_date_field": "Optional str | None, defaults to None, stores ISO format datetime",
+    "set_due_date_method": "Updates due_date and updated_at timestamp",
+    "is_overdue_property": "Returns True if due_date is set, is in the past, and todo is not done",
+    "from_dict_update": "Parses due_date from dict, handles None and missing key"
+  }
+}
