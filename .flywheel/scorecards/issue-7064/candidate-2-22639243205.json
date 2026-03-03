@@ -1,18 +1,23 @@
 {
-  "issue_number": 7064,
+  "issue": 7064,
   "candidate": 2,
   "run_id": "22639243205",
-  "status": "verified",
-  "tests_added": 3,
-  "tests_passed": 115,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "branch": "claude/issue-7064-candidate-2-22639243205",
+  "pr_number": 7075,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7075",
+  "generated_at": "2026-03-03T20:11:32.672739+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Added validation in Todo.from_dict to reject empty/whitespace-only text, matching rename() behavior for consistency.",
-  "verification": {
-    "pytest_targeted": "15 passed in test_issue_2000_json_validation.py",
-    "pytest_full": "115 passed in full test suite",
-    "ruff_check": "All checks passed"
+  "stage_response_sizes": {
+    "triage": 2174,
+    "plan": 3398,
+    "implement": 2452,
+    "verify": 1885,
+    "finalize": 1223
   }
 }
