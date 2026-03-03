@@ -4,7 +4,7 @@
   "candidate": 3,
   "run_id": "22611347611",
   "branch": "claude/issue-6927-candidate-3-22611347611",
-  "commit_sha": "2972db9",
+  "commit_sha": "2a1691f5679f30d5f07789c1113547929b490a63",
   "status": "verified",
   "plan": {
     "files_touched": [
