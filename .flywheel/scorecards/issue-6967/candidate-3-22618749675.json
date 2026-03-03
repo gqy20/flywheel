@@ -1,0 +1,20 @@
+{
+  "issue": 6967,
+  "candidate": 3,
+  "run_id": "22618749675",
+  "status": "implemented",
+  "approach": "Add rename(todo_id: int, text: str) -> Todo method to TodoApp class following the same pattern as mark_done, mark_undone, and remove methods",
+  "changes": [
+    {
+      "file": "src/flywheel/cli.py",
+      "change": "Added rename method to TodoApp class"
+    },
+    {
+      "file": "tests/test_issue_6967_todoapp_rename.py",
+      "change": "Existing regression tests verify the implementation"
+    }
+  ],
+  "tests_passed": 4,
+  "lint_status": "passed",
+  "timestamp": "2026-03-03T10:44:00Z"
+}
