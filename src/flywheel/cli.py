@@ -11,16 +11,22 @@ from .todo import Todo
 
 
 class TodoApp:
-    """Simple in-process todo application."""
+    """Simple in-process todo application with in-memory caching."""
 
     def __init__(self, db_path: str | None = None) -> None:
         self.storage = TodoStorage(db_path)
+        self._cache: list[Todo] | None = None
 
     def _load(self) -> list[Todo]:
-        return self.storage.load()
+        """Load todos from cache if available, otherwise from storage."""
+        if self._cache is None:
+            self._cache = self.storage.load()
+        return self._cache
 
     def _save(self, todos: list[Todo]) -> None:
+        """Save todos to storage and update cache."""
         self.storage.save(todos)
+        self._cache = todos
 
     def add(self, text: str) -> Todo:
         text = text.strip()
