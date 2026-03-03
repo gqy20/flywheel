@@ -1,37 +1,23 @@
 {
-  "issue_number": 7053,
-  "candidate_number": 2,
+  "issue": 7053,
+  "candidate": 2,
   "run_id": "22637319334",
   "branch": "claude/issue-7053-candidate-2-22637319334",
-  "implementation": {
-    "approach": "Add __eq__ and __hash__ methods to Todo class for comparison by id only",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_minimal_framework.py"
-    ],
-    "tests_added": 3,
-    "tests_passed": 13,
-    "linter_passed": true
-  },
-  "validation": {
-    "acceptance_criteria": [
-      {
-        "criterion": "Two Todo objects with same id are equal regardless of other fields",
-        "test": "test_todo_equality_by_id",
-        "status": "PASS"
-      },
-      {
-        "criterion": "Todo can be added to a set without error",
-        "test": "test_todo_hash_by_id",
-        "status": "PASS"
-      },
-      {
-        "criterion": "Hash is based on id field only",
-        "test": "test_todo_hash_by_id",
-        "status": "PASS"
-      }
-    ]
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 7061,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7061",
+  "generated_at": "2026-03-03T19:15:55.799981+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2440,
+    "plan": 4000,
+    "implement": 2286,
+    "verify": 1995,
+    "finalize": 1064
+  }
 }
