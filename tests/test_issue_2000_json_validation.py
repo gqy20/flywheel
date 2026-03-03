@@ -119,3 +119,24 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6996 - reject bool values for 'id' field
+def test_todo_from_dict_rejects_bool_id_true() -> None:
+    """Todo.from_dict should reject bool True for 'id' field.
+
+    Since bool is a subclass of int in Python, int(True) == 1 silently,
+    but bool is semantically wrong type for an id.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*boolean|'id'.*integer"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id_false() -> None:
+    """Todo.from_dict should reject bool False for 'id' field.
+
+    Since bool is a subclass of int in Python, int(False) == 0 silently,
+    but bool is semantically wrong type for an id.
+    """
+    with pytest.raises(ValueError, match=r"invalid.*'id'|'id'.*boolean|'id'.*integer"):
+        Todo.from_dict({"id": False, "text": "task"})
