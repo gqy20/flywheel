@@ -1,0 +1,14 @@
+{
+  "issue_number": 6938,
+  "candidate_number": 1,
+  "run_id": "22612959146",
+  "branch": "claude/issue-6938-candidate-1-22612959146",
+  "created_at": "2026-03-03T00:00:00Z",
+  "status": "implemented",
+  "tests_passed": true,
+  "ruff_passed": true,
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_issue_6938_windows_fchmod.py"
+  ]
+}
