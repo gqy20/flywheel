@@ -1,44 +1,23 @@
 {
-  "issue_number": 6927,
-  "issue_title": "[Feature] 添加 Todo 文本最大长度验证",
-  "candidate_number": 1,
+  "issue": 6927,
+  "candidate": 1,
   "run_id": "22611347611",
   "branch": "claude/issue-6927-candidate-1-22611347611",
-  "status": "verified",
-  "implementation": {
-    "approach": "Add MAX_TEXT_LENGTH constant (10000) and validate text length in __post_init__, rename(), and from_dict()",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_6927_todo_max_length.py"
-    ],
-    "test_coverage": 8
-  },
-  "checks": {
-    "tests_passed": true,
-    "lint_passed": true,
-    "regression_tests_passed": true
-  },
-  "verification": {
-    "pytest_targeted": {
-      "command": "uv run pytest tests/test_issue_6927_todo_max_length.py -v",
-      "result": "8 passed",
-      "status": "PASS"
-    },
-    "ruff_lint": {
-      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_6927_todo_max_length.py",
-      "result": "All checks passed!",
-      "status": "PASS"
-    },
-    "regression_tests": {
-      "command": "uv run pytest --tb=short -q",
-      "result": "120 passed",
-      "status": "PASS"
-    }
-  },
-  "score": {
-    "correctness": 5,
-    "code_quality": 5,
-    "test_coverage": 5,
-    "minimal_changes": 5
+  "pr_number": 6934,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/6934",
+  "generated_at": "2026-03-03T07:39:01.802481+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2405,
+    "plan": 3539,
+    "implement": 1853,
+    "verify": 2264,
+    "finalize": 619
   }
 }
