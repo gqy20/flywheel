@@ -1,0 +1,12 @@
+{
+  "issue_number": 6967,
+  "candidate_number": 1,
+  "run_id": "22618749675",
+  "status": "implemented",
+  "summary": "Added rename(todo_id: int, text: str) -> Todo method to TodoApp class",
+  "test_file": "tests/test_issue_6967_todoapp_rename.py",
+  "source_file": "src/flywheel/cli.py",
+  "tests_passed": 117,
+  "ruff_check": "passed",
+  "timestamp": "2026-03-03T10:50:00Z"
+}
