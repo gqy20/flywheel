@@ -35,7 +35,7 @@
     ]
   },
   "status": "ready_for_pr",
-  "pr_url": null,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7057",
   "tests_passed": true,
   "ruff_clean": true,
   "verification_summary": {
