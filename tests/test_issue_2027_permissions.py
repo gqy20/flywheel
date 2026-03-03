@@ -81,6 +81,66 @@ def test_temp_file_has_no_execute_bit(tmp_path) -> None:
         assert mode & 0o077 == 0, f"Temp file has overly permissive mode: {oct(mode)}"
 
 
+def test_final_file_has_restrictive_permissions(tmp_path) -> None:
+    """Issue #7063: Final database file should have 0o600 permissions.
+
+    After os.replace(), the final file should have restrictive permissions
+    (0o600 - rw-------) to prevent other users from reading the todo database.
+
+    This test ensures the explicit os.chmod() call after os.replace() is working.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save a todo to create the database file
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify the final file exists
+    assert db.exists(), "Final database file should exist after save"
+
+    # Check final file permissions
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # The mode should be EXACTLY 0o600 (rw-------)
+    assert file_mode == 0o600, (
+        f"Final database file has incorrect permissions: {oct(file_mode)} "
+        f"(expected 0o600, got 0o{file_mode:o})"
+    )
+
+    # Verify owner can read and write
+    assert file_mode & stat.S_IRUSR, f"Final file lacks owner read: {oct(file_mode)}"
+    assert file_mode & stat.S_IWUSR, f"Final file lacks owner write: {oct(file_mode)}"
+
+    # Verify no execute bit is set
+    assert not (file_mode & stat.S_IXUSR), (
+        f"Final file should not have owner execute bit set. Mode: {oct(file_mode)}"
+    )
+
+    # Verify group and others have no permissions
+    assert file_mode & 0o077 == 0, f"Final file has overly permissive mode: {oct(file_mode)}"
+
+
+def test_final_file_permissions_preserved_on_overwrite(tmp_path) -> None:
+    """Issue #7063: Final file permissions should remain 0o600 on subsequent saves.
+
+    When overwriting an existing database file, the permissions should still
+    be set to 0o600 after the atomic rename.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create the database with first save
+    storage.save([Todo(id=1, text="first")])
+    first_mode = stat.S_IMODE(db.stat().st_mode)
+    assert first_mode == 0o600, f"First save: expected 0o600, got {oct(first_mode)}"
+
+    # Overwrite with second save
+    storage.save([Todo(id=2, text="second")])
+    second_mode = stat.S_IMODE(db.stat().st_mode)
+    assert second_mode == 0o600, f"Second save: expected 0o600, got {oct(second_mode)}"
+
+
 def test_temp_file_is_not_executable(tmp_path) -> None:
     """Issue #2027: Temp file containing JSON should not be executable.
 
