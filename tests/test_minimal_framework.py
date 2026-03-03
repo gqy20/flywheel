@@ -158,3 +158,39 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+# Tests for TodoApp.rename() method - Issue #6954
+
+
+def test_app_rename_updates_todo_text(tmp_path) -> None:
+    """TodoApp.rename() should update todo text and persist changes."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("original text")
+
+    renamed = app.rename(1, "new text")
+
+    assert renamed.text == "new text"
+    assert renamed.id == 1
+    # Verify persistence
+    todos = app.list()
+    assert len(todos) == 1
+    assert todos[0].text == "new text"
+
+
+def test_app_rename_raises_for_nonexistent_id(tmp_path) -> None:
+    """TodoApp.rename() should raise ValueError for non-existent todo ID."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("test")
+
+    with pytest.raises(ValueError, match="Todo #999 not found"):
+        app.rename(999, "new text")
+
+
+def test_app_rename_propagates_empty_text_error(tmp_path) -> None:
+    """TodoApp.rename() should propagate ValueError for empty text from Todo.rename()."""
+    app = TodoApp(str(tmp_path / "db.json"))
+    app.add("original")
+
+    with pytest.raises(ValueError, match="Todo text cannot be empty"):
+        app.rename(1, "")
