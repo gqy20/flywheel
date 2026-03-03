@@ -1,0 +1,22 @@
+{
+  "issue_number": 6940,
+  "candidate_number": 1,
+  "run_id": "22612959146",
+  "branch": "claude/issue-6940-candidate-1-22612959146",
+  "status": "ready",
+  "checks": {
+    "tests_pass": true,
+    "lint_pass": true,
+    "regression_test_added": true,
+    "minimal_fix": true
+  },
+  "summary": {
+    "problem": "Todo.from_dict accepts float id values that truncate to integer, causing silent data loss",
+    "solution": "Added validation to reject float values with fractional parts before int() conversion, while still accepting whole-number floats like 1.0",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "tests_added": 2
+  }
+}
