@@ -1,22 +1,23 @@
 {
-  "issue_number": 7023,
+  "issue": 7023,
   "candidate": 1,
   "run_id": "22630311688",
   "branch": "claude/issue-7023-candidate-1-22630311688",
-  "status": "verified",
-  "summary": "Fixed Unicode surrogate character sanitization vulnerability by adding handling for lone surrogate characters (U+D800-U+DFFF) in the _sanitize_text function.",
-  "changes": {
-    "source_files": ["src/flywheel/formatter.py"],
-    "test_files": ["tests/test_issue_7023_surrogate_sanitization.py"]
-  },
-  "tests_passed": true,
-  "lint_passed": true,
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_7023_surrogate_sanitization.py tests/test_issue_2057_c1_control_sanitization.py -v",
-    "pytest_result": "13 passed in 0.06s",
-    "ruff_command": "uv run ruff check src/flywheel/formatter.py tests/test_issue_7023_surrogate_sanitization.py tests/test_issue_2057_c1_control_sanitization.py",
-    "ruff_result": "All checks passed!"
-  },
-  "created_at": "2026-03-03T16:00:00Z",
-  "verified_at": "2026-03-03T16:05:00Z"
+  "pr_number": 7032,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7032",
+  "generated_at": "2026-03-03T16:25:54.339469+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3162,
+    "plan": 3001,
+    "implement": 2209,
+    "verify": 2261,
+    "finalize": 981
+  }
 }
