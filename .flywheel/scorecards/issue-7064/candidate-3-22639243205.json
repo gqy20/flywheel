@@ -1,42 +1,23 @@
 {
-  "issue_number": 7064,
-  "issue_title": "[Bug] Todo.from_dict accepts empty/whitespace-only text, but Todo.rename() rejects it",
-  "candidate_number": 3,
+  "issue": 7064,
+  "candidate": 3,
   "run_id": "22639243205",
   "branch": "claude/issue-7064-candidate-3-22639243205",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/7072",
   "pr_number": 7072,
-  "status": "PR_CREATED",
-  "plan": {
-    "files_to_touch": [
-      "tests/test_issue_2000_json_validation.py",
-      "src/flywheel/todo.py"
-    ],
-    "approach": "Add validation in Todo.from_dict() to reject empty/whitespace-only text, matching rename() behavior",
-    "tests_added": 2,
-    "lines_changed_estimate": 15
-  },
-  "verification": {
-    "pytest_results": {
-      "targeted_tests": {
-        "command": "uv run pytest tests/test_issue_2000_json_validation.py::test_todo_from_dict_rejects_empty_text tests/test_issue_2000_json_validation.py::test_todo_from_dict_rejects_whitespace_only_text -v",
-        "result": "2 passed"
-      },
-      "module_tests": {
-        "command": "uv run pytest tests/test_issue_2000_json_validation.py -v",
-        "result": "14 passed"
-      }
-    },
-    "ruff_results": {
-      "command": "uv run ruff check src/flywheel/todo.py",
-      "result": "All checks passed!"
-    },
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "verification_status": "PASSED"
-  },
-  "fix_summary": "Added validation in Todo.from_dict() at lines 82-84 to reject empty or whitespace-only text, matching the behavior of Todo.rename() method",
-  "created_at": "2026-03-03T20:07:00Z"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7072",
+  "generated_at": "2026-03-03T20:10:56.373488+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2103,
+    "plan": 3512,
+    "implement": 1885,
+    "verify": 4000,
+    "finalize": 1696
+  }
 }
