@@ -158,3 +158,39 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_rename_command_works(tmp_path, capsys) -> None:
+    """Bug #6926: CLI should expose rename functionality."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Add a todo first
+    args = parser.parse_args(["--db", db, "add", "original text"])
+    assert run_command(args) == 0
+
+    # Rename it via CLI
+    args = parser.parse_args(["--db", db, "rename", "1", "renamed text"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "Renamed #1" in captured.out
+    assert "renamed text" in captured.out
+
+    # Verify the rename persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "renamed text" in out
+    assert "original text" not in out
+
+
+def test_cli_rename_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Bug #6926: CLI rename should return error code 1 when todo not found."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # Attempt rename of non-existent ID
+    args = parser.parse_args(["--db", db, "rename", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
