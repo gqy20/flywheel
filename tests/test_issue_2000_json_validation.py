@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7189 - reject float id that are not whole numbers
+def test_todo_from_dict_rejects_non_integer_float_id() -> None:
+    """Todo.from_dict should reject float id that would be silently truncated."""
+    with pytest.raises(ValueError, match=r"float|non-integer|whole number"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_accepts_whole_number_float_id() -> None:
+    """Todo.from_dict should accept float id that represents a whole number."""
+    todo = Todo.from_dict({"id": 1.0, "text": "task"})
+    assert todo.id == 1
+
+
+def test_todo_from_dict_accepts_integer_id() -> None:
+    """Todo.from_dict should continue to accept integer id."""
+    todo = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo.id == 1
