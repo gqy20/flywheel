@@ -23,12 +23,24 @@
   },
   "verification": {
     "ruff_check": "passed",
-    "all_tests_pass": true
+    "ruff_format": "passed",
+    "all_tests_pass": true,
+    "regression_tests_pass": true,
+    "verify_stage": {
+      "pytest_toggle_tests": "5 passed",
+      "pytest_framework_tests": "10 passed",
+      "ruff_check": "All checks passed",
+      "ruff_format": "2 files already formatted"
+    }
   },
   "acceptance_criteria": {
     "toggle_flips_false_to_true": true,
     "toggle_flips_true_to_false": true,
     "toggle_updates_updated_at": true,
     "toggle_returns_self_for_chaining": true
+  },
+  "pr": {
+    "url": "https://github.com/gqy20/flywheel/pull/7254",
+    "number": 7254
   }
 }
