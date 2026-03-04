@@ -119,3 +119,72 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
             assert not (file_mode & stat.S_IXUSR), f"Owner execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXGRP), f"Group execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXOTH), f"Other execute bit set on {temp_file}"
+
+
+def test_final_file_has_restricted_permissions(tmp_path) -> None:
+    """Issue #7217: Final db file should have 0o600 permissions after atomic rename.
+
+    The temp file has 0o600, but os.replace() may not preserve permissions on all
+    filesystems. The final file should explicitly be set to 0o600 for security.
+
+    Before fix: Final file may have umask-based permissions (e.g., 0o644)
+    After fix: Final file has exactly 0o600 (rw-------)
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify the final file exists
+    assert db.exists(), f"Final db file not found at {db}"
+
+    # Check final file permissions
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    # The mode should be EXACTLY 0o600 (rw-------)
+    assert file_mode == 0o600, (
+        f"Final db file has incorrect permissions: {oct(file_mode)} "
+        f"(expected 0o600, got 0o{file_mode:o})"
+    )
+
+    # Specifically verify no execute bit is set
+    assert not (file_mode & stat.S_IXUSR), (
+        f"Final db file should not have owner execute bit set. "
+        f"Mode: {oct(file_mode)}"
+    )
+
+    # Verify owner can read and write
+    assert file_mode & stat.S_IRUSR, f"Final db file lacks owner read: {oct(file_mode)}"
+    assert file_mode & stat.S_IWUSR, f"Final db file lacks owner write: {oct(file_mode)}"
+
+    # Verify group and others have no permissions
+    assert file_mode & 0o077 == 0, f"Final db file has overly permissive mode: {oct(file_mode)}"
+
+
+def test_final_file_permissions_preserved_on_overwrite(tmp_path) -> None:
+    """Issue #7217: Overwriting an existing file should also result in 0o600.
+
+    This tests the case where a file already existed with different permissions
+    (e.g., 0o644). After saving, it should be reset to 0o600.
+    """
+    db = tmp_path / "todo.json"
+
+    # Create file with overly permissive permissions
+    db.write_text("[]", encoding="utf-8")
+    os.chmod(db, 0o644)
+
+    # Verify initial permissions are 0o644
+    initial_mode = stat.S_IMODE(db.stat().st_mode)
+    assert initial_mode == 0o644, f"Setup failed: expected 0o644, got {oct(initial_mode)}"
+
+    # Now save through TodoStorage
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify final permissions are now 0o600
+    final_mode = stat.S_IMODE(db.stat().st_mode)
+    assert final_mode == 0o600, (
+        f"Final db file should have 0o600 permissions after overwrite, "
+        f"got {oct(final_mode)} instead"
+    )

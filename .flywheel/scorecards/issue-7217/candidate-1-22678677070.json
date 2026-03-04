@@ -1,0 +1,19 @@
+{
+  "issue_number": 7217,
+  "candidate_number": 1,
+  "run_id": "22678677070",
+  "branch_name": "claude/issue-7217-candidate-1-22678677070",
+  "created_at": "2026-03-04T17:06:00Z",
+  "status": "implemented",
+  "summary": "Fix security issue where final file permissions were not explicitly set after atomic rename. Added os.chmod() call after os.replace() to ensure final file has 0o600 permissions consistently across all filesystems.",
+  "changes": {
+    "source_files": [
+      "src/flywheel/storage.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2027_permissions.py"
+    ]
+  },
+  "tests_passed": 114,
+  "ruff_check": "passed"
+}
