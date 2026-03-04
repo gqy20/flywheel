@@ -151,6 +151,49 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_file_descriptor_not_leaked_on_fchmod_failure(tmp_path) -> None:
+    """Regression test for issue #7203: File descriptor leak on os.fchmod failure.
+
+    If os.fchmod() fails between tempfile.mkstemp() and os.fdopen(), the file
+    descriptor should still be properly closed to prevent resource leaks.
+
+    This test verifies that even if fchmod fails, the fd is closed and the
+    temp file is cleaned up.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track file descriptors before the operation
+    fd_before = set(os.listdir("/proc/self/fd"))
+
+    # Make os.fchmod fail to trigger the fd leak scenario
+    def failing_fchmod(fd, mode):
+        raise OSError("Simulated fchmod failure")
+
+    with (
+        patch("flywheel.storage.os.fchmod", failing_fchmod),
+        pytest.raises(OSError, match="Simulated fchmod failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Track file descriptors after the operation
+    fd_after = set(os.listdir("/proc/self/fd"))
+
+    # Verify no file descriptors leaked
+    # Allow for some small variance due to test infrastructure
+    new_fds = fd_after - fd_before
+    leaked_fds = [fd for fd in new_fds if fd.isdigit()]
+
+    # There should be no new open file descriptors
+    assert len(leaked_fds) == 0, f"File descriptors leaked: {leaked_fds}"
+
+    # Verify temp file was cleaned up
+    temp_files = list(tmp_path.glob(".*.json.*.tmp"))
+    assert len(temp_files) == 0, f"Temp files not cleaned up: {temp_files}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
