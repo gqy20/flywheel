@@ -122,10 +122,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=_validate_iso_timestamp(
-                str(data.get("created_at") or ""), "created_at"
-            ),
-            updated_at=_validate_iso_timestamp(
-                str(data.get("updated_at") or ""), "updated_at"
-            ),
+            created_at=_validate_iso_timestamp(str(data.get("created_at") or ""), "created_at"),
+            updated_at=_validate_iso_timestamp(str(data.get("updated_at") or ""), "updated_at"),
         )
