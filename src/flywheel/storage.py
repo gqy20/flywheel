@@ -23,31 +23,34 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    This function is designed to be safe against TOCTOU race conditions by:
+    - Always attempting mkdir with exist_ok=True (no pre-check that creates race window)
+    - Catching FileExistsError which indicates a file (not directory) exists at a parent path
+
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
-    # This handles cases like: /path/to/file.json/subdir/db.json
-    # where 'file.json' exists as a file but we need it to be a directory
-    for part in list(file_path.parents):  # Only check parents, not file_path itself
-        if part.exists() and not part.is_dir():
-            raise ValueError(
-                f"Path error: '{part}' exists as a file, not a directory. "
-                f"Cannot use '{file_path}' as database path."
-            )
-
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
+    # Create parent directory using try/except pattern to avoid TOCTOU race condition.
+    # We do NOT check existence first - that would create a race window between
+    # check and mkdir. Instead, we rely on mkdir's atomic behavior and catch errors.
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except FileExistsError as e:
+        # FileExistsError with exist_ok=True means a FILE exists at a parent path,
+        # not a directory. This handles the TOCTOU race condition where a file
+        # was created at a parent path after any prior checks.
+        raise ValueError(
+            f"Path error: A file exists at a parent path of '{file_path}'. "
+            f"Cannot create directory structure. Original error: {e}"
+        ) from e
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
 
 
 class TodoStorage:
