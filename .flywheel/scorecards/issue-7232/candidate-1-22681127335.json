@@ -1,14 +1,23 @@
 {
-  "issue_number": 7232,
-  "candidate_number": 1,
+  "issue": 7232,
+  "candidate": 1,
   "run_id": "22681127335",
   "branch": "claude/issue-7232-candidate-1-22681127335",
-  "status": "implemented",
-  "tests_added": 4,
-  "tests_passed": 116,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_number": 7240,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7240",
+  "generated_at": "2026-03-04T18:32:06.739965+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "summary": "Add validation in from_dict() to reject empty or whitespace-only strings for 'text' field, consistent with rename() behavior"
+  "stage_response_sizes": {
+    "triage": 2441,
+    "plan": 2692,
+    "implement": 3054,
+    "verify": 2070,
+    "finalize": 1550
+  }
 }
