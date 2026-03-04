@@ -10,6 +10,25 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _is_valid_iso_timestamp(ts: str) -> bool:
+    """Check if a string is a valid ISO 8601 timestamp.
+
+    Accepts formats like:
+    - 2024-01-15T10:30:00+00:00 (with timezone offset)
+    - 2024-01-15T10:30:00Z (with Z suffix)
+    - 2024-01-15T10:30:00.123456+00:00 (with microseconds)
+    """
+    if not ts:
+        return False
+    try:
+        # Handle Z suffix by replacing with +00:00 for parsing
+        ts_to_parse = ts.replace("Z", "+00:00")
+        datetime.fromisoformat(ts_to_parse)
+        return True
+    except ValueError:
+        return False
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -93,10 +112,29 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp formats if provided
+        created_at_raw = data.get("created_at")
+        updated_at_raw = data.get("updated_at")
+
+        created_at = str(created_at_raw or "")
+        updated_at = str(updated_at_raw or "")
+
+        # Only validate if a non-empty string was explicitly provided
+        if created_at_raw is not None and created_at and not _is_valid_iso_timestamp(created_at):
+            raise ValueError(
+                f"Invalid timestamp format for 'created_at': {created_at!r}. "
+                "Expected ISO 8601 format (e.g., 2024-01-15T10:30:00+00:00)."
+            )
+        if updated_at_raw is not None and updated_at and not _is_valid_iso_timestamp(updated_at):
+            raise ValueError(
+                f"Invalid timestamp format for 'updated_at': {updated_at!r}. "
+                "Expected ISO 8601 format (e.g., 2024-01-15T10:30:00+00:00)."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
