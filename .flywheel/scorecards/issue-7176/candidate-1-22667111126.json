@@ -1,20 +1,23 @@
 {
-  "issue_number": 7176,
-  "candidate_number": 1,
+  "issue": 7176,
+  "candidate": 1,
   "run_id": "22667111126",
   "branch": "claude/issue-7176-candidate-1-22667111126",
-  "status": "implemented",
-  "tests_added": [
-    "test_todo_from_dict_rejects_negative_id",
-    "test_todo_from_dict_accepts_zero_id",
-    "test_todo_from_dict_accepts_positive_id"
+  "pr_number": 7184,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7184",
+  "generated_at": "2026-03-04T12:12:19.026170+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_modified": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
-  ],
-  "tests_passed": true,
-  "lint_passed": true,
-  "summary": "Added validation in Todo.from_dict to reject negative id values with clear error message.",
-  "approach": "Minimal fix - added 6-line validation block after int conversion to check id >= 0"
+  "stage_response_sizes": {
+    "triage": 1995,
+    "plan": 2947,
+    "implement": 2080,
+    "verify": 1822,
+    "finalize": 737
+  }
 }
