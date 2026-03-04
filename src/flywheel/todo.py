@@ -40,9 +40,7 @@ class Todo:
         if not self.updated_at:
             object.__setattr__(self, "updated_at", self.created_at)
         # Normalize tags: strip whitespace, lowercase, filter empty strings
-        normalized_tags = tuple(
-            tag.strip().lower() for tag in self.tags if tag.strip()
-        )
+        normalized_tags = tuple(tag.strip().lower() for tag in self.tags if tag.strip())
         object.__setattr__(self, "tags", normalized_tags)
 
     def mark_done(self) -> None:
@@ -104,11 +102,7 @@ class Todo:
 
         # Parse tags from data (accept list or tuple, default to empty)
         raw_tags = data.get("tags", ())
-        tags = (
-            tuple(str(tag) for tag in raw_tags)
-            if isinstance(raw_tags, (list, tuple))
-            else ()
-        )
+        tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, (list, tuple)) else ()
 
         return cls(
             id=todo_id,
