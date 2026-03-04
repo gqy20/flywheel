@@ -1,0 +1,31 @@
+{
+  "issue_number": 7162,
+  "issue_title": "[Bug] from_dict accepts negative integer as valid 'id' without validation",
+  "candidate_number": 2,
+  "run_id": "22663176462",
+  "branch_name": "claude/issue-7162-candidate-2-22663176462",
+  "created_at": "2026-03-04T10:45:00Z",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "tests": {
+    "added": [
+      "test_todo_from_dict_rejects_negative_id",
+      "test_todo_from_dict_accepts_zero_id",
+      "test_todo_from_dict_accepts_positive_id"
+    ],
+    "passed": 15,
+    "failed": 0
+  },
+  "validation": {
+    "ruff_check": "passed",
+    "pytest": "passed"
+  },
+  "implementation_summary": "Added validation in Todo.from_dict() to reject negative IDs. The fix validates that todo_id >= 0 and raises a ValueError with a clear message if the ID is negative."
+}
