@@ -1,38 +1,23 @@
 {
-  "issue_number": 7105,
-  "issue_title": "[Bug] Todo.__init__ does not validate 'text' type at construction time, only in from_dict",
-  "candidate_number": 3,
+  "issue": 7105,
+  "candidate": 3,
   "run_id": "22653458371",
-  "branch_name": "claude/issue-7105-candidate-3-22653458371",
-  "status": "finalized",
+  "branch": "claude/issue-7105-candidate-3-22653458371",
+  "pr_number": 7117,
   "pr_url": "https://github.com/gqy20/flywheel/pull/7117",
-  "approach": {
-    "description": "Add text type validation in Todo.__post_init__ to raise ValueError when non-string text is passed to constructor",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_7105_todo_text_validation.py"
-    ],
-    "lines_changed": 4
-  },
-  "tdd_verification": {
-    "red_phase": true,
-    "green_phase": true,
-    "tests_added": 4,
-    "tests_passing": true
-  },
-  "verify_stage": {
-    "pytest_command": "uv run pytest tests/test_issue_7105_todo_text_validation.py -v",
-    "pytest_result": "4 passed in 0.05s",
-    "ruff_check_command": "uv run ruff check src/flywheel/todo.py tests/test_issue_7105_todo_text_validation.py",
-    "ruff_check_result": "All checks passed!",
-    "regression_tests_command": "uv run pytest tests/ -v -k 'todo or Todo'",
-    "regression_tests_result": "38 passed, 78 deselected in 0.15s"
-  },
-  "checklist": {
-    "test_file_added": true,
-    "source_file_changed": true,
-    "ruff_check_passed": true,
-    "all_tests_passed": true,
-    "no_regressions": true
+  "generated_at": "2026-03-04T04:10:27.702262+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1673,
+    "plan": 3525,
+    "implement": 2931,
+    "verify": 2607,
+    "finalize": 1189
   }
 }
