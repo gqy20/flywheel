@@ -1,0 +1,15 @@
+{
+  "issue_number": 7232,
+  "candidate_number": 3,
+  "run_id": "22681127335",
+  "status": "implemented",
+  "created_at": "2026-03-04T18:15:00Z",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "tests_added": 3,
+  "tests_passed": true,
+  "lint_passed": true,
+  "summary": "Add validation in Todo.from_dict() to reject empty or whitespace-only strings for 'text' field, consistent with rename() behavior."
+}
