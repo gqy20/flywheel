@@ -68,9 +68,7 @@ class Todo:
         # Validate 'id' is an integer (reject floats to avoid silent truncation)
         if isinstance(data["id"], bool):
             # Reject booleans - they're technically int subclass but not valid IDs
-            raise ValueError(
-                f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
-            )
+            raise ValueError(f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer.")
         if isinstance(data["id"], float):
             raise ValueError(
                 f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer, not a float."
