@@ -118,6 +118,12 @@ class TodoStorage:
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
+
+            # Explicitly set permissions on final file for filesystem consistency.
+            # While os.replace() preserves permissions on many filesystems, some
+            # may inherit from previous file or default umask. This ensures
+            # the final file always has restrictive 0o600 (rw-------) permissions.
+            os.chmod(self.path, stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             # Clean up temp file on error
             with contextlib.suppress(OSError):

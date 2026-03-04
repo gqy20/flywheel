@@ -119,3 +119,59 @@ def test_temp_file_is_not_executable(tmp_path) -> None:
             assert not (file_mode & stat.S_IXUSR), f"Owner execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXGRP), f"Group execute bit set on {temp_file}"
             assert not (file_mode & stat.S_IXOTH), f"Other execute bit set on {temp_file}"
+
+
+def test_final_file_has_0o600_permissions(tmp_path) -> None:
+    """Issue #7217: Final file should have 0o600 permissions after atomic rename.
+
+    The temp file has 0o600 set correctly, but after os.replace(), the final file
+    may inherit permissions from a previous version or default umask on some
+    filesystems. The fix must explicitly set permissions on the final file.
+
+    Before fix: Final file may have incorrect permissions (e.g., 0o644)
+    After fix: Final file has exactly 0o600 (rw-------)
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Save a todo to create the file
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify final file has EXACTLY 0o600 permissions
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    assert file_mode == 0o600, (
+        f"Final file has incorrect permissions: {oct(file_mode)} "
+        f"(expected 0o600). File was: {db}"
+    )
+
+
+def test_final_file_permissions_with_preexisting_file(tmp_path) -> None:
+    """Issue #7217: Final file permissions should be set even with pre-existing file.
+
+    If a file already exists with different permissions (e.g., 0o644), after save(),
+    the file should be updated to have 0o600 permissions.
+    """
+    db = tmp_path / "todo.json"
+
+    # Create a pre-existing file with overly permissive permissions
+    db.write_text("[]", encoding="utf-8")
+    os.chmod(db, 0o644)  # rw-r--r--
+
+    # Verify pre-existing file has 0o644
+    initial_mode = stat.S_IMODE(db.stat().st_mode)
+    assert initial_mode == 0o644, f"Pre-existing file setup failed: {oct(initial_mode)}"
+
+    # Now save using TodoStorage
+    storage = TodoStorage(str(db))
+    storage.save([Todo(id=1, text="test")])
+
+    # Verify final file has been updated to 0o600
+    file_stat = db.stat()
+    file_mode = stat.S_IMODE(file_stat.st_mode)
+
+    assert file_mode == 0o600, (
+        f"Final file has incorrect permissions after overwrite: {oct(file_mode)} "
+        f"(expected 0o600). Pre-existing file had 0o644."
+    )
