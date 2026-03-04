@@ -290,7 +290,7 @@ def test_concurrent_add_produces_unique_ids(tmp_path) -> None:
     # Collect all IDs created by all workers
     all_ids = []
     for success in successes:
-        _, worker_id, ids_created = success
+        _, _worker_id, ids_created = success
         all_ids.extend(ids_created)
 
     # Verify all IDs are unique (no duplicates)
