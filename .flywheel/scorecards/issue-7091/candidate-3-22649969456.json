@@ -1,19 +1,23 @@
 {
-  "issue_number": 7091,
-  "candidate_number": 3,
+  "issue": 7091,
+  "candidate": 3,
   "run_id": "22649969456",
-  "status": "implemented",
-  "summary": "Fix inconsistent text validation in Todo constructor",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_7091_todo_text_validation.py"]
-  },
-  "tests_passed": 122,
-  "ruff_check": "passed",
-  "implementation": {
-    "approach": "Added validation in __post_init__ to reject empty and whitespace-only text, consistent with rename() method",
-    "code_change": "Added: if not self.text or not self.text.strip(): raise ValueError('Todo text cannot be empty')"
-  },
-  "risks": ["None - validation is consistent with existing rename() behavior"],
-  "limitations": []
+  "branch": "claude/issue-7091-candidate-3-22649969456",
+  "pr_number": 7101,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7101",
+  "generated_at": "2026-03-04T02:12:42.548576+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3115,
+    "plan": 4000,
+    "implement": 1650,
+    "verify": 1849,
+    "finalize": 901
+  }
 }
