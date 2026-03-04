@@ -1,0 +1,34 @@
+{
+  "issue_number": 7249,
+  "issue_title": "[Feature] Add toggle() method to flip done status",
+  "candidate_number": 3,
+  "run_id": "22685644220",
+  "branch_name": "claude/issue-7249-candidate-3-22685644220",
+  "implementation": {
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_7249_toggle_method.py"
+    ],
+    "summary": "Added toggle() method to Todo class that flips done status and returns self for method chaining",
+    "tests_added": 5,
+    "approach": "TDD - wrote failing tests first, then implemented minimal fix"
+  },
+  "tests": {
+    "passed": 5,
+    "failed": 0,
+    "commands_executed": [
+      "uv run pytest tests/test_issue_7249_toggle_method.py -v",
+      "uv run pytest tests/test_minimal_framework.py -v"
+    ]
+  },
+  "verification": {
+    "ruff_check": "passed",
+    "all_tests_pass": true
+  },
+  "acceptance_criteria": {
+    "toggle_flips_false_to_true": true,
+    "toggle_flips_true_to_false": true,
+    "toggle_updates_updated_at": true,
+    "toggle_returns_self_for_chaining": true
+  }
+}
