@@ -106,15 +106,23 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        # Wrap fdopen in try/except to close fd if fdopen fails during initialization
+        # If fdopen raises an exception, it hasn't taken ownership of fd yet
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except OSError:
+            # fdopen failed before taking ownership - close fd explicitly
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            raise
+
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
             os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
 
             # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+            f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
@@ -123,6 +131,8 @@ class TodoStorage:
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise
+        finally:
+            f.close()
 
     def next_id(self, todos: list[Todo]) -> int:
         return (max((todo.id for todo in todos), default=0) + 1) if todos else 1

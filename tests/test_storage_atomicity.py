@@ -151,6 +151,80 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_closed_if_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #7147: FD leak if os.fdopen raises an exception.
+
+    If os.fdopen fails after mkstemp creates the file descriptor, the fd must
+    be properly closed to avoid resource leaks. This test simulates an os.fdopen
+    failure and verifies the fd is explicitly closed.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Track fd state
+    created_fd = []
+
+    class FdCloser:
+        """A file-like object that tracks when it's closed."""
+
+        def __init__(self, fd):
+            self._fd = fd
+            self._closed = False
+
+        def close(self):
+            if not self._closed:
+                self._closed = True
+                os.close(self._fd)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.close()
+
+        def write(self, data):
+            return os.write(self._fd, data.encode() if isinstance(data, str) else data)
+
+    def failing_fdopen(fd, *args, **kwargs):
+        """Simulate fdopen failure - the fd should still be closed."""
+        # fdopen failed during initialization, not taking ownership
+        raise OSError("Simulated os.fdopen failure")
+
+    original_mkstemp = __import__("tempfile").mkstemp
+
+    def tracking_mkstemp(*args, **kwargs):
+        fd, path = original_mkstemp(*args, **kwargs)
+        created_fd.append(fd)
+        return fd, path
+
+    import tempfile
+
+    with (
+        patch.object(tempfile, "mkstemp", tracking_mkstemp),
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match=r"Simulated os\.fdopen failure"),
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # The key assertion: the fd created by mkstemp must be closed
+    # even though os.fdopen failed
+    assert len(created_fd) == 1, "Expected exactly one fd to be created"
+    created = created_fd[0]
+    # Check if fd was closed by trying to use it (should fail with Bad file descriptor)
+    try:
+        os.fstat(created)
+        # If we get here, fd is still open - this is the bug!
+        pytest.fail(
+            f"File descriptor {created} was not closed after os.fdopen failure - "
+            "this indicates a resource leak (issue #7147)"
+        )
+    except OSError as e:
+        # Expected: fd was properly closed
+        assert "Bad file descriptor" in str(e) or e.errno == 9
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
