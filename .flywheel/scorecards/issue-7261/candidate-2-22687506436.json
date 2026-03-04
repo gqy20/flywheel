@@ -1,14 +1,23 @@
 {
-  "issue_number": 7261,
-  "candidate_number": 2,
+  "issue": 7261,
+  "candidate": 2,
   "run_id": "22687506436",
-  "status": "implemented",
-  "summary": "Fix Todo.from_dict to reject float id values with clear error message",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "tests_passed": 114,
-  "risks": "None - the fix only adds validation to reject invalid input types",
-  "limitations": "None"
+  "branch": "claude/issue-7261-candidate-2-22687506436",
+  "pr_number": 7272,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7272",
+  "generated_at": "2026-03-04T21:31:25.739529+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2120,
+    "plan": 1776,
+    "implement": 1925,
+    "verify": 1897,
+    "finalize": 1990
+  }
 }
