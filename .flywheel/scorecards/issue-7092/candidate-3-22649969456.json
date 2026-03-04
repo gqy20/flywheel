@@ -1,17 +1,23 @@
 {
-  "issue_number": 7092,
-  "candidate_number": 3,
+  "issue": 7092,
+  "candidate": 3,
   "run_id": "22649969456",
   "branch": "claude/issue-7092-candidate-3-22649969456",
-  "created_at": "2026-03-04T01:30:00Z",
-  "status": "implemented",
-  "test_first": true,
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_minimal_framework.py"
+  "pr_number": 7096,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7096",
+  "generated_at": "2026-03-04T01:52:02.409791+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": 13,
-  "lint_passed": true,
-  "summary": "Added validation in Todo.from_dict() to reject negative IDs, preventing logic errors in storage.next_id() which uses max() to calculate next ID."
+  "stage_response_sizes": {
+    "triage": 2865,
+    "plan": 2721,
+    "implement": 1872,
+    "verify": 1968,
+    "finalize": 1931
+  }
 }
