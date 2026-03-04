@@ -1,0 +1,52 @@
+{
+  "issue_number": 7177,
+  "issue_title": "[Bug] Todo.from_dict accepts float id values (truncates to int silently)",
+  "candidate_number": 1,
+  "run_id": "22667111126",
+  "branch_name": "claude/issue-7177-candidate-1-22667111126",
+  "stage": "FINALIZE",
+  "plan": {
+    "summary": "Add validation in Todo.from_dict to reject float id values before int() conversion to prevent silent truncation",
+    "files_to_touch": [
+      "tests/test_issue_2000_json_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_sequence": [
+      {
+        "step": "RED",
+        "description": "Add failing tests for float id rejection in tests/test_issue_2000_json_validation.py"
+      },
+      {
+        "step": "GREEN",
+        "description": "Add float and bool type checks before int() conversion in src/flywheel/todo.py lines 68-74"
+      }
+    ],
+    "tests_to_add": [
+      "test_todo_from_dict_rejects_float_id",
+      "test_todo_from_dict_accepts_integer_id",
+      "test_todo_from_dict_accepts_string_convertible_id"
+    ],
+    "acceptance_criteria": [
+      "Todo.from_dict({'id': 1.5, 'text': 'x'}) raises ValueError with message about integer requirement",
+      "Todo.from_dict({'id': 1, 'text': 'x'}) succeeds",
+      "Todo.from_dict({'id': '1', 'text': 'x'}) still succeeds (string conversion is intentional)"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "implementation": {
+    "completed": true,
+    "tests_passed": 15,
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_2000_json_validation.py"
+    ],
+    "lines_added": 35,
+    "lines_removed": 4
+  },
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7183",
+  "created_at": "2026-03-04T12:00:00Z",
+  "finalized_at": "2026-03-04T12:00:00Z"
+}
