@@ -1,0 +1,52 @@
+{
+  "issue_number": 7260,
+  "issue_title": "[Bug] Todo.from_dict accepts negative integers as valid 'id' values without validation",
+  "candidate_number": 1,
+  "run_id": "22687506436",
+  "branch": "claude/issue-7260-candidate-1-22687506436",
+  "status": "implemented",
+  "changes": {
+    "source_files": [
+      {
+        "path": "src/flywheel/todo.py",
+        "change_type": "modified",
+        "description": "Added validation in Todo.from_dict to ensure 'id' is a positive integer (id > 0)"
+      }
+    ],
+    "test_files": [
+      {
+        "path": "tests/test_issue_2000_json_validation.py",
+        "change_type": "modified",
+        "description": "Added 3 regression tests for negative/zero/positive id validation"
+      }
+    ]
+  },
+  "tests": {
+    "added": [
+      "test_todo_from_dict_rejects_negative_id",
+      "test_todo_from_dict_rejects_zero_id",
+      "test_todo_from_dict_accepts_positive_id"
+    ],
+    "passed": 15,
+    "failed": 0
+  },
+  "acceptance_criteria": [
+    {
+      "criterion": "Todo.from_dict({'id': -1, 'text': 'x'}) raises ValueError with message about positive id",
+      "status": "passed"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 0, 'text': 'x'}) raises ValueError (id must be > 0)",
+      "status": "passed"
+    },
+    {
+      "criterion": "Todo.from_dict({'id': 1, 'text': 'x'}) succeeds",
+      "status": "passed"
+    }
+  ],
+  "implementation_summary": "Added validation in Todo.from_dict() at line 76-80 to check that todo_id > 0 after integer conversion. Raises ValueError with clear message when id is negative or zero.",
+  "risks_limitations": "Minimal risk - validation is additive and does not change behavior for valid positive IDs. Could affect code that was incorrectly using negative IDs.",
+  "tests_passed": true,
+  "lint_passed": true,
+  "created_at": "2026-03-04T21:00:00Z"
+}
