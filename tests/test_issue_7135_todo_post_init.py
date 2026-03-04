@@ -13,9 +13,7 @@ import re
 from flywheel.todo import Todo
 
 # ISO 8601 format regex pattern (basic validation)
-ISO_8601_PATTERN = re.compile(
-    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$"
-)
+ISO_8601_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{2}:\d{2}|Z)?$")
 
 
 def test_todo_post_init_auto_generates_created_at() -> None:
@@ -26,9 +24,9 @@ def test_todo_post_init_auto_generates_created_at() -> None:
     assert todo.created_at, "created_at should be auto-generated"
 
     # created_at should match ISO 8601 format
-    assert ISO_8601_PATTERN.match(
-        todo.created_at
-    ), f"created_at should be ISO format, got: {todo.created_at}"
+    assert ISO_8601_PATTERN.match(todo.created_at), (
+        f"created_at should be ISO format, got: {todo.created_at}"
+    )
 
 
 def test_todo_post_init_updated_at_equals_created_at() -> None:
@@ -36,9 +34,9 @@ def test_todo_post_init_updated_at_equals_created_at() -> None:
     todo = Todo(id=1, text="test task")
 
     # updated_at should equal created_at when not explicitly set
-    assert (
-        todo.updated_at == todo.created_at
-    ), f"updated_at ({todo.updated_at}) should equal created_at ({todo.created_at})"
+    assert todo.updated_at == todo.created_at, (
+        f"updated_at ({todo.updated_at}) should equal created_at ({todo.created_at})"
+    )
 
 
 def test_todo_post_init_preserves_explicit_created_at() -> None:
@@ -46,9 +44,9 @@ def test_todo_post_init_preserves_explicit_created_at() -> None:
     explicit_time = "2024-01-01T12:00:00+00:00"
     todo = Todo(id=1, text="test task", created_at=explicit_time)
 
-    assert (
-        todo.created_at == explicit_time
-    ), f"created_at should be preserved, expected {explicit_time}, got {todo.created_at}"
+    assert todo.created_at == explicit_time, (
+        f"created_at should be preserved, expected {explicit_time}, got {todo.created_at}"
+    )
 
 
 def test_todo_post_init_preserves_explicit_updated_at() -> None:
@@ -56,9 +54,9 @@ def test_todo_post_init_preserves_explicit_updated_at() -> None:
     explicit_time = "2024-01-01T12:00:00+00:00"
     todo = Todo(id=1, text="test task", updated_at=explicit_time)
 
-    assert (
-        todo.updated_at == explicit_time
-    ), f"updated_at should be preserved, expected {explicit_time}, got {todo.updated_at}"
+    assert todo.updated_at == explicit_time, (
+        f"updated_at should be preserved, expected {explicit_time}, got {todo.updated_at}"
+    )
 
 
 def test_todo_post_init_both_timestamps_explicit() -> None:
@@ -76,9 +74,7 @@ def test_todo_post_init_created_at_only_explicit() -> None:
     explicit_created = "2024-01-01T10:00:00+00:00"
     todo = Todo(id=1, text="test task", created_at=explicit_created)
 
-    assert (
-        todo.created_at == explicit_created
-    ), "created_at should be preserved when explicitly set"
-    assert (
-        todo.updated_at == explicit_created
-    ), "updated_at should equal created_at when not explicitly set"
+    assert todo.created_at == explicit_created, "created_at should be preserved when explicitly set"
+    assert todo.updated_at == explicit_created, (
+        "updated_at should equal created_at when not explicitly set"
+    )
