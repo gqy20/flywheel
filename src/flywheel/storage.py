@@ -74,8 +74,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
@@ -113,7 +112,14 @@ class TodoStorage:
 
             # Write content with proper encoding
             # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            # Note: os.fdopen takes ownership of fd, but if it fails during
+            # initialization, we must close fd manually to prevent a leak
+            try:
+                f = os.fdopen(fd, "w", encoding="utf-8")
+            except OSError:
+                os.close(fd)  # Close fd if fdopen failed to take ownership
+                raise
+            with f:
                 f.write(content)
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
