@@ -9,8 +9,6 @@ These tests verify that:
 
 from __future__ import annotations
 
-import pytest
-
 from flywheel.todo import Todo
 
 
