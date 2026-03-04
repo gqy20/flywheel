@@ -1,15 +1,23 @@
 {
-  "issue_number": 7177,
-  "candidate_number": 2,
+  "issue": 7177,
+  "candidate": 2,
   "run_id": "22667111126",
-  "branch_name": "claude/issue-7177-candidate-2-22667111126",
-  "created_at": "2026-03-04T12:00:00Z",
-  "status": "ready",
-  "tests_passed": true,
-  "lint_passed": true,
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_2000_json_validation.py"]
-  },
-  "summary": "Fix Todo.from_dict to reject float and bool id values, preventing silent truncation"
+  "branch": "claude/issue-7177-candidate-2-22667111126",
+  "pr_number": 7185,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7185",
+  "generated_at": "2026-03-04T12:11:36.162079+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2628,
+    "plan": 2891,
+    "implement": 1859,
+    "verify": 2041,
+    "finalize": 928
+  }
 }
