@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    tags: tuple[str, ...] = ()
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -35,9 +36,16 @@ class Todo:
 
     def __post_init__(self) -> None:
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
+        # Normalize tags: lowercase, strip whitespace, filter empty
+        normalized = tuple(
+            tag.lower().strip()
+            for tag in self.tags
+            if tag.strip()
+        )
+        object.__setattr__(self, "tags", normalized)
 
     def mark_done(self) -> None:
         self.done = True
@@ -93,10 +101,15 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse tags from data (accept list or tuple, convert to tuple)
+        raw_tags = data.get("tags", ())
+        tags = tuple(raw_tags) if isinstance(raw_tags, (list, tuple)) else ()
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            tags=tags,
         )
