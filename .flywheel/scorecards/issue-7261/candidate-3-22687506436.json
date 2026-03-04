@@ -1,31 +1,23 @@
 {
-  "issue_number": 7261,
-  "issue_title": "[Bug] Todo.from_dict silently accepts and truncates float id values",
-  "candidate_number": 3,
+  "issue": 7261,
+  "candidate": 3,
   "run_id": "22687506436",
   "branch": "claude/issue-7261-candidate-3-22687506436",
-  "status": "implemented",
-  "implementation": {
-    "approach": "Add explicit type check for float values before int() conversion in Todo.from_dict",
-    "files_changed": [
-      "src/flywheel/todo.py",
-      "tests/test_issue_2000_json_validation.py"
-    ],
-    "lines_added": 16,
-    "lines_removed": 0
-  },
-  "tests": {
-    "added": [
-      "test_todo_from_dict_rejects_float_id",
-      "test_todo_from_dict_rejects_float_id_whole_number"
-    ],
-    "passed": 14,
-    "failed": 0
-  },
-  "validation": {
-    "lint_passed": true,
-    "all_tests_passed": true
-  },
-  "risks": [],
-  "limitations": []
+  "pr_number": 7265,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7265",
+  "generated_at": "2026-03-04T21:11:51.535762+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 1736,
+    "plan": 3521,
+    "implement": 1824,
+    "verify": 2658,
+    "finalize": 1303
+  }
 }
