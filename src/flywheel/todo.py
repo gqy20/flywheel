@@ -65,7 +65,16 @@ class Todo:
         if "text" not in data:
             raise ValueError("Missing required field 'text' in todo data")
 
-        # Validate 'id' is an integer (or can be converted to one)
+        # Validate 'id' is an integer (reject floats to avoid silent truncation)
+        if isinstance(data["id"], bool):
+            # Reject booleans - they're technically int subclass but not valid IDs
+            raise ValueError(
+                f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer."
+            )
+        if isinstance(data["id"], float):
+            raise ValueError(
+                f"Invalid value for 'id': {data['id']!r}. 'id' must be an integer, not a float."
+            )
         try:
             todo_id = int(data["id"])
         except (ValueError, TypeError) as e:
