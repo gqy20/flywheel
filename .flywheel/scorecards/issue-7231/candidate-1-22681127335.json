@@ -1,0 +1,30 @@
+{
+  "issue_number": 7231,
+  "candidate_id": 1,
+  "run_id": "22681127335",
+  "branch": "claude/issue-7231-candidate-1-22681127335",
+  "created_at": "2026-03-04T18:15:00Z",
+  "status": "ready_for_review",
+  "fix_summary": {
+    "root_cause": "Todo dataclass __post_init__ did not validate text field for empty/whitespace-only values",
+    "solution": "Added validation in __post_init__ to strip and check text, raising ValueError if empty",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_7231_todo_empty_text_validation.py"
+    ],
+    "tests_added": 10,
+    "tests_passed": 122
+  },
+  "verification": {
+    "pytest": "passed (122 tests)",
+    "ruff": "passed"
+  },
+  "acceptance_criteria_met": [
+    "Todo(id=1, text='') raises ValueError",
+    "Todo(id=1, text=' ') raises ValueError",
+    "Todo(id=1, text='valid text') works normally"
+  ],
+  "risks": [
+    "Breaking change: Code directly creating Todo objects with empty/whitespace text will now raise ValueError"
+  ]
+}
