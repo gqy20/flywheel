@@ -3,7 +3,9 @@
   "candidate_number": 3,
   "run_id": "22678677070",
   "branch": "claude/issue-7219-candidate-3-22678677070",
-  "status": "implemented",
+  "status": "pr_created",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7224",
+  "pr_number": 7224,
   "implementation": {
     "test_file": "tests/test_issue_7219_from_dict_empty_text.py",
     "source_file": "src/flywheel/todo.py",
