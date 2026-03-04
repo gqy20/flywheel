@@ -13,9 +13,6 @@ These tests verify the fix handles the race condition safely.
 from __future__ import annotations
 
 import concurrent.futures
-import threading
-import time
-from pathlib import Path
 
 import pytest
 
@@ -46,7 +43,9 @@ def test_toctou_concurrent_directory_creation_succeeds(tmp_path) -> None:
         concurrent.futures.wait(futures)
 
     # All should succeed (directory already exists is OK with exist_ok=True)
-    assert len(success_count) == 10, f"Expected 10 successes, got {len(success_count)}. Errors: {error_list}"
+    assert len(success_count) == 10, (
+        f"Expected 10 successes, got {len(success_count)}. Errors: {error_list}"
+    )
     # Note: We don't check the loaded data because concurrent saves with empty lists
     # will overwrite each other. The important thing is no errors occurred.
 
@@ -91,8 +90,7 @@ def test_toctou_file_at_parent_path_clear_error(tmp_path) -> None:
     # Error message should mention the path issue
     error_msg = str(exc_info.value).lower()
     assert any(
-        keyword in error_msg
-        for keyword in ["file", "directory", "not a directory", "path"]
+        keyword in error_msg for keyword in ["file", "directory", "not a directory", "path"]
     ), f"Error message should explain file vs directory conflict: {exc_info.value}"
 
 
@@ -135,7 +133,11 @@ def test_toctou_mkdir_fileexistserror_when_file_blocks_path(tmp_path) -> None:
 
     # Error should mention the blocking path
     error_msg = str(exc_info.value)
-    assert "blocking" in error_msg.lower() or "file" in error_msg.lower() or "directory" in error_msg.lower()
+    assert (
+        "blocking" in error_msg.lower()
+        or "file" in error_msg.lower()
+        or "directory" in error_msg.lower()
+    )
 
 
 def test_toctou_normal_operation_after_fix(tmp_path) -> None:
