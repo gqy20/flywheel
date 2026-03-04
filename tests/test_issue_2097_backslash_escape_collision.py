@@ -299,7 +299,7 @@ class TestSanitizeTextPerformance:
                 code = ord(char)
                 # Only allow printable ASCII, newline, carriage return, tab, and backslash
                 is_safe = (
-                    code >= 0x20 and code < 0x7f  # printable ASCII
+                    (code >= 0x20 and code < 0x7f)  # printable ASCII
                     or char in ("\n", "\r", "\t", "\\")  # allowed special chars
                     or code >= 0xa0  # above C1 range
                 )
