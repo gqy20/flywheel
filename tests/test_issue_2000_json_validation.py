@@ -119,3 +119,50 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7163 - validate timestamp format for created_at/updated_at
+def test_todo_from_dict_accepts_valid_iso_timestamp_created_at() -> None:
+    """Todo.from_dict should accept valid ISO format timestamps for created_at."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "task",
+        "created_at": "2024-01-15T10:30:00+00:00"
+    })
+    assert todo.created_at == "2024-01-15T10:30:00+00:00"
+
+
+def test_todo_from_dict_accepts_valid_iso_timestamp_updated_at() -> None:
+    """Todo.from_dict should accept valid ISO format timestamps for updated_at."""
+    todo = Todo.from_dict({
+        "id": 1,
+        "text": "task",
+        "updated_at": "2024-01-15T10:30:00+00:00"
+    })
+    assert todo.updated_at == "2024-01-15T10:30:00+00:00"
+
+
+def test_todo_from_dict_accepts_empty_timestamp() -> None:
+    """Todo.from_dict should accept empty string for timestamps (default behavior)."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": "", "updated_at": ""})
+    # Empty strings trigger __post_init__ to set current timestamps
+    assert todo.created_at != ""
+    assert todo.updated_at != ""
+
+
+def test_todo_from_dict_rejects_invalid_timestamp_created_at() -> None:
+    """Todo.from_dict should reject malformed timestamp strings for created_at."""
+    with pytest.raises(ValueError, match=r"invalid.*'created_at'|'created_at'.*timestamp|'created_at'.*ISO"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "not-a-date"})
+
+
+def test_todo_from_dict_rejects_invalid_timestamp_updated_at() -> None:
+    """Todo.from_dict should reject malformed timestamp strings for updated_at."""
+    with pytest.raises(ValueError, match=r"invalid.*'updated_at'|'updated_at'.*timestamp|'updated_at'.*ISO"):
+        Todo.from_dict({"id": 1, "text": "task", "updated_at": "invalid-date"})
+
+
+def test_todo_from_dict_rejects_partial_timestamp() -> None:
+    """Todo.from_dict should reject partial timestamp strings (date only without time)."""
+    with pytest.raises(ValueError, match=r"Invalid.*'created_at'|'created_at'.*time"):
+        Todo.from_dict({"id": 1, "text": "task", "created_at": "2024-01-15"})

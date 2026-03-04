@@ -1,0 +1,30 @@
+{
+  "issue_number": 7163,
+  "candidate": 1,
+  "run_id": "22663176462",
+  "branch": "claude/issue-7163-candidate-1-22663176462",
+  "summary": "Add validation for ISO timestamp format in Todo.from_dict for created_at and updated_at fields",
+  "changes": {
+    "source_files": [
+      "src/flywheel/todo.py"
+    ],
+    "test_files": [
+      "tests/test_issue_2000_json_validation.py"
+    ]
+  },
+  "tests": {
+    "added": 6,
+    "passed": 118,
+    "failed": 0
+  },
+  "acceptance_criteria": {
+    "valid_iso_timestamp_succeeds": true,
+    "empty_string_succeeds": true,
+    "invalid_timestamp_raises_valueerror": true
+  },
+  "implementation": {
+    "approach": "Added _validate_iso_timestamp helper function that validates timestamp strings are valid ISO format with time component",
+    "minimal": true,
+    "backward_compatible": true
+  }
+}

@@ -10,6 +10,37 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _validate_iso_timestamp(value: str, field_name: str) -> str:
+    """Validate that a timestamp string is in ISO format with time component.
+
+    Args:
+        value: The timestamp string to validate.
+        field_name: The field name for error messages.
+
+    Returns:
+        The validated timestamp string.
+
+    Raises:
+        ValueError: If the timestamp is not empty and not valid ISO format with time.
+    """
+    if not value:
+        return value
+    try:
+        datetime.fromisoformat(value)
+    except ValueError as e:
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"'{field_name}' must be a valid ISO format timestamp."
+        ) from e
+    # Ensure the value contains a time component (indicated by 'T' separator)
+    if "T" not in value:
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"'{field_name}' must include time component (e.g., 2024-01-15T10:30:00)."
+        )
+    return value
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -97,6 +128,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=_validate_iso_timestamp(str(data.get("created_at") or ""), "created_at"),
+            updated_at=_validate_iso_timestamp(str(data.get("updated_at") or ""), "updated_at"),
         )
