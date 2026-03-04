@@ -158,3 +158,35 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_todo_toggle_flips_false_to_true() -> None:
+    """Feature #7249: toggle() should flip done status from False to True."""
+    todo = Todo(id=1, text="test")
+    assert todo.done is False
+
+    todo.toggle()
+    assert todo.done is True
+
+
+def test_todo_toggle_flips_true_to_false() -> None:
+    """Feature #7249: toggle() should flip done status from True to False."""
+    todo = Todo(id=1, text="test", done=True)
+    assert todo.done is True
+
+    todo.toggle()
+    assert todo.done is False
+
+
+def test_todo_toggle_updates_updated_at() -> None:
+    """Feature #7249: toggle() should update updated_at timestamp."""
+    todo = Todo(id=1, text="test")
+    original_updated_at = todo.updated_at
+
+    # Small delay to ensure timestamp difference
+    import time
+
+    time.sleep(0.001)
+    todo.toggle()
+
+    assert todo.updated_at > original_updated_at
