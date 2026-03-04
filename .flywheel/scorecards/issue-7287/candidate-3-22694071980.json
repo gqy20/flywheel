@@ -1,0 +1,14 @@
+{
+  "issue_number": 7287,
+  "candidate": 3,
+  "run_id": "22694071980",
+  "branch": "claude/issue-7287-candidate-3-22694071980",
+  "status": "implemented",
+  "approach": "Add text validation in Todo.__post_init__ to strip whitespace and reject empty strings, matching rename() behavior",
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_issue_7287_todo_constructor_validation.py"
+  ],
+  "tests_passed": 116,
+  "ruff_check": "passed"
+}
