@@ -1,0 +1,19 @@
+{
+  "issue_number": 7091,
+  "candidate_number": 3,
+  "run_id": "22649969456",
+  "status": "implemented",
+  "summary": "Fix inconsistent text validation in Todo constructor",
+  "changes": {
+    "source_files": ["src/flywheel/todo.py"],
+    "test_files": ["tests/test_issue_7091_todo_text_validation.py"]
+  },
+  "tests_passed": 122,
+  "ruff_check": "passed",
+  "implementation": {
+    "approach": "Added validation in __post_init__ to reject empty and whitespace-only text, consistent with rename() method",
+    "code_change": "Added: if not self.text or not self.text.strip(): raise ValueError('Todo text cannot be empty')"
+  },
+  "risks": ["None - validation is consistent with existing rename() behavior"],
+  "limitations": []
+}
