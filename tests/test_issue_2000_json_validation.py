@@ -119,3 +119,34 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7177 - reject float id values (no silent truncation)
+def test_todo_from_dict_rejects_float_id() -> None:
+    """Todo.from_dict should reject float id values to prevent silent truncation."""
+    with pytest.raises(ValueError, match=r"'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_whole_number_float_id() -> None:
+    """Todo.from_dict should reject float id even if it's a whole number (e.g., 1.0)."""
+    with pytest.raises(ValueError, match=r"'id'.*integer|'id'.*float"):
+        Todo.from_dict({"id": 2.0, "text": "task"})
+
+
+def test_todo_from_dict_rejects_bool_id() -> None:
+    """Todo.from_dict should reject boolean id values."""
+    with pytest.raises(ValueError, match=r"'id'.*integer|'id'.*bool"):
+        Todo.from_dict({"id": True, "text": "task"})
+
+
+def test_todo_from_dict_accepts_int_id() -> None:
+    """Todo.from_dict should accept integer id values."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
+
+
+def test_todo_from_dict_accepts_string_int_id() -> None:
+    """Todo.from_dict should accept string-convertible id values (intentional feature)."""
+    todo = Todo.from_dict({"id": "123", "text": "task"})
+    assert todo.id == 123
