@@ -1,25 +1,23 @@
 {
-  "issue_number": 7217,
-  "candidate_number": 1,
+  "issue": 7217,
+  "candidate": 1,
   "run_id": "22678677070",
-  "branch_name": "claude/issue-7217-candidate-1-22678677070",
-  "created_at": "2026-03-04T17:06:00Z",
-  "status": "verified",
-  "summary": "Fix security issue where final file permissions were not explicitly set after atomic rename. Added os.chmod() call after os.replace() to ensure final file has 0o600 permissions consistently across all filesystems.",
-  "changes": {
-    "source_files": [
-      "src/flywheel/storage.py"
-    ],
-    "test_files": [
-      "tests/test_issue_2027_permissions.py"
-    ]
-  },
-  "verification": {
-    "pytest_command": "uv run pytest tests/test_issue_2027_permissions.py -v",
-    "pytest_result": "4 passed",
-    "full_test_command": "uv run pytest --tb=short -q",
-    "full_test_result": "114 passed",
-    "ruff_command": "uv run ruff check src/ tests/",
-    "ruff_result": "All checks passed"
+  "branch": "claude/issue-7217-candidate-1-22678677070",
+  "pr_number": 7222,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7222",
+  "generated_at": "2026-03-04T17:25:46.454352+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 3503,
+    "plan": 2997,
+    "implement": 2682,
+    "verify": 1908,
+    "finalize": 297
   }
 }
