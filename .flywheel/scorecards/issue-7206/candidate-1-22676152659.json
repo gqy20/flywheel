@@ -1,0 +1,15 @@
+{
+  "issue_number": 7206,
+  "candidate": 1,
+  "run_id": "22676152659",
+  "status": "implemented",
+  "approach": "Add rename subcommand to CLI that calls existing Todo.rename() method",
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_7206_cli_rename_command.py"
+  ],
+  "tests_added": 4,
+  "tests_passed": true,
+  "lint_passed": true,
+  "summary": "Added CLI rename command exposing the existing Todo.rename() method. Implementation follows the existing pattern used by done/undone commands with TodoApp.rename() method and CLI handler."
+}
