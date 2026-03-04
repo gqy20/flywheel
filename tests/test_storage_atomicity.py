@@ -168,11 +168,6 @@ def test_fd_closed_if_fdopen_fails(tmp_path) -> None:
     storage.save(original_todos)
 
     # Track opened file descriptors before the test
-    # We'll use ResourceWarning detection via warnings module
-    import warnings
-
-    # Create a custom fdopen that fails after mkstemp succeeds
-    original_fdopen = os.fdopen
     fd_that_should_be_closed = []
 
     def failing_fdopen(fd, *args, **kwargs):
