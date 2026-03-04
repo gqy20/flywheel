@@ -1,0 +1,38 @@
+{
+  "issue_number": 7247,
+  "candidate": 2,
+  "run_id": "22685644220",
+  "stage": "IMPLEMENT",
+  "plan": {
+    "title": "Optimize _sanitize_text from O(n*m) to O(n) complexity",
+    "files_to_touch": [
+      "tests/test_issue_7247_sanitize_text_performance.py",
+      "src/flywheel/formatter.py"
+    ],
+    "implementation_sequence": [
+      "RED: Add performance regression test for 100KB string <100ms",
+      "GREEN: Implement single-pass character iteration with lookup table",
+      "VERIFY: Run all existing tests to ensure no regressions"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_7247_sanitize_text_performance.py -v",
+      "uv run pytest tests/test_issue_1924_format_todo_sanitization.py -v",
+      "uv run pytest tests/test_issue_2097_backslash_escape_collision.py -v",
+      "uv run pytest -x",
+      "uv run ruff check src/flywheel/formatter.py"
+    ]
+  },
+  "implementation": {
+    "source_files_changed": ["src/flywheel/formatter.py"],
+    "test_files_added": ["tests/test_issue_7247_sanitize_text_performance.py"],
+    "tests_passed": 116,
+    "tests_added": 4,
+    "ruff_check": "passed",
+    "acceptance_criteria_met": [
+      "Single-pass O(n) algorithm implemented",
+      "All existing tests pass (116 tests)",
+      "Performance test for 100KB string passes (<100ms)"
+    ]
+  },
+  "status": "implementation_complete"
+}
