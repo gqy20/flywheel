@@ -1,0 +1,63 @@
+{
+  "issue_number": 7233,
+  "issue_title": "[Bug] ID can be negative - no validation in constructor or from_dict",
+  "candidate_id": 1,
+  "run_id": "22681127335",
+  "branch": "claude/issue-7233-candidate-1-22681127335",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_7233_negative_id_validation.py",
+      "src/flywheel/todo.py"
+    ],
+    "implementation_sequence": [
+      {
+        "step": 1,
+        "type": "test",
+        "file": "tests/test_issue_7233_negative_id_validation.py",
+        "description": "Add failing regression tests for negative ID validation"
+      },
+      {
+        "step": 2,
+        "type": "implementation",
+        "file": "src/flywheel/todo.py",
+        "description": "Add ID validation in __post_init__ to reject negative IDs"
+      },
+      {
+        "step": 3,
+        "type": "implementation",
+        "file": "src/flywheel/todo.py",
+        "description": "Add ID validation in from_dict to reject negative IDs"
+      }
+    ],
+    "tests": [
+      {
+        "name": "test_todo_constructor_rejects_negative_id",
+        "description": "Todo(id=-1, text='test') raises ValueError"
+      },
+      {
+        "name": "test_todo_from_dict_rejects_negative_id",
+        "description": "Todo.from_dict({'id': -1, 'text': 'test'}) raises ValueError"
+      },
+      {
+        "name": "test_todo_constructor_accepts_zero_id",
+        "description": "Todo(id=0, text='test') should work (zero is allowed per storage.next_id starting from 1)"
+      },
+      {
+        "name": "test_todo_from_dict_accepts_zero_id",
+        "description": "Todo.from_dict({'id': 0, 'text': 'test'}) should work"
+      },
+      {
+        "name": "test_todo_constructor_accepts_positive_id",
+        "description": "Todo(id=1, text='test') should work"
+      }
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_7233_negative_id_validation.py -v",
+      "uv run pytest tests/test_issue_2000_json_validation.py -v",
+      "uv run ruff check src/flywheel/todo.py"
+    ]
+  },
+  "status": "finalized",
+  "created_at": "2026-03-04T18:10:00Z",
+  "finalized_at": "2026-03-04T18:15:00Z"
+}
