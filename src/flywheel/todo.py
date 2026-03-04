@@ -10,6 +10,19 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _is_valid_iso_timestamp(ts: str) -> bool:
+    """Check if a string is a valid ISO 8601 timestamp."""
+    if not ts:
+        return False
+    try:
+        # Handle 'Z' suffix (UTC timezone shorthand)
+        ts_normalized = ts.replace("Z", "+00:00")
+        datetime.fromisoformat(ts_normalized)
+        return True
+    except ValueError:
+        return False
+
+
 @dataclass(slots=True)
 class Todo:
     """Simple todo item."""
@@ -93,10 +106,25 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Validate timestamp fields are valid ISO format if provided
+        created_at = str(data.get("created_at") or "")
+        updated_at = str(data.get("updated_at") or "")
+
+        if created_at and not _is_valid_iso_timestamp(created_at):
+            raise ValueError(
+                f"Invalid timestamp format for 'created_at': {created_at!r}. "
+                "Expected ISO 8601 format."
+            )
+        if updated_at and not _is_valid_iso_timestamp(updated_at):
+            raise ValueError(
+                f"Invalid timestamp format for 'updated_at': {updated_at!r}. "
+                "Expected ISO 8601 format."
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
