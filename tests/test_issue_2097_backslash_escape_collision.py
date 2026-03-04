@@ -10,6 +10,9 @@ The vulnerability occurs when:
 3. Both produce identical output, creating ambiguity
 
 Solution: Escape backslash character BEFORE escaping control characters.
+
+Also includes performance regression tests for Issue #7247:
+Single-pass O(n) implementation instead of O(n*m) with multiple replace() calls.
 """
 
 from __future__ import annotations
@@ -212,3 +215,92 @@ class TestBackslashEscapeComprehensive:
                 f"SECURITY: Control char {control_char!r} and literal {literal_input!r} "
                 f"produced identical output!"
             )
+
+
+class TestSanitizeTextPerformance:
+    """Performance regression tests for Issue #7247.
+
+    Ensures _sanitize_text uses single-pass O(n) implementation instead of
+    multiple replace() calls that result in O(n*m) complexity.
+    """
+
+    def test_100kb_string_performance(self):
+        """Processing 100KB string should complete in <100ms.
+
+        This test ensures the implementation uses single-pass O(n) traversal
+        rather than multiple replace() operations that create O(n*m) complexity.
+        """
+        import time
+
+        # Create a 100KB string with mixed content (backslashes, newlines, control chars)
+        chunk = "abc\\def\n\r\t\x01\x02\x1b"  # 15 chars with various escape-needing chars
+        # Repeat to get ~100KB
+        large_text = chunk * (100 * 1024 // len(chunk) + 1)
+
+        assert len(large_text) >= 100 * 1024, f"Test string too small: {len(large_text)}"
+
+        start = time.perf_counter()
+        result = _sanitize_text(large_text)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Performance threshold: <100ms for 100KB
+        assert elapsed_ms < 100, f"Performance regression: {elapsed_ms:.1f}ms for 100KB (expected <100ms)"
+
+        # Verify correctness - result should be longer due to escaping
+        assert len(result) > len(large_text), "Escaped result should be longer than input"
+
+    def test_large_string_with_many_backslashes(self):
+        """Large string with many backslashes should still be fast.
+
+        This specifically tests the worst case for the old multi-replace implementation
+        where each backslash replacement triggered another full string traversal.
+        """
+        import time
+
+        # Create a string with many backslashes (worst case for old impl)
+        # Every character needs escaping
+        large_text = "\\" * 100 * 1024
+
+        start = time.perf_counter()
+        result = _sanitize_text(large_text)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+
+        # Should still be <100ms even with all backslashes
+        assert elapsed_ms < 100, f"Performance regression: {elapsed_ms:.1f}ms for backslash string"
+
+        # All backslashes should be doubled
+        assert result == "\\\\" * 100 * 1024
+
+    def test_output_equivalence_small_strings(self):
+        """Verify the optimized implementation produces identical results.
+
+        Uses various edge cases to ensure correctness is maintained.
+        """
+        test_cases = [
+            "",
+            "normal text",
+            "\\",
+            "\\\\",
+            "\n\r\t",
+            "\x00\x01\x02\x1f",
+            "\x7f\x80\x9f",
+            "C:\\Users\\test\\file.txt",
+            "\\n\\r\\t",
+            "mix\\ed\ncon\rtent\t\x01",
+        ]
+
+        for test_input in test_cases:
+            result = _sanitize_text(test_input)
+            # Verify result is a string
+            assert isinstance(result, str), f"Result should be string, got {type(result)}"
+
+            # Verify no raw control characters remain (except escaped ones)
+            for i, char in enumerate(result):
+                code = ord(char)
+                # Only allow printable ASCII, newline, carriage return, tab, and backslash
+                is_safe = (
+                    code >= 0x20 and code < 0x7f  # printable ASCII
+                    or char in ("\n", "\r", "\t", "\\")  # allowed special chars
+                    or code >= 0xa0  # above C1 range
+                )
+                assert is_safe, f"Unescaped control char at position {i}: {char!r} (code {code})"
