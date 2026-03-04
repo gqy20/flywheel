@@ -1,0 +1,21 @@
+{
+  "issue_number": 7245,
+  "candidate_number": 1,
+  "run_id": "22685644220",
+  "branch": "claude/issue-7245-candidate-1-22685644220",
+  "created_at": "2026-03-04T20:00:00Z",
+  "status": "implemented",
+  "summary": "Added validation in Todo.__post_init__ to reject empty/whitespace-only text, matching behavior of rename() method",
+  "tests_added": 4,
+  "tests_passed": 14,
+  "files_changed": [
+    "src/flywheel/todo.py",
+    "tests/test_minimal_framework.py"
+  ],
+  "acceptance_criteria_met": [
+    "Todo(id=1, text='') raises ValueError with message 'Todo text cannot be empty'",
+    "Todo(id=1, text=' ') raises ValueError (whitespace-only)",
+    "Todo(id=1, text=' valid ') works and strips whitespace",
+    "from_dict validates and rejects empty/whitespace-only text"
+  ]
+}
