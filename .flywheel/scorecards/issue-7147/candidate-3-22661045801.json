@@ -1,0 +1,28 @@
+{
+  "issue_number": 7147,
+  "issue_title": "[Security] Temporary file descriptor (fd) is not closed if os.fdopen raises an exception",
+  "candidate_number": 3,
+  "run_id": "22661045801",
+  "branch": "claude/issue-7147-candidate-3-22661045801",
+  "status": "implemented",
+  "fix_summary": "Fixed file descriptor leak by wrapping os.fdopen in try/except block to close fd if fdopen fails to take ownership",
+  "files_changed": [
+    "src/flywheel/storage.py",
+    "tests/test_storage_atomicity.py"
+  ],
+  "tests_added": ["test_fd_leak_when_fdopen_fails"],
+  "tests_passed": true,
+  "lint_passed": true,
+  "implementation_notes": {
+    "problem": "When os.fdopen is called with an fd from mkstemp, if fdopen raises an exception during initialization, the fd is leaked because fdopen's context manager never takes ownership.",
+    "solution": "Wrap os.fdopen in a try/except block. If fdopen raises OSError, explicitly close the fd before re-raising the exception.",
+    "code_location": "src/flywheel/storage.py:116-124"
+  },
+  "verification": {
+    "test_command": "uv run pytest tests/test_storage_atomicity.py::test_fd_leak_when_fdopen_fails -v",
+    "lint_command": "uv run ruff check src/flywheel/storage.py tests/test_storage_atomicity.py",
+    "all_tests_command": "uv run pytest tests/test_storage_atomicity.py -v"
+  },
+  "risks": "Low risk - minimal code change, only adds error handling for an edge case that rarely occurs in practice",
+  "limitations": "None - fix is complete and addresses the security issue"
+}

@@ -7,6 +7,7 @@ preventing data corruption if the process crashes during write.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -149,6 +150,47 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_fd_leak_when_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #7147: FD leak when os.fdopen raises exception.
+
+    If os.fdopen fails to create a file object from the fd returned by mkstemp,
+    the fd should still be closed properly. This test verifies that no file
+    descriptor is leaked when os.fdopen raises an exception.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    todos = [Todo(id=1, text="initial")]
+    storage.save(todos)
+
+    # Track which fds are created and closed
+    created_fds = []
+    closed_fds = []
+
+    def tracking_fdopen(fd, *args, **kwargs):
+        created_fds.append(fd)
+        # Simulate fdopen failing before it can take ownership of fd
+        raise OSError("Simulated fdopen failure")
+
+    original_close = os.close
+    def tracking_close(fd, *args, **kwargs):
+        closed_fds.append(fd)
+        return original_close(fd, *args, **kwargs)
+
+    with (
+        patch("flywheel.storage.os.fdopen", tracking_fdopen),
+        patch("flywheel.storage.os.close", tracking_close),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Verify that the fd created by mkstemp was closed even though fdopen failed
+    assert len(created_fds) == 1, "Expected one fd to be created"
+    leaked_fds = set(created_fds) - set(closed_fds)
+    assert len(leaked_fds) == 0, f"File descriptor leaked: {leaked_fds}"
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
