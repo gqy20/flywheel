@@ -1,18 +1,26 @@
 {
   "issue_number": 7134,
-  "candidate_id": 1,
+  "candidate_number": 1,
   "run_id": "22659484810",
   "branch": "claude/issue-7134-candidate-1-22659484810",
-  "status": "implemented",
-  "tests_added": 6,
-  "tests_passed": 6,
-  "files_changed": [
+  "status": "completed",
+  "tests_added": [
     "tests/test_issue_7134_todo_mark_methods.py"
   ],
-  "acceptance_criteria_met": {
-    "test_todo_mark_done": true,
-    "test_todo_mark_undone": true,
-    "test_updated_at_verification": true
+  "source_files_changed": [],
+  "test_results": {
+    "passed": 6,
+    "failed": 0,
+    "total": 6
   },
-  "created_at": "2026-03-04T08:17:00Z"
+  "lint_results": {
+    "ruff": "passed"
+  },
+  "acceptance_criteria_met": [
+    "test_todo_mark_done verifies done becomes True",
+    "test_todo_mark_undone verifies done becomes False",
+    "test_todo_mark_done_updates_timestamp verifies updated_at changes",
+    "test_todo_mark_undone_updates_timestamp verifies updated_at changes"
+  ],
+  "notes": "Tests were already implemented in commit ece6e7d. No additional source changes required - this is a test-only issue."
 }
