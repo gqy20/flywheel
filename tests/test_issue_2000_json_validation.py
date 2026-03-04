@@ -119,3 +119,36 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7190 - None timestamps should not become 'None' string
+def test_todo_from_dict_with_none_created_at_generates_timestamp() -> None:
+    """Todo.from_dict with created_at=None should generate a new timestamp, not 'None' string."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": None})
+    # Should be a valid ISO timestamp, not the literal string 'None'
+    assert todo.created_at != "None"
+    assert todo.created_at != ""
+    # Should look like an ISO timestamp (contains 'T' separator)
+    assert "T" in todo.created_at
+
+
+def test_todo_from_dict_with_empty_string_created_at_generates_timestamp() -> None:
+    """Todo.from_dict with created_at='' should generate a new timestamp."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": ""})
+    assert todo.created_at != ""
+    assert "T" in todo.created_at
+
+
+def test_todo_from_dict_with_valid_created_at_preserves_value() -> None:
+    """Todo.from_dict with a valid timestamp should preserve the explicit value."""
+    explicit_ts = "2020-01-01T00:00:00"
+    todo = Todo.from_dict({"id": 1, "text": "task", "created_at": explicit_ts})
+    assert todo.created_at == explicit_ts
+
+
+def test_todo_from_dict_with_none_updated_at_generates_timestamp() -> None:
+    """Todo.from_dict with updated_at=None should generate a new timestamp, not 'None' string."""
+    todo = Todo.from_dict({"id": 1, "text": "task", "updated_at": None})
+    assert todo.updated_at != "None"
+    assert todo.updated_at != ""
+    assert "T" in todo.updated_at
