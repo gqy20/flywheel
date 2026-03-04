@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    priority: int = 0  # 0=none, 1=low, 2=medium, 3=high
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -99,4 +100,5 @@ class Todo:
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            priority=int(data.get("priority") or 0),
         )
