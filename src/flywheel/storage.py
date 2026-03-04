@@ -106,20 +106,30 @@ class TodoStorage:
             text=False,  # We'll write binary data to control encoding
         )
 
+        # Wrap fd in file object - if fdopen fails, we must close fd manually
+        # to avoid leaking the file descriptor
+        try:
+            f = os.fdopen(fd, "w", encoding="utf-8")
+        except OSError:
+            # fdopen failed before taking ownership - close fd to prevent leak
+            with contextlib.suppress(OSError):
+                os.close(fd)
+            # Clean up temp file and re-raise
+            with contextlib.suppress(OSError):
+                os.unlink(temp_path)
+            raise
+
         try:
             # Set restrictive permissions (owner read/write only)
             # This protects against other users reading temp file before rename
-            os.fchmod(fd, stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
-
-            # Write content with proper encoding
-            # Use os.write instead of Path.write_text for more control
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                f.write(content)
+            os.fchmod(f.fileno(), stat.S_IRUSR | stat.S_IWUSR)  # 0o600 (rw-------)
+            f.write(content)
+            f.close()  # Close explicitly before rename
 
             # Atomic rename (os.replace is atomic on both Unix and Windows)
             os.replace(temp_path, self.path)
         except OSError:
-            # Clean up temp file on error
+            # Clean up temp file on error (file already closed by context manager)
             with contextlib.suppress(OSError):
                 os.unlink(temp_path)
             raise

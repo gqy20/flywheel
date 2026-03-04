@@ -151,6 +151,61 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_closed_if_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #7147: FD leak if os.fdopen raises exception.
+
+    When tempfile.mkstemp returns a file descriptor and os.fdopen subsequently
+    fails during initialization, the fd should be properly closed to avoid
+    a resource leak.
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Track opened file descriptors before the test
+    # We'll use ResourceWarning detection via warnings module
+    import warnings
+
+    # Create a custom fdopen that fails after mkstemp succeeds
+    original_fdopen = os.fdopen
+    fd_that_should_be_closed = []
+
+    def failing_fdopen(fd, *args, **kwargs):
+        fd_that_should_be_closed.append(fd)
+        # Simulate fdopen failure before taking ownership of fd
+        raise OSError("Simulated fdopen failure")
+
+    # Patch os.fdopen to fail
+    with (
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # The fd should have been closed by the fix
+    # We check this by trying to use the fd - it should fail with Bad file descriptor
+    if fd_that_should_be_closed:
+        leaked_fd = fd_that_should_be_closed[0]
+        # If the fd is still open, this should NOT raise an error
+        # If the fd was properly closed, this should raise BadFileNumberError (EBADF)
+        try:
+            # Try to get flags on the fd - will fail if fd was closed
+            os.fstat(leaked_fd)
+            # If we get here, the fd is still open = LEAK
+            pytest.fail(
+                f"File descriptor {leaked_fd} was leaked! "
+                "It should have been closed when os.fdopen failed."
+            )
+        except OSError as e:
+            # Expected: Bad file descriptor means fd was properly closed
+            assert e.errno == 9, f"Expected EBADF (9), got errno {e.errno}: {e}"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
