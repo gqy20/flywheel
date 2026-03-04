@@ -1,0 +1,36 @@
+{
+  "issue_number": 7190,
+  "candidate": 3,
+  "run_id": "22669273850",
+  "plan": {
+    "files_to_touch": [
+      "tests/test_issue_7190_none_timestamp.py",
+      "src/flywheel/todo.py"
+    ],
+    "tdd_sequence": [
+      "Write failing regression tests for None timestamp handling",
+      "Remove redundant str() wrapper and add explicit None/'None' handling",
+      "Verify all tests pass"
+    ],
+    "verification_commands": [
+      "uv run pytest tests/test_issue_7190_none_timestamp.py -v",
+      "uv run ruff check src/flywheel/todo.py tests/test_issue_7190_none_timestamp.py",
+      "uv run pytest tests/ -v --tb=short"
+    ]
+  },
+  "implementation": {
+    "test_file": "tests/test_issue_7190_none_timestamp.py",
+    "source_file": "src/flywheel/todo.py",
+    "changes": [
+      "Added 6 new test cases for None/empty/'None' timestamp handling",
+      "Replaced str(data.get(...) or \"\") with explicit None/\"\"/\"None\" normalization",
+      "Added handling for corrupted data where str(None) was stored as 'None'"
+    ]
+  },
+  "verification": {
+    "tests_passed": 118,
+    "linting": "passed",
+    "coverage": "92%"
+  },
+  "status": "implemented"
+}

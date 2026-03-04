@@ -93,10 +93,19 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Normalize timestamps: treat None, "", and "None" as missing
+        # "None" can occur from corrupted data where str(None) was stored
+        raw_created = data.get("created_at")
+        if raw_created is None or raw_created in ("", "None"):
+            raw_created = ""
+        raw_updated = data.get("updated_at")
+        if raw_updated is None or raw_updated in ("", "None"):
+            raw_updated = ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=raw_created,
+            updated_at=raw_updated,
         )
