@@ -1,26 +1,23 @@
 {
-  "issue_number": 7135,
-  "issue_title": "[Test] Todo.__post_init__ 方法缺少测试覆盖",
-  "candidate_number": 3,
+  "issue": 7135,
+  "candidate": 3,
   "run_id": "22659484810",
-  "branch_name": "claude/issue-7135-candidate-3-22659484810",
-  "created_at": "2026-03-04T08:00:00Z",
-  "status": "implemented",
-  "summary": "Added comprehensive test coverage for Todo.__post_init__ method",
-  "tests_added": [
-    "test_todo_post_init_auto_generates_created_at",
-    "test_todo_post_init_updated_at_equals_created_at",
-    "test_todo_post_init_preserves_explicit_created_at",
-    "test_todo_post_init_preserves_explicit_updated_at",
-    "test_todo_post_init_both_timestamps_explicit",
-    "test_todo_post_init_created_at_only_explicit"
+  "branch": "claude/issue-7135-candidate-3-22659484810",
+  "pr_number": 7140,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7140",
+  "generated_at": "2026-03-04T08:34:58.003713+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "files_changed": [
-    "tests/test_issue_7135_todo_post_init.py"
-  ],
-  "acceptance_criteria_met": {
-    "created_at_auto_generated": true,
-    "updated_at_equals_created_at": true,
-    "explicit_values_preserved": true
+  "stage_response_sizes": {
+    "triage": 2143,
+    "plan": 2979,
+    "implement": 1827,
+    "verify": 2693,
+    "finalize": 769
   }
 }
