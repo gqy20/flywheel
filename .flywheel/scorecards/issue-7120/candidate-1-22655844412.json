@@ -1,0 +1,22 @@
+{
+  "issue_number": 7120,
+  "candidate_number": 1,
+  "run_id": "22655844412",
+  "branch_name": "claude/issue-7120-candidate-1-22655844412",
+  "status": "in_progress",
+  "stage": "RED",
+  "triage_summary": {
+    "root_cause": "Todo dataclass accepts negative id values without validation in __post_init__ and from_dict",
+    "affected_files": ["src/flywheel/todo.py"],
+    "risk_points": [
+      "Data integrity issues with negative IDs",
+      "from_dict bypasses constructor validation"
+    ],
+    "fix_strategy": "Add non-negative validation in __post_init__ and from_dict"
+  },
+  "test_file": null,
+  "source_files_changed": [],
+  "commands_executed": [],
+  "pr_url": null,
+  "created_at": "2026-03-04T05:20:00Z"
+}
