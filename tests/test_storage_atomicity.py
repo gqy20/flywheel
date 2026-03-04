@@ -151,6 +151,62 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_fd_not_leaked_if_fdopen_fails(tmp_path) -> None:
+    """Regression test for issue #7203: File descriptor leak if os.fdopen() raises.
+
+    Tests that if os.fdopen() fails after mkstemp() succeeds, the file descriptor
+    is properly closed and not leaked. This can happen if os.fdopen() raises an
+    exception (e.g., due to encoding errors or invalid fd state).
+    """
+    import os
+
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create initial valid data
+    original_todos = [Todo(id=1, text="original")]
+    storage.save(original_todos)
+
+    # Simulate os.fdopen() failing after mkstemp() succeeds
+    original_fdopen = os.fdopen
+    fds_created_by_mkstemp = []
+
+    def failing_fdopen(fd, *args, **kwargs):
+        # Track the fd that was created by mkstemp
+        fds_created_by_mkstemp.append(fd)
+        # Simulate fdopen failure
+        raise OSError("Simulated fdopen failure")
+
+    with (
+        patch("flywheel.storage.os.fdopen", failing_fdopen),
+        pytest.raises(OSError, match="Simulated fdopen failure"),
+    ):
+        storage.save([Todo(id=2, text="new")])
+
+    # Restore original fdopen
+    os.fdopen = original_fdopen
+
+    # Verify the fd was closed (not leaked)
+    # We check by trying to read the symlink in /proc/self/fd
+    # If the fd is closed, the symlink won't exist
+    if os.path.exists("/proc/self/fd"):
+        for fd in fds_created_by_mkstemp:
+            try:
+                os.readlink(f"/proc/self/fd/{fd}")
+                # If we get here, the fd symlink still exists = leaked
+                raise AssertionError(
+                    f"File descriptor {fd} leaked after os.fdopen() failure"
+                )
+            except FileNotFoundError:
+                # The fd symlink doesn't exist = properly closed
+                pass
+
+    # Verify original file is unchanged
+    loaded = storage.load()
+    assert len(loaded) == 1
+    assert loaded[0].text == "original"
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
