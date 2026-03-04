@@ -1,26 +1,23 @@
 {
-  "issue_number": 7134,
-  "candidate_number": 1,
+  "issue": 7134,
+  "candidate": 1,
   "run_id": "22659484810",
   "branch": "claude/issue-7134-candidate-1-22659484810",
-  "status": "completed",
-  "tests_added": [
-    "tests/test_issue_7134_todo_mark_methods.py"
+  "pr_number": 7144,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7144",
+  "generated_at": "2026-03-04T08:43:55.817057+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "source_files_changed": [],
-  "test_results": {
-    "passed": 6,
-    "failed": 0,
-    "total": 6
-  },
-  "lint_results": {
-    "ruff": "passed"
-  },
-  "acceptance_criteria_met": [
-    "test_todo_mark_done verifies done becomes True",
-    "test_todo_mark_undone verifies done becomes False",
-    "test_todo_mark_done_updates_timestamp verifies updated_at changes",
-    "test_todo_mark_undone_updates_timestamp verifies updated_at changes"
-  ],
-  "notes": "Tests were already implemented in commit ece6e7d. No additional source changes required - this is a test-only issue."
+  "stage_response_sizes": {
+    "triage": 1840,
+    "plan": 2450,
+    "implement": 1997,
+    "verify": 1771,
+    "finalize": 1202
+  }
 }
