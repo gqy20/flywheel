@@ -40,11 +40,7 @@ class Todo:
         if not self.updated_at:
             object.__setattr__(self, "updated_at", self.created_at)
         # Normalize tags: lowercase, strip whitespace, filter empty
-        normalized = tuple(
-            tag.lower().strip()
-            for tag in self.tags
-            if tag.strip()
-        )
+        normalized = tuple(tag.lower().strip() for tag in self.tags if tag.strip())
         object.__setattr__(self, "tags", normalized)
 
     def mark_done(self) -> None:
