@@ -119,3 +119,28 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7120 - validate 'id' is non-negative
+def test_todo_constructor_rejects_negative_id() -> None:
+    """Todo constructor should reject negative id values."""
+    with pytest.raises(ValueError, match=r"id.*non-negative|negative.*id"):
+        Todo(id=-1, text="test")
+
+
+def test_todo_from_dict_rejects_negative_id() -> None:
+    """Todo.from_dict should reject negative id values."""
+    with pytest.raises(ValueError, match=r"id.*non-negative|negative.*id"):
+        Todo.from_dict({"id": -5, "text": "test"})
+
+
+def test_todo_constructor_accepts_zero_id() -> None:
+    """Todo constructor should accept id=0 as valid."""
+    todo = Todo(id=0, text="test")
+    assert todo.id == 0
+
+
+def test_todo_from_dict_accepts_zero_id() -> None:
+    """Todo.from_dict should accept id=0 as valid."""
+    todo = Todo.from_dict({"id": 0, "text": "test"})
+    assert todo.id == 0
