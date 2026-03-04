@@ -19,6 +19,7 @@ class Todo:
     done: bool = False
     created_at: str = ""
     updated_at: str = ""
+    tags: tuple[str, ...] = ()
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -35,9 +36,12 @@ class Todo:
 
     def __post_init__(self) -> None:
         if not self.created_at:
-            self.created_at = _utc_now_iso()
+            object.__setattr__(self, "created_at", _utc_now_iso())
         if not self.updated_at:
-            self.updated_at = self.created_at
+            object.__setattr__(self, "updated_at", self.created_at)
+        # Normalize tags: strip whitespace, lowercase, filter empty strings
+        normalized_tags = tuple(tag.strip().lower() for tag in self.tags if tag.strip())
+        object.__setattr__(self, "tags", normalized_tags)
 
     def mark_done(self) -> None:
         self.done = True
@@ -55,7 +59,10 @@ class Todo:
         self.updated_at = _utc_now_iso()
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        result = asdict(self)
+        # Convert tuple to list for JSON serialization
+        result["tags"] = list(self.tags)
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> Todo:
@@ -93,10 +100,15 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Parse tags from data (accept list or tuple, default to empty)
+        raw_tags = data.get("tags", ())
+        tags = tuple(str(tag) for tag in raw_tags) if isinstance(raw_tags, (list, tuple)) else ()
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
             created_at=str(data.get("created_at") or ""),
             updated_at=str(data.get("updated_at") or ""),
+            tags=tags,
         )
