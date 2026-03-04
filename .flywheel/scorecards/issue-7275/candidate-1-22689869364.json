@@ -1,0 +1,39 @@
+{
+  "issue_number": 7275,
+  "issue_title": "[Bug] next_id 在并发环境下可能产生 ID 冲突（非原子 read-compute-write）",
+  "candidate_number": 1,
+  "run_id": "22689869364",
+  "branch_name": "claude/issue-7275-candidate-1-22689869364",
+  "created_at": "2026-03-04T22:00:00Z",
+  "status": "implemented",
+  "changes": {
+    "files_modified": [
+      "src/flywheel/storage.py",
+      "src/flywheel/cli.py",
+      "tests/test_storage_atomicity.py"
+    ],
+    "summary": "Fixed concurrent ID collision by implementing file locking (fcntl) for atomic add operations"
+  },
+  "test_results": {
+    "passed": 111,
+    "failed": 0,
+    "total": 111
+  },
+  "lint_results": {
+    "status": "passed",
+    "errors": 0
+  },
+  "implementation_details": {
+    "approach": "Used fcntl file locking to ensure atomic read-compute-write operations",
+    "key_changes": [
+      "Added fcntl import to storage.py",
+      "Implemented atomic_add() method using exclusive file locking",
+      "Added _ensure_unique_ids() helper method for ID collision detection and resolution",
+      "Updated TodoApp.add() to use atomic_add() for concurrent safety"
+    ],
+    "risks": [
+      "File locking uses fcntl which is Unix-specific (not available on Windows)",
+      "Lock file (.todo.json.lock) is created alongside the data file"
+    ]
+  }
+}
