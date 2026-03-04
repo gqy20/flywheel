@@ -1,0 +1,28 @@
+{
+  "issue_number": 7105,
+  "issue_title": "[Bug] Todo.__init__ does not validate 'text' type at construction time, only in from_dict",
+  "candidate_number": 3,
+  "run_id": "22653458371",
+  "branch_name": "claude/issue-7105-candidate-3-22653458371",
+  "status": "implemented",
+  "approach": {
+    "description": "Add text type validation in Todo.__post_init__ to raise ValueError when non-string text is passed to constructor",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_7105_todo_text_validation.py"
+    ],
+    "lines_changed": 4
+  },
+  "tdd_verification": {
+    "red_phase": true,
+    "green_phase": true,
+    "tests_added": 4,
+    "tests_passing": true
+  },
+  "checklist": {
+    "test_file_added": true,
+    "source_file_changed": true,
+    "ruff_check_passed": true,
+    "all_tests_passed": true
+  }
+}
