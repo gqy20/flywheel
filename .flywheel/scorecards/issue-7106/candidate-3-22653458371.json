@@ -1,0 +1,23 @@
+{
+  "issue": 7106,
+  "candidate": 3,
+  "run_id": "22653458371",
+  "branch": "claude/issue-7106-candidate-3-22653458371",
+  "pr_number": 7113,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7113",
+  "generated_at": "2026-03-04T04:07:52.630353+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2142,
+    "plan": 2579,
+    "implement": 1737,
+    "verify": 2262,
+    "finalize": 1844
+  }
+}
