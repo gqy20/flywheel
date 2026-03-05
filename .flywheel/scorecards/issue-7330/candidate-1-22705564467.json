@@ -1,0 +1,34 @@
+{
+  "issue_number": 7330,
+  "issue_title": "[Bug] Missing 'rename' command in CLI despite Todo.rename() method existing",
+  "candidate_number": 1,
+  "run_id": "22705564467",
+  "branch": "claude/issue-7330-candidate-1-22705564467",
+  "scorecard_version": "1.0.0",
+  "assessment": {
+    "tests_added": true,
+    "tests_passed": true,
+    "lint_passed": true,
+    "scope_minimal": true,
+    "conventional_commit": true,
+    "meets_acceptance_criteria": true
+  },
+  "acceptance_criteria": {
+    "cli_has_rename_command": true,
+    "rename_updates_text": true,
+    "output_sanitized": true,
+    "error_handling_exit_code_1": true
+  },
+  "tests_executed": [
+    "tests/test_issue_7330_cli_rename_command.py::test_cli_has_rename_subparser",
+    "tests/test_issue_7330_cli_rename_command.py::test_cli_rename_command_success",
+    "tests/test_issue_7330_cli_rename_command.py::test_cli_rename_nonexistent_id_returns_error",
+    "tests/test_issue_7330_cli_rename_command.py::test_app_rename_method_exists",
+    "tests/test_issue_7330_cli_rename_command.py::test_app_rename_nonexistent_raises_error"
+  ],
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_7330_cli_rename_command.py"
+  ],
+  "risks_limitations": "None identified. The implementation follows existing patterns in the codebase."
+}
