@@ -1,0 +1,51 @@
+{
+  "issue_number": 7329,
+  "issue_title": "[Bug] No validation that created_at <= updated_at invariant is maintained",
+  "candidate_number": 3,
+  "run_id": "22705564467",
+  "branch": "claude/issue-7329-candidate-3-22705564467",
+  "commit": "292bb84",
+  "created_at": "2026-03-05T07:30:00Z",
+  "status": "implemented",
+  "implementation": {
+    "approach": "Add validation in Todo.from_dict() to ensure created_at <= updated_at invariant is maintained",
+    "files_changed": [
+      "src/flywheel/todo.py",
+      "tests/test_issue_7329_timestamp_invariant.py"
+    ],
+    "lines_added": 115,
+    "lines_removed": 2
+  },
+  "tests": {
+    "file": "tests/test_issue_7329_timestamp_invariant.py",
+    "count": 6,
+    "passing": true,
+    "coverage": [
+      "test_from_dict_rejects_updated_at_before_created_at",
+      "test_from_dict_accepts_updated_at_equal_to_created_at",
+      "test_from_dict_accepts_updated_at_after_created_at",
+      "test_from_dict_accepts_empty_timestamps",
+      "test_from_dict_rejects_invalid_timestamp_format",
+      "test_mark_done_preserves_invariant"
+    ]
+  },
+  "checks": {
+    "pytest": {
+      "status": "passed",
+      "command": "uv run pytest tests/test_issue_7329_timestamp_invariant.py",
+      "tests_run": 6,
+      "tests_passed": 6
+    },
+    "full_test_suite": {
+      "status": "passed",
+      "command": "uv run pytest tests/",
+      "tests_run": 113,
+      "tests_passed": 113
+    },
+    "ruff": {
+      "status": "passed",
+      "command": "uv run ruff check src/flywheel/todo.py tests/test_issue_7329_timestamp_invariant.py"
+    }
+  },
+  "summary": "Added validation in Todo.from_dict() to ensure the created_at <= updated_at invariant is maintained. This prevents the invariant established by __post_init__ from being bypassed when loading Todos from external data."
+}
