@@ -1,48 +1,23 @@
 {
-  "issue_number": 7315,
+  "issue": 7315,
   "candidate": 3,
   "run_id": "22700764847",
-  "stage": "FINALIZE",
+  "branch": "claude/issue-7315-candidate-3-22700764847",
+  "pr_number": 7326,
   "pr_url": "https://github.com/gqy20/flywheel/pull/7326",
-  "plan": {
-    "summary": "Fix TOCTOU race condition in TodoStorage.load() by reading file once into memory, then checking buffer size",
-    "files_to_touch": [
-      "src/flywheel/storage.py",
-      "tests/test_storage_atomicity.py"
-    ],
-    "tdd_sequence": [
-      {
-        "step": 1,
-        "type": "RED",
-        "description": "Add failing regression test that verifies single read operation for size check",
-        "file": "tests/test_storage_atomicity.py"
-      },
-      {
-        "step": 2,
-        "type": "GREEN",
-        "description": "Refactor load() to read file content first, then check buffer size",
-        "file": "src/flywheel/storage.py"
-      },
-      {
-        "step": 3,
-        "type": "VERIFY",
-        "description": "Run tests and linting"
-      }
-    ],
-    "verification_commands": [
-      "uv run pytest tests/test_storage_atomicity.py -v",
-      "uv run ruff check src/flywheel/storage.py"
-    ]
-  },
-  "acceptance_criteria": [
-    "File is read only once, then size check is performed on in-memory buffer",
-    "All existing tests continue to pass",
-    "No lint errors"
+  "generated_at": "2026-03-05T04:11:12.930492+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "risks": [
-    "Minimal - internal refactoring only, public API unchanged"
-  ],
-  "implementation_complete": true,
-  "tests_passed": true,
-  "lint_passed": true
+  "stage_response_sizes": {
+    "triage": 3146,
+    "plan": 2704,
+    "implement": 2266,
+    "verify": 1675,
+    "finalize": 2298
+  }
 }
