@@ -99,8 +99,7 @@ class Todo:
         # Validate timestamp ordering invariant: created_at <= updated_at
         if created_at and updated_at and created_at > updated_at:
             raise ValueError(
-                f"Invalid timestamps: updated_at ({updated_at}) is before "
-                f"created_at ({created_at})"
+                f"Invalid timestamps: updated_at ({updated_at}) is before created_at ({created_at})"
             )
 
         return cls(
