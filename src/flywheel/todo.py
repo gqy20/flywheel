@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 
 def _utc_now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+# Sentinel value to distinguish "not provided" from "explicitly empty string"
+_UNSET: Any = object()
 
 
 @dataclass(slots=True)
@@ -17,8 +22,8 @@ class Todo:
     id: int
     text: str
     done: bool = False
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str = field(default=_UNSET)  # type: ignore[assignment]
+    updated_at: str = field(default=_UNSET)  # type: ignore[assignment]
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -34,10 +39,12 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        if not self.created_at:
-            self.created_at = _utc_now_iso()
-        if not self.updated_at:
-            self.updated_at = self.created_at
+        # Only auto-fill timestamps if they are the sentinel (not provided)
+        # This preserves empty strings passed via from_dict for round-trip compatibility
+        if self.created_at is _UNSET:
+            object.__setattr__(self, "created_at", _utc_now_iso())
+        if self.updated_at is _UNSET:
+            object.__setattr__(self, "updated_at", self.created_at)
 
     def mark_done(self) -> None:
         self.done = True
@@ -93,10 +100,27 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Preserve explicit empty strings for timestamps (round-trip compatibility)
+        # Missing or None values get converted to empty string, which triggers auto-fill
+        created_at: str = _UNSET  # type: ignore[assignment]
+        updated_at: str = _UNSET  # type: ignore[assignment]
+
+        if "created_at" in data and data["created_at"] is not None:
+            created_at = str(data["created_at"])
+        elif "created_at" in data:
+            # Explicitly set to None - treat as empty string
+            created_at = ""
+
+        if "updated_at" in data and data["updated_at"] is not None:
+            updated_at = str(data["updated_at"])
+        elif "updated_at" in data:
+            # Explicitly set to None - treat as empty string
+            updated_at = ""
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
