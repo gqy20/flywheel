@@ -93,10 +93,35 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Extract and validate timestamps
+        created_at = str(data.get("created_at") or "")
+        updated_at = str(data.get("updated_at") or "")
+
+        # Validate timestamp format and invariant when both are provided
+        if created_at and updated_at:
+            try:
+                created_dt = datetime.fromisoformat(created_at)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid timestamp format for 'created_at': {created_at!r}"
+                ) from e
+            try:
+                updated_dt = datetime.fromisoformat(updated_at)
+            except ValueError as e:
+                raise ValueError(
+                    f"Invalid timestamp format for 'updated_at': {updated_at!r}"
+                ) from e
+
+            # Enforce invariant: created_at <= updated_at
+            if created_dt > updated_dt:
+                raise ValueError(
+                    f"'updated_at' ({updated_at}) must not be before 'created_at' ({created_at})"
+                )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
