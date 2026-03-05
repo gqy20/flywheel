@@ -93,10 +93,20 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        created_at = str(data.get("created_at") or "")
+        updated_at = str(data.get("updated_at") or "")
+
+        # Validate timestamp ordering invariant: created_at <= updated_at
+        if created_at and updated_at and created_at > updated_at:
+            raise ValueError(
+                f"Invalid timestamps: updated_at ({updated_at}) is before "
+                f"created_at ({created_at})"
+            )
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at,
+            updated_at=updated_at,
         )
