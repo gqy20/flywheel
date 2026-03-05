@@ -119,3 +119,22 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7288 - strip and validate text whitespace in from_dict
+def test_todo_from_dict_rejects_whitespace_only_text() -> None:
+    """Todo.from_dict should reject whitespace-only text like rename() does."""
+    with pytest.raises(ValueError, match=r"empty"):
+        Todo.from_dict({"id": 1, "text": "   "})
+
+
+def test_todo_from_dict_strips_whitespace_from_text() -> None:
+    """Todo.from_dict should strip leading/trailing whitespace like rename() does."""
+    todo = Todo.from_dict({"id": 1, "text": "  task  "})
+    assert todo.text == "task"
+
+
+def test_todo_from_dict_rejects_empty_string_after_strip() -> None:
+    """Todo.from_dict should reject empty string after stripping whitespace."""
+    with pytest.raises(ValueError, match=r"empty"):
+        Todo.from_dict({"id": 1, "text": ""})
