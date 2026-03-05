@@ -151,6 +151,85 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_load_no_separate_stat_call_to_prevent_toctou(tmp_path) -> None:
+    """Regression test for issue #7315: TOCTOU race condition in load().
+
+    Tests that TodoStorage.load() does NOT call stat() separately before
+    reading the file, preventing a Time-of-check to Time-of-use (TOCTOU)
+    race condition where:
+    1. Size check (stat) occurs on one file
+    2. File is replaced/maliciously modified between stat and read
+    3. Content read could bypass size limit or cause other issues
+
+    The fix ensures the file is read once into memory, then size check
+    is performed on the in-memory buffer, making the operation atomic.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a valid small file
+    todos = [Todo(id=1, text="test")]
+    storage.save(todos)
+
+    # Track stat() calls - if load() is vulnerable to TOCTOU, it will call stat()
+    # before reading the file to check size
+    stat_call_count = 0
+    original_stat = Path.stat
+
+    def counting_stat(self, *args, **kwargs):
+        nonlocal stat_call_count
+        # Only count stat calls to our specific db file
+        if self == db:
+            stat_call_count += 1
+        return original_stat(self, *args, **kwargs)
+
+    with patch.object(Path, "stat", counting_stat):
+        loaded = storage.load()
+
+    # After the fix, stat() should NOT be called on the file during load()
+    # because we read the file first and check size on the in-memory buffer
+    assert stat_call_count == 0, (
+        f"TOCTOU vulnerability: stat() was called {stat_call_count} time(s) "
+        f"before reading. File should be read once, then size checked on buffer."
+    )
+    assert len(loaded) == 1
+    assert loaded[0].text == "test"
+
+
+def test_load_size_check_on_buffer_not_file(tmp_path) -> None:
+    """Regression test for issue #7315: Verify size check is on buffer, not file.
+
+    Tests that the size limit check is performed on the in-memory buffer,
+    not on a separate stat() call. This prevents TOCTOU race condition.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Create a file that's well within the limit
+    todos = [Todo(id=i, text=f"task-{i}") for i in range(10)]
+    storage.save(todos)
+
+    # Ensure no stat() is called on the db file during load
+    stat_call_count = 0
+    original_stat = Path.stat
+
+    def counting_stat(self, *args, **kwargs):
+        nonlocal stat_call_count
+        if self == db:
+            stat_call_count += 1
+        return original_stat(self, *args, **kwargs)
+
+    with patch.object(Path, "stat", counting_stat):
+        loaded = storage.load()
+
+    # No stat() should be called on the db file
+    assert stat_call_count == 0, (
+        f"Size check should be on in-memory buffer, not via stat(). "
+        f"Got {stat_call_count} stat() calls."
+    )
+    assert len(loaded) == 10
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
