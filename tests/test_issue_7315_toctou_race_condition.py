@@ -138,8 +138,7 @@ def test_load_atomic_operation_no_race_window(tmp_path) -> None:
         if read_count[0] > 1:
             # This should never happen after the fix
             raise AssertionError(
-                "File was read multiple times! "
-                "This indicates a race condition vulnerability."
+                "File was read multiple times! This indicates a race condition vulnerability."
             )
         return original_read_text(self, *args, **kwargs)
 
