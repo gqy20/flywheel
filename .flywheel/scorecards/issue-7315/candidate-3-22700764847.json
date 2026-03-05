@@ -2,7 +2,8 @@
   "issue_number": 7315,
   "candidate": 3,
   "run_id": "22700764847",
-  "stage": "IMPLEMENT",
+  "stage": "FINALIZE",
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7326",
   "plan": {
     "summary": "Fix TOCTOU race condition in TodoStorage.load() by reading file once into memory, then checking buffer size",
     "files_to_touch": [

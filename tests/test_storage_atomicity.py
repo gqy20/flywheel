@@ -202,8 +202,6 @@ def test_load_size_check_on_buffer_not_file(tmp_path) -> None:
     Tests that the size limit check is performed on the in-memory buffer,
     not on a separate stat() call. This prevents TOCTOU race condition.
     """
-    from flywheel.storage import _MAX_JSON_SIZE_BYTES
-
     db = tmp_path / "todo.json"
     storage = TodoStorage(str(db))
 
