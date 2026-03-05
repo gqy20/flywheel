@@ -119,3 +119,47 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #7329 - validate created_at <= updated_at invariant
+def test_todo_from_dict_rejects_updated_at_before_created_at() -> None:
+    """Todo.from_dict should reject data where updated_at is before created_at."""
+    with pytest.raises(ValueError, match=r"updated_at.*before.*created_at|timestamp.*invariant"):
+        Todo.from_dict({
+            "id": 1,
+            "text": "task",
+            "created_at": "2024-01-02T00:00:00+00:00",
+            "updated_at": "2024-01-01T00:00:00+00:00",
+        })
+
+
+def test_todo_from_dict_accepts_valid_timestamps() -> None:
+    """Todo.from_dict should accept data where updated_at >= created_at."""
+    # updated_at == created_at (equal timestamps are valid)
+    todo_equal = Todo.from_dict({
+        "id": 1,
+        "text": "task",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2024-01-01T00:00:00+00:00",
+    })
+    assert todo_equal.created_at == "2024-01-01T00:00:00+00:00"
+    assert todo_equal.updated_at == "2024-01-01T00:00:00+00:00"
+
+    # updated_at > created_at (updated later is valid)
+    todo_later = Todo.from_dict({
+        "id": 2,
+        "text": "task2",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2024-01-02T00:00:00+00:00",
+    })
+    assert todo_later.created_at == "2024-01-01T00:00:00+00:00"
+    assert todo_later.updated_at == "2024-01-02T00:00:00+00:00"
+
+
+def test_todo_from_dict_accepts_empty_timestamps() -> None:
+    """Todo.from_dict should accept empty/missing timestamps and use defaults."""
+    # Both missing - __post_init__ will set defaults
+    todo_no_ts = Todo.from_dict({"id": 1, "text": "task"})
+    assert todo_no_ts.created_at != ""
+    assert todo_no_ts.updated_at != ""
+    assert todo_no_ts.created_at == todo_no_ts.updated_at
