@@ -1,0 +1,22 @@
+{
+  "issue_number": 7303,
+  "candidate_number": 3,
+  "run_id": "22697028142",
+  "status": "implemented",
+  "summary": "Fixed exception context loss in save() by using explicit exception chaining",
+  "changes": {
+    "test_files": [
+      "tests/test_storage_atomicity.py"
+    ],
+    "source_files": [
+      "src/flywheel/storage.py"
+    ]
+  },
+  "tests_passed": true,
+  "lint_passed": true,
+  "implementation_details": {
+    "problem": "save() caught OSError and re-raised without preserving exception context (__cause__)",
+    "solution": "Changed from bare 'raise' to 'raise e from e' to explicitly chain exceptions for debugging",
+    "verification": "Added test verifying __cause__ is set when save() fails"
+  }
+}
