@@ -54,6 +54,27 @@ class Todo:
         self.text = text
         self.updated_at = _utc_now_iso()
 
+    def copy(self, with_id: bool = False) -> Todo:
+        """Create a copy of this Todo.
+
+        Args:
+            with_id: If True, preserve the original id. If False (default),
+                set id=0, allowing the caller to assign a new id.
+
+        Returns:
+            A new Todo instance with the same text and done status.
+            Timestamps (created_at, updated_at) are freshly generated.
+        """
+        new_id = self.id if with_id else 0
+        return Todo(
+            id=new_id,
+            text=self.text,
+            done=self.done,
+            # Leave timestamps empty to trigger auto-generation in __post_init__
+            created_at="",
+            updated_at="",
+        )
+
     def to_dict(self) -> dict:
         return asdict(self)
 
