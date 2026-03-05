@@ -17,8 +17,8 @@ class Todo:
     id: int
     text: str
     done: bool = False
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -34,9 +34,9 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        if not self.created_at:
+        if self.created_at is None:
             self.created_at = _utc_now_iso()
-        if not self.updated_at:
+        if self.updated_at is None:
             self.updated_at = self.created_at
 
     def mark_done(self) -> None:
@@ -93,10 +93,23 @@ class Todo:
                 "'done' must be a boolean (true/false) or 0/1."
             )
 
+        # Handle timestamps: preserve explicit values (including empty string and None),
+        # but omit the argument if key is not present to trigger auto-fill
+        created_at_arg: str | None
+        updated_at_arg: str | None
+        if "created_at" in data:
+            created_at_arg = "" if data["created_at"] is None else str(data["created_at"])
+        else:
+            created_at_arg = None
+        if "updated_at" in data:
+            updated_at_arg = "" if data["updated_at"] is None else str(data["updated_at"])
+        else:
+            updated_at_arg = None
+
         return cls(
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=created_at_arg,
+            updated_at=updated_at_arg,
         )
