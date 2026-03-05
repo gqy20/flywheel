@@ -1,0 +1,31 @@
+{
+  "issue_number": 7317,
+  "candidate_number": 1,
+  "run_id": "22700764847",
+  "branch": "claude/issue-7317-candidate-1-22700764847",
+  "status": "implemented",
+  "summary": "Fixed Todo.__post_init__ to distinguish between 'not provided' timestamps and explicitly empty strings using a sentinel value. This preserves empty timestamps during round-trip (to_dict -> from_dict) while still auto-filling timestamps for new Todo instances.",
+  "changes": {
+    "test_files": [
+      "tests/test_issue_7317_empty_timestamp.py"
+    ],
+    "source_files": [
+      "src/flywheel/todo.py"
+    ]
+  },
+  "tests_run": [
+    "tests/test_issue_7317_empty_timestamp.py - 5 passed",
+    "tests/test_minimal_framework.py - 10 passed",
+    "tests/test_issue_2087_todo_repr.py - 8 passed"
+  ],
+  "lint_checks": "ruff check passed",
+  "risks_limitations": [
+    "The sentinel value approach uses object identity check (is _UNSET) which works correctly with slots=True",
+    "from_dict now preserves empty strings explicitly, which may affect any code expecting auto-fill behavior"
+  ],
+  "implementation_details": {
+    "approach": "Use a sentinel value (_UNSET) as the default for created_at/updated_at fields instead of empty string",
+    "key_change": "__post_init__ now checks 'is _UNSET' instead of 'if not self.created_at'",
+    "from_dict_change": "from_dict now preserves explicit empty strings and only uses sentinel for missing keys"
+  }
+}
