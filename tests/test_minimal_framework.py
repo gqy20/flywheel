@@ -158,3 +158,86 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+class TestCliEditCommand:
+    """Tests for CLI edit/rename command - Issue #7305."""
+
+    def test_cli_edit_existing_todo(self, tmp_path, capsys) -> None:
+        """CLI edit command should rename existing todo text."""
+        db = str(tmp_path / "cli.json")
+        parser = build_parser()
+
+        # Add a todo first
+        args = parser.parse_args(["--db", db, "add", "original text"])
+        assert run_command(args) == 0
+
+        # Edit the todo
+        args = parser.parse_args(["--db", db, "edit", "1", "new text"])
+        assert run_command(args) == 0
+        captured = capsys.readouterr()
+        assert "Renamed #1" in captured.out
+
+        # Verify the change persisted
+        args = parser.parse_args(["--db", db, "list"])
+        assert run_command(args) == 0
+        captured = capsys.readouterr()
+        assert "new text" in captured.out
+        assert "original text" not in captured.out
+
+    def test_cli_edit_nonexistent_todo_returns_error(self, tmp_path, capsys) -> None:
+        """CLI edit command should return error for nonexistent id."""
+        db = str(tmp_path / "cli.json")
+        parser = build_parser()
+
+        args = parser.parse_args(["--db", db, "edit", "99", "new text"])
+        assert run_command(args) == 1
+        captured = capsys.readouterr()
+        assert "not found" in captured.out or "not found" in captured.err
+
+    def test_cli_edit_empty_text_returns_error(self, tmp_path, capsys) -> None:
+        """CLI edit command should reject empty text."""
+        db = str(tmp_path / "cli.json")
+        parser = build_parser()
+
+        # Add a todo first
+        args = parser.parse_args(["--db", db, "add", "original text"])
+        assert run_command(args) == 0
+
+        # Attempt to edit with empty text
+        args = parser.parse_args(["--db", db, "edit", "1", ""])
+        assert run_command(args) == 1
+        captured = capsys.readouterr()
+        assert "empty" in captured.out.lower() or "empty" in captured.err.lower()
+
+        # Verify original text unchanged
+        args = parser.parse_args(["--db", db, "list"])
+        assert run_command(args) == 0
+        captured = capsys.readouterr()
+        assert "original text" in captured.out
+
+    def test_cli_edit_updates_timestamp(self, tmp_path) -> None:
+        """CLI edit command should update updated_at timestamp."""
+        db_path = str(tmp_path / "cli.json")
+        parser = build_parser()
+
+        # Add a todo first
+        args = parser.parse_args(["--db", db_path, "add", "original text"])
+        assert run_command(args) == 0
+
+        # Get original timestamp
+        app = TodoApp(db_path)
+        original_todo = app.list()[0]
+        original_updated_at = original_todo.updated_at
+
+        # Small delay to ensure timestamp difference
+        import time
+        time.sleep(0.01)
+
+        # Edit the todo
+        args = parser.parse_args(["--db", db_path, "edit", "1", "new text"])
+        assert run_command(args) == 0
+
+        # Verify timestamp updated
+        updated_todo = app.list()[0]
+        assert updated_todo.updated_at >= original_updated_at
