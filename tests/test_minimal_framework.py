@@ -188,9 +188,7 @@ class TestCliEditCommand:
         assert "updated text" in captured.out
         assert "original text" not in captured.out
 
-    def test_cli_edit_nonexistent_id_returns_error(
-        self, tmp_path, capsys
-    ) -> None:
+    def test_cli_edit_nonexistent_id_returns_error(self, tmp_path, capsys) -> None:
         """CLI edit command should return error for non-existent ID."""
         db = str(tmp_path / "cli.json")
         parser = build_parser()
