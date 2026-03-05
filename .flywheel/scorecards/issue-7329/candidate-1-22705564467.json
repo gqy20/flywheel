@@ -1,17 +1,23 @@
 {
-  "issue_number": 7329,
-  "candidate_number": 1,
+  "issue": 7329,
+  "candidate": 1,
   "run_id": "22705564467",
-  "branch_name": "claude/issue-7329-candidate-1-22705564467",
-  "pr_url": "https://github.com/gqy20/flywheel/pull/7334",
+  "branch": "claude/issue-7329-candidate-1-22705564467",
   "pr_number": 7334,
-  "summary": "Add validation in Todo.from_dict to ensure created_at <= updated_at invariant is maintained when deserializing from dictionaries.",
-  "files_changed": [
-    "src/flywheel/todo.py",
-    "tests/test_issue_2000_json_validation.py"
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7334",
+  "generated_at": "2026-03-05T07:47:31.466757+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_added": 3,
-  "tests_passed": 115,
-  "linter_status": "passed",
-  "approach": "Add validation in from_dict method to compare ISO 8601 timestamps and raise ValueError if updated_at < created_at"
+  "stage_response_sizes": {
+    "triage": 3119,
+    "plan": 3611,
+    "implement": 2400,
+    "verify": 1982,
+    "finalize": 1667
+  }
 }
