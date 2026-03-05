@@ -7,13 +7,12 @@ These tests verify that:
 
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from flywheel.storage import TodoStorage, _MAX_JSON_SIZE_BYTES
+from flywheel.storage import _MAX_JSON_SIZE_BYTES, TodoStorage
 
 
 def test_load_performs_single_read_operation(tmp_path) -> None:
@@ -95,7 +94,6 @@ def test_load_size_check_uses_buffer_not_stat(tmp_path) -> None:
     )
 
     # Verify that read_text happens after all stat calls (no stat between read operations)
-    last_stat_idx = len(operations) - 1 - operations[::-1].index("stat") if "stat" in operations else -1
     read_idx = operations.index("read_text")
 
     # There should be no stat call AFTER the read_text
