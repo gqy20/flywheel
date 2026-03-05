@@ -1,0 +1,35 @@
+{
+  "issue_number": 7331,
+  "candidate": 1,
+  "run_id": "22705564467",
+  "branch": "claude/issue-7331-candidate-1-22705564467",
+  "created_at": "2026-03-05T07:01:00Z",
+  "status": "implemented",
+  "fix_summary": {
+    "problem": "Missing rename method in TodoApp class despite Todo.rename() existing",
+    "solution": "Added TodoApp.rename(todo_id: int, text: str) -> Todo method that follows the same pattern as mark_done/mark_undone",
+    "files_changed": [
+      "src/flywheel/cli.py",
+      "tests/test_minimal_framework.py"
+    ]
+  },
+  "tests_added": [
+    "test_app_rename_todo",
+    "test_app_rename_raises_for_nonexistent_id",
+    "test_app_rename_rejects_empty_text"
+  ],
+  "acceptance_criteria": [
+    {"criterion": "TodoApp.rename(todo_id: int, text: str) -> Todo method exists", "met": true},
+    {"criterion": "Method raises ValueError for non-existent ID", "met": true},
+    {"criterion": "Method validates text is not empty via Todo.rename()", "met": true},
+    {"criterion": "Method saves updated todos to storage", "met": true}
+  ],
+  "test_plan": [
+    {"step": "Create TodoApp, add todo, call rename(), verify text updated", "verified": true},
+    {"step": "Call rename() with non-existent ID, verify ValueError", "verified": true},
+    {"step": "Call rename() with empty text, verify ValueError", "verified": true}
+  ],
+  "risks_and_limitations": [
+    "No CLI command exposed for rename - only the TodoApp method was added as per the issue requirements"
+  ]
+}
