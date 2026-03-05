@@ -28,10 +28,10 @@ def test_todo_repr_with_quotes_at_truncation_boundary() -> None:
     # The repr output should be valid Python syntax
     try:
         ast.parse(result, mode="eval")
-    except SyntaxError:
+    except SyntaxError as e:
         raise AssertionError(
             f"repr output is not valid Python syntax: {result}"
-        )
+        ) from e
 
 
 def test_todo_repr_with_mixed_quotes_truncated() -> None:
