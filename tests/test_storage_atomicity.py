@@ -55,6 +55,7 @@ def test_write_failure_preserves_original_file(tmp_path) -> None:
         raise OSError("Simulated write failure")
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with (
@@ -93,6 +94,7 @@ def test_temp_file_created_in_same_directory(tmp_path) -> None:
         return fd, path
 
     import tempfile
+
     original = tempfile.mkstemp
 
     with patch.object(tempfile, "mkstemp", tracking_mkstemp):
@@ -115,7 +117,7 @@ def test_atomic_write_produces_valid_json(tmp_path) -> None:
 
     todos = [
         Todo(id=1, text="task with unicode: 你好"),
-        Todo(id=2, text="task with quotes: \"test\"", done=True),
+        Todo(id=2, text='task with quotes: "test"', done=True),
         Todo(id=3, text="task with \\n newline"),
     ]
 
@@ -149,6 +151,37 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert len(loaded) == 2
     assert loaded[0].text == "second"
     assert loaded[1].text == "added"
+
+
+def test_save_preserves_exception_context(tmp_path) -> None:
+    """Regression test for issue #7303: OSError exception context preservation.
+
+    When save() catches and re-raises OSError, it should preserve the original
+    exception context using 'raise ... from e' pattern. This ensures the
+    traceback shows the original failure location (e.g., mkstemp or os.replace).
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+    todos = [Todo(id=1, text="test")]
+
+    # Simulate os.replace failure to trigger the except OSError block
+    def failing_replace(*args, **kwargs):
+        raise OSError("Simulated rename failure")
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(OSError, match="Simulated rename failure") as exc_info,
+    ):
+        storage.save(todos)
+
+    # Verify the original exception is preserved as __cause__
+    assert exc_info.value.__cause__ is not None, (
+        "OSError should preserve original exception context via __cause__"
+    )
+    assert isinstance(exc_info.value.__cause__, OSError), "__cause__ should be the original OSError"
+    assert "Simulated rename failure" in str(exc_info.value.__cause__), (
+        "__cause__ should contain the original error message"
+    )
 
 
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
@@ -218,9 +251,7 @@ def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     try:
         final_todos = storage.load()
     except (json.JSONDecodeError, ValueError) as e:
-        raise AssertionError(
-            f"File was corrupted by concurrent writes. Got error: {e}"
-        ) from e
+        raise AssertionError(f"File was corrupted by concurrent writes. Got error: {e}") from e
 
     # Verify we got some valid todo data
     assert isinstance(final_todos, list), "Final data should be a list"
