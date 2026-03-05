@@ -1,0 +1,12 @@
+{
+  "issue": 7303,
+  "candidate": 1,
+  "run_id": "22697028142",
+  "score": "pass",
+  "checks": {
+    "tests_added": true,
+    "tests_pass": true,
+    "ruff_clean": true,
+    "minimal_scope": true
+  }
+}
