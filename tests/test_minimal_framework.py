@@ -158,3 +158,60 @@ def test_todo_rename_accepts_valid_text() -> None:
     # Whitespace should be stripped
     todo.rename("  padded  ")
     assert todo.text == "padded"
+
+
+def test_cli_edit_command_updates_todo_text(tmp_path, capsys) -> None:
+    """Issue #7305: CLI edit command should rename existing todo text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Now edit it
+    args = parser.parse_args(["--db", db, "edit", "1", "updated task"])
+    assert run_command(args) == 0
+    captured = capsys.readouterr()
+    assert "updated task" in captured.out
+    assert "#1" in captured.out
+
+    # Verify the change persisted
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "updated task" in out
+    assert "original task" not in out
+
+
+def test_cli_edit_command_returns_error_for_missing_todo(tmp_path, capsys) -> None:
+    """Issue #7305: CLI edit command should error for non-existent todo."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    args = parser.parse_args(["--db", db, "edit", "99", "new text"])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "not found" in captured.out or "not found" in captured.err
+
+
+def test_cli_edit_command_returns_error_for_empty_text(tmp_path, capsys) -> None:
+    """Issue #7305: CLI edit command should error for empty text."""
+    db = str(tmp_path / "cli.json")
+    parser = build_parser()
+
+    # First add a todo
+    args = parser.parse_args(["--db", db, "add", "original task"])
+    assert run_command(args) == 0
+
+    # Try to edit with empty text
+    args = parser.parse_args(["--db", db, "edit", "1", ""])
+    assert run_command(args) == 1
+    captured = capsys.readouterr()
+    assert "empty" in captured.out.lower() or "empty" in captured.err.lower()
+
+    # Verify original data unchanged
+    args = parser.parse_args(["--db", db, "list"])
+    assert run_command(args) == 0
+    out = capsys.readouterr().out
+    assert "original task" in out
