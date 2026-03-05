@@ -1,25 +1,23 @@
 {
-  "issue_number": 7317,
-  "issue_title": "[Bug] Todo.__post_init__ allows manually setting created_at/updated_at to empty string",
-  "candidate_number": 2,
+  "issue": 7317,
+  "candidate": 2,
   "run_id": "22700764847",
-  "branch_name": "claude/issue-7317-candidate-2-22700764847",
-  "created_at": "2026-03-05T03:49:00Z",
-  "status": "implemented",
-  "changes": {
-    "source_files": ["src/flywheel/todo.py"],
-    "test_files": ["tests/test_issue_7317_empty_timestamp.py"],
-    "summary": "Fix Todo.__post_init__ to properly handle empty string timestamps by checking for None instead of falsy values, and update from_dict to preserve explicit empty strings"
-  },
-  "tests_run": [
-    "tests/test_issue_7317_empty_timestamp.py::test_from_dict_preserves_empty_created_at",
-    "tests/test_issue_7317_empty_timestamp.py::test_from_dict_preserves_empty_updated_at",
-    "tests/test_issue_7317_empty_timestamp.py::test_new_todo_auto_fills_timestamps",
-    "tests/test_issue_7317_empty_timestamp.py::test_roundtrip_preserves_timestamps",
-    "tests/test_issue_7317_empty_timestamp.py::test_roundtrip_preserves_empty_timestamps",
-    "tests/test_issue_7317_empty_timestamp.py::test_from_dict_with_none_timestamp_gets_empty_string"
+  "branch": "claude/issue-7317-candidate-2-22700764847",
+  "pr_number": 7328,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7328",
+  "generated_at": "2026-03-05T04:14:03.861167+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "tests_passed": 6,
-  "tests_failed": 0,
-  "lint_status": "passed"
+  "stage_response_sizes": {
+    "triage": 3884,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2890,
+    "finalize": 685
+  }
 }
