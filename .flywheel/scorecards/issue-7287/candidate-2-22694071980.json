@@ -1,30 +1,23 @@
 {
-  "issue_number": 7287,
-  "candidate_number": 2,
+  "issue": 7287,
+  "candidate": 2,
   "run_id": "22694071980",
   "branch": "claude/issue-7287-candidate-2-22694071980",
-  "created_at": "2026-03-04T23:54:00Z",
-  "status": "ready",
-  "changes": {
-    "files_modified": [
-      "src/flywheel/todo.py"
-    ],
-    "files_added": [
-      "tests/test_issue_7287_todo_constructor_validation.py"
-    ],
-    "lines_changed": 8
-  },
-  "tests": {
-    "new_tests": 7,
-    "total_passed": 119,
-    "command": "uv run pytest tests/ -v"
-  },
-  "validation": {
-    "ruff_check": "passed",
-    "acceptance_criteria_met": [
-      "Todo(id=1, text='  ') raises ValueError",
-      "Todo(id=1, text='  task  ') stores 'task' (stripped)",
-      "Existing tests continue to pass"
-    ]
+  "pr_number": 7295,
+  "pr_url": "https://github.com/gqy20/flywheel/pull/7295",
+  "generated_at": "2026-03-05T00:03:41.528099+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
+  ],
+  "stage_response_sizes": {
+    "triage": 2284,
+    "plan": 3768,
+    "implement": 2580,
+    "verify": 1815,
+    "finalize": 1525
   }
 }
