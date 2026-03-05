@@ -151,6 +151,32 @@ def test_concurrent_write_safety(tmp_path) -> None:
     assert loaded[1].text == "added"
 
 
+def test_save_preserves_exception_context(tmp_path) -> None:
+    """Regression test for issue #7303: Exception context should be preserved.
+
+    When save() catches OSError and re-raises, it should preserve the original
+    exception context using 'raise ... from e' so that debugging is easier.
+    """
+    db = tmp_path / "todo.json"
+    storage = TodoStorage(str(db))
+
+    # Simulate os.replace failure
+    def failing_replace(*args, **kwargs):
+        raise OSError("Simulated rename failure")
+
+    with (
+        patch("flywheel.storage.os.replace", failing_replace),
+        pytest.raises(OSError, match="Simulated rename failure") as exc_info,
+    ):
+        storage.save([Todo(id=1, text="test")])
+
+    # Verify exception context is preserved
+    assert exc_info.value.__cause__ is not None, (
+        "Exception context (__cause__) should be preserved for debugging"
+    )
+    assert isinstance(exc_info.value.__cause__, OSError)
+
+
 def test_concurrent_save_from_multiple_processes(tmp_path) -> None:
     """Regression test for issue #1925: Race condition in concurrent saves.
 
