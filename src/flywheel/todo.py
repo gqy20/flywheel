@@ -12,13 +12,18 @@ def _utc_now_iso() -> str:
 
 @dataclass(slots=True)
 class Todo:
-    """Simple todo item."""
+    """Simple todo item.
+
+    Timestamp behavior:
+    - created_at/updated_at default to None for new todos, which triggers auto-fill
+    - Explicit empty strings ("") are preserved to support persistence round-trips
+    """
 
     id: int
     text: str
     done: bool = False
-    created_at: str = ""
-    updated_at: str = ""
+    created_at: str | None = None
+    updated_at: str | None = None
 
     def __repr__(self) -> str:
         """Return a concise, debug-friendly representation of the Todo.
@@ -34,9 +39,11 @@ class Todo:
         return f"Todo(id={self.id}, text={display_text!r}, done={self.done})"
 
     def __post_init__(self) -> None:
-        if not self.created_at:
+        # Only auto-fill timestamps if they were not provided (None)
+        # Explicit empty strings are preserved for persistence round-trips
+        if self.created_at is None:
             self.created_at = _utc_now_iso()
-        if not self.updated_at:
+        if self.updated_at is None:
             self.updated_at = self.created_at
 
     def mark_done(self) -> None:
@@ -97,6 +104,6 @@ class Todo:
             id=todo_id,
             text=data["text"],
             done=done,
-            created_at=str(data.get("created_at") or ""),
-            updated_at=str(data.get("updated_at") or ""),
+            created_at=data.get("created_at") if "created_at" in data else None,
+            updated_at=data.get("updated_at") if "updated_at" in data else None,
         )
