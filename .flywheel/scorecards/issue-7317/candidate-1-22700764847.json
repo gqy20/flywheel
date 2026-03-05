@@ -1,53 +1,23 @@
 {
-  "issue_number": 7317,
-  "candidate_number": 1,
+  "issue": 7317,
+  "candidate": 1,
   "run_id": "22700764847",
   "branch": "claude/issue-7317-candidate-1-22700764847",
-  "status": "finalized",
+  "pr_number": 7323,
   "pr_url": "https://github.com/gqy20/flywheel/pull/7323",
-  "summary": "Fixed Todo.__post_init__ to distinguish between 'not provided' timestamps and explicitly empty strings using a sentinel value. This preserves empty timestamps during round-trip (to_dict -> from_dict) while still auto-filling timestamps for new Todo instances.",
-  "changes": {
-    "test_files": [
-      "tests/test_issue_7317_empty_timestamp.py"
-    ],
-    "source_files": [
-      "src/flywheel/todo.py"
-    ]
-  },
-  "tests_run": [
-    "tests/test_issue_7317_empty_timestamp.py - 5 passed",
-    "tests/test_minimal_framework.py - 10 passed",
-    "tests/test_issue_2087_todo_repr.py - 8 passed"
+  "generated_at": "2026-03-05T04:10:28.729042+00:00",
+  "stages_completed": [
+    "triage",
+    "plan",
+    "implement",
+    "verify",
+    "finalize"
   ],
-  "verification": {
-    "pytest_commands": [
-      "uv run pytest tests/test_issue_7317_empty_timestamp.py -v",
-      "uv run pytest tests/test_minimal_framework.py tests/test_issue_2087_todo_repr.py -v"
-    ],
-    "pytest_results": [
-      "5 tests passed in test_issue_7317_empty_timestamp.py",
-      "18 tests passed in test_minimal_framework.py + test_issue_2087_todo_repr.py"
-    ],
-    "ruff_commands": [
-      "uv run ruff check src/flywheel/todo.py tests/test_issue_7317_empty_timestamp.py"
-    ],
-    "ruff_results": [
-      "All checks passed!"
-    ],
-    "acceptance_criteria_verified": [
-      "Round-trip Todo → to_dict → from_dict preserves empty timestamps",
-      "New Todo without timestamps gets auto-filled timestamps",
-      "Todo.from_dict({'id': 1, 'text': 'a', 'created_at': ''}) has empty created_at"
-    ]
-  },
-  "lint_checks": "ruff check passed",
-  "risks_limitations": [
-    "The sentinel value approach uses object identity check (is _UNSET) which works correctly with slots=True",
-    "from_dict now preserves empty strings explicitly, which may affect any code expecting auto-fill behavior"
-  ],
-  "implementation_details": {
-    "approach": "Use a sentinel value (_UNSET) as the default for created_at/updated_at fields instead of empty string",
-    "key_change": "__post_init__ now checks 'is _UNSET' instead of 'if not self.created_at'",
-    "from_dict_change": "from_dict now preserves explicit empty strings and only uses sentinel for missing keys"
+  "stage_response_sizes": {
+    "triage": 2264,
+    "plan": 4000,
+    "implement": 4000,
+    "verify": 2891,
+    "finalize": 816
   }
 }
