@@ -1,0 +1,20 @@
+{
+  "issue": 7330,
+  "candidate": 3,
+  "run_id": "22705564467",
+  "status": "implemented",
+  "tests_passed": 7,
+  "lint_passed": true,
+  "files_changed": [
+    "src/flywheel/cli.py",
+    "tests/test_issue_7330_rename_cli_command.py"
+  ],
+  "implementation_summary": "Added 'rename' command to CLI that calls TodoApp.rename() method. The fix includes: (1) TodoApp.rename() method to handle the rename operation, (2) 'rename' subparser with 'id' and 'text' arguments, (3) Handler in run_command() that calls app.rename() and sanitizes output with _sanitize_text().",
+  "acceptance_criteria_met": [
+    "CLI has a 'rename <id> <text>' command that calls TodoApp.rename()",
+    "Running 'todo rename 1 new text' successfully updates todo text",
+    "Rename command sanitizes output with _sanitize_text()",
+    "Error handling for non-existent ID returns exit code 1"
+  ],
+  "timestamp": "2026-03-05T07:30:00Z"
+}
