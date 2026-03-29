@@ -119,3 +119,40 @@ def test_todo_from_dict_accepts_legacy_int_done() -> None:
 
     todo_false = Todo.from_dict({"id": 2, "text": "task2", "done": 0})
     assert todo_false.done is False
+
+
+# Tests for Issue #6912 - reject float IDs to prevent silent truncation
+def test_todo_from_dict_rejects_float_id_with_fraction() -> None:
+    """Todo.from_dict should reject float IDs like 1.5 to prevent silent truncation.
+
+    If we silently truncate 1.5 to 1, it could cause ID collisions with existing
+    todos that have id=1, leading to data corruption.
+    """
+    with pytest.raises(ValueError, match=r"'id'.*integer|float.*'id'|'id'.*float"):
+        Todo.from_dict({"id": 1.5, "text": "task"})
+
+
+def test_todo_from_dict_rejects_float_id_whole_number() -> None:
+    """Todo.from_dict should also reject floats like 1.0 (even if they equal an int).
+
+    This ensures consistent type checking - if it looks like a float, reject it.
+    The user should provide a proper integer.
+    """
+    with pytest.raises(ValueError, match=r"'id'.*integer|float.*'id'|'id'.*float"):
+        Todo.from_dict({"id": 1.0, "text": "task"})
+
+
+def test_todo_from_dict_accepts_valid_integer_id() -> None:
+    """Todo.from_dict should still accept valid integer IDs."""
+    todo = Todo.from_dict({"id": 42, "text": "task"})
+    assert todo.id == 42
+
+
+def test_todo_from_dict_accepts_string_numeric_id() -> None:
+    """Todo.from_dict should accept string representations of integers.
+
+    This documents the existing behavior where '42' is converted to 42.
+    This is kept for backwards compatibility with external systems.
+    """
+    todo = Todo.from_dict({"id": "42", "text": "task"})
+    assert todo.id == 42
