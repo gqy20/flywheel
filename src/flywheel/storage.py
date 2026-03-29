@@ -57,6 +57,19 @@ class TodoStorage:
         self.path = Path(path or ".todo.json")
 
     def load(self) -> list[Todo]:
+        # Security: Reject symlinks FIRST to prevent arbitrary file read attacks
+        # An attacker could create a symlink at the db path pointing to
+        # sensitive files like /etc/passwd, which would be exposed through load()
+        # IMPORTANT: Check is_symlink() before exists() because exists() follows
+        # symlinks - for broken symlinks, exists() returns False but is_symlink()
+        # returns True, so we must check symlink status first
+        if self.path.is_symlink():
+            raise ValueError(
+                f"Security error: '{self.path}' is a symlink. "
+                f"Symlinks are not allowed for database files to prevent "
+                f"arbitrary file read attacks."
+            )
+
         if not self.path.exists():
             return []
 
@@ -74,8 +87,7 @@ class TodoStorage:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as e:
             raise ValueError(
-                f"Invalid JSON in '{self.path}': {e.msg}. "
-                f"Check line {e.lineno}, column {e.colno}."
+                f"Invalid JSON in '{self.path}': {e.msg}. Check line {e.lineno}, column {e.colno}."
             ) from e
 
         if not isinstance(raw, list):
