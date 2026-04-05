@@ -23,31 +23,42 @@ def _ensure_parent_directory(file_path: Path) -> None:
     2. Creates parent directories if needed
     3. Provides clear error messages for permission issues
 
+    Security: Uses exist_ok=True with mkdir to prevent TOCTOU race conditions.
+    After mkdir, verifies the path is actually a directory to detect if a file
+    was created at the parent path during the race window.
+
     Raises:
         ValueError: If any parent path component exists but is a file
         OSError: If directory creation fails due to permissions
     """
     parent = file_path.parent
 
-    # Check all parent components (excluding the file itself) for file-as-directory confusion
-    # This handles cases like: /path/to/file.json/subdir/db.json
-    # where 'file.json' exists as a file but we need it to be a directory
-    for part in list(file_path.parents):  # Only check parents, not file_path itself
+    # Create parent directory with exist_ok=True to handle TOCTOU race conditions
+    # This prevents issues if another process creates the directory between
+    # our check and mkdir call
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except FileExistsError as e:
+        # FileExistsError with exist_ok=True means a file (not directory) exists at path
+        raise ValueError(
+            f"Path error: '{parent}' exists as a file, not a directory. "
+            f"Cannot use '{file_path}' as database path."
+        ) from e
+    except OSError as e:
+        raise OSError(
+            f"Failed to create directory '{parent}': {e}. "
+            f"Check permissions or specify a different location with --db=path/to/db.json"
+        ) from e
+
+    # Verify all parent components are directories (not files) after creation
+    # This catches the case where a file was created at a parent path during
+    # the race window between our initial check and mkdir
+    for part in list(file_path.parents):
         if part.exists() and not part.is_dir():
             raise ValueError(
                 f"Path error: '{part}' exists as a file, not a directory. "
                 f"Cannot use '{file_path}' as database path."
             )
-
-    # Create parent directory if it doesn't exist
-    if not parent.exists():
-        try:
-            parent.mkdir(parents=True, exist_ok=False)  # exist_ok=False since we validated above
-        except OSError as e:
-            raise OSError(
-                f"Failed to create directory '{parent}': {e}. "
-                f"Check permissions or specify a different location with --db=path/to/db.json"
-            ) from e
 
 
 class TodoStorage:
